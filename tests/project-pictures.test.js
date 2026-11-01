@@ -27,7 +27,7 @@ const picture = (n, extra = {}) => ({ id: `p${n}`, kind: 'image', title: `pic${n
 
 test('a picture is one piece made from the file; a big one, a vector drawing and a file with no kept original are not', () => {
   assert.deepEqual(pictureOf(picture(1)), { tooBig: false });
-  assert.equal(PROJECT_MEDIA_EMBED_BYTES_MAX, 20 * MB, 'a picture is sent as a small copy: only what a project cannot hold is too big');
+  assert.equal(PROJECT_MEDIA_EMBED_BYTES_MAX, 30 * MB, 'a picture is sent as a small copy: only what a project cannot hold is too big');
   assert.deepEqual(pictureOf(picture(1, { size: PROJECT_MEDIA_EMBED_BYTES_MAX + 1 })), { tooBig: true });
   assert.equal(pictureOf(picture(1, { mimeType: 'image/svg+xml' })), null);
   assert.equal(pictureOf({ id: 's', kind: 'text', text: 'x' }), null);

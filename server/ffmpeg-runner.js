@@ -25,7 +25,8 @@ function spawnFfmpeg(binary, args, { signal, runMs }) {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let log = '';
-    child.stderr.on('data', (chunk) => { if (log.length < FFMPEG_LIMITS.logChars) log += chunk.toString('utf8'); });
+    // The end of the log is kept (the progress lines of a long file say how far it got).
+    child.stderr.on('data', (chunk) => { log = (log + chunk.toString('utf8')).slice(-FFMPEG_LIMITS.logChars); });
     const stop = () => child.kill('SIGKILL');
     const timer = setTimeout(stop, runMs);
     signal?.addEventListener('abort', stop, { once: true });
@@ -52,7 +53,7 @@ export function createServerMediaToolbox({ binary = process.env.FFMPEG_PATH || '
           const file = output ? join(folder, `${(counter += 1)}-${output}`) : null;
           const filled = args.map((part) => (part === IN ? input : part === OUT ? (file || '-') : part));
           // A command that has no output file (the probe) is given a null one: ffmpeg then only reads the file and says what it holds (and ends with an error, which is expected).
-          if (!file) filled.push('-f', 'null', '-t', '0', '-');
+          if (!file && filled.at(-1) !== '-') filled.push('-f', 'null', '-t', '0', '-');
           await acquire();
           try {
             const { code, log } = await spawnFfmpeg(binary, filled, { signal, runMs });

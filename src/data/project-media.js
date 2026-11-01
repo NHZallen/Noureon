@@ -126,6 +126,8 @@ const quiet = ['-hide_banner', '-nostdin'];
 /** What the ffmpeg commands are made of; `{in}` and `{out}` are the files, set by the runner. */
 export const ffmpegArgs = Object.freeze({
   probe: (demuxers) => [...quiet, '-f', demuxers, '-i', IN],
+  // Reads the whole file to find how long it is (a recording made by a browser has no length in its header). Ends with `-`, so the runner adds nothing after it.
+  probeFull: (demuxers) => [...quiet, '-f', demuxers, '-i', IN, '-f', 'null', '-'],
   videoWindow: (demuxers, start, length) => [...quiet, '-loglevel', 'error', '-ss', String(start), '-t', String(length), '-f', demuxers, '-i', IN, '-an', '-vf', 'fps=2,scale=-2:min(480\\,ih)', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', OUT],
   audioWindow: (demuxers, start, length) => [...quiet, '-loglevel', 'error', '-ss', String(start), '-t', String(length), '-f', demuxers, '-i', IN, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', '-f', 'wav', '-y', OUT],
   frame: (demuxers, at) => [...quiet, '-loglevel', 'error', '-ss', String(at), '-f', demuxers, '-i', IN, '-frames:v', '1', '-vf', `scale=min(${FRAME_WIDTH}\\,iw):-2`, '-q:v', '4', '-f', 'image2', '-y', OUT]
@@ -147,6 +149,13 @@ export function parseProbe(log) {
   };
 }
 
+/** The length ffmpeg got to when it read a whole file (its last `time=00:01:05.20`), in seconds; 0 when it says none. */
+export function parseDecodedTime(log) {
+  const all = [...String(log ?? '').matchAll(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g)];
+  const last = all.at(-1);
+  return last ? Number(last[1]) * 3600 + Number(last[2]) * 60 + Number(last[3]) : 0;
+}
+
 /**
  * `open({ data (Uint8Array), name, extension })` is given by the ffmpeg of the place (server/ffmpeg-runner.js, runtime/projects/ffmpeg-wasm.js) and resolves a session
  * `{ run(args, { output }) -> { ok, log, data (Uint8Array | null) }, close() }` in which `{in}` is the file and `{out}` the output. The toolbox is what the project files ask of it.
@@ -166,7 +175,13 @@ export function createMediaToolbox({ open }) {
       return {
         async probe() {
           const made = await session.run(ffmpegArgs.probe(kind.demuxers), { output: null });
-          return parseProbe(made?.log);
+          const found = parseProbe(made?.log);
+          // No length in the header (a recording a browser made): the file is read through once to measure it.
+          if (!(found.duration > 0) && (found.hasVideo || found.hasAudio)) {
+            const whole = await session.run(ffmpegArgs.probeFull(kind.demuxers), { output: null });
+            return { ...found, duration: parseDecodedTime(whole?.log) };
+          }
+          return found;
         },
         videoWindow: (start) => cut(ffmpegArgs.videoWindow(kind.demuxers, start, VIDEO_WINDOW.length), 'video/mp4', 'out.mp4'),
         audioWindow: (start) => cut(ffmpegArgs.audioWindow(kind.demuxers, start, AUDIO_WINDOW.length), 'audio/wav', 'out.wav'),

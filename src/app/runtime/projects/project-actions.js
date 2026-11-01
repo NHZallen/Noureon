@@ -118,7 +118,7 @@ export function createProjectActions({
 
   /**
    * Adds a source ({ kind, title, mime, size, text, file }): `file` is the description of a kept original (a picture, a scan). Refused with code 'full' (20 already), 'too_much' (the texts
-   * together would pass 400 000 characters), 'too_big' / 'files_too_much' (an original over 20 MB, or the originals of the project over 100 MB), 'empty' or 'gone'.
+   * together would pass 400 000 characters), 'too_big' / 'files_too_much' (an original over 30 MB, or the originals of the project over 200 MB), 'empty' or 'gone'.
    */
   async function addSource(id, input = {}) {
     const folder = folderOf(id);

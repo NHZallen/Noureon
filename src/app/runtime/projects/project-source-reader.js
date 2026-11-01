@@ -2,10 +2,10 @@
 // (project-source-files.js) and given to the model like an attachment of a chat, so a PDF keeps its pictures and a Word file its layout. Pure: no window, no document.
 
 import { officeKindOf } from '../../ui/files/office-text/office-text.js';
-import { PROJECT_SOURCE_CHARS_MAX } from './project-source-model.js';
+import { PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 
 /** The biggest file that is read (bytes): the text is cut at 100 000 characters anyway, and an original that is kept is at most this big too. */
-export const PROJECT_SOURCE_FILE_MAX_BYTES = 20 * 1024 * 1024;
+export const PROJECT_SOURCE_FILE_MAX_BYTES = PROJECT_SOURCE_FILE_BYTES_MAX;
 
 const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'csv', 'tsv', 'json', 'jsonl', 'xml', 'html', 'htm', 'yaml', 'yml', 'toml', 'ini', 'log', 'rtf', 'tex', 'srt', 'vtt',
   'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sh', 'sql', 'css', 'scss', 'vue', 'svelte', 'r', 'lua']);

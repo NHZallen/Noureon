@@ -40,3 +40,56 @@ test('a camera that cannot be used closes the dialog and says so; one that works
   dialog.close();
   assert.equal(stopped, 1, 'the camera is let go');
 });
+
+test('a video is recorded with the sound when the microphone is allowed, kept as a file when stopped, and ended before it passes what a source may be', async () => {
+  const stops = { video: 0, audio: 0 };
+  const videoStream = { getTracks: () => [{ stop: () => { stops.video += 1; } }], getVideoTracks: () => [{ kind: 'video' }] };
+  const audioStream = { getTracks: () => [{ stop: () => { stops.audio += 1; } }], getAudioTracks: () => [{ kind: 'audio' }] };
+  const asked = [];
+  const win = page({ camera: { getUserMedia: async (options) => { asked.push(options); return options.audio ? audioStream : videoStream; } }, pointer: true });
+  Object.defineProperty(win.HTMLVideoElement.prototype, 'srcObject', { value: null, writable: true, configurable: true });
+  const made = [];
+  win.MediaStream = class { constructor(tracks) { this.tracks = tracks; } };
+  win.MediaRecorder = class {
+    static isTypeSupported(type) { return type === 'video/webm'; }
+    constructor(source, options) { this.source = source; this.options = options; this.state = 'inactive'; made.push(this); }
+    start() { this.state = 'recording'; }
+    stop() { this.state = 'inactive'; this.onstop?.(); }
+    push(size) { this.ondataavailable?.({ data: new win.Blob([new Uint8Array(size)]) }); }
+  };
+  const captured = [];
+  openCameraDialog({ document: win.document, root: win.document.getElementById('root'), text, onCapture: (file) => captured.push(file) });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const [shoot, record] = win.document.querySelectorAll('.pj-sheet-foot .pj-button');
+  assert.equal(record.textContent, 'pjCameraRecord');
+  assert.equal(record.disabled, false);
+  assert.deepEqual(asked, [{ video: { facingMode: 'user' }, audio: false }], 'no microphone before a recording is asked for');
+  record.click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(asked.at(-1), { audio: true });
+  assert.equal(made[0].options.mimeType, 'video/webm');
+  assert.deepEqual(made[0].source.tracks.map((track) => track.kind), ['video', 'audio']);
+  assert.equal(shoot.disabled, true, 'no photo while recording');
+  assert.match(record.textContent, /^pjCameraStop 0:00$/);
+  made[0].push(1000);
+  record.click();
+  assert.equal(captured.length, 1);
+  assert.match(captured[0].name, /^video-\d{14}\.webm$/);
+  assert.equal(captured[0].type, 'video/webm');
+  assert.equal(stops.audio, 1, 'the microphone is let go');
+  assert.equal(win.document.querySelector('.pj-backdrop'), null, 'the dialog closes');
+  // Without the microphone the video is silent; a recording that reaches the size of a source ends by itself.
+  const quiet = page({ camera: { getUserMedia: async (options) => { if (options.audio) throw new Error('denied'); return videoStream; } }, pointer: true });
+  Object.defineProperty(quiet.HTMLVideoElement.prototype, 'srcObject', { value: null, writable: true, configurable: true });
+  const recorders = [];
+  quiet.MediaStream = win.MediaStream;
+  quiet.MediaRecorder = class extends win.MediaRecorder { constructor(...args) { super(...args); recorders.push(this); } };
+  const files = [];
+  openCameraDialog({ document: quiet.document, root: quiet.document.getElementById('root'), text, onCapture: (file) => files.push(file) });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  quiet.document.querySelectorAll('.pj-sheet-foot .pj-button')[1].click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(recorders[0].source.tracks.map((track) => track.kind), ['video']);
+  recorders[0].push(31 * 1024 * 1024);
+  assert.equal(files.length, 1, 'ended by itself at the size a source may be');
+});

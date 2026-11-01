@@ -6,8 +6,8 @@ export const PROJECT_SOURCES_MAX = 20;
 export const PROJECT_SOURCE_CHARS_MAX = 100_000;
 export const PROJECT_SOURCES_CHARS_MAX = 400_000;
 export const PROJECT_SOURCE_TITLE_MAX = 120;
-export const PROJECT_SOURCE_FILE_BYTES_MAX = 20 * 1024 * 1024;
-export const PROJECT_SOURCE_FILES_BYTES_MAX = 100 * 1024 * 1024;
+export const PROJECT_SOURCE_FILE_BYTES_MAX = 30 * 1024 * 1024;
+export const PROJECT_SOURCE_FILES_BYTES_MAX = 200 * 1024 * 1024;
 
 const KINDS = new Set(['text', 'file', 'image']);
 

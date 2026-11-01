@@ -4,11 +4,13 @@
 // token lives in this page for an hour and is used for nothing but taking the picked files; it is not the login of the Google connector, which stays on the server. `config` has
 // { clientId, apiKey, appId } (none: no picker). Everything the browser gives (the document, the window, fetch) comes in through `deps`.
 
+import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
+
 const API_SCRIPT = 'https://apis.google.com/js/api.js';
 const GSI_SCRIPT = 'https://accounts.google.com/gsi/client';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILES = 'https://www.googleapis.com/drive/v3/files';
-export const GOOGLE_FILE_MAX_BYTES = 20 * 1024 * 1024;
+export const GOOGLE_FILE_MAX_BYTES = PROJECT_SOURCE_FILE_BYTES_MAX;
 const EXPORTABLE = new Set(['application/vnd.google-apps.document', 'application/vnd.google-apps.presentation', 'application/vnd.google-apps.spreadsheet']);
 // Google's own kinds are taken as a PDF (its pictures and layout stay); the others of Google's (a form, a map...) cannot be taken as a file.
 const isGoogleOwn = (mimeType) => String(mimeType || '').startsWith('application/vnd.google-apps.');

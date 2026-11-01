@@ -412,7 +412,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
 
     t.$('.pj-source-add').click();
     assert.equal(t.$('.pj-action-title').textContent, 'Add a source');
-    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Take a photo', 'Add photos or videos', 'Add a file', 'Add text']);
+    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Take a photo', 'Record a video', 'Add photos or videos', 'Add a file', 'Add text']);
     t.byText('.pj-action-item', 'Add text').click();
     assert.equal(t.$('.pj-action-sheet'), null, 'a choice closes the list');
     assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
@@ -431,7 +431,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.deepEqual(reads, ['report.txt', 'photo.png']);
     assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['My notes', 'report.txt']);
     assert.match(t.$$('.pj-source .pj-row-meta')[1].textContent, /^TXT · 2 KB$/, 'the kind of a file is its extension');
-    assert.match(t.state.notified.at(-1)[0], /"photo.png" is over 20 MB/);
+    assert.match(t.state.notified.at(-1)[0], /"photo.png" is over 30 MB/);
     assert.equal(t.state.notified.at(-1)[1], 'error');
 
     const photos = t.$$('.pj-file-input').find((node) => node.accept === 'image/*,video/*' && !node.getAttribute('capture'));
@@ -461,7 +461,7 @@ test('the Google Drive choice: only when the page has the picker; it is warmed w
     t.open({ id: 'f2' }, { sourcesEnabled: true });
     t.byText('.pj-tab', 'Sources').click();
     t.$('.pj-source-add').click();
-    assert.equal(t.$$('.pj-action-item').length, 4, 'no Drive without the picker');
+    assert.equal(t.$$('.pj-action-item').length, 5, 'no Drive without the picker');
     await t.finish();
 
     const log = { warmed: 0, picks: 0 };
@@ -484,7 +484,7 @@ test('the Google Drive choice: only when the page has the picker; it is warmed w
     await d.tick();
     assert.deepEqual(d.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => [source.title, source.kind, source.text, source.file.hash]), [['Plan.pdf', 'file', '', 'hash-Plan.pdf'], ['photo.png', 'image', '', 'hash-photo.png']]);
     const errors = d.state.notified.filter((entry) => entry[1] === 'error').map((entry) => entry[0]);
-    assert.ok(errors.some((message) => /"big.zip" is over 20 MB/.test(message)));
+    assert.ok(errors.some((message) => /"big.zip" is over 30 MB/.test(message)));
     assert.ok(errors.some((message) => /"Survey" could not be read/.test(message)));
     assert.equal(d.$$('.pj-source').length, 2, 'the list shows them');
 
@@ -796,7 +796,7 @@ test('a source says where its vectors are (only when they are on), and the line 
   const folders = [{ id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], sources: [
     { id: 'a', kind: 'text', title: 'Note', mime: '', size: 5, text: 'hello', addedAt: '' },
     { id: 'b', kind: 'image', title: 'small.png', mime: 'image/png', size: 100, text: '', file: { hash: hash('b'), name: 'small.png', mimeType: 'image/png', size: 100 }, addedAt: '' },
-    { id: 'c', kind: 'image', title: 'huge.png', mime: 'image/png', size: 21 * 1024 * 1024, text: '', file: { hash: hash('c'), name: 'huge.png', mimeType: 'image/png', size: 21 * 1024 * 1024 }, addedAt: '' }
+    { id: 'c', kind: 'image', title: 'huge.png', mime: 'image/png', size: 31 * 1024 * 1024, text: '', file: { hash: hash('c'), name: 'huge.png', mimeType: 'image/png', size: 31 * 1024 * 1024 }, addedAt: '' }
   ] }];
   const t = setup({ folders, conversations: [], wide: true });
   const states = { a: 'off', b: 'off', c: 'off' };

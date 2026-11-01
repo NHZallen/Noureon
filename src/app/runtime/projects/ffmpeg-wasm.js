@@ -19,7 +19,7 @@ async function engine() {
   if (instance) return instance;
   loading ||= (async () => {
     const ffmpeg = new FFmpeg();
-    ffmpeg.on('log', ({ message }) => { if (log.length < LOG_CHARS) log += `${message}\n`; });
+    ffmpeg.on('log', ({ message }) => { log = `${log}${message}\n`.slice(-LOG_CHARS); });
     await ffmpeg.load({ coreURL, wasmURL });
     instance = ffmpeg;
     return ffmpeg;
@@ -45,7 +45,7 @@ export const mediaToolbox = createMediaToolbox({
         log = '';
         const file = output ? `${input}-${(counter += 1)}-${output}` : null;
         const filled = args.map((part) => (part === IN ? input : part === OUT ? file : part));
-        if (!file) filled.push('-f', 'null', '-t', '0', '-');
+        if (!file && filled.at(-1) !== '-') filled.push('-f', 'null', '-t', '0', '-');
         let code = 1;
         const began = Date.now();
         let broken = false;

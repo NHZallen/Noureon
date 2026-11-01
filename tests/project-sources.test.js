@@ -77,7 +77,7 @@ test('a text file becomes text; any other file is kept as it is; empty and too b
   const long = await readSourceFile(file('long.txt', 'text/plain', 'x'.repeat(PROJECT_SOURCE_CHARS_MAX + 5)));
   assert.equal(long.text.length, PROJECT_SOURCE_CHARS_MAX);
   assert.equal(long.truncated, true);
-  assert.deepEqual(await readSourceFile({ name: 'big.pdf', type: 'application/pdf', size: 30 * 1024 * 1024 }), { ok: false, code: 'too_big' });
+  assert.deepEqual(await readSourceFile({ name: 'big.pdf', type: 'application/pdf', size: 31 * 1024 * 1024 }), { ok: false, code: 'too_big' });
   assert.deepEqual(await readSourceFile(file('empty.txt', 'text/plain', '  ')), { ok: false, code: 'empty' });
   assert.deepEqual(await readSourceFile(file('empty.pdf', 'application/pdf', new Uint8Array(0))), { ok: false, code: 'empty' });
 });
@@ -132,18 +132,18 @@ test('the originals are kept by their hash, here and in the cloud, and found aga
   assert.equal((await offline.save(file('b.png', 'image/png', new Uint8Array([9])))).asset, undefined, 'kept here only when the cloud cannot be reached');
 });
 
-test('an original is refused over 20 MB and over 100 MB together, and is forgotten with its source and its project', async () => {
+test('an original is refused over 30 MB and over 200 MB together, and is forgotten with its source and its project', async () => {
   const dropped = [];
   const state = { folders: [{ id: 'f1', name: 'P', conversationIds: [] }, { id: 'f2', name: 'Q', conversationIds: [] }] };
   let n = 0;
   const actions = createProjectActions({ dataStore: { getFolders: () => state.folders, replaceFolders: (next) => { state.folders = next; }, getConversations: () => [] }, saveAppData: async () => {}, dropFiles: async (files) => dropped.push(...files.map((entry) => entry.hash)), randomUUID: () => `id-${++n}` });
   const kept = (hash, size) => ({ name: `${hash}.png`, mimeType: 'image/png', size, hash });
   assert.equal((await actions.addSource('f1', { kind: 'image', title: 'a', text: '', file: kept('h1', 1000) })).ok, true);
-  assert.deepEqual(await actions.addSource('f1', { kind: 'image', title: 'big', text: '', file: kept('h2', 21 * 1024 * 1024) }), { ok: false, code: 'too_big' });
+  assert.deepEqual(await actions.addSource('f1', { kind: 'image', title: 'big', text: '', file: kept('h2', 31 * 1024 * 1024) }), { ok: false, code: 'too_big' });
   assert.deepEqual(dropped, ['h2'], 'what was kept for a refused source is forgotten');
-  for (let index = 0; index < 4; index += 1) assert.equal((await actions.addSource('f1', { kind: 'image', title: 'x', text: '', file: kept(`m${index}`, 20 * 1024 * 1024) })).ok, true);
-  assert.deepEqual(await actions.addSource('f1', { kind: 'image', title: 'x', text: '', file: kept('m5', 20 * 1024 * 1024) }), { ok: false, code: 'files_too_much' });
-  assert.ok(PROJECT_SOURCE_FILES_BYTES_MAX >= 100 * 1024 * 1024);
+  for (let index = 0; index < 6; index += 1) assert.equal((await actions.addSource('f1', { kind: 'image', title: 'x', text: '', file: kept(`m${index}`, 30 * 1024 * 1024) })).ok, true);
+  assert.deepEqual(await actions.addSource('f1', { kind: 'image', title: 'x', text: '', file: kept('m7', 30 * 1024 * 1024) }), { ok: false, code: 'files_too_much' });
+  assert.ok(PROJECT_SOURCE_FILES_BYTES_MAX >= 200 * 1024 * 1024);
   dropped.length = 0;
   await actions.addSource('f2', { kind: 'image', title: 'same', text: '', file: kept('h1', 1000) });
   await actions.removeSource('f1', 'id-1');
@@ -152,5 +152,5 @@ test('an original is refused over 20 MB and over 100 MB together, and is forgott
   assert.deepEqual(dropped, ['h1'], 'nothing uses it: forgotten');
   dropped.length = 0;
   await actions.remove('f1');
-  assert.equal(dropped.length, 4, 'a project that goes forgets its originals');
+  assert.equal(dropped.length, 6, 'a project that goes forgets its originals');
 });

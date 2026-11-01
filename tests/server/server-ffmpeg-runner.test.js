@@ -58,3 +58,17 @@ test('without the program, opening a file fails loudly so that the caller can go
   await assert.rejects(() => media.probe());
   await media.close();
 });
+
+test('a recording with no length in its header (as a browser makes it) is measured by reading it through', { skip: !has }, async () => {
+  // Written to a pipe, a WebM has no duration in its header.
+  const made = spawnSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=duration=12:size=160x120:rate=5', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=12', '-shortest', '-c:v', 'libvpx', '-c:a', 'libvorbis', '-f', 'webm', 'pipe:1'], { maxBuffer: 20_000_000 });
+  assert.equal(made.status, 0, String(made.stderr));
+  const media = await createServerMediaToolbox().open({ data: new Uint8Array(made.stdout), name: 'video-1.webm', mime: 'video/webm' });
+  try {
+    const probe = await media.probe();
+    assert.ok(probe.hasVideo && probe.hasAudio);
+    assert.ok(Math.abs(probe.duration - 12) < 1, `measured ${probe.duration}`);
+  } finally {
+    await media.close();
+  }
+});

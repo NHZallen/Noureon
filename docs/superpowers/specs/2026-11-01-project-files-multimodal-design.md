@@ -271,3 +271,9 @@
 - **run-spec**：`tools.projectFiles.media[]` 加 `kind`（image／video／audio／scan）、`duration`、`pages`，最多 60 筆；沒有文字檔時只靠媒體也成立。**理事會**的 `tools.projectFiles` 與 `secrets.embeddingKey`（同樣只在有 `vector` 時）也收。
 - **理事會（R9）**：頁面與伺服器的成員各自拿到唯讀的專案檔案工具（`search_project_files`／`read_project_file`，看得懂圖的成員再加 `view_project_file`；由伺服器依各成員的模型判斷，請求裡不帶 `canView`）；成員指示裡加上檔案目錄，整合者不拿。原本隨訊息附上專案原檔的 `withProjectFiles`／`projectFilePartsFor`／預算與排名都刪了。
 - **還沒做／已知限制**：沒有語音轉文字（錄音只能找位置）；wasm 切段比伺服器慢，大檔（20 MB）要等；`ffmpeg.wasm` 逾時後那一次的檔案會在下次重開，單個視窗失敗不會永久標記（只有 ffmpeg 明確回失敗才標 `failed`）；掃描 PDF 超過 200 頁只做前 200 頁。
+
+### 上限與相機（2026-11-01，Allen 要求）
+
+- 單一原檔上限 20 → **30 MB**，一個專案原檔合計 100 → **200 MB**（`project-source-model.js`；閱讀器、Google 選檔器、向量的嵌入上限都跟著它；雲端儲存桶 `user-assets` 的單檔上限是 50 MB，夠用）。
+- 「新增照片」改成「新增照片或影片」（輸入收 `image/*,video/*`）。電腦的相機視窗多一個「錄影」鈕（`MediaRecorder`，按下才要麥克風，沒給麥克風就錄無聲；錄到快 30 MB 自動停止，存成 `video-<時間>.webm`／`.mp4`）；手機多一項「錄影」，用手機自己的相機程式。
+- 瀏覽器錄的 WebM 檔頭沒有長度：量長度時 `ffmpeg -i` 讀不到 `Duration`，改整個讀過一次、取最後的 `time=`（`probeFull`、`parseDecodedTime`）。
