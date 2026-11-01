@@ -306,10 +306,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   const fileInput = makeInput('');
   // The photo library of a phone lists videos too when the input accepts them.
   const photoInput = makeInput('image/*,video/*');
-  const cameraInput = makeInput('image/*', { capture: 'environment', multiple: false });
-  // A phone records with its own camera app.
-  const videoInput = makeInput('video/*', { capture: 'environment', multiple: false });
-  const inputs = [fileInput, photoInput, cameraInput, videoInput];
+  // The camera of a phone: its own camera app, for a photo or a video.
+  const cameraInput = makeInput('image/*,video/*', { capture: 'environment', multiple: false });
+  const inputs = [fileInput, photoInput, cameraInput];
   // One file added as a source (from the device or from Drive): read, kept, described in the source. Gives { ok, code } and tells the person what happened.
   const addFile = async (project, file) => {
     const read = await readFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
@@ -363,8 +362,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     openActionSheet({
       document, root, title: text('pjSourcesAdd'),
       items: [
-        { label: text(cameraAvailable(document) ? 'pjSourceTakeAny' : 'pjSourceTakePhoto'), icon: 'camera', action: via(() => (cameraAvailable(document) ? openCameraDialog({ document, root, text, onCapture: async (file) => { await addAll(project, [file]); afterAdd(); }, onError: () => notify(text('pjCameraFailed'), 'error') }) : cameraInput.click())) },
-        ...(cameraAvailable(document) ? [] : [{ label: text('pjSourceTakeVideo'), icon: 'camera', action: via(() => videoInput.click()) }]),
+        { label: text('pjSourceTakePhoto'), icon: 'camera', action: via(() => (cameraAvailable(document) ? openCameraDialog({ document, root, text, onCapture: async (file) => { await addAll(project, [file]); afterAdd(); }, onError: () => notify(text('pjCameraFailed'), 'error') }) : cameraInput.click())) },
         { label: text('pjSourceAddPhoto'), icon: 'image', action: via(() => photoInput.click()) },
         { label: text('pjSourceAddFile'), icon: 'attach', action: via(() => fileInput.click()) },
         { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions: project.staging ? stagingActions : actions, project, notify: project.staging ? () => {} : notify, onSaved: () => { addTarget = null; onDone?.(); if (!project.staging) drawProject(); } }) },

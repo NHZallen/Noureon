@@ -412,7 +412,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
 
     t.$('.pj-source-add').click();
     assert.equal(t.$('.pj-action-title').textContent, 'Add a source');
-    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Take a photo', 'Record a video', 'Add photos or videos', 'Add a file', 'Add text']);
+    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Camera', 'Photo library', 'Add a file', 'Add text']);
     t.byText('.pj-action-item', 'Add text').click();
     assert.equal(t.$('.pj-action-sheet'), null, 'a choice closes the list');
     assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
@@ -435,7 +435,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.equal(t.state.notified.at(-1)[1], 'error');
 
     const photos = t.$$('.pj-file-input').find((node) => node.accept === 'image/*,video/*' && !node.getAttribute('capture'));
-    assert.ok(photos && t.$$('.pj-file-input').some((node) => node.getAttribute('capture') === 'environment'), 'a photo input (that lists videos too) and a camera input');
+    assert.ok(photos && t.$$('.pj-file-input').some((node) => node.getAttribute('capture') === 'environment' && node.accept === 'image/*,video/*'), 'a photo library input (that lists videos too) and a camera input (photo or video)');
     Object.defineProperty(photos, 'files', { value: [{ name: 'receipt.jpg', type: 'image/jpeg' }], configurable: true });
     photos.dispatchEvent(new t.window.Event('change'));
     await t.tick();
@@ -461,7 +461,7 @@ test('the Google Drive choice: only when the page has the picker; it is warmed w
     t.open({ id: 'f2' }, { sourcesEnabled: true });
     t.byText('.pj-tab', 'Sources').click();
     t.$('.pj-source-add').click();
-    assert.equal(t.$$('.pj-action-item').length, 5, 'no Drive without the picker');
+    assert.equal(t.$$('.pj-action-item').length, 4, 'no Drive without the picker');
     await t.finish();
 
     const log = { warmed: 0, picks: 0 };
