@@ -7,7 +7,7 @@ import { createSidebarProjects } from '../../ui/projects/sidebar-projects.js';
 import { createProjectActions } from './project-actions.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
-import { createGooglePicker, googlePickerConfigured } from './google-picker.js';
+import { getDrivePicker } from './drive-picker.js';
 import { SERVICES, getService } from '../services.js';
 import { getNotesMemory, getPageTranscription, getPageVectors, setProjectPieces } from '../memory-store/memory-ref.js';
 import { createProjectPieces } from './project-pieces.js';
@@ -61,8 +61,7 @@ export function startProjects({
   first?.unref?.();
 
   // Google's own file picker (its tabs, search and folders), when the page has the keys for it (VITE_GOOGLE_PICKER_*, see .env.example); without them the choice is not shown.
-  const pickerConfig = { clientId: import.meta.env?.VITE_GOOGLE_PICKER_CLIENT_ID?.trim() || '', apiKey: import.meta.env?.VITE_GOOGLE_PICKER_API_KEY?.trim() || '', appId: import.meta.env?.VITE_GOOGLE_PICKER_APP_ID?.trim() || '' };
-  const drive = googlePickerConfigured(pickerConfig) ? createGooglePicker({ config: pickerConfig, document, getLanguage: () => ({ 'zh-TW': 'zh-TW', en: 'en', fr: 'fr', ru: 'ru', es: 'es' })[configAccess.getUiLanguage()] || 'en' }) : null;
+  const drive = getDrivePicker({ document, getLanguage: () => configAccess.getUiLanguage() });
 
   // A file a person adds: text and code as text, anything else kept as it is, for the model to read like an attachment.
   const readProjectFile = async (file) => {

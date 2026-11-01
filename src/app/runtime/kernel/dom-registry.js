@@ -95,6 +95,7 @@ const RUNTIME_DOM_ELEMENT_IDS = [
   ['cameraBtn', 'camera-btn'],
   ['uploadImageBtn', 'upload-image-btn'],
   ['uploadFileBtn', 'upload-file-btn'],
+  ['uploadDriveBtn', 'upload-drive-btn'],
   ['imageVideoInput', 'image-video-input'],
   ['fileUploadInput', 'file-upload-input'],
   ['filePreviewContainer', 'file-preview-container'],

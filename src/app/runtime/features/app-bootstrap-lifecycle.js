@@ -15,6 +15,7 @@ import { bindMessageListActions } from './message-list-actions.js';
 import { bindComposerInput } from './composer-input-bindings.js';
 import { bindFeedbackForms } from './feedback-forms.js';
 import { modelGeneratesImages } from '../shell/model-registry.js';
+import { createDriveUpload } from './drive-upload.js';
 
 export function createAppBootstrapLifecycle({
     window,
@@ -263,6 +264,9 @@ export function createAppBootstrapLifecycle({
             ALL_ELEMENTS.fileUploadInput.value = '';
             ALL_ELEMENTS.fileUploadInput.click();
         });
+        // Files from Google Drive (the picker of the projects: one sign-in for both); the files picked go the way of the files chosen from the device.
+        const driveUpload = createDriveUpload({ document, getConfig, i18n, showNotification, handleFileSelection });
+        ALL_ELEMENTS.uploadDriveBtn?.addEventListener('click', () => { ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible'); void driveUpload.pick(); });
         ALL_ELEMENTS.imageVideoInput.addEventListener('change', handleFileSelection);
         ALL_ELEMENTS.fileUploadInput.addEventListener('change', handleFileSelection);
         ALL_ELEMENTS.selectionModeBtn.addEventListener('click', toggleSelectionMode);
@@ -378,6 +382,8 @@ export function createAppBootstrapLifecycle({
                 popover.classList.add('visible');
                 fitPopoverToViewport(popover, window);
                 ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'true');
+                // Google's scripts are fetched only now (a window that signs in can be opened only at a tap, and the page does not load Google's code for a person who never opens the menu).
+                driveUpload.warm();
             }
         });
         // ==========================================

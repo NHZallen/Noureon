@@ -2,6 +2,7 @@ export const COMPOSER_TOOL_ICON_PATHS = Object.freeze({
   camera: '/assets/composer-tools/camera.png',
   media: '/assets/composer-tools/media.png',
   file: '/assets/composer-tools/file.png',
+  drive: '/assets/composer-tools/drive.svg',
   webSearch: '/assets/composer-tools/web-search.png',
   modelCouncil: '/assets/composer-tools/model-council.png',
   learning: '/assets/composer-tools/learning.png',

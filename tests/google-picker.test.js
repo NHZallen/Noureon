@@ -80,12 +80,14 @@ test('a picked file is taken with the token, no redirect followed; a Google Doc 
   const picked = await picker.pick();
   assert.deepEqual(picked.files.map((file) => [file.name, file.type, file.size]), [['report.pdf', 'application/pdf', 3], ['Plan.pdf', 'application/pdf', 3]]);
   assert.deepEqual(picked.failed, [{ name: 'Survey', code: 'failed' }, { name: 'big.zip', code: 'too_big' }, { name: 'gone.txt', code: 'failed' }]);
-  assert.deepEqual(state.fetched.map(([url]) => url), [
+  const taken = state.fetched.filter(([url]) => url.includes('/drive/v3/files'));
+  assert.deepEqual(taken.map(([url]) => url), [
     'https://www.googleapis.com/drive/v3/files/p1?alt=media&supportsAllDrives=true',
     'https://www.googleapis.com/drive/v3/files/g1/export?mimeType=application%2Fpdf',
     'https://www.googleapis.com/drive/v3/files/n1?alt=media&supportsAllDrives=true'
   ]);
   assert.ok(state.fetched.every(([, auth, redirect]) => auth === 'Bearer TOKEN-1' && redirect === 'error'));
+  assert.ok(taken.length === 3, 'the files were taken (the address of the account is asked for apart)');
 });
 
 test('the sign-in is asked once for an hour; a closed window is a cancel, a blocked one and a failure are said', async () => {
@@ -99,4 +101,39 @@ test('the sign-in is asked once for an hour; a closed window is a cancel, a bloc
   const broken = setup();
   broken.window.gapi = { load: (name, options) => options.onerror() };
   assert.deepEqual(await broken.picker.pick(), { ok: false, code: 'failed' });
+});
+
+// No new login: the token of the hour is kept in the tab (a reload does not ask again), and when it has run out the sign-in is asked with the address of the account used before.
+test('the token survives a reload of the tab; the account is remembered and told to Google as a hint, with nothing to ask when it was given before', async () => {
+  const aboutResponse = () => Response.json({ user: { emailAddress: 'me@example.com' } });
+  const fetchImpl = async (url) => (String(url).includes('/about') ? aboutResponse() : new Response(new Uint8Array([1])));
+  const first = setup({ docs: [], fetchImpl });
+  await first.picker.pick();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(first.state.clients[0].hint, undefined, 'the first time there is no account to name');
+  assert.equal(first.window.localStorage.getItem('noureon.googleDrive.account.v1'), 'me@example.com');
+  assert.match(first.window.sessionStorage.getItem('noureon.googleDrive.token.v1'), /TOKEN-1/);
+  // The page is loaded again in the same tab: a new picker over the same storage.
+  const second = setup({ docs: [], fetchImpl });
+  for (const key of ['sessionStorage', 'localStorage']) { const from = first.window[key]; for (let index = 0; index < from.length; index += 1) { const name = from.key(index); second.window[key].setItem(name, from.getItem(name)); } }
+  await second.picker.pick();
+  assert.equal(second.state.tokenRequests, 0, 'the token of the hour is used: no sign-in at all');
+  assert.equal(second.state.builder.token, 'TOKEN-1');
+});
+
+test('when the token has run out the sign-in names the account and asks for nothing more; a token that Google refuses is forgotten', async () => {
+  let time = 1_000_000;
+  const fetchImpl = async (url) => (String(url).includes('/about') ? Response.json({ user: { emailAddress: 'me@example.com' } }) : new Response('no', { status: 401 }));
+  const made = setup({ docs: [{ id: 'f1', name: 'a.txt', mimeType: 'text/plain', sizeBytes: '1' }], fetchImpl });
+  const picker = createGooglePicker({ config: CONFIG, document: made.window.document, win: made.window, fetchImpl, getLanguage: () => 'en', now: () => time });
+  await picker.pick();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(made.state.tokenRequests, 1);
+  assert.equal(made.window.sessionStorage.getItem('noureon.googleDrive.token.v1'), null, 'the 401 made it forgotten');
+  time += 2 * 3600_000;
+  await picker.pick();
+  assert.equal(made.state.tokenRequests, 2, 'asked again');
+  assert.equal(made.state.clients.at(-1).hint, 'me@example.com', 'with the account used before');
+  picker.forget();
+  assert.equal(made.window.localStorage.getItem('noureon.googleDrive.account.v1'), null);
 });

@@ -60,6 +60,7 @@ const appShell = [
   { id: 'camera-btn', labelKey: 'camera', descriptionKey: 'cameraDescription', description: '使用裝置拍攝影像', icon: 'camera' },
   { id: 'upload-image-btn', labelKey: 'image', descriptionKey: 'imageDescription', description: '上傳圖片或影片', icon: 'media' },
   { id: 'upload-file-btn', labelKey: 'file', descriptionKey: 'fileDescription', description: '上傳文件與其他檔案', icon: 'file' },
+  { id: 'upload-drive-btn', labelKey: 'googleDrive', descriptionKey: 'googleDriveDescription', description: '從 Google 雲端硬碟選檔案', icon: 'drive' },
   { id: 'web-search-popover-btn', labelKey: 'search', descriptionKey: 'webSearchDescription', description: '搜尋即時網路資訊', icon: 'webSearch' },
   { id: 'learning-mode-btn', labelKey: 'learning', descriptionKey: 'learningDescription', description: '以引導方式協助理解', icon: 'learning' }
 ].reduce(decorateComposerMenuItem, composerShell);

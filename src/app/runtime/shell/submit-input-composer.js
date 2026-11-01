@@ -9,6 +9,7 @@ import { chipCloseButton } from '../features/composer-chip.js';
 import { syncInputIndicatorItems } from './input-indicator-sync.js';
 import { replySteering } from '../features/reply-steering.js';
 import { replySteeringText } from '../features/reply-steering-texts.js';
+import { drivePickerAvailable } from '../projects/drive-picker.js';
 
 export function createSubmitInputComposer({
   document, elements: ALL_ELEMENTS, updateInputState, getAstras, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
@@ -59,7 +60,7 @@ export function createSubmitInputComposer({
 
   const updateFunctionButtonsState = () => {
     const config = getLiveConfig();
-    const { cameraBtn, uploadImageBtn, uploadFileBtn, webSearchPopoverBtn, learningModeBtn } = ALL_ELEMENTS;
+    const { cameraBtn, uploadImageBtn, uploadFileBtn, uploadDriveBtn, webSearchPopoverBtn, learningModeBtn } = ALL_ELEMENTS;
     const conv = getActiveConversation();
     if (!conv) return;
     const modelInfo = normalizeConversationModel(conv);
@@ -89,6 +90,8 @@ export function createSubmitInputComposer({
     if (uploadFileBtn) {
       uploadFileBtn.style.display = supportsDocumentUpload ? 'flex' : 'none';
     }
+    // Files from Google Drive: when the page has the keys for the picker, and the model takes pictures or documents.
+    if (uploadDriveBtn) uploadDriveBtn.style.display = drivePickerAvailable() && (supportsVision || supportsDocumentUpload || openRouterVisionModels.includes(modelInfo?.id)) ? 'flex' : 'none';
     if (learningModeBtn) {
       learningModeBtn.style.display = (!imageMode && !councilActive) ? 'flex' : 'none';
       learningModeBtn.classList.toggle('is-active', Boolean(config.isLearningMode));
