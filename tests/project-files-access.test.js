@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { createProjectFilesAccess, searchableKindOf } from '../src/app/runtime/projects/project-files-access.js';
 import { projectInstructionTextFor, setProjectFoldersReader } from '../src/app/runtime/projects/project-instructions.js';
-import { createMemoryFileBackend, createProjectFileStore, projectFilePartsFor, setProjectFileDeps } from '../src/app/runtime/projects/project-source-files.js';
+import { createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from '../src/app/runtime/projects/project-source-files.js';
 
 // The files of the project a chat is in, as the model of a reply looks into them: which sources can be searched, the list that tells their names, the tools over the page's own copies, and
 // what a reply made by the server is told. A picture goes on being given whole.
@@ -27,7 +27,7 @@ const withFolder = async (fn) => {
   const store = createProjectFileStore({ backend });
   await backend.put({ id: 'h-plan', mimeType: 'text/markdown', bytes: new TextEncoder().encode('# Plan\n\nThe team ships on Friday.') });
   await backend.put({ id: 'h-photo', mimeType: 'image/png', bytes: new Uint8Array([1, 2, 3]) });
-  setProjectFileDeps({ store, supports: () => true });
+  setProjectFileDeps({ store });
   try { return await fn(); } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 };
 
@@ -86,17 +86,7 @@ test('a reply made by the server is told the text, or the hash and place of each
   });
 });
 
-test('a picture is still given whole, and the files that are searched are not (and do not take the room of the picture)', async () => {
-  await withFolder(async () => {
-    const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' } });
-    const parts = await projectFilePartsFor({ folderId: 'f1' }, {}, { skipIds: access.searchableIds });
-    assert.deepEqual(parts.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['photo.png']);
-    const all = await projectFilePartsFor({ folderId: 'f1' }, {});
-    assert.deepEqual(all.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['plan.md', 'photo.png'], 'without the tools every file that is here is given');
-  });
-});
-
-test('a PDF with no text (a scan) is not searched: it goes with the message like a picture', async () => {
+test('a PDF with no text (a scan) is not read as text: it is a file of pages (pictures) that the search names and the model looks at by page', async () => {
   // A one-page PDF with a picture only: no text layer.
   const scan = new TextEncoder().encode(`%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
@@ -107,12 +97,11 @@ trailer<</Root 1 0 R/Size 4>>
   setProjectFoldersReader(() => [{ id: 'f3', name: 'Scans', sources: [text('t1', 'Brief', 'Some words.'), file('s1', 'scan.pdf', 'h-scan', 'application/pdf')] }]);
   const backend = createMemoryFileBackend();
   await backend.put({ id: 'h-scan', mimeType: 'application/pdf', bytes: scan });
-  setProjectFileDeps({ store: createProjectFileStore({ backend }), supports: () => true });
+  setProjectFileDeps({ store: createProjectFileStore({ backend }) });
   try {
     const access = await createProjectFilesAccess({ conversation: { folderId: 'f3' }, getPdfjs: () => import('pdfjs-dist/legacy/build/pdf.mjs') });
     assert.deepEqual(access.entries.map((entry) => entry.name), ['Brief'], 'the scan is not in the list of what can be looked into');
-    const parts = await projectFilePartsFor({ folderId: 'f3' }, {}, { skipIds: access.searchableIds });
-    assert.deepEqual(parts.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['scan.pdf'], 'it is given whole');
+    assert.deepEqual(access.snapshot().media.map((entry) => [entry.name, entry.kind]), [['scan.pdf', 'scan']], 'it is named as a scan, for the pages to be looked at');
   } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 });
 
@@ -123,29 +112,37 @@ test('a model that can see gets view_project_file for the pictures of the projec
     setProjectFoldersReader(() => [{ ...FOLDER, sources: [...SOURCES, file('s7', 'clip.mp4', 'h-clip', 'video/mp4')] }]);
     const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: true, makeThumb });
     assert.ok(access);
-    assert.match(access.catalogText, /Pictures of the project \(they are not shown to you unless you ask: search_project_files names the ones that match, view_project_file looks at one\)\. When the person mentions a photo, a picture, a screenshot or a drawing, search first:\n- photo\.png/);
-    assert.match(access.catalogText, /Other files of the project that cannot be looked into yet[^\n]*clip\.mp4/, 'a file of a kind that is not read is named, and the model is told');
+    assert.match(access.catalogText, /Pictures, videos, recordings and scanned PDFs of the project \(they are not shown to you unless you ask: search_project_files names the ones that match, with where in them; view_project_file looks at a picture[^\n]*search first:\n- photo\.png \(picture, 1 KB\)\n- clip\.mp4 \(video, 1 KB\)/, 'pictures and videos are named for the model');
+    assert.doesNotMatch(access.catalogText, /cannot be looked into yet/, 'a video is a file the model can look into now');
     const loader = access.make('en');
     assert.deepEqual(loader.tools.map((tool) => tool.name), ['search_project_files', 'read_project_file', 'view_project_file']);
     const shown = await loader.run({ name: 'view_project_file', args: { file: 'photo.png' } });
     assert.deepEqual(shown.images, [{ label: 'photo.png', mimeType: 'image/jpeg', data: 'SMALL' }]);
     assert.deepEqual(made, [['image/png', Buffer.from([1, 2, 3]).toString('base64')]], 'the picture of the person was read from the kept file');
-    assert.deepEqual(access.snapshot().media.map((entry) => [entry.id, entry.mimeType, entry.attached]), [['s3', 'image/png', false]]);
+    assert.deepEqual(access.snapshot().media.map((entry) => [entry.id, entry.kind, entry.mimeType, entry.attached]), [['s3', 'image', 'image/png', false], ['s7', 'video', 'video/mp4', false]]);
     assert.equal(access.snapshot().canView, true);
     // A model that cannot see: the pictures are named by the search only.
     const blind = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: false, makeThumb });
     assert.deepEqual(blind.make('en').tools.map((tool) => tool.name), ['search_project_files', 'read_project_file']);
-    assert.match(blind.catalogText, /you cannot look at pictures in this reply/);
+    assert.match(blind.catalogText, /you cannot look at them in this reply/);
     assert.equal('canView' in blind.snapshot(), false);
   });
   // Pictures alone.
   setProjectFoldersReader(() => [{ id: 'f2', name: 'Pics', sources: [file('s3', 'photo.png', 'h-photo', 'image/png')] }]);
-  setProjectFileDeps({ store: createProjectFileStore({ backend: createMemoryFileBackend() }), supports: () => true });
+  setProjectFileDeps({ store: createProjectFileStore({ backend: createMemoryFileBackend() }) });
   try {
     assert.equal(await createProjectFilesAccess({ conversation: { folderId: 'f2' }, canViewPictures: false }), null, 'nothing to look at');
     const access = await createProjectFilesAccess({ conversation: { folderId: 'f2' }, canViewPictures: true });
     assert.deepEqual(access.make('en').tools.map((tool) => tool.name), ['search_project_files', 'view_project_file']);
     assert.deepEqual(access.snapshot().entries, []);
     assert.match(access.catalogText, /with the tools search_project_files when/);
+  } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
+  // A video alone is useful to a model that cannot see too: the search says where in it.
+  setProjectFoldersReader(() => [{ id: 'f4', name: 'Videos', sources: [file('v1', 'talk.mp4', 'h-talk', 'video/mp4'), file('a1', 'memo.mp3', 'h-memo', 'audio/mpeg')] }]);
+  setProjectFileDeps({ store: createProjectFileStore({ backend: createMemoryFileBackend() }) });
+  try {
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f4' }, canViewPictures: false });
+    assert.deepEqual(access.make('en').tools.map((tool) => tool.name), ['search_project_files']);
+    assert.deepEqual(access.snapshot().media.map((entry) => entry.kind), ['video', 'audio']);
   } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 });

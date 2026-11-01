@@ -259,3 +259,15 @@
 - 問題：一次回覆看了十幾張圖後，最後幾張被「一次回覆最多 10 MB 原檔」擋掉，模型把這句話說成「檔案太大，開不出來」。**給模型的是小縮圖，從來不是原檔**；錯在額度用**原檔**大小累計。
 - 改成算**縮圖**：每次呼叫最多 4 張（`files`，或一張 `file`），一次回覆最多 24 張、縮圖合計最多 6,000,000 個字元（每一輪都會把前面看過的圖再送一次，所以請求大小才是真正的界線）；`view_project_file` 的呼叫次數另算（最多 12 次），不再佔搜尋與讀檔的 14 次。原檔大小完全不算。
 - 達到上限時告訴模型「還剩哪些、請使用者再問一次」，不再說檔案太大；看過的圖再要會說「這次回覆前面看過了」。
+
+### R5 到 R9 的做法（2026-11-01，一次做完）
+
+- **共用模組** `src/data/project-media.js`（伺服器與頁面共用，已列入 `scripts/server-shared-modules.json`）：視窗（影片 30 秒、每 25 秒一段；聲音 60 秒、每 50 秒一段；一個檔最多 120 段；掃描 PDF 最多 200 頁）、碎片編號後綴（`v<起點秒>`、`a<起點秒>`、`p<頁>`；圖片仍是 `0`）、`mediaPieceHash(檔案 hash, 後綴)`（圖片的舊 hash 不變，其他加上種類、後綴與 `MEDIA_SCHEME`，換切法就升 `MEDIA_SCHEME`）、ffmpeg 指令、`ffmpeg -i` 輸出的解析、`createMediaToolbox({ open })`。
+- **安全**：ffmpeg 只用依副檔名／類型挑的 demuxer（`-f`），播放清單、`concat` 等會讀別的檔案或網址的格式一律不開（`inputKindOf` 回 null）。
+- **伺服器**：`server/ffmpeg-runner.js`（暫存資料夾、每個指令 60 秒上限、同時最多 2 個、結束就刪）；`Dockerfile` 在 `USER node` 前 `apt-get install ffmpeg`（**要重新建映像**）；`server/pdf-page-image.js`（pdf.js + @napi-rs/canvas 畫掃描 PDF 的一頁，長邊 1024 的 JPEG）；`server/project-media-view.js`（`view_project_file` 的影片 4 張畫面、掃描頁、圖片縮圖）。
+- **頁面**：`ffmpeg-wasm.js`（`@ffmpeg/ffmpeg` 0.12.15 + `@ffmpeg/core` 0.12.10 單執行緒，動態載入，約 32 MB 的 wasm 只在第一次要切影片或錄音時抓；用真的 `vite build` + Playwright 在瀏覽器驗過）；`project-media-source.js`（長度／頁數第一次用 ffmpeg／pdf.js 量，依檔案 hash 記在 localStorage；碎片到輪到才切，同一個檔一次只開一份）；`project-media-view.js`（頁面自己跑工具時的影片畫面與掃描頁）。
+- **向量**：`project-pieces.js` 對影片出 `v` 與（有聲音時）`a` 碎片、錄音出 `a`、沒有文字層的 PDF 出 `p`；`page-vectors.js` 建完釋放開著的檔；來源狀態：還沒量過長度或檔案不在這台是 `pending`，ffmpeg 讀不了是 `failed`。
+- **工具**：`search_project_files` 的 `pictures` 改成 `media`（`kind`、`where`：影片／錄音 `{at, time}`、掃描 `{page}`）；`view_project_file` 加 `at`（影片）與 `page`（掃描）：影片從 `at` 起 30 秒取 4 張畫面（沒給 `at` 就整支平均取 4 張），掃描一次一頁；錄音只告訴位置，「沒有模型聽得到」。每次呼叫最多 8 張圖。不看圖的模型也有搜尋（影片、錄音能告訴位置）。
+- **run-spec**：`tools.projectFiles.media[]` 加 `kind`（image／video／audio／scan）、`duration`、`pages`，最多 60 筆；沒有文字檔時只靠媒體也成立。**理事會**的 `tools.projectFiles` 與 `secrets.embeddingKey`（同樣只在有 `vector` 時）也收。
+- **理事會（R9）**：頁面與伺服器的成員各自拿到唯讀的專案檔案工具（`search_project_files`／`read_project_file`，看得懂圖的成員再加 `view_project_file`；由伺服器依各成員的模型判斷，請求裡不帶 `canView`）；成員指示裡加上檔案目錄，整合者不拿。原本隨訊息附上專案原檔的 `withProjectFiles`／`projectFilePartsFor`／預算與排名都刪了。
+- **還沒做／已知限制**：沒有語音轉文字（錄音只能找位置）；wasm 切段比伺服器慢，大檔（20 MB）要等；`ffmpeg.wasm` 逾時後那一次的檔案會在下次重開，單個視窗失敗不會永久標記（只有 ffmpeg 明確回失敗才標 `failed`）；掃描 PDF 超過 200 頁只做前 200 頁。

@@ -9,6 +9,8 @@ RUN mkdir /tmp/deps && cd /tmp/deps && npm init -y > /dev/null && npm install --
 # The native tools that draw slides, for the visual check (server/slides/). Without them the server still runs (it says `slides_unavailable` at start)
 # and the page makes the check itself, so a platform that has no build of them must not stop the image from being made.
 RUN mkdir /tmp/native && cd /tmp/native && npm init -y > /dev/null && (npm install --omit=dev --ignore-scripts --no-audit --no-fund @napi-rs/canvas@1.0.9 @resvg/resvg-js@2.6.2 && cp -r node_modules/. /app/node_modules/ || echo "drawing slides is not available in this image"); rm -rf /tmp/native
+# ffmpeg, to cut the videos and recordings of a project into the windows the search by meaning reads and to take frames from a video (server/ffmpeg-runner.js). Without it the server still runs; those files are then left aside.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY server ./server
 # The shared modules the server reuses from the app (scripts/server-shared-modules.json); without them the server cannot start.
 COPY src ./src

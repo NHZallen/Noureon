@@ -480,3 +480,48 @@ test('a synthesis with the visual check gives the run manager what the check nee
   const plain = await executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: world().fetchImpl });
   assert.equal(plain.visionSource, undefined);
 });
+
+test('the members look into the files of the project the chat is in, read-only; only a member that can see pictures can look at them; the synthesizer is not given them', async () => {
+  const HASH = 'a'.repeat(64);
+  const projectFiles = { vector: { provider: 'gemini' }, entries: [{ id: 's1', name: 'plan.md', size: 60, text: 'The Hsinchu office opens in March with ten people.' }], media: [{ id: 'p1', name: 'office.png', kind: 'image', size: 90, fileHash: HASH, mimeType: 'image/png', attached: false }] };
+  const raw = rawSpec({ participants: [MEMBER_A, 'nvidia/z-ai/glm-5.3'] });
+  raw.tools.projectFiles = projectFiles;
+  raw.secrets.embeddingKey = 'g-key';
+  const checked = validateRunSpec(raw);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  assert.equal(checked.spec.secrets.embeddingKey, 'g-key');
+  assert.deepEqual(checked.spec.tools.projectFiles.entries.map((item) => item.name), ['plan.md']);
+  // The key without a search by meaning, a search by meaning without the key, and a broken list are refused.
+  for (const bad of [{ ...raw, tools: { ...raw.tools, projectFiles: { entries: projectFiles.entries } } }, { ...raw, secrets: { keys: KEYS } }, { ...raw, tools: { ...raw.tools, projectFiles: { entries: [] } } }]) assert.equal(validateRunSpec(bad).ok, false);
+  const searches = [];
+  const loads = [];
+  const files = { load: async ({ marker }) => { loads.push(marker.__astraCloudAsset.path); return new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]); } };
+  const rounds = new Map();
+  const seen = new Map();
+  const w = world({
+    answer: ({ model, body }) => {
+      seen.set(model, [...(seen.get(model) || []), offered(body)]);
+      const round = (rounds.get(model) || 0) + 1;
+      if (model.includes('sonnet')) return null;
+      rounds.set(model, round);
+      if (round === 1) return new Response(sse(toolCall('c1', 'search_project_files', { query: 'Hsinchu opening' })), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+      return streaming(`ANSWER of ${model}`);
+    }
+  });
+  const result = await executeCouncil({
+    ...checked, secrets: checked.spec.secrets, userId: 'user-1', files, fetchImpl: w.fetchImpl,
+    memory: { projectVectors: { forReply: ({ userId }) => async (query, options) => { searches.push([userId, query, options.fileIds]); return []; } } }
+  });
+  assert.equal(result.status, 'done');
+  const member = (fragment) => [...seen.entries()].find(([model]) => model.includes(fragment))[1];
+  const projectTools = (list) => list.filter((name) => /project_file/.test(name));
+  assert.deepEqual(projectTools(member('haiku')[0]), ['search_project_files', 'read_project_file', 'view_project_file'], 'a member that sees pictures can look at them');
+  assert.deepEqual(projectTools(member('glm-5.3')[0]), ['search_project_files', 'read_project_file'], 'one that cannot sees none');
+  assert.deepEqual(member('sonnet').flat().filter((name) => /project_file/.test(name)), [], 'the synthesizer has no tools of the project');
+  assert.equal(searches.length, 2, 'each member searched once');
+  assert.deepEqual(searches[0].slice(0, 2), ['user-1', 'Hsinchu opening']);
+  assert.deepEqual([...searches[0][2]].sort(), ['p1', 's1']);
+  const answer = JSON.stringify(onlyModel(w.requests, 'haiku').at(-1).body.messages);
+  assert.match(answer, /Hsinchu office opens in March/);
+  assert.deepEqual(loads, [], 'nothing was read from the storage: the text came with the request, and no picture was looked at');
+});

@@ -135,6 +135,7 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
         set({ done: Math.min(state.total, state.done + 1) });
         if (config.pauseMs) await wait(config.pauseMs);
       }
+      try { await getProjectPieces()?.release?.(); } catch { /* The file kept open for the cuts is let go at the next build anyway. */ }
       if (cloud && !stopRequested) {
         try {
           await cloud.push(vectors);
@@ -281,21 +282,13 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
       }
     },
     /**
-     * The sources (of the ids given) in the order of how near they are in meaning to `question`: [id, ...], the nearest first; only sources that have a vector are in it. Resolves [] when it is
-     * off, has no vectors yet, or fails (the caller then keeps the order the sources were added in).
-     */
-    async rankProjectSources(question, sourceIds = [], { signal } = {}) {
-      const hits = await this.searchProject(question, { sourceIds, limit: Math.max(20, sourceIds.length * 40), minCosine: -1, signal });
-      return [...new Set(hits.map((hit) => sourceOfPieceId(hit.id)))];
-    },
-    /**
      * Where the vectors of a source are: 'off' (the vectors are not turned on), 'pending' (still to build), 'ready', 'failed' (the model could not read the file; it is not tried again) or
      * 'none' (nothing of this source goes to the vectors: it has no text and is not a picture, or it is too big).
      */
     sourceStatus(sourceId) {
       if (!enabled()) return 'off';
       const mine = projectPieces().filter((piece) => piece.sourceId === sourceId);
-      if (!mine.length) return 'none';
+      if (!mine.length) return getProjectPieces()?.stateOf?.(sourceId) || 'none';
       let pending = false;
       let failed = 0;
       for (const piece of mine) {

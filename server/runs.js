@@ -373,6 +373,7 @@ export function createRunManager({
         userId,
         skills,
         connectors,
+        memory,
         // The synthesis is made as a reply: Python, the CLI tools and the answers of the person are the reply's.
         sandboxHost: sandbox?.host || null,
         files: sandbox?.files || null,

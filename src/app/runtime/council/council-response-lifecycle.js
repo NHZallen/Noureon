@@ -3,7 +3,6 @@ import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { resolveInvokedSkills } from '../skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { createMemberSteps } from './council-member-steps.js';
-import { withProjectFiles } from '../projects/project-source-files.js';
 
 export function createCouncilResponseLifecycle({
   getSearchCurrentDate,
@@ -264,8 +263,6 @@ export function createCouncilResponseLifecycle({
       synthesize = null
   } = {}) {
       const conv = conversation || getActiveConversation();
-      // The files of the project this chat is in go with the message to every member (each member's own capability and the translators of the council decide what it reads: project-source-files.js).
-      parts = await withProjectFiles(parts, conv, null);
       const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
       const texts = getCouncilTexts();
       const runtimeTexts = getCouncilRuntimeTexts();
@@ -273,6 +270,9 @@ export function createCouncilResponseLifecycle({
       // The skills asked for with "/" in this message go to every call of the council (the members, the second round and the synthesis).
       const skillInstruction = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(parts)));
       const withSkills = (instruction) => (skillInstruction ? [instruction, skillInstruction].filter(Boolean).join('\n\n') : instruction);
+      // The files of the project this chat is in are not sent with the message: each member is told their names (set when the members are made, below) and looks into them with its own tools.
+      let filesCatalog = '';
+      const withFiles = (instruction) => withSkills([instruction, filesCatalog].filter(Boolean).join('\n\n'));
       const activeParticipants = participants;
       const skippedParticipants = [];
       const modelStates = new Map();
@@ -299,6 +299,7 @@ export function createCouncilResponseLifecycle({
       // Each member searches by itself when the search is on (there is no shared search any more).
       const searchOn = webSearchEnabled === true || Boolean(conv.isWebSearchEnabled);
       const members = typeof createMembers === 'function' ? await createMembers(conv, parts) : null;
+      filesCatalog = members?.projectFilesCatalog || '';
       // What each member did (the counts and the newest steps), for the panel.
       const memberSteps = new Map();
       const stepsOf = (modelId) => {
@@ -468,7 +469,7 @@ export function createCouncilResponseLifecycle({
                   conversation: conv,
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
-                  additionalSystemInstruction: withSkills(buildCouncilMemberInstruction(mode)),
+                  additionalSystemInstruction: withFiles(buildCouncilMemberInstruction(mode)),
                   requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT
               }
           });
@@ -542,7 +543,7 @@ export function createCouncilResponseLifecycle({
                       historyForApi: [],
                       ignoreConversationWebSearch: true,
                       disableReasoning: true,
-                      additionalSystemInstruction: withSkills('你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把成員查到的資料說成使用者提供的。'),
+                      additionalSystemInstruction: withFiles('你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把成員查到的資料說成使用者提供的。'),
                       requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_DELIBERATION
                   }
               });

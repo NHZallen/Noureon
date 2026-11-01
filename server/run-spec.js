@@ -53,9 +53,43 @@ const PROJECT_FILES_MAX = 20;
 const PROJECT_FILE_TEXT_MAX = 100_000;
 const PROJECT_FILES_TEXT_TOTAL_MAX = 400_000;
 const HASH = /^[0-9a-f]{64}$/;
+const PROJECT_MEDIA_MAX = 60;
+const PROJECT_MEDIA_KINDS = ['image', 'video', 'audio', 'scan'];
 const projectFileEntries = (value) => (isObject(value) && Array.isArray(value.entries) ? value.entries : null);
+/** Checks `tools.projectFiles` (the files of the project the model may look into by itself), for a reply and for the members of a council. */
+function checkProjectFilesTool(tools, fail) {
+  const entries = projectFileEntries(tools.projectFiles);
+  // A project of pictures, videos and recordings only has no entries: it needs those files.
+  const onlyMedia = Array.isArray(tools.projectFiles.media) && tools.projectFiles.media.length > 0;
+  if (!entries || (entries.length < 1 && !onlyMedia) || entries.length > PROJECT_FILES_MAX) fail('tools.projectFiles', `must have a list "entries" of one to ${PROJECT_FILES_MAX} files (or pictures, videos and recordings to look into)`);
+  else {
+    let total = 0;
+    entries.forEach((entry, index) => {
+      if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200)) fail(`tools.projectFiles.entries[${index}]`, 'must have an id and a name');
+      else if (typeof entry.text === 'string') {
+        total += entry.text.length;
+        if (entry.text.length > PROJECT_FILE_TEXT_MAX) fail(`tools.projectFiles.entries[${index}].text`, `must be at most ${PROJECT_FILE_TEXT_MAX} characters`);
+      } else if (!isObject(entry.file) || typeof entry.file.hash !== 'string' || !HASH.test(entry.file.hash) || (entry.file.mimeType !== undefined && typeof entry.file.mimeType !== 'string') || (entry.file.name !== undefined && typeof entry.file.name !== 'string')) fail(`tools.projectFiles.entries[${index}]`, 'must have a text, or a file with the hash of its bytes');
+    });
+    if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
+  }
+  // `media`: the pictures, videos, recordings and scanned PDFs of the project (no text; the search may name them): [{ id, name, kind, size, fileHash, mimeType, duration, pages, attached }].
+  // `canView`: the model can look at pictures, so it gets view_project_file for them (the page decides from the model).
+  if (tools.projectFiles.canView !== undefined && typeof tools.projectFiles.canView !== 'boolean') fail('tools.projectFiles.canView', 'must be true or false');
+  if (tools.projectFiles.media !== undefined) {
+    const media = tools.projectFiles.media;
+    if (!Array.isArray(media) || media.length > PROJECT_MEDIA_MAX) fail('tools.projectFiles.media', `must be a list of at most ${PROJECT_MEDIA_MAX} files`);
+    else media.forEach((entry, index) => {
+      if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean' || (entry.mimeType !== undefined && typeof entry.mimeType !== 'string') || (entry.kind !== undefined && !PROJECT_MEDIA_KINDS.includes(entry.kind)) || (entry.duration !== undefined && !(Number(entry.duration) >= 0)) || (entry.pages !== undefined && !(Number(entry.pages) >= 0))) fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message (and, if given, a kind, a duration and a number of pages that fit)');
+    });
+  }
+  // `vector`: the search may also be by meaning, with the key of `secrets.embeddingKey` (the vectors of the files are in the person's cloud only when they synced them).
+  if (tools.projectFiles.vector !== undefined && (!isObject(tools.projectFiles.vector) || !['gemini', 'openrouter'].includes(tools.projectFiles.vector.provider))) fail('tools.projectFiles.vector', 'must name the provider of the embedding model (gemini or openrouter)');
+
+}
+
 function normalizeProjectFiles(value) {
-  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
+  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, kind: PROJECT_MEDIA_KINDS.includes(entry.kind) ? entry.kind : 'image', size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), ...(Number(entry.duration) > 0 ? { duration: Math.min(86_400, Number(entry.duration)) } : {}), ...(Number(entry.pages) > 0 ? { pages: Math.min(100_000, Math.floor(Number(entry.pages))) } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
     ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };
@@ -293,7 +327,9 @@ function validateCouncilSpec(input) {
     if (tools.openaiSafetyId !== undefined && typeof tools.openaiSafetyId !== 'boolean') fail('tools.openaiSafetyId', 'must be true or false');
     // What the members may read by themselves (docs/superpowers/specs/2026-10-19-council-tools-design.md): the person's skills and connectors, as for a reply.
     checkSkillsAndConnectors(tools, fail);
-    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'openaiWebSearch', 'openaiSafetyId', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+    // The files of the project the chat is in: each member looks into them by itself, read-only (docs/superpowers/specs/2026-11-01-project-files-multimodal-design.md, R9).
+    if (tools.projectFiles !== undefined) checkProjectFilesTool(tools, fail);
+    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'openaiWebSearch', 'openaiSafetyId', 'skills', 'connectors', 'projectFiles', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
   }
   // What the synthesizer may use besides (§2.2): Python with the Design menu's choices and the files of the message, and the CLI tools with their
   // sites; and the visual check of a presentation it writes. Checked as the tools of a reply are, since the synthesis is made as one.
@@ -327,7 +363,7 @@ function validateCouncilSpec(input) {
   const keys = {};
   if (!isObject(secrets)) fail('secrets', 'must be an object');
   else {
-    for (const name of Object.keys(secrets)) if (!['keys', 'searchKey', 'searchKeyAlt'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    for (const name of Object.keys(secrets)) if (!['keys', 'searchKey', 'searchKeyAlt', 'embeddingKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
     if (!isObject(secrets.keys)) fail('secrets.keys', 'must be an object');
     else {
       for (const [name, key] of Object.entries(secrets.keys)) {
@@ -343,6 +379,10 @@ function validateCouncilSpec(input) {
     if (secrets.searchKey !== undefined && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'must be a key or left out');
     if (secrets.searchKeyAlt !== undefined && (!text(secrets.searchKeyAlt, 600) || !text(secrets.searchKey, 600))) fail('secrets.searchKeyAlt', 'must be a key, and only with a searchKey');
     // Each member searches by itself (Gemini with Google, the others with Tavily or TinyFish when a key is given; without one they answer without searching).
+    // The key of the embedding model for the question of a search by meaning over the files of the project: kept for this run only.
+    const meaning = isObject(tools?.projectFiles?.vector);
+    if (secrets.embeddingKey !== undefined && (!text(secrets.embeddingKey, 600) || !meaning)) fail('secrets.embeddingKey', 'must be a key, and only with tools.projectFiles.vector');
+    if (meaning && !text(secrets.embeddingKey, 600)) fail('secrets.embeddingKey', 'is needed for a search by meaning');
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -382,9 +422,10 @@ function validateCouncilSpec(input) {
         advanced: false,
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(projectFileEntries(tools.projectFiles)?.length || tools.projectFiles?.media?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(synthesisTools ? { synthesis: synthesisTools } : {})
       },
-      secrets: { keys, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
+      secrets: { keys, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.embeddingKey ? { embeddingKey: secrets.embeddingKey } : {}) }
     }
   };
 }
@@ -483,36 +524,8 @@ export function validateRunSpec(input) {
         }
       }
     }
-    // The files of the project the model may look into by itself (search_project_files and read_project_file).
-    if (tools.projectFiles !== undefined) {
-      const entries = projectFileEntries(tools.projectFiles);
-      // A project of pictures only has no entries: it needs the pictures and a model that can look at them.
-      const onlyPictures = Array.isArray(tools.projectFiles.media) && tools.projectFiles.media.length > 0 && tools.projectFiles.canView === true;
-      if (!entries || (entries.length < 1 && !onlyPictures) || entries.length > PROJECT_FILES_MAX) fail('tools.projectFiles', `must have a list "entries" of one to ${PROJECT_FILES_MAX} files (or pictures to look at)`);
-      else {
-        let total = 0;
-        entries.forEach((entry, index) => {
-          if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200)) fail(`tools.projectFiles.entries[${index}]`, 'must have an id and a name');
-          else if (typeof entry.text === 'string') {
-            total += entry.text.length;
-            if (entry.text.length > PROJECT_FILE_TEXT_MAX) fail(`tools.projectFiles.entries[${index}].text`, `must be at most ${PROJECT_FILE_TEXT_MAX} characters`);
-          } else if (!isObject(entry.file) || typeof entry.file.hash !== 'string' || !HASH.test(entry.file.hash) || (entry.file.mimeType !== undefined && typeof entry.file.mimeType !== 'string') || (entry.file.name !== undefined && typeof entry.file.name !== 'string')) fail(`tools.projectFiles.entries[${index}]`, 'must have a text, or a file with the hash of its bytes');
-        });
-        if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
-      }
-      // `media`: the pictures of the project (no text; the search may name them): [{ id, name, size, fileHash, attached }], `attached` when the picture went with the message.
-      // `canView`: the model can look at pictures, so it gets view_project_file for them (the page decides from the model).
-      if (tools.projectFiles.canView !== undefined && typeof tools.projectFiles.canView !== 'boolean') fail('tools.projectFiles.canView', 'must be true or false');
-      if (tools.projectFiles.media !== undefined) {
-        const media = tools.projectFiles.media;
-        if (!Array.isArray(media) || media.length > PROJECT_FILES_MAX) fail('tools.projectFiles.media', `must be a list of at most ${PROJECT_FILES_MAX} pictures`);
-        else media.forEach((entry, index) => {
-          if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean' || (entry.mimeType !== undefined && typeof entry.mimeType !== 'string')) fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message');
-        });
-      }
-      // `vector`: the search may also be by meaning, with the key of `secrets.embeddingKey` (the vectors of the files are in the person's cloud only when they synced them).
-      if (tools.projectFiles.vector !== undefined && (!isObject(tools.projectFiles.vector) || !['gemini', 'openrouter'].includes(tools.projectFiles.vector.provider))) fail('tools.projectFiles.vector', 'must name the provider of the embedding model (gemini or openrouter)');
-    }
+    // The files of the project the model may look into by itself (search_project_files, read_project_file and view_project_file).
+    if (tools.projectFiles !== undefined) checkProjectFilesTool(tools, fail);
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
     // with Python (`advanced`).
     if (tools.cli !== undefined) {

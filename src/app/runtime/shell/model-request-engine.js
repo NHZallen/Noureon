@@ -95,7 +95,7 @@ export function createModelRequestEngine({
         readLinkedPages,
         readsLinkedPages,
         streamCouncilApiCallWithRetry,
-        createMembers: createPageCouncilMembers({ streamApiCall, support: providerRequestSupport, getConfig: () => config, modelSupportsToolCalling, modelUsesNativeWebSearch, retryDelayMs: COUNCIL_RETRY_DELAY_MS }),
+        createMembers: createPageCouncilMembers({ streamApiCall, support: providerRequestSupport, getConfig: () => config, modelSupportsToolCalling, modelUsesNativeWebSearch, modelSupportsVision, retryDelayMs: COUNCIL_RETRY_DELAY_MS }),
         modelSupportsVision,
         modelSupportsDocumentUpload
     });

@@ -8,7 +8,6 @@ import { createProjectActions } from './project-actions.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 import { createGooglePicker, googlePickerConfigured } from './google-picker.js';
-import { modelSupportsUploadedFile } from '../shell/model-registry.js';
 import { SERVICES, getService } from '../services.js';
 import { getNotesMemory, getPageVectors, setProjectPieces } from '../memory-store/memory-ref.js';
 import { createProjectPieces } from './project-pieces.js';
@@ -48,7 +47,7 @@ export function startProjects({
     backend: { get: (id) => backend().get(id), put: (record) => backend().put(record), remove: (id) => backend().remove(id) },
     getAssets: () => getService(SERVICES.cloudAssets), cryptoProvider: win.crypto || globalThis.crypto
   });
-  setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), rank: async (question, sourceIds) => (await getPageVectors()?.rankProjectSources?.(question, sourceIds)) || [] });
+  setProjectFileDeps({ store: files });
   // The passages of the files of the projects are made into vectors with the ones of the past conversations (memory-store/page-vectors.js, when the person turned that on); a source that
   // comes or goes, or a project that goes, has the vectors brought up to date.
   setProjectPieces(createProjectPieces({ getFolders: () => dataStore.getFolders() }));

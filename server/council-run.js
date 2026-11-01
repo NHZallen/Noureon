@@ -22,7 +22,10 @@ import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js
 import { getOpenAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { formatSandboxRunBlock, hasSandboxRunBlock, liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { withCouncilRecord } from '../src/app/ui/council/council-record.js';
+import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
 import { createSkillLoader } from '../src/data/skill-tool.js';
+import { createProjectFileTextReader } from './project-file-text.js';
+import { createServerMediaViewer } from './project-media-view.js';
 import { createServerOfficeReader } from './office-deps.js';
 import { getCouncilRuntimeTexts } from '../src/app/runtime/shell/council-runtime-texts.js';
 import {
@@ -94,6 +97,8 @@ export async function executeCouncil({
   userId = '',
   skills = null,
   connectors = null,
+  // The vectors of the person's memory and project files (the search by meaning), as a reply has them.
+  memory = null,
   // What the synthesis, made as a reply (executor.js), may use besides: Python and its files, the CLI tools with their credentials, and the answers
   // of the person to the questions of a reply (the run manager's controls). `onPaused` gives back the time it waited for the person.
   sandboxHost = null,
@@ -306,7 +311,26 @@ export async function executeCouncil({
     }
     return connectorList;
   };
-  const loadersFor = async () => {
+  // The files of the project the chat is in (docs/superpowers/specs/2026-11-01-project-files-multimodal-design.md, R9): each member gets its own loader, read-only; a member that can see pictures also gets
+  // view_project_file. The synthesizer is not given them (it has the answers of the members).
+  const projectFiles = spec.tools.projectFiles;
+  const readProjectText = projectFiles && userId ? createProjectFileTextReader({ files, userId, signal }) : null;
+  const projectById = new Map((projectFiles?.entries || []).map((entry) => [entry.id, entry]));
+  const projectVectorSearch = projectFiles?.vector && secrets.embeddingKey && memory?.projectVectors
+    ? memory.projectVectors.forReply({ userId, vector: { provider: projectFiles.vector.provider, key: secrets.embeddingKey }, signal })
+    : null;
+  const projectLoaderFor = (modelInfo) => {
+    if (!readProjectText) return null;
+    const canView = modelSupportsVision(modelInfo) && Boolean(files);
+    return createProjectFilesLoader({
+      entries: projectFiles.entries.map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' })),
+      mediaEntries: (projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })),
+      canView,
+      viewMedia: canView ? createServerMediaViewer({ files, userId, signal }) : null,
+      language, vectorSearch: projectVectorSearch, readText: (entry) => readProjectText(projectById.get(entry.id))
+    });
+  };
+  const loadersFor = async (modelInfo) => {
     const listed = skills ? spec.tools.skills || [] : [];
     const skillLoader = listed.length ? createSkillLoader({ available: listed, lookup: (name) => skills.body(userId, name), readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null;
     const readable = await readableConnectors();
@@ -319,7 +343,7 @@ export async function executeCouncil({
         return connectorClients.get(id).callTool(name, args, options);
       }
     }) : null;
-    return combineLoaders(skillLoader, connectorLoader);
+    return combineLoaders(skillLoader, connectorLoader, projectLoaderFor(modelInfo));
   };
   const members = createCouncilMembers({
     streamApiCall: timedCall,

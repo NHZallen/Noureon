@@ -83,6 +83,8 @@ export function createCouncilMembers({
         if (event?.type === 'searching') onStep({ kind: event.kind === 'page' ? 'page' : 'search', label: event.label });
         else if (event?.type === 'skill') onStep({ kind: 'skill', label: event.label });
         else if (event?.type === 'connector' && event.event !== 'ask' && event.event !== 'answer') onStep({ kind: 'connector', label: event.label });
+        // Looking into the files of the project (search, read, look): a step like a search.
+        else if (event?.type === 'memory' && event.event === 'call' && event.label) onStep({ kind: 'search', label: event.label });
       };
       if (searchOn && research) {
         const { runWebResearchReply } = await loadRunners();

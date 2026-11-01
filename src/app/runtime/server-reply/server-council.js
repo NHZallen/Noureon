@@ -46,13 +46,27 @@ export function councilSynthesisTools({ conversation, config = {}, synthesizer, 
   };
 }
 
+// The files of the project the chat is in, as the page knows them (null when there are none): the catalog for the members and the snapshot the server reads from. Whether a member can look at
+// pictures is decided on the server from its model, so `canView` is not sent.
+async function projectFilesFor(conversation, loadAccess = () => import('../projects/project-files-access.js')) {
+  try {
+    if (!conversation?.folderId) return null;
+    const access = await (await loadAccess()).createProjectFilesAccess({ conversation, toolsAllowed: true, canViewPictures: true });
+    if (!access) return null;
+    const { canView: _decidedPerMember, ...snapshot } = access.snapshot();
+    return { catalogText: access.catalogText, snapshot };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Hands a council to the server: the models (as the page knows them), the message as the person sent it (attachments included: the server
  * translates them for the models that cannot read them, reads the pages in it and searches), the history, what each kind of call is told (put
  * together here, once for each purpose), and the key of every provider the models use. `deps` is what server-reply.js has for it. Resolves like
  * a reply's hand-over: { ok: true, run } or { ok: false, reason, notify } (the council is then held here).
  */
-export async function startCouncilRun({ getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, request, flushSync, warn, clientVersion, createRun, reasons, protocol, maxChars }, { conversation, council, participants, synthesizer, translator = null, userParts, webSearch = 'off', config = {}, assistantMessageId, sequence = 0, uiLanguage = 'en', onMemoryContextResolved = () => {}, getHistorySourceIds = () => [] }) {
+export async function startCouncilRun({ getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, request, flushSync, warn, clientVersion, createRun, reasons, protocol, maxChars, loadProjectAccess = () => import('../projects/project-files-access.js') }, { conversation, council, participants, synthesizer, translator = null, userParts, webSearch = 'off', config = {}, assistantMessageId, sequence = 0, uiLanguage = 'en', onMemoryContextResolved = () => {}, getHistorySourceIds = () => [] }) {
   const entry = (model) => ({ provider: model.provider, id: model.id, info: model });
   const keys = {};
   for (const model of [...participants, synthesizer, ...(translator ? [translator] : [])]) {
@@ -63,13 +77,17 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
   // (without a key of them, they answer without searching, as they would here).
   const search = webSearch === 'on' ? searchKeyFor(config) : null;
   let instructions;
+  let projectFiles = null;
   try {
     // What the app adds to every call (language, Noura, learning mode, memory, guidance), as the council's calls would get it here. The members
     // and the deliberation are told the same; the synthesis is the one that may write files, and it reports the memory the answer drew on.
     // The skills asked for with "/" in this message are in every one of them.
     const skillText = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(userParts)));
     const describe = async (extra) => (await describeRequest(userParts, { conversation, modelInfo: synthesizer, ...(skillText ? { additionalSystemInstruction: skillText } : {}), ...extra })).systemInstructionText || '';
-    const member = await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT });
+    const memberBase = await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT });
+    // The files of the project the chat is in: the members are told their names and look into them with their own tools on the server (read-only; the synthesis is not given them).
+    projectFiles = await projectFilesFor(conversation, loadProjectAccess);
+    const member = [memberBase, projectFiles?.catalogText].filter(Boolean).join('\n\n');
     instructions = { participant: member, deliberation: member, synthesis: await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, historyForApi: [], onMemoryContextResolved }) };
   } catch (error) {
     warn('Putting the request for the server together failed; the council is held here.', error);
@@ -78,6 +96,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
   // The skills the members may load by themselves (those asked for with "/" are given whole), and the person's connectors (only what may be read without asking).
   const skills = await getAvailableSkills(skillNamesOfParts(userParts)).catch(() => []);
   const synthesis = councilSynthesisTools({ conversation, config, synthesizer, userParts });
+  const { embeddingKey, ...projectFilesTools } = projectFiles?.snapshot || {};
   const historySourceIds = getHistorySourceIds();
   const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })));
   const spec = {
@@ -102,8 +121,8 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
       language: uiLanguage,
       ...(historySourceIds.length ? { messageMetadata: { historySourceConversationIds: historySourceIds } } : {})
     },
-    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(config?.openaiWebSearch === 'provider' ? { openaiWebSearch: 'provider' } : {}), ...(config?.openaiSafetyIdentifier === false ? { openaiSafetyId: false } : {}), ...(skills.length ? { skills } : {}), connectors: true, ...(synthesis ? { synthesis } : {}) },
-    secrets: { keys, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}) }
+    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(config?.openaiWebSearch === 'provider' ? { openaiWebSearch: 'provider' } : {}), ...(config?.openaiSafetyIdentifier === false ? { openaiSafetyId: false } : {}), ...(skills.length ? { skills } : {}), connectors: true, ...(projectFiles ? { projectFiles: projectFilesTools } : {}), ...(synthesis ? { synthesis } : {}) },
+    secrets: { keys, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}), ...(embeddingKey ? { embeddingKey } : {}) }
   };
   const body = JSON.stringify(spec);
   if (body.length > maxChars) return { ok: false, reason: reasons.tooLarge, notify: false };

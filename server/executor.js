@@ -29,7 +29,7 @@ import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { createServerTidy } from './memory-tidy.js';
 import { scopedMemory } from './memory-scope.js';
-import { makeThumbnail } from './picture-thumb.js';
+import { createServerMediaViewer } from './project-media-view.js';
 import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
 import { createProjectFileTextReader } from './project-file-text.js';
 import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
@@ -339,12 +339,9 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       : null;
     const canView = spec.tools.projectFiles.canView === true;
     projectFilesLoader = createProjectFilesLoader({
-      entries, mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: 'image' })), canView,
-      // A small copy of the picture, read from the person's cloud storage like the text of a file (the bytes are not kept).
-      viewMedia: canView ? async (entry) => {
-        const bytes = await files.load({ userId, marker: { __astraCloudAsset: { path: `${userId}/${entry.fileHash}`, mimeType: entry.mimeType || '', encoding: 'base64' } } });
-        return bytes ? makeThumbnail(bytes, entry.mimeType || 'image/png') : null;
-      } : null,
+      entries, mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })), canView,
+      // A small copy of a picture, frames of a video or a page of a scan, made from the file read from the person's cloud storage like the text of a file (nothing is kept).
+      viewMedia: canView ? createServerMediaViewer({ files, userId, signal }) : null,
       language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).

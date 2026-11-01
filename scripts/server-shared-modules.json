@@ -597,10 +597,6 @@
       "note": "Reviewed 2026-10-31: no browser globals (the sources of a project as the text of a reply, within a budget; used by project-instructions.js; docs/superpowers/specs/2026-10-31-projects-design.md, section 13)."
     },
     {
-      "path": "src/app/runtime/projects/project-source-files.js",
-      "note": "Reviewed 2026-10-31: no browser globals (the originals of the sources of a project: the page gives it the IndexedDB and the cloud files service; it puts them in front of the message of a reply, which the council lifecycle shared with the server does; docs/superpowers/specs/2026-10-31-projects-design.md, section 13.1)."
-    },
-    {
       "path": "src/app/runtime/projects/project-source-model.js",
       "note": "Reviewed 2026-10-31: no browser globals (the shape and the limits of the sources of a project; used by the prompt above and by the sync)."
     },
@@ -619,6 +615,14 @@
     {
       "path": "src/data/project-piece-id.js",
       "note": "Reviewed 2026-11-01: pure functions (how the vector of a passage of a project file is named); no browser globals."
+    },
+    {
+      "path": "src/data/project-pdf-page.js",
+      "note": "Reviewed 2026-11-01: pure (a page of a PDF drawn with the pdf.js and the canvas that are given); no browser globals."
+    },
+    {
+      "path": "src/data/project-media.js",
+      "note": "Reviewed 2026-11-01: pure functions (the windows of a video or a recording, the names and hashes of their pieces, the ffmpeg commands; the ffmpeg itself is given); no browser globals."
     }
   ]
 }

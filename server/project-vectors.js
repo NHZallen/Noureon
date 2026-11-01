@@ -5,7 +5,7 @@
 
 import { createEmbeddingClient, versionOf } from '../src/app/runtime/memory-store/embedding-client.js';
 
-export const PROJECT_VECTORS = Object.freeze({ minCosine: 0.5, embedMs: 8000, maxSources: 20, maxLimit: 100 });
+export const PROJECT_VECTORS = Object.freeze({ minCosine: 0.5, embedMs: 8000, maxSources: 80, maxLimit: 100 });
 
 const literal = (vector) => `[${Array.from(vector, (value) => Number(value.toFixed(6))).join(',')}]`;
 

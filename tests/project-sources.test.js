@@ -5,8 +5,7 @@ import { createProjectActions } from '../src/app/runtime/projects/project-action
 import { projectInstructionTextFor, setProjectFoldersReader } from '../src/app/runtime/projects/project-instructions.js';
 import { PROJECT_SOURCES_MAX, PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, normalizeSource, normalizeSources } from '../src/app/runtime/projects/project-source-model.js';
 import { PROJECT_SOURCES_CONTEXT_CHARS, projectSourcesFor } from '../src/app/runtime/projects/project-source-prompt.js';
-import { PROJECT_FILES_REPLY_BYTES_MAX, createMemoryFileBackend, createProjectFileStore, projectFilesBudget, projectFilePartsFor, setProjectFileDeps, withProjectFiles } from '../src/app/runtime/projects/project-source-files.js';
-import { stampAttachmentLabels } from '../src/app/runtime/messages/attachment-labels.js';
+import { createMemoryFileBackend, createProjectFileStore } from '../src/app/runtime/projects/project-source-files.js';
 import { readSourceFile, sourceFileKind } from '../src/app/runtime/projects/project-source-reader.js';
 
 // The sources of a project: their shape and limits, the text a reply is given (within a budget), the files read into text, and adding and removing them.
@@ -131,37 +130,6 @@ test('the originals are kept by their hash, here and in the cloud, and found aga
   assert.equal(await backend.get(description.hash), null);
   const offline = createProjectFileStore({ backend: createMemoryFileBackend(), getAssets: () => ({ externalize: async () => { throw new Error('offline'); } }) });
   assert.equal((await offline.save(file('b.png', 'image/png', new Uint8Array([9])))).asset, undefined, 'kept here only when the cloud cannot be reached');
-});
-
-test('the files of the project go with a message only for a model that can read them, and only what fits in a request', async () => {
-  const backend = createMemoryFileBackend();
-  const store = createProjectFileStore({ backend });
-  const picture = await store.save(file('a.png', 'image/png', new Uint8Array([1, 2, 3])));
-  const sheet = await store.save(file('s.pdf', 'application/pdf', new Uint8Array([4, 5])));
-  const huge = { ...picture, hash: 'huge', size: PROJECT_FILES_REPLY_BYTES_MAX + 1 };
-  setProjectFoldersReader(() => [{ id: 'f1', name: 'Trip', sources: [normalizeSource({ id: 'a', kind: 'image', title: 'Photo', file: picture }), normalizeSource({ id: 'b', kind: 'file', title: 'Scan', file: sheet }), normalizeSource({ id: 'c', kind: 'image', title: 'Huge', file: huge }), src(1)] }]);
-  try {
-    setProjectFileDeps({ store, supports: (_model, inlineData) => inlineData.mimeType.startsWith('image/') });
-    const seeing = await projectFilePartsFor({ folderId: 'f1' }, { id: 'm' });
-    assert.match(seeing[0].text, /Files of the project "Trip"/);
-    assert.deepEqual(seeing.slice(1).map((part) => [part.inlineData.mimeType, part.inlineData.data, part.inlineData.name, part.inlineData.attachmentLabel]), [['image/png', 'AQID', 'a.png', 'Project file: a.png']]);
-    const stamped = stampAttachmentLabels([...seeing, { inlineData: { mimeType: 'image/png', data: 'x', name: 'mine.png' } }]);
-    assert.equal(stamped.at(-1).inlineData.attachmentLabel, 'Image 1 of 1 in this message: mine.png', 'the files of the project are not counted with the ones of the message');
-    setProjectFileDeps({ store, supports: () => false });
-    assert.deepEqual(await projectFilePartsFor({ folderId: 'f1' }, { id: 'blind' }), [], 'a model that cannot read them gets none');
-    setProjectFileDeps({ store, supports: () => true });
-    assert.equal((await projectFilePartsFor({ folderId: 'f1' }, {})).filter((part) => part.inlineData).length, 2, 'the one that does not fit is left out');
-    assert.deepEqual(projectFilesBudget({ sources: [normalizeSource({ id: 'a', kind: 'image', file: picture }), normalizeSource({ id: 'c', kind: 'image', file: huge }), normalizeSource({ id: 'b', kind: 'file', file: sheet })] }).left.map((source) => source.id), ['c'], 'the budget says what waits');
-    assert.deepEqual(await projectFilePartsFor({ folderId: 'none' }, {}), [], 'not in a project');
-    assert.deepEqual(await projectFilePartsFor({ folderId: 'f1', retentionMode: 'ephemeral' }, {}), [], 'a temporary chat');
-    const sent = [{ text: 'hello' }];
-    const parts = await withProjectFiles(sent, { folderId: 'f1' }, {});
-    assert.equal(parts.at(-1), sent[0]);
-    assert.equal(parts.length, 4);
-    assert.deepEqual(sent, [{ text: 'hello' }], 'the message is not changed');
-    setProjectFileDeps(null);
-    assert.equal(await withProjectFiles(sent, { folderId: 'f1' }, {}), sent, 'nothing wired, nothing added');
-  } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 });
 
 test('an original is refused over 20 MB and over 100 MB together, and is forgotten with its source and its project', async () => {
