@@ -70,6 +70,8 @@ export async function importSharedConversation({ code, read, quota = async () =>
       parts.push(kept);
     }
   }
+  // A research that was not finished when it was shared has nobody to run it here: only its finished report comes along.
+  parts = parts.map((list) => list.filter((part) => !part?.researchPlan));
   const at = now();
   const conversation = {
     id: uuid(),

@@ -115,3 +115,15 @@ test('deleting a conversation never waits for the lookup of its shares: with the
     await window.happyDOM.abort();
   }
 });
+
+test('a research that was not finished when shared is not copied (nobody runs it here), its finished report is', async () => {
+  const done = { title: 'R', topic: 'r', text: '# R', phase: 'done', sources: [], stats: {} };
+  const result = await run({ read: async () => ({ mode: 'continue', ownerName: 'Ada', title: 'T', snapshot: { v: 1, title: 'T', messages: [
+    { role: 'user', parts: [{ text: 'research' }] },
+    { role: 'model', parts: [{ researchPlan: { title: 'P', phase: 'researching', items: [] } }] },
+    { role: 'model', parts: [{ researchReport: done }] }
+  ] } }) });
+  assert.equal(result.ok, true);
+  assert.equal(result.conversation.messages.length, 2);
+  assert.equal(result.conversation.messages[1].parts[0].researchReport.title, 'R');
+});

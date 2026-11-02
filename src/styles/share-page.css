@@ -40,3 +40,5 @@ html.share-page, html.share-page body { height: 100%; overflow: hidden; }
 .sp-admin-card .sp-report-row { margin-top: 0.75rem; }
 .sp-admin-card a.sp-btn { text-decoration: none; display: inline-block; }
 .sp-banner { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px dashed var(--border-color); border-radius: 0.6rem; font-size: 0.8125rem; color: var(--text-secondary); }
+.sp-toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 2000; max-width: calc(100vw - 2rem); padding: 0.55rem 1rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--modal-bg); color: var(--text-primary); font-size: 0.8125rem; box-shadow: var(--shadow-sm); }
+.sp-messages .user-message-actions { display: none; }

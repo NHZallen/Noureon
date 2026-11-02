@@ -27,8 +27,8 @@ const failureText = (language, error) => {
   return researchText(language, 'failed', { reason: error?.message || '' });
 };
 
-/** Draws a card into `host` for the message, and keeps it up to date until the host leaves the page. */
-export function mountResearchCard({ host, message, getLanguage, showNotification = () => {}, openReader = null }) {
+/** Draws a card into `host` for the message, and keeps it up to date until the host leaves the page. `readOnly` is the page of a shared conversation: the report can be read, copied and exported; a research that was not done is only told so. */
+export function mountResearchCard({ host, message, getLanguage, showNotification = () => {}, openReader = null, readOnly = false }) {
   if (!host || host.__researchCard) return () => {};
   host.__researchCard = true;
   const id = message.id;
@@ -57,6 +57,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
   const bulletOf = (plan, item) => {
     if (item.state !== 'active') return BULLET[item.state] || BULLET.pending;
     if (plan.phase !== 'researching') return BULLET.pending;
+    if (readOnly) return BULLET.still;
     return plan.paused || plan.pausing ? BULLET.still : BULLET.active;
   };
   const itemsHtml = (plan) => `<div class="rc-items" role="list">${(plan.items || []).map((item) => `<div class="rc-item rc-item-${esc(item.state)}" role="listitem">${bulletOf(plan, item)}<span>${esc(item.text)}</span></div>`).join('')}</div>`;
@@ -81,6 +82,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
   };
 
   const planFooter = (plan, runId) => {
+    if (readOnly) return `<div class="rc-status rc-status-end">${esc(t('sharedUnfinished'))}</div>`;
     const disabled = runId ? '' : ' disabled';
     const phase = plan.phase;
     if (phase === 'planning') return `<div class="rc-status"><span class="rc-spinner" aria-hidden="true"></span><span>${esc(t('planning'))}</span></div>`;
@@ -105,7 +107,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     return '';
   };
 
-  const planHtml = (plan, runId) => `<div class="rc-box"><div class="rc-title">${esc(plan.title || plan.topic || '')}</div>${itemsHtml(plan)}${planFooter(plan, runId)}</div><div class="rc-note">${esc(t('intro', { topic: plan.topic || plan.title || '' }))}</div>`;
+  const planHtml = (plan, runId) => `<div class="rc-box"><div class="rc-title">${esc(plan.title || plan.topic || '')}</div>${itemsHtml(plan)}${planFooter(plan, runId)}</div>${readOnly ? '' : `<div class="rc-note">${esc(t('intro', { topic: plan.topic || plan.title || '' }))}</div>`}`;
 
   const previewOf = (text) => {
     const source = String(text || '');
@@ -121,8 +123,8 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
   const reportHtml = (report) => {
     const stats = t('doneStats', { t: formatResearchTime(report.stats?.ms), c: report.stats?.citations ?? 0, s: report.stats?.searches ?? 0 });
     const item = (act, key) => `<button type="button" role="menuitem" data-act="${act}"${state.busy ? ' disabled' : ''}>${esc(state.busy === act.replace('export-', '') ? t('preparing') : t(key))}</button>`;
-    const menu = state.menu ? `<div class="rc-menu" role="menu">${item('copy', 'copy')}${item('add-project', 'addToProject')}${item('export-md', 'exportMarkdown')}${item('export-docx', 'exportWord')}${item('export-pdf', 'exportPdf')}</div>` : '';
-    return `<div class="rc-stats-line">${esc(stats)}</div><div class="rc-report"><div class="rc-report-head"><span class="rc-doc">${DOC_ICON}</span><span class="rc-report-title">${esc(report.title || '')}</span><span class="rc-report-actions"><span class="rc-menu-anchor"><button type="button" class="rc-chip" data-act="download-menu" aria-haspopup="menu" aria-expanded="${state.menu}">${DOWNLOAD_ICON}<span>${esc(t('download'))}</span></button>${menu}</span><button type="button" class="rc-chip" data-act="expand">${EXPAND_ICON}<span>${esc(t('expand'))}</span></button></span></div><div class="rc-report-body" data-act="expand"><div class="rc-preview"></div><div class="rc-fade"></div></div></div><div class="rc-note">${esc(t('intro', { topic: report.topic || report.title || '' }))}</div>`;
+    const menu = state.menu ? `<div class="rc-menu" role="menu">${item('copy', 'copy')}${readOnly ? '' : item('add-project', 'addToProject')}${item('export-md', 'exportMarkdown')}${item('export-docx', 'exportWord')}${item('export-pdf', 'exportPdf')}</div>` : '';
+    return `<div class="rc-stats-line">${esc(stats)}</div><div class="rc-report"><div class="rc-report-head"><span class="rc-doc">${DOC_ICON}</span><span class="rc-report-title">${esc(report.title || '')}</span><span class="rc-report-actions"><span class="rc-menu-anchor"><button type="button" class="rc-chip" data-act="download-menu" aria-haspopup="menu" aria-expanded="${state.menu}">${DOWNLOAD_ICON}<span>${esc(t('download'))}</span></button>${menu}</span><button type="button" class="rc-chip" data-act="expand">${EXPAND_ICON}<span>${esc(t('expand'))}</span></button></span></div><div class="rc-report-body" data-act="expand"><div class="rc-preview"></div><div class="rc-fade"></div></div></div>${readOnly ? '' : `<div class="rc-note">${esc(t('intro', { topic: report.topic || report.title || '' }))}</div>`}`;
   };
 
   const fillPreview = (report) => {
@@ -151,7 +153,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     if (current?.report) fillPreview(current.report);
     moveBar();
     tick();
-    const wantsTick = !current?.report && ['awaiting', 'researching'].includes(current?.plan?.phase);
+    const wantsTick = !readOnly && !current?.report && ['awaiting', 'researching'].includes(current?.plan?.phase);
     if (wantsTick && !timer) timer = setInterval(tick, 250);
     if (!wantsTick && timer) {
       clearInterval(timer);

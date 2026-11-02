@@ -10,18 +10,22 @@ import { ensureLanguage } from '../i18n/language-packs.js';
 import i18n from '../../data/i18n/index.js';
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from '../runtime/features/login-language.js';
 import { createMarkdownRenderingHelpers } from '../runtime/shell/markdown-rendering-helpers.js';
-import { createConversationViewRenderer } from '../runtime/messages/conversation-view-renderer.js';
 import { createMediaAttachmentRenderer } from '../runtime/messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../runtime/messages/media-preview-lifecycle.js';
 import { escapeHTML, renderUserText } from '../runtime/shell/shell-utilities.js';
 import { applyRememberedAccent } from '../../utils/accent-mirror.js';
 import { openSourceUrl, watchSourceIcons } from '../ui/sandbox/run-sources.js';
 import { sourcesOfPill } from '../ui/citations/citation-pills.js';
+import { codeOfCard } from '../ui/sandbox/run-code-card.js';
+import { sourcesOfReply } from '../runtime/features/reply-sources-actions.js';
+import { installFileCardInteractions } from '../ui/files/file-card-interactions.js';
+import { installCodeHighlighting } from '../ui/code/code-highlighting.js';
 import { openSourceSheet } from '../ui/citations/source-sheet.js';
 import { easeSavedDetails } from '../ui/motion/collapse-motion.js';
 import { markPageAsPrivate } from './private-page.js';
 import { PENDING_SHARE_KEY, isReviewRequest, shareCodeOf } from './share-route.js';
 import { hydrateSharedSnapshot } from './share-assets.js';
+import { renderSharedMessages } from './share-messages.js';
 import { sharePageText } from './share-texts.js';
 
 const LANGUAGES = [['zh-TW', '繁體中文'], ['en', 'English'], ['fr', 'Français'], ['ru', 'Русский'], ['es', 'Español']];
@@ -42,6 +46,9 @@ export async function initializeSharePage({ window, document, supabase = getSupa
   // The colours the person chose in the app (the accent, the bubble), when they open the page in the same browser.
   applyRememberedAccent(document.documentElement, window.localStorage);
   watchSourceIcons(document);
+  // Downloading and previewing the cards of files, and the colours of code, as in the app (both listen on the whole page).
+  installFileCardInteractions({ root: document, window, getUiLanguage: () => language, notify: (message) => notify(message), logError: () => {} });
+  installCodeHighlighting({ document, window });
   easeSavedDetails(document);
   let language = supported(readLoginLanguage()) || supported(readLastUiLanguage()) || supported(detectSystemLanguage()) || 'zh-TW';
   await ensureLanguage(language).catch(() => {});
@@ -78,25 +85,19 @@ export async function initializeSharePage({ window, document, supabase = getSupa
   const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({
     marked, sanitizer: DOMPurify, DOMParser: window.DOMParser, katex: getKatex(), getUiLanguage: () => language,
     getText: (key, fallback) => i18n[language]?.[key] || fallback, logger: console
-  }).renderMarkdown;
+  }).renderMarkdownWithFormulas;
   const mediaRenderer = createMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => language });
   const previews = createMediaPreviewLifecycle({ document, navigator: window.navigator, fetch: fetchImpl, File: window.File, escapeHTML, getInlineMediaSrc: mediaRenderer.getInlineMediaSrc, getUiLanguage: () => language });
-  const viewer = createConversationViewRenderer({
-    document, renderUserText, renderModelText,
-    renderMediaAttachmentGrid: (parts) => mediaRenderer.buildMediaAttachmentView(parts).html,
-    bindMediaPreviewButtons: previews.bindMediaPreviewButtons,
-    // A picture a model drew is read from the public bucket straight into the <img>.
-    bindGeneratedImageAssets: async (messageElement, assets) => {
-      for (const asset of assets) {
-        const url = asset.cloudAsset?.url || '';
-        const image = messageElement.querySelector(`img[data-generated-image-id="${asset.id}"]`);
-        if (image && url) image.src = url;
-        const link = messageElement.querySelector(`a[data-generated-image-download="${asset.id}"]`);
-        if (link && url) { link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
-      }
-    },
-    mediaMode: 'inlineData', wrapTextParts: true, getLabels: () => ({}), scheduleFrame: (callback) => window.requestAnimationFrame(callback), logError: () => {}
-  });
+  // A picture a model drew is read from the public bucket straight into the <img>.
+  const bindGeneratedImageAssets = async (messageElement, assets) => {
+    for (const asset of assets) {
+      const url = asset.cloudAsset?.url || '';
+      const image = messageElement.querySelector(`img[data-generated-image-id="${asset.id}"]`);
+      if (image && url) image.src = url;
+      const link = messageElement.querySelector(`a[data-generated-image-download="${asset.id}"]`);
+      if (link && url) { link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+    }
+  };
 
   const dateText = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' }); };
 
@@ -154,6 +155,39 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     footer.append(line, el(document, 'div', 'sp-report-slot'));
   }
 
+  // A short line at the bottom that says a copy or an export is done (the app has its own notification, which this page does not load).
+  let toastTimer = null;
+  const notify = (message) => {
+    document.querySelector('.sp-toast')?.remove();
+    const toast = el(document, 'div', 'sp-toast', message);
+    toast.setAttribute('role', 'status');
+    document.body.appendChild(toast);
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.remove(), 2600);
+  };
+
+  // A deep research is a card in the app (ui/research/): here the report is drawn read-only, from the message of the snapshot (it has no id of its own, so one is made from its place).
+  async function mountResearchCards(list, messages) {
+    const hosts = [...list.querySelectorAll('.research-card-host')];
+    if (!hosts.length) return;
+    try {
+      const [{ mountResearchCard }] = await Promise.all([import('../ui/research/research-card.js'), import('../ui/research/research-card.css').catch(() => {})]);
+      for (const host of hosts) {
+        const index = Number(host.closest('[data-message-index]')?.dataset.messageIndex);
+        const message = messages[index];
+        if (!message) continue;
+        const id = message.id;
+        mountResearchCard({
+          host, message, getLanguage: () => language, showNotification: notify, readOnly: true,
+          openReader: async () => {
+            const [{ openResearchReader }] = await Promise.all([import('../ui/research/research-reader.js'), import('../ui/research/research-reader.css').catch(() => {})]);
+            return openResearchReader({ messageId: id, getLanguage: () => language, showNotification: notify, document });
+          }
+        });
+      }
+    } catch { /* the message stays as the page drew it */ }
+  }
+
   function drawReady() {
     const { share, snapshot } = loaded;
     document.title = `${text('title')} · Noureon`;
@@ -190,9 +224,22 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     const list = el(document, 'section', 'sp-messages');
     list.id = 'sp-messages';
     main.appendChild(list);
-    viewer.renderConversationMessages({ conversation: { messages: snapshot.messages }, contentContainer: list, emptyHTML: '' });
+    const drawn = renderSharedMessages({
+      document, list, messages: snapshot.messages, code, texts: i18n[language] || {}, language, renderUserText, renderModelText, buildMediaAttachmentView: mediaRenderer.buildMediaAttachmentView,
+      bindMediaPreviewButtons: previews.bindMediaPreviewButtons, bindGeneratedImageAssets, onCopied: () => notify(text('copied'))
+    });
+    void mountResearchCards(list, drawn);
     // The pages a reply found, as in the app: a chip opens its page in a new tab; a label that cites sources opens its page, or the sheet of them when there are several.
     list.addEventListener('click', (event) => {
+      const codeCopy = event.target.closest('.run-code-copy');
+      if (codeCopy) { void window.navigator.clipboard.writeText(codeOfCard(codeCopy)).then(() => notify(text('copied'))).catch(() => {}); return; }
+      // The "Sources" button under a reply: its pages in a sheet (the page has no panel on the side).
+      const sourcesButton = event.target.closest('[data-sources-button]');
+      if (sourcesButton) {
+        const web = sourcesOfReply(drawn[Number(sourcesButton.closest('.message-item')?.dataset.messageIndex)]).web;
+        if (web.length) openSourceSheet({ document, sources: web, all: true, language });
+        return;
+      }
       const chip = event.target.closest('.run-source-chip');
       if (chip) { openSourceUrl(chip.dataset.url, (...args) => window.open(...args)); return; }
       const pill = event.target.closest('.cite-pill');

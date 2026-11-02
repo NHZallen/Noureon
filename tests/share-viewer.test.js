@@ -204,3 +204,41 @@ test('a notice is written again in the language the reader chooses, and a share 
     assert.equal(removed.window.document.querySelector('.sp-messages'), null);
   } finally { await removed.window.happyDOM.abort(); }
 });
+
+const REPORT = { title: 'Heat pumps', topic: 'heat pumps', text: '# Heat pumps\n\nThey move heat [1].', finishedAt: 1, stats: { ms: 1000, searches: 2, citations: 1 }, sources: [{ n: 1, url: 'https://example.org/a', title: 'A', site: 'example.org', snippet: '' }], toc: [], activity: [], items: [], phase: 'done' };
+
+test('a deep research report is drawn as a card that can be read, copied and exported but not added to a project; an unfinished research only says so', async () => {
+  const { window } = await open(`/s/${CODE}`, { rpc: async () => ({ data: { title: 'T', mode: 'view', ownerName: 'Ada', createdAt: '2026-10-30T00:00:00Z', updatedAt: '2026-10-31T00:00:00Z', snapshot: { v: 1, title: 'T', modelName: 'M', messages: [
+    { role: 'user', parts: [{ text: 'Research heat pumps' }] },
+    { role: 'model', parts: [{ researchReport: REPORT }] },
+    { role: 'model', parts: [{ researchPlan: { title: 'Plan', topic: 'x', items: [{ id: 'a', text: 'Item one', state: 'active' }], phase: 'researching', stats: {}, clock: 1 } }] }
+  ] } }, error: null }) });
+  try {
+    const { document } = window;
+    for (let index = 0; index < 20 && document.querySelectorAll('.rc').length < 2; index += 1) await tick();
+    const cards = [...document.querySelectorAll('#sp-messages .research-card-host')];
+    assert.equal(cards.length, 2, 'both research messages are drawn');
+    assert.match(cards[0].textContent, /Heat pumps/);
+    assert.equal(cards[0].querySelector('.rc-chip[data-act="expand"]') !== null, true);
+    cards[0].querySelector('[data-act="download-menu"]').click();
+    const items = [...cards[0].querySelectorAll('.rc-menu [data-act]')].map((node) => node.dataset.act);
+    assert.deepEqual(items, ['copy', 'export-md', 'export-docx', 'export-pdf']);
+    assert.equal(cards[1].querySelector('[data-act="start"], [data-act="stop"], [data-act="pause"]'), null, 'a plan has no controls here');
+    assert.match(cards[1].querySelector('.rc-status-end')?.textContent || '', /\S/, 'it says the research was not finished');
+    assert.equal(cards[1].querySelector('.rc-bullet-active'), null);
+  } finally { await window.happyDOM.abort(); }
+});
+
+test('the messages are drawn with the markup of the app, each with its place, and the buttons of the author are only in the markup (the style hides them)', async () => {
+  const { window } = await open(`/s/${CODE}`, { rpc: async () => ({ data: { title: 'T', mode: 'view', ownerName: 'Ada', createdAt: '2026-10-30T00:00:00Z', updatedAt: '2026-10-31T00:00:00Z', snapshot: { v: 1, title: 'T', modelName: 'M', messages: [
+    { role: 'user', parts: [{ text: 'hi' }] },
+    { role: 'model', parts: [{ text: 'Made it.' }] }
+  ] } }, error: null }) });
+  try {
+    const { document } = window;
+    const items = [...document.querySelectorAll('#sp-messages .message-item')];
+    assert.deepEqual(items.map((item) => item.dataset.messageIndex), ['0', '1']);
+    assert.equal(items[1].querySelector('.copy-content-btn') !== null, true, 'a reply can be copied');
+    assert.equal(items[0].querySelector('.user-message-actions') !== null, true);
+  } finally { await window.happyDOM.abort(); }
+});
