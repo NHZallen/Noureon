@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.2.2": [
+    "<strong>Noureon 19.2.2 Release Notes</strong>",
+    "This version lets a project have web addresses as sources, lets the report of a deep research be added to a project, fixes a few display problems in the project pages, and shortens the help texts of the projects.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Web address sources:</strong> \"Add a source\" in a project has \"Add a web address\"; paste the address, only its form is checked and nothing is fetched; the row shows the small icon of the site. Only the address is kept; the model reads the page when it needs it, through the web-page reading service you chose in Settings (Tavily or TinyFish), and nothing of the page is saved. The same when the server makes the reply and for council members.</li><li><strong>Research reports in a project:</strong> the menu of the report card and of the reader has \"Add to a project\"; after you pick the project the report (with its list of sources) is added as a Markdown file source. You are told when the project already has it, has no room for more sources, or the report is cut for being too long.</li><li><strong>Display fixes:</strong> the placeholder of the project's message box is no longer cut off when the project name is long; the row of tabs fades out at its end when it does not fit on a narrow screen; on a computer the title and the text of \"Add text\" no longer touch; in the attachment menu \"Image\" is renamed \"Photo library\" and \"Google Drive\" is added with its new icon, and signing in to Google lasts an hour without asking again.</li><li><strong>Shorter help texts:</strong> the hints of the projects, the sources, the speech-to-text settings and adding a report to a project are much shorter (five languages).</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration; the server has to be redeployed (the request has a new field for web address sources; an older server makes the page answer on its own)."
+  ],
   "19.2.1": [
     "<strong>Noureon 19.2.1 Release Notes</strong>",
     "This version changes the attachment menu and spares you from signing in again every time you pick files from Google Drive.",

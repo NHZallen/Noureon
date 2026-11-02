@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.2.2": [
+    "<strong>Notes de version de Noureon 19.2.2</strong>",
+    "Cette version permet d’ajouter des adresses web comme sources d’un projet et d’ajouter au projet le rapport d’une recherche approfondie, corrige quelques problèmes d’affichage des pages de projets et raccourcit les textes d’aide des projets.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Sources par adresse web :</strong> « Ajouter une source » d’un projet propose « Ajouter une adresse web » ; collez l’adresse, seule sa forme est vérifiée et rien n’est téléchargé ; la ligne affiche la petite icône du site. Seule l’adresse est conservée ; le modèle lit la page au besoin, par le service de lecture de pages web choisi dans les réglages (Tavily ou TinyFish), et rien de la page n’est enregistré. De même quand le serveur fait la réponse et pour les membres d’un conseil.</li><li><strong>Rapports de recherche dans un projet :</strong> le menu de la carte du rapport et du lecteur propose « Ajouter à un projet » ; une fois le projet choisi, le rapport (avec sa liste de sources) est ajouté comme source au format Markdown. Vous êtes prévenu si le projet l’a déjà, n’a plus de place pour des sources ou si le rapport est coupé parce qu’il est trop long.</li><li><strong>Corrections d’affichage :</strong> le texte d’invite de la zone de message d’un projet n’est plus coupé quand le nom du projet est long ; la rangée d’onglets s’estompe à son extrémité quand elle ne tient pas sur un écran étroit ; sur ordinateur, le titre et le texte de « Ajouter du texte » ne se touchent plus ; dans le menu des pièces jointes, « Image » devient « Photothèque » et « Google Drive » est ajouté avec sa nouvelle icône, et la connexion à Google dure une heure sans redemander.</li><li><strong>Textes d’aide raccourcis :</strong> les indications des projets, des sources, des réglages de la parole en texte et de l’ajout d’un rapport à un projet sont bien plus courtes (cinq langues).</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données ; le serveur doit être redéployé (la requête a un nouveau champ pour les sources par adresse web ; un serveur plus ancien fait répondre la page elle-même)."
+  ],
   "19.2.1": [
     "<strong>Notes de version de Noureon 19.2.1</strong>",
     "Cette version modifie le menu des pièces jointes et vous évite de vous reconnecter à chaque fois que vous choisissez des fichiers dans Google Drive.",

@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.2.2": [
+    "<strong>Notas de la versión de Noureon 19.2.2</strong>",
+    "Esta versión permite añadir direcciones web como fuentes de un proyecto y añadir a un proyecto el informe de una investigación profunda, corrige varios problemas de visualización de las páginas de proyectos y acorta los textos de ayuda de los proyectos.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Fuentes por dirección web:</strong> «Añadir una fuente» de un proyecto incluye «Añadir una dirección web»; pega la dirección, solo se comprueba su forma y no se descarga nada; la fila muestra el pequeño icono del sitio. Solo se guarda la dirección; el modelo lee la página cuando la necesita, mediante el servicio de lectura de páginas web que elegiste en los ajustes (Tavily o TinyFish), y no se guarda nada de la página. Igual cuando responde el servidor y para los miembros de un consejo.</li><li><strong>Informes de investigación en un proyecto:</strong> el menú de la tarjeta del informe y del lector incluye «Añadir a un proyecto»; tras elegir el proyecto, el informe (con su lista de fuentes) se añade como fuente en formato Markdown. Se te avisa si el proyecto ya lo tiene, no tiene sitio para más fuentes o el informe se corta por ser demasiado largo.</li><li><strong>Correcciones de visualización:</strong> el texto de sugerencia del cuadro de mensaje de un proyecto ya no se corta cuando el nombre del proyecto es largo; la fila de pestañas se difumina en el extremo cuando no cabe en una pantalla estrecha; en el ordenador, el título y el texto de «Añadir texto» ya no se tocan; en el menú de adjuntos «Imagen» pasa a llamarse «Galería» y se añade «Google Drive» con su nuevo icono, y el inicio de sesión de Google dura una hora sin volver a pedirse.</li><li><strong>Textos de ayuda más cortos:</strong> las indicaciones de los proyectos, las fuentes, los ajustes de voz a texto y de añadir un informe a un proyecto son mucho más cortas (cinco idiomas).</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no necesita migración de datos; hay que volver a desplegar el servidor (la solicitud tiene un campo nuevo para las fuentes por dirección web; un servidor más antiguo hace que responda la propia página)."
+  ],
   "19.2.1": [
     "<strong>Notas de la versión de Noureon 19.2.1</strong>",
     "Esta versión cambia el menú de adjuntos y evita que tengas que iniciar sesión de nuevo cada vez que eliges archivos de Google Drive.",
