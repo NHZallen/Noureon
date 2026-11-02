@@ -12,7 +12,7 @@
   #chat-workspace > header.pj-in-project { min-height: 3.5rem; }
   #chat-workspace > header.pj-in-project #new-chat-btn-header, #chat-workspace > header.pj-in-project #menu-toggle-btn { display: none; }
   .pj-head-back { flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--text-primary); cursor: pointer; }
-  .pj-head-title { position: absolute; left: 50%; top: 50%; transform: translateX(-50%); z-index: 1; max-width: calc(100% - 8rem); display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
+  .pj-head-title { position: absolute; left: 0; right: 0; top: 50%; margin: 0 auto; width: max-content; z-index: 1; max-width: calc(100% - 8rem); display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
   .pj-head-top { max-width: 100%; height: 1.5rem; margin-top: -0.75rem; display: inline-flex; align-items: center; gap: 0.4rem; }
   .pj-head-icon { flex: none; width: 1.15rem; height: 1.15rem; display: inline-flex; }
   .pj-head-icon svg { width: 100%; height: 100%; }
