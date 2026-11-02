@@ -8,6 +8,9 @@
  * `data-theme` on <html> is "light" or "dark" (public/theme-init.js sets it before the first paint, color-scheme.js keeps it up to date).
  * The dark theme is a dark grey after ChatGPT's (page #212121, side bar #171717, input #2f2f2f).
  */
+:root { --page-gutter: 1rem; }
+@media (min-width: 768px) { :root { --page-gutter: 1.5rem; } }
+
 :root {
     color-scheme: light;
 

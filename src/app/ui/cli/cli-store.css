@@ -6,12 +6,12 @@
 
 html.cs-open { overflow: hidden; }
 .cs { position: fixed; inset: 0; z-index: 1150; display: flex; flex-direction: column; background: var(--chat-bg); color: var(--text-primary); font-size: 0.95rem; }
-.cs-head { position: relative; z-index: 3; flex: none; display: flex; align-items: center; gap: 0.6rem; padding: max(0.7rem, env(safe-area-inset-top, 0px)) 0.9rem 0.6rem; background: var(--chat-bg); }
+.cs-head { position: relative; z-index: 3; flex: none; display: flex; align-items: center; gap: 0.6rem; padding: max(0.7rem, env(safe-area-inset-top, 0px)) calc(var(--page-gutter) - 0.5rem) 0.6rem; background: var(--chat-bg); }
 .cs-head::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: var(--edge-fade, 1rem); background: linear-gradient(to bottom, var(--chat-bg), transparent); pointer-events: none; }
-.cs-back { flex: none; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; cursor: pointer; }
+.cs-back { flex: none; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 0; border-radius: 0.6rem; background: transparent; color: inherit; cursor: pointer; }
 .cs-back:hover { background: var(--hover-bg); }
 .cs-title { display: flex; align-items: center; gap: 0.55rem; margin: 0; font-size: 1.15rem; font-weight: 600; }
-.cs-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.4rem 1rem calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
+.cs-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.4rem var(--page-gutter) calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
 .cs-column { max-width: 46rem; margin: 0 auto; }
 
 /* The two parts. Wide screen: a list at the left of the page. Phone: a switch in the header, right of the title, the two buttons as wide as the wider. */
@@ -53,7 +53,7 @@ html.cs-open { overflow: hidden; }
 .cs-action { display: flex; align-items: center; gap: 0.4rem; }
 .cs-added, .cs-soon { color: var(--text-secondary); font-size: 0.82rem; }
 .cs-soon { padding: 0.3rem 0.8rem; border: 1px dashed var(--border-color); border-radius: 9999px; white-space: nowrap; }
-.cs-add, .cs-icon-button { width: 2.3rem; height: 2.3rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; cursor: pointer; }
+.cs-add, .cs-icon-button { width: 2.3rem; height: 2.3rem; display: grid; place-items: center; border: 0; border-radius: 0.6rem; background: transparent; color: inherit; cursor: pointer; }
 .cs-icon-button { border-color: transparent; }
 .cs-add:hover, .cs-icon-button:hover { background: var(--hover-bg); }
 .cs-button { padding: 0.45rem 1rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; font: inherit; font-size: 0.85rem; cursor: pointer; }

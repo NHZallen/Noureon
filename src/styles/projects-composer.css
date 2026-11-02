@@ -1,7 +1,7 @@
 /* The box of the chat on the page of a project (runtime/projects/project-composer.js): the chat's own box, moved here, with the sizes it gets from the chat's workspace given here. */
 .pj-composer-slot { --desktop-composer-menu-width: min(48rem, calc(100vw - 2rem)); --desktop-composer-docked-offset: 0px; --desktop-composer-empty-offset: 0px; position: relative; width: 100%; }
-.pj-composer-slot #input-bar-container { transform: none; padding: 0; }
+.pj-composer-slot #input-bar-container { transform: none; }
 .pj-composer-slot #input-bar-container > .max-w-4xl { max-width: none; }
 .pj-main.has-composer { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
-.pj-main-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1.1rem 1.6rem 1rem; }
-.pj-main.has-composer .pj-composer-slot { flex: none; box-sizing: border-box; max-width: 48rem; margin: 0 auto; padding: 0.25rem 1.6rem 1.1rem; }
+.pj-main-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1.1rem var(--page-gutter) 1rem; }
+.pj-main.has-composer .pj-composer-slot { flex: none; box-sizing: border-box; max-width: 48rem; margin: 0 auto; padding: 0; }
