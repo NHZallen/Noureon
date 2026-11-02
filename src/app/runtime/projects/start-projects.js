@@ -6,6 +6,8 @@ import { projectsRouteFromPath } from '../../ui/projects/project-path.js';
 import { createSidebarProjects } from '../../ui/projects/sidebar-projects.js';
 import { createProjectActions } from './project-actions.js';
 import { createProjectComposer } from './project-composer.js';
+import { setProjectPlaceholder } from './project-placeholder.js';
+import { createProjectCrumb } from '../../ui/projects/project-crumb.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 import { getDrivePicker } from './drive-picker.js';
@@ -174,6 +176,20 @@ export function startProjects({
     storage: (() => { try { return win.localStorage; } catch { return null; } })()
   });
   sidebarProjects.mount();
+
+  // A chat that belongs to a project says so, under its header (ui/projects/project-crumb.js), and its empty box says "Message <project>".
+  const projectOfActiveChat = () => {
+    const conversation = dataStore.getConversations().find((entry) => entry.id === getCurrentConversationId());
+    return conversation?.folderId ? actions.folderOf(conversation.folderId) : null;
+  };
+  void import('../../../styles/project-crumb.css').catch(() => {});
+  createProjectCrumb({ document, text, getProject: projectOfActiveChat, openProject: (id) => { void open({ id }); } });
+  setProjectPlaceholder((conversation) => {
+    const project = conversation?.folderId ? actions.folderOf(conversation.folderId) : null;
+    if (!project) return null;
+    const name = String(project.name || '');
+    return text('pjComposer', { name: name.length > 16 ? `${name.slice(0, 15)}…` : name });
+  });
   document.addEventListener(USER_READY_EVENT, () => sidebarProjects.render());
 
   // ----- the address: opened by it, the page starts at the project it names (or at the list when that project is not there)

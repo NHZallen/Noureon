@@ -73,7 +73,8 @@ export function projectMark(document, { icon = 'default', color = 'gray' } = {},
 }
 
 /** A menu at a button or a point: `items` are [{ label, icon, action, danger }]. Closes on a click outside, on Escape and when an item is chosen. Returns { close }. */
-export function openMenu({ document, root, anchor, point = null, items, onClose = () => {} }) {
+/** `align`: 'end' (default) puts the right edge of the menu at the right edge of the button, as the menus of the page do; 'start' puts the left edge at the button's, so that the menu opens toward the middle of the screen, as the menus of the left list of the app do. */
+export function openMenu({ document, root, anchor, point = null, items, align = 'end', onClose = () => {} }) {
   const win = document.defaultView;
   const menu = make(document, 'div', 'pj-menu');
   menu.setAttribute('role', 'menu');
@@ -105,7 +106,7 @@ export function openMenu({ document, root, anchor, point = null, items, onClose 
   const height = menu.offsetHeight || items.length * 44;
   const viewWidth = win.innerWidth || 800;
   const viewHeight = win.innerHeight || 600;
-  const left = Math.max(8, Math.min(rect.right - width, viewWidth - width - 8));
+  const left = Math.max(8, Math.min(align === 'start' ? rect.left : rect.right - width, viewWidth - width - 8));
   const top = rect.bottom + 6 + height > viewHeight ? Math.max(8, rect.top - height - 6) : rect.bottom + 6;
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;

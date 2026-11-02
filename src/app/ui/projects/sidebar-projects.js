@@ -95,7 +95,7 @@ export function createSidebarProjects({ document, text, actions, openProject, op
     menu?.close();
     await loadParts();
     menu = openMenu({
-      document, root: document.body, anchor,
+      document, root: document.body, anchor, align: 'start',
       items: [
         { label: project.pinned ? text('pjMenuUnpin') : text('pjMenuPin'), icon: 'pin', action: async () => { await actions.togglePinProject(project.id); } },
         { label: text('pjMenuSettings'), icon: 'edit', action: () => openSettings(project.id) },

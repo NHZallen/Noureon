@@ -2,6 +2,7 @@ import { getSearchProvider } from '../kernel/search-provider.js';
 import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { getResearchMode } from '../research/research-bridge.js';
+import { projectPlaceholder } from '../projects/project-placeholder.js';
 import { replySteering } from '../features/reply-steering.js';
 
 export function createSettingsUpdateInputStateHelper({
@@ -75,6 +76,8 @@ export function createSettingsUpdateInputStateHelper({
         // A deep research is being done in this chat: what is written is an instruction for it.
         const researchHint = hasModelApiKey ? getResearchMode()?.placeholder?.() : null;
         if (researchHint) elements.messageInput.placeholder = researchHint;
+        // A chat of a project says whom it writes to (runtime/projects/project-placeholder.js).
+        else if (hasModelApiKey && !(isCouncilEnabled(conv) && !councilValidation.ok)) { const projectHint = projectPlaceholder(conv); if (projectHint) elements.messageInput.placeholder = projectHint; }
         // The visual check of the last message is still running: nothing can be sent until it is done or stopped.
         if (chatsUnderVisionCheck.has(conv.id)) {
             elements.messageInput.placeholder = visionText(config.uiLanguage, 'sendLocked');
