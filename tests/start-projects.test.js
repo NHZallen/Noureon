@@ -11,10 +11,11 @@ import i18nParts from '../src/data/i18n/parts/projects.js';
 const i18n = { 'zh-TW': i18nParts['zh-TW'], en: i18nParts.en, fr: i18nParts.fr };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions = true, staticEntry = false } = {}) => {
+const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions = true, staticEntry = false, load = null, phone = false } = {}) => {
   const window = new Window({ url });
   const { document } = window;
-  document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${staticEntry ? '<button id="open-projects-btn" class="sidebar-item"><span class="cli-sidebar-label">專案</span></button>' : ''}${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest">history</div></div></aside><div id="sidebar-overlay"></div>`;
+  window.matchMedia = (query) => ({ matches: phone && /max-width: 767px/.test(query), media: query, addEventListener() {}, removeEventListener() {} });
+  document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${staticEntry ? '<button id="open-projects-btn" class="sidebar-item"><span class="cli-sidebar-label">專案</span></button>' : ''}${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest"><button id="a-chat" data-chat-id="c9">history</button></div></div><button id="settings-btn">Settings</button></aside><div id="sidebar-overlay"></div><button id="menu-toggle-btn"></button>`;
   const config = { language };
   const opened = [];
   const state = { folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }], conversations: [] };
@@ -26,7 +27,7 @@ const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions 
     getDefaultFolder: () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false }),
     saveAppData: async () => {}, renderSidebar: () => {}, deleteFolderFromCloud: async () => {}, deferConversationFolderSync: () => {},
     startNewChat: async () => {}, loadChat: () => {}, archiveChat: async () => {}, deleteChat: async () => {}, getCurrentConversationId: () => null,
-    load: async () => ({ openProjectsPage: (args) => { opened.push(args.route); return { go: (route) => opened.push(['go', route]) }; } })
+    load: load || (async () => ({ openProjectsPage: (args) => { opened.push(args.route); return { go: (route) => opened.push(['go', route]) }; } }))
   });
   return { window, document, config, opened, state, started, $: (selector) => document.querySelector(selector) };
 };
@@ -117,5 +118,35 @@ test('an entry that is in the page from its first paint gets its label and its c
   entry.click();
   await tick();
   assert.equal(t.opened.length, 2, 'drawn again, it still has one click, not two');
+  await t.window.happyDOM.abort();
+});
+
+test('on a phone the back of the overview brings the menu over the page, which stays; choosing in the menu leaves the page, the settings and the entry of the projects do not', async () => {
+  const closed = [];
+  let args = null;
+  const page = { element: null, close: () => { closed.push('closed'); page.element.remove(); }, go() {} };
+  const t = setup({ phone: true, staticEntry: true, load: async () => ({ openProjectsPage: (given) => { args = given; page.element = t.document.createElement('div'); t.document.body.appendChild(page.element); return page; } }) });
+  let toggles = 0;
+  t.$('#menu-toggle-btn').addEventListener('click', () => { toggles += 1; t.$('#sidebar-overlay').classList.add('visible'); });
+  t.$('#open-projects-btn').click();
+  await tick();
+  assert.equal(args.backOut(), true, 'the back is taken: the page stays');
+  assert.equal(toggles, 1, 'the menu is brought');
+  assert.equal(args.backOut(), true);
+  assert.equal(toggles, 1, 'a menu that is open is not toggled shut');
+  t.$('#settings-btn').click();
+  t.$('#open-projects-btn').click();
+  assert.deepEqual(closed, [], 'the settings and the entry of the projects keep the page');
+  t.$('#a-chat').click();
+  assert.deepEqual(closed, ['closed'], 'a chat chosen in the menu leaves the page');
+  await t.window.happyDOM.abort();
+});
+
+test('on a computer the back of the overview is not taken (it closes the page)', async () => {
+  let args = null;
+  const t = setup({ phone: false, staticEntry: true, load: async () => ({ openProjectsPage: (given) => { args = given; return { go() {} }; } }) });
+  t.$('#open-projects-btn').click();
+  await tick();
+  assert.equal(args.backOut(), false);
   await t.window.happyDOM.abort();
 });

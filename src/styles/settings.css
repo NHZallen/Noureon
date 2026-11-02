@@ -91,6 +91,9 @@ button:active:not(:disabled),
 
 #file-options-popover {
     width: 15rem !important;
+    /* shortened to the room on the screen (fit-popover-to-viewport.js): what does not fit scrolls */
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 #mobile-context-menu,

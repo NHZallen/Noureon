@@ -17,3 +17,31 @@ export function fitPopoverToViewport(popover, window = globalThis.window) {
     popover.style.maxHeight = `${Math.max(120, Math.floor(rect.height - (MARGIN - rect.top)))}px`;
   }
 }
+
+/**
+ * The popover is fitted again while it is open: the keyboard of a phone is still sliding when a menu is opened right after the box was tapped, and the box (and the menu with it) moves
+ * as the screen is resized, so a measure taken at the tap is stale. Returns a function that stops it (also stopped by itself when the menu is closed).
+ */
+export function fitPopoverWhileOpen(popover, window = globalThis.window) {
+  if (!popover?.getBoundingClientRect || !window) return () => {};
+  const targets = [window, window.visualViewport].filter((target) => target?.addEventListener);
+  const timers = [];
+  let stopped = false;
+  const refit = () => {
+    if (stopped) return;
+    if (!popover.classList?.contains('visible')) { stop(); return; }
+    fitPopoverToViewport(popover, window);
+  };
+  function stop() {
+    if (stopped) return;
+    stopped = true;
+    targets.forEach((target) => target.removeEventListener('resize', refit));
+    timers.forEach((timer) => window.clearTimeout?.(timer));
+  }
+  targets.forEach((target) => target.addEventListener('resize', refit));
+  if (typeof window.setTimeout === 'function') {
+    [120, 300, 600].forEach((delay) => timers.push(window.setTimeout(refit, delay)));
+    timers.push(window.setTimeout(stop, 2000));
+  }
+  return stop;
+}

@@ -106,8 +106,8 @@ export function createProjectComposer({ document, actions, getActiveConversation
     held = null;
     if (!chat) return;
     const current = getActiveConversation?.();
-    // Something was typed and sent already (onSubmit took the chat), or the chat was changed by the page (a chat of the project was opened): nothing to give back.
-    if (current?.id !== chat.chatId) return;
+    // The chat was changed meanwhile (a chat of the project, or one of the menu, was opened): there is nothing to give back, and the empty chat that was made leaves the project (one with messages stays).
+    if (current?.id !== chat.chatId) { actions.abandonChat(chat.chatId); return; }
     actions.abandonChat(chat.chatId);
     if (chat.previousId && conversationExists(chat.previousId)) loadChat(chat.previousId);
   }

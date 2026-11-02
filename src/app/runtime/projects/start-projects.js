@@ -103,20 +103,49 @@ export function startProjects({
     getActiveConversation: () => dataStore.getConversations().find((conversation) => conversation.id === getCurrentConversationId()) || null,
     conversationExists: (id) => dataStore.getConversations().some((conversation) => conversation.id === id && !conversation.deletedAt)
   });
+  // The left menu over the page: a phone brings it with the back button; a tap on the dim layer shuts it and leaves the page; a choice in the menu leaves the page for what was chosen.
+  let drawerPage = null;
+  const isPhone = () => Boolean(win.matchMedia?.('(max-width: 767px)').matches);
+  const drawerOverPage = () => {
+    if (!isPhone()) return false;
+    const overlay = document.getElementById('sidebar-overlay');
+    if (!overlay?.classList.contains('visible')) document.getElementById('menu-toggle-btn')?.click();
+    return true;
+  };
+  const watchDrawer = (page) => {
+    if (drawerPage === page) return;
+    drawerPage = page;
+    const side = document.getElementById('sidebar');
+    if (!side) return;
+    const onPick = (event) => {
+      if (!page.element?.isConnected) { side.removeEventListener('click', onPick, true); drawerPage = null; return; }
+      const target = event.target;
+      // Staying: the entry of the projects, the projects themselves (they change what the page shows), and the windows the menu opens (search, settings, account). Anything else chosen in the menu leaves the page.
+      if (!target?.closest?.('button, a, [role="button"], [data-chat-id]')) return;
+      if (target.closest('#open-projects-btn, #sidebar-projects-new-btn, #open-search-btn, #settings-btn, #user-profile-btn') || (target.closest('[data-section="projects"]') && !target.closest('[data-chat-id]'))) return;
+      side.removeEventListener('click', onPick, true);
+      drawerPage = null;
+      page.close();
+    };
+    side.addEventListener('click', onPick, true);
+  };
   const open = async (route = { list: true }) => {
     // A second tap while the page is being loaded does not load it again.
     opening = opening || loadPage().finally(() => { opening = null; });
     const page = await opening;
-    return page.openProjectsPage({
+    const opened = page.openProjectsPage({
       document, text, actions, route, sourcesEnabled: true, composer,
       readFile: (file) => readProjectFile(file), drive,
       vectors: { status: (sourceId) => getPageVectors()?.sourceStatus?.(sourceId) || 'off', subscribe: (listener) => getPageVectors()?.subscribe?.(listener) },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => loadChat(id),
       notify: (message, type = 'success') => showNotification(message, type),
-      // Going back out of the pages of the projects on a phone brings the left menu (the drawer), as going back from a project does in the apps this one is modelled on.
-      onClose: ({ viaBack } = {}) => { if (viaBack && win.matchMedia?.('(max-width: 767px)').matches && !document.getElementById('sidebar-overlay')?.classList.contains('visible')) document.getElementById('menu-toggle-btn')?.click(); }
+      // Going back out of the overview on a phone brings the left menu (the drawer) over the page, which stays behind its dim layer (as in the apps this one is modelled on).
+      backOut: () => drawerOverPage(),
+      onClose: () => {}
     });
+    watchDrawer(opened);
+    return opened;
   };
 
   // ----- the entry of the left menu (below the one of the Extensions when that is there)

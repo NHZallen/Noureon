@@ -923,3 +923,20 @@ test('back from a project opened straight (from its chat) goes to the list of al
     assert.equal(second.$('.pj').classList.contains('is-list'), true);
   } finally { await second.finish(); }
 });
+
+test('the back button of the overview asks backOut first: when it takes the back (the menu comes over the page) the page stays; else it closes', async () => {
+  let taken = true;
+  let asked = 0;
+  const t = setup();
+  try {
+    t.open({ list: true }, { backOut: () => { asked += 1; return taken; } });
+    t.$('.pj-head .pj-round').click();
+    await t.tick();
+    assert.equal(asked, 1);
+    assert.equal(getProjectsPage() !== null, true, 'the page stays behind the menu');
+    taken = false;
+    t.$('.pj-head .pj-round').click();
+    await t.tick();
+    assert.equal(getProjectsPage(), null);
+  } finally { await t.finish(); }
+});

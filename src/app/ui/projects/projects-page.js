@@ -49,7 +49,7 @@ const previewOf = (conversation) => {
  * vectors ({ status(sourceId), subscribe(listener) }: where the vectors of a source are, runtime/memory-store/page-vectors.js; none: no line about it), notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
  * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, composer = null, onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, composer = null, backOut = () => false, onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -210,13 +210,13 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       // A computer: the search and the + are in the title bar, the pills under it, the projects in a column of rows below (projects-wide.css).
       const actionsBox = make(document, 'div', 'pj-head-actions');
       actionsBox.append(makeSearch(), plus);
-      const head = header({ left: round('back', text('pjBack'), () => close({ viaBack: true })), title, right: actionsBox });
+      const head = header({ left: round('back', text('pjBack'), () => { if (!backOut()) close({ viaBack: true }); }), title, right: actionsBox });
       const bar = make(document, 'div', 'pj-bar');
       bar.appendChild(tabBar);
       body.appendChild(listBody);
       root.replaceChildren(head, bar, body);
     } else {
-      const head = header({ left: round('back', text('pjBack'), () => close({ viaBack: true })), title, right: plus });
+      const head = header({ left: round('back', text('pjBack'), () => { if (!backOut()) close({ viaBack: true }); }), title, right: plus });
       body.append(tabBar, listBody);
       const foot = make(document, 'footer', 'pj-foot');
       foot.appendChild(makeSearch());
@@ -777,7 +777,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   const onMedia = () => { if (closed || root.classList.contains('pj-dialog-only')) return; if (state.view === 'project') drawProject(); else drawList(); };
   media?.addEventListener?.('change', onMedia);
   document.documentElement.classList.add('pj-open');
-  document.body.appendChild(root);
+  // The page is laid in the app (not on the page), under the layers of the left menu on a phone (its dim layer is 30, the menu 40): going back out of the projects leaves the page behind the menu.
+  (document.getElementById('app-container') || document.body).appendChild(root);
   win.addEventListener('popstate', onPopState);
   win.addEventListener('keydown', onKey);
   const first = route?.id && projectOrNull(route.id) ? route : { list: true, ...(route?.create ? { create: true } : {}) };

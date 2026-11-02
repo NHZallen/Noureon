@@ -3,7 +3,7 @@ import { createStoreNavigationLifecycle } from './store-navigation-lifecycle.js'
 import { createP2PLifecycle } from './p2p-lifecycle.js';
 import { openWhenBuilt, prepareWhenIdle } from './open-settings-when-built.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
-import { fitPopoverToViewport } from '../../ui/dom/fit-popover-to-viewport.js';
+import { fitPopoverToViewport, fitPopoverWhileOpen } from '../../ui/dom/fit-popover-to-viewport.js';
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 import { installScrollbarArrows } from '../../ui/scroll/scrollbar-arrows.js';
@@ -381,6 +381,7 @@ export function createAppBootstrapLifecycle({
                 closeAllPopovers();
                 popover.classList.add('visible');
                 fitPopoverToViewport(popover, window);
+                fitPopoverWhileOpen(popover, window);
                 ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'true');
                 // Google's scripts are fetched only now (a window that signs in can be opened only at a tap, and the page does not load Google's code for a person who never opens the menu).
                 driveUpload.warm();
