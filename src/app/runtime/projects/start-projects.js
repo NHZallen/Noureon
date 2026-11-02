@@ -12,6 +12,7 @@ import { SERVICES, getService } from '../services.js';
 import { getNotesMemory, getPageTranscription, getPageVectors, setProjectPieces } from '../memory-store/memory-ref.js';
 import { createProjectPieces } from './project-pieces.js';
 import { createProjectTranscripts } from './project-transcripts.js';
+import { setProjectsApi } from './projects-api.js';
 
 const ENTRY_ID = 'open-projects-btn';
 const folderIcon = '<svg class="cli-sidebar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
@@ -75,6 +76,18 @@ export function startProjects({
     }
   };
 
+  // What the rest of the page may ask (the report of a deep research is added to a project: ui/research/research-project.js).
+  setProjectsApi({
+    list: () => actions.list().map((folder) => ({ id: folder.id, name: folder.name, sources: actions.sourcesOf(folder.id).length })),
+    // One file added as a source like a file chosen in the project: refused with the code of the reason, 'duplicate' for a text the project already has.
+    async addFile(projectId, file) {
+      const read = await readProjectFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
+      if (!read.ok) return { ok: false, code: read.code || 'unreadable' };
+      if (read.text && actions.sourcesOf(projectId).some((source) => source.text === read.text)) return { ok: false, code: 'duplicate' };
+      const added = await actions.addSource(projectId, { kind: 'file', title: read.title, mime: read.mime, size: read.size, text: read.text, ...(read.file ? { file: read.file } : {}) }).catch(() => ({ ok: false }));
+      return added.ok ? { ok: true, truncated: Boolean(read.truncated) } : { ok: false, code: added.code || 'failed' };
+    }
+  });
   // The page and its styles are a separate part, loaded the first time (the page still opens plain if the styles fail).
   const loadPage = load || (async () => {
     const [page] = await Promise.all([import('../../ui/projects/projects-page.js'), import('../../../styles/projects.css').catch((error) => { console.warn('Loading the styles of the projects failed.', error); }), import('../../../styles/projects-wide.css').catch(() => {})]);

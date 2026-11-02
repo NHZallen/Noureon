@@ -121,7 +121,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
   const reportHtml = (report) => {
     const stats = t('doneStats', { t: formatResearchTime(report.stats?.ms), c: report.stats?.citations ?? 0, s: report.stats?.searches ?? 0 });
     const item = (act, key) => `<button type="button" role="menuitem" data-act="${act}"${state.busy ? ' disabled' : ''}>${esc(state.busy === act.replace('export-', '') ? t('preparing') : t(key))}</button>`;
-    const menu = state.menu ? `<div class="rc-menu" role="menu">${item('copy', 'copy')}${item('export-md', 'exportMarkdown')}${item('export-docx', 'exportWord')}${item('export-pdf', 'exportPdf')}</div>` : '';
+    const menu = state.menu ? `<div class="rc-menu" role="menu">${item('copy', 'copy')}${item('add-project', 'addToProject')}${item('export-md', 'exportMarkdown')}${item('export-docx', 'exportWord')}${item('export-pdf', 'exportPdf')}</div>` : '';
     return `<div class="rc-stats-line">${esc(stats)}</div><div class="rc-report"><div class="rc-report-head"><span class="rc-doc">${DOC_ICON}</span><span class="rc-report-title">${esc(report.title || '')}</span><span class="rc-report-actions"><span class="rc-menu-anchor"><button type="button" class="rc-chip" data-act="download-menu" aria-haspopup="menu" aria-expanded="${state.menu}">${DOWNLOAD_ICON}<span>${esc(t('download'))}</span></button>${menu}</span><button type="button" class="rc-chip" data-act="expand">${EXPAND_ICON}<span>${esc(t('expand'))}</span></button></span></div><div class="rc-report-body" data-act="expand"><div class="rc-preview"></div><div class="rc-fade"></div></div></div><div class="rc-note">${esc(t('intro', { topic: report.topic || report.title || '' }))}</div>`;
   };
 
@@ -252,6 +252,14 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
         const { copyReport } = await import('./research-export.js');
         if (current?.report) showNotification(await copyReport(current.report, language()) ? t('copied') : t('actionFailed'), 'success');
         draw();
+        break;
+      }
+      case 'add-project': {
+        state.menu = false;
+        draw();
+        if (!current?.report) break;
+        const { addReportToProject } = await import('./research-project.js');
+        await addReportToProject({ report: current.report, language: language(), document: host.ownerDocument, showNotification });
         break;
       }
       case 'export-md':

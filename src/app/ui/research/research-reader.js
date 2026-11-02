@@ -288,6 +288,7 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
     if (!kind) menu.hidden = true;
   };
   addMenuItem(t('copy'), async () => showNotification(await copyReport(report, language) ? t('copied') : t('actionFailed'), 'success'));
+  addMenuItem(t('addToProject'), async () => { menu.hidden = true; const { addReportToProject } = await import('./research-project.js'); await addReportToProject({ report, language, document, showNotification }); });
   for (const [kind, key] of [['md', 'exportMarkdown'], ['docx', 'exportWord'], ['pdf', 'exportPdf']]) {
     addMenuItem(t(key), () => exportWithNotice(kind, report, { language, document, showNotification, onBusy: setBusy }), kind);
   }

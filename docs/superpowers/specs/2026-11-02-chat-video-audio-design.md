@@ -122,3 +122,17 @@
 
 - **2b**：訊息裡已經量過的影片（`part.mediaInfo`，由 `chat-video.js` 量）也切成 30 秒的窗進向量，piece id `src:att-<hash 前 16 碼>:v<秒>`，跟專案影片同一套（`project-pieces.js` 的 `chatVideoSourcesOf`；已刪除與暫時對話不處理；單檔不超過 30 MB）。所以 `search_project_files` 可以用語意找「哪一秒有狗」，雲端同步與伺服器回覆（`match_project_vectors`）不用改。沒量過的影片仍只整支當一個向量（原本的 `media-pieces.js`）。**接觸表（6 張畫面）沒做**：不給 `at` 時 `view_project_file` 本來就給整支均勻 4 張。
 - **4**：理事會成員拿到訊息裡影片的工具（頁面開會與伺服器開會兩條路都有）：訊息裡有影片時，用 `prepareChatVideos(parts, null, true, { all: true })`（每支影片都取，不論成員的模型收不收影片）量好，伺服器開會時先 `keepFile` 把影片存到雲端（存不上去的不列出），再把它們當 `attachments` 交給 `createProjectFilesAccess`；成員自己的模型決定能不能用 `view_project_file`（看得到圖的才有），其他成員只有搜尋與逐字稿。沒有專案的對話也行。成員收到的訊息本身不變（原本的翻譯員流程照舊）。
+
+## 11. 網址來源與研究報告加入專案（2026-11-02，Allen 的決定）
+
+- **網址來源**（Allen：不檢查，貼上就好，顯示網站 icon，單純讓模型可索取）：
+  - 資料：`source.kind: 'url'` 加 `source.url`（`data/project-source-url.js`：只收 http／https、不收帳密、沒寫協定就補 `https://`、上限 2000 字元；標題預設是「網站名 + 路徑」）。只存網址，不存網頁內容，隨專案同步，沒有 migration；算在 20 個來源裡。
+  - 介面：加來源選單「新增網址」（手機、電腦、新專案對話框的暫存清單都有）；表單只檢查格式，不連線；來源列的小圖示是瀏覽器直接向該網站要 `/favicon.ico`（`referrerPolicy: no-referrer`），載入前或失敗顯示地球圖示（跟處理面板的來源小圖示同一個做法）。
+  - 模型：不進搜尋、不進向量（沒有存內容）。目錄列出「網頁（只存網址）」，模型用 `read_project_file`（給名稱或網址）才去抓，結果一次最多 12,000 字、可用 `start` 往後讀；每則回覆只抓一次。
+  - 讀取：用「讀網頁」服務（`createWebResearchTools.fetchPageContents`，Tavily 或 TinyFish，使用者自己的金鑰），上限 10 萬字（`data/project-link-read.js`）。頁面端由 `runtime/projects/page-reader-ref.js` 取得（`model-request-engine.js` 設定）；伺服器端（單一模型與理事會成員）用請求帶來的金鑰讀。沒有金鑰就告訴模型「沒有讀網頁服務的金鑰」；讀不到就告訴模型「現在讀不到」。因為是服務去抓，不是我們的伺服器去連，沒有伺服器端請求偽造（SSRF）的風險。
+  - 請求（相容性）：`tools.projectFiles.entries[]` 多一種 `{ id, name, size: 0, url }`（只收正規化後的 http／https 網址）；專案有網址來源時，頁面才把搜尋金鑰（`secrets.searchKey`）與 `tools.searchProvider` 帶給伺服器（沒開網頁搜尋也一樣）。舊伺服器看到未知欄位會拒絕，頁面退回本機回覆。
+  - 隱私政策五語言多一段：網址只存網址；讀頁面時網址送到你選的讀網頁服務；網站小圖示由瀏覽器直接向網站取得。
+- **研究報告加入專案**（Allen 選 A：報告卡上的按鈕）：
+  - 報告卡的選單與閱讀器的選單多一項「加入專案」→ 小視窗選專案（最新的 30 個）→ 把報告存成 `.md` 檔案來源（`ui/research/research-project.js`；內容跟「匯出 Markdown」一樣，含尾端的引用清單，所以內文的 `[3]` 在專案裡找得到網址）。
+  - 走一般的檔案加入流程（`runtime/projects/projects-api.js` 的 `addFile`）：文字檔當文字讀、可搜尋、可進向量；超過單一來源 10 萬字會截斷並提示；專案已有一模一樣的文字就提示「已經有這份報告了」；來源滿了（20 個）提示「來源已滿」。
+  - 還沒做：專案內做深度研究時自動加入（Allen 說先做按鈕）。

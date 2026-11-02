@@ -185,8 +185,8 @@ test('the report card has its statistics, its title, the start of the text faded
   await flush();
   assert.deepEqual(opened, [{ messageId: 'm6' }, { messageId: 'm6' }]);
   click(window, cardHost.querySelector('[data-act="download-menu"]'));
-  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.dataset.act), ['copy', 'export-md', 'export-docx', 'export-pdf']);
-  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.textContent), ['Copy content', 'Export Markdown', 'Export Word', 'Export PDF']);
+  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.dataset.act), ['copy', 'add-project', 'export-md', 'export-docx', 'export-pdf']);
+  assert.deepEqual([...cardHost.querySelectorAll('.rc-menu button')].map((item) => item.textContent), ['Copy content', 'Add to a project', 'Export Markdown', 'Export Word', 'Export PDF']);
   const copied = [];
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: { writeText: async (text) => { copied.push(text); } } } });
   click(window, cardHost.querySelector('[data-act="copy"]'));
@@ -200,7 +200,7 @@ test('the reader\'s download menu has the three files, and shows that one is bei
   updateResearch('m9', { report: REPORT });
   openResearchReader({ messageId: 'm9', getLanguage: () => 'fr', document });
   const root = document.querySelector('.rr');
-  assert.deepEqual([...root.querySelectorAll('.rr-menu-item')].map((item) => item.textContent), ['Copier le contenu', 'Exporter en Markdown', 'Exporter en Word', 'Exporter en PDF']);
+  assert.deepEqual([...root.querySelectorAll('.rr-menu-item')].map((item) => item.textContent), ['Copier le contenu', 'Ajouter à un projet', 'Exporter en Markdown', 'Exporter en Word', 'Exporter en PDF']);
   closeResearchReader();
   assert.equal(window.document.querySelector('.rr'), null);
 });
