@@ -26,7 +26,9 @@ html.pj-open { overflow: hidden; }
 
 /* the body */
 .pj-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; width: 100%; max-width: var(--pj-column); margin: 0 auto; box-sizing: border-box; padding: 0.4rem var(--pj-gutter) 1.2rem; }
-.pj-tabs { display: flex; gap: 0.3rem; margin: 0.1rem 0 0.6rem; overflow-x: auto; scrollbar-width: none; }
+.pj-tabs { display: flex; gap: 0.3rem; margin: 0.1rem 0 0.6rem; overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(to right, var(--text-primary) calc(100% - 1.5rem), transparent); }
+/* The tabs scroll sideways when they do not fit (a long language on a narrow phone): the end fades out, and the space after the last tab keeps it clear of the fade. */
+.pj-tabs::after { content: ''; flex: none; width: 1.5rem; }
 .pj-tab { flex: none; padding: 0.5rem 1rem; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary); }
 .pj-tab:hover { background: var(--hover-bg); }
 .pj-tab[aria-selected="true"] { background: var(--hover-bg); color: var(--text-primary); }

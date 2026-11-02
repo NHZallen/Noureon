@@ -471,11 +471,37 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return box;
   };
   // The box that writes to the project: a message sent from it starts a chat in the project.
+  // The placeholder of the box names the project; it must stay on one line (a placeholder that wraps is cut off at the bottom of the box), so the name is cut with "…" until the words fit the box.
+  // The width of the words is measured with a canvas in the font of the box; where there is none (a test) the whole name is kept.
+  const fitPlaceholder = (area, name) => {
+    const full = text('pjComposer', { name });
+    area.placeholder = full;
+    const measure = (() => {
+      try {
+        const context = document.createElement('canvas').getContext('2d');
+        return context ? (words) => { context.font = win.getComputedStyle(area).font; return context.measureText(words).width; } : null;
+      } catch { return null; }
+    })();
+    if (!measure) return;
+    const fit = () => {
+      const room = area.clientWidth;
+      if (!room) return;
+      let shown = Array.from(name);
+      let words = full;
+      while (shown.length > 1 && measure(words) > room) {
+        shown = shown.slice(0, shown.length - 1);
+        words = text('pjComposer', { name: `${shown.join('').trimEnd()}…` });
+      }
+      area.placeholder = words;
+    };
+    if (typeof win.ResizeObserver === 'function') new win.ResizeObserver(fit).observe(area);
+    win.requestAnimationFrame?.(fit);
+  };
   const makeComposer = (project) => {
     const box = make(document, 'form', 'pj-composer');
     const area = make(document, 'textarea', 'pj-composer-input');
     area.rows = 1;
-    area.placeholder = text('pjComposer', { name: project.name || '' });
+    fitPlaceholder(area, project.name || '');
     area.setAttribute('aria-label', text('pjComposer', { name: project.name || '' }));
     const send = make(document, 'button', 'pj-send');
     send.type = 'submit';
