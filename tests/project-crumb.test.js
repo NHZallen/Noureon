@@ -71,3 +71,29 @@ test('a menu of the left list opens from the left edge of its button (toward the
   end.close();
   await window.happyDOM.abort();
 });
+
+test('on a phone the header of the chat becomes the project\'s: a way back, the name with "Chat" under it, and no line under the header', async () => {
+  const window = new Window({ url: 'https://noureon.test/' });
+  const { document } = window;
+  window.matchMedia = (query) => ({ matches: /max-width: 767px/.test(query), media: query, addEventListener() {}, removeEventListener() {} });
+  document.body.innerHTML = '<main id="chat-workspace"><header><div id="left"><button id="menu-toggle-btn"></button><button id="new-chat-btn-header"></button></div></header></main>';
+  let project = { id: 'p1', name: 'Translation', icon: 'book', color: 'blue' };
+  const opened = [];
+  const crumb = createProjectCrumb({ document, text: (key, values = {}) => (key === 'pjHeadSub' ? 'Chat' : key === 'pjCrumb' ? `Chat in ${values.name}` : key), getProject: () => project, openProject: (id) => opened.push(id) });
+  const header = document.querySelector('#chat-workspace > header');
+  assert.equal(header.classList.contains('pj-in-project'), true);
+  assert.equal(document.getElementById('project-crumb').hidden, true, 'the line is for a computer');
+  assert.equal(document.querySelector('#left').firstElementChild.id, 'project-head-back', 'the way back is first');
+  assert.equal(document.querySelector('.pj-head-name').textContent, 'Translation');
+  assert.equal(document.querySelector('.pj-head-sub').textContent, 'Chat');
+  document.getElementById('project-head-back').click();
+  document.getElementById('project-head-title').click();
+  assert.deepEqual(opened, ['p1', 'p1']);
+  project = null;
+  crumb.update();
+  assert.equal(header.classList.contains('pj-in-project'), false);
+  assert.equal(document.getElementById('project-head-back'), null);
+  assert.equal(document.getElementById('project-head-title'), null);
+  crumb.stop();
+  await window.happyDOM.abort();
+});
