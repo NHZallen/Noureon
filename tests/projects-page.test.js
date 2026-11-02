@@ -236,7 +236,7 @@ test('the menu of a chat: pin, rename, take out of the project, archive and dele
     await t.tick();
     assert.deepEqual(t.state.archived, ['c1']);
     assert.equal(t.$$('.pj-chat').length, 0);
-    assert.match(t.$('.pj-empty-title').textContent, /no chats yet/);
+    assert.match(t.$('.pj-empty-title').textContent, /No chats yet/);
   } finally { await t.finish(); }
 });
 
@@ -496,7 +496,7 @@ test('the Google Drive choice: only when the page has the picker; it is warmed w
     d.$('.pj-source-add').click();
     d.$$('.pj-action-item').at(-1).click();
     await d.tick();
-    assert.match(d.state.notified.at(-1)[0], /Google Drive picker could not be opened/);
+    assert.match(d.state.notified.at(-1)[0], /Google Drive could not be opened/);
     await d.finish();
   } finally { await t.finish(); }
 });
@@ -509,7 +509,7 @@ test('the sheet that makes a project asks where its notes are kept (default or t
     const rows = t.$$('.pj-memory-row');
     assert.deepEqual(rows.map((row) => row.querySelector('.pj-memory-name').textContent), ['Default memory', 'Project only']);
     assert.deepEqual(rows.map((row) => row.getAttribute('aria-checked')), ['true', 'false'], 'the memory of the account is ticked at first');
-    assert.match(t.$('.pj-memory-note').textContent, /Cannot be changed after the project is made/);
+    assert.match(t.$('.pj-memory-note').textContent, /Fixed once the project is made/);
     rows[1].click();
     assert.deepEqual(t.$$('.pj-memory-row').map((row) => row.getAttribute('aria-checked')), ['false', 'true']);
     t.byText('.pj-chip', 'Code').click();
@@ -586,7 +586,7 @@ test('on a computer the settings of a project list its sources with an add butto
     assert.equal(t.$$('.pj-backdrop').length, 2);
     assert.match(t.$$('.pj-sheet-title').at(-1).textContent, /Advanced settings/);
     assert.equal(t.$('.pj-textarea').value, 'Be brief.');
-    assert.match(t.$('.pj-memory-shown-block').textContent, /only uses its own notes/);
+    assert.match(t.$('.pj-memory-shown-block').textContent, /only its own notes|only this project's own notes/);
     assert.equal(t.$('.pj-readonly').textContent, 'Project only');
   } finally { await t.finish(); }
 });

@@ -26,11 +26,11 @@ test('the failure words: a report already there, a project with no room, anythin
 test('with no projects, or no projects service, the person is told and nothing opens', async () => {
   const none = setup({ list: () => [], addFile: async () => ({ ok: true }) });
   assert.deepEqual(await none.run(), { ok: false });
-  assert.match(none.notes[0][0], /no project yet/);
+  assert.match(none.notes[0][0], /No project yet/);
   assert.equal(none.window.document.querySelector('.pj-backdrop'), null);
   const missing = setup(null);
   assert.deepEqual(await missing.run({ api: null }), { ok: false });
-  assert.match(missing.notes[0][0], /could not be added/);
+  assert.match(missing.notes[0][0], /Could not add it/);
 });
 
 test('the sheet lists the projects; the one chosen gets the report as a Markdown file with its sources, and the person is told', async () => {
@@ -49,14 +49,14 @@ test('the sheet lists the projects; the one chosen gets the report as a Markdown
   assert.match(added[0][2], /^text\/markdown/);
   assert.equal(added[0][3], reportMarkdown(REPORT, 'en'));
   assert.match(added[0][3], /\[1\] Agency guide — https:\/\/example\.org\/guide/, 'the list of sources comes with it');
-  assert.deepEqual(notes, [['The report was added to the project "Work".', 'success']]);
+  assert.deepEqual(notes, [['Added to "Work".', 'success']]);
   assert.equal(window.document.querySelector('.pj'), null, 'the sheet is gone');
 });
 
 test('a report that is already there, a project that is full and a report that is cut are each told; closing the sheet says nothing', async () => {
   let result = { ok: false, code: 'duplicate' };
   const api = { list: () => [{ id: 'p1', name: 'Home' }], addFile: async () => result };
-  for (const [next, pattern, type] of [[{ ok: false, code: 'duplicate' }, /already has this report/, 'error'], [{ ok: false, code: 'full' }, /no room for more sources/, 'error'], [{ ok: true, truncated: true }, /first 100,000 characters/, 'success'], [{ ok: false, code: 'failed' }, /could not be added/, 'error']]) {
+  for (const [next, pattern, type] of [[{ ok: false, code: 'duplicate' }, /already has this report/, 'error'], [{ ok: false, code: 'full' }, /is full/, 'error'], [{ ok: true, truncated: true }, /first 100,000 characters/, 'success'], [{ ok: false, code: 'failed' }, /Could not add it/, 'error']]) {
     result = next;
     const { window, notes, run } = setup(api);
     const pending = run();
