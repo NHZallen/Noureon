@@ -35,3 +35,12 @@ test('Google\'s file picker is above the pages and the sheets of the projects', 
   assert.ok(layer('body > .picker-dialog-bg') > highest, 'the dim layer of the picker');
   assert.ok(layer('body > .picker-dialog') > layer('body > .picker-dialog-bg'), 'the picker itself');
 });
+
+test('on a phone the pages laid over the app end where the seen area ends (the top of the keyboard), as the app does', () => {
+  const layout = readFileSync(new URL('../src/styles/layout.css', import.meta.url), 'utf8');
+  assert.match(layout, /#app-container[^}]*height: var\(--vv-bottom, 100%\)/);
+  const composer = readFileSync(new URL('../src/styles/projects-composer.css', import.meta.url), 'utf8');
+  assert.match(composer, /@media \(pointer: coarse\) \{\s*\.pj, \.pj-backdrop \{ bottom: auto; height: var\(--vv-bottom, 100%\); \}/);
+  const store = readFileSync(new URL('../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
+  assert.match(store, /@media \(pointer: coarse\) \{ \.cs \{ bottom: auto; height: var\(--vv-bottom, 100%\); \} \}/);
+});

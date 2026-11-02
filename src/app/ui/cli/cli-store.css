@@ -6,6 +6,7 @@
 
 html.cs-open { overflow: hidden; }
 .cs { position: fixed; inset: 0; z-index: 1150; display: flex; flex-direction: column; background: var(--chat-bg); color: var(--text-primary); font-size: 0.95rem; }
+@media (pointer: coarse) { .cs { bottom: auto; height: var(--vv-bottom, 100%); } }
 .cs-head { position: relative; z-index: 3; flex: none; display: flex; align-items: center; gap: 0.6rem; padding: max(0.7rem, env(safe-area-inset-top, 0px)) calc(var(--page-gutter) - 0.5rem) 0.6rem; background: var(--chat-bg); }
 .cs-head::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: var(--edge-fade, 1rem); background: linear-gradient(to bottom, var(--chat-bg), transparent); pointer-events: none; }
 .cs-back { flex: none; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 0; border-radius: 0.6rem; background: transparent; color: inherit; cursor: pointer; }
