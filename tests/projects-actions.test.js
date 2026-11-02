@@ -209,3 +209,17 @@ test('an empty chat made for the box of the project page is the project\'s, is t
   assert.equal(actions.abandonChat(used.conversationId), false);
   assert.equal(state.conversations.find((entry) => entry.id === used.conversationId).folderId, 'f1');
 });
+
+test('the empty chat made for the box of the page is not in the list or the count of the project until something is sent in it', async () => {
+  const { actions, state } = setup({ folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }] });
+  const made = await actions.prepareChat('f1');
+  assert.deepEqual(actions.chatsOf('f1'), []);
+  assert.equal(actions.countOf('f1'), 0);
+  state.conversations.find((entry) => entry.id === made.conversationId).messages.push({ role: 'user', parts: [{ text: 'hi' }] });
+  actions.sentChat(made.conversationId);
+  assert.deepEqual(actions.chatsOf('f1').map((entry) => entry.id), [made.conversationId]);
+  assert.equal(actions.countOf('f1'), 1);
+  // A chat started on purpose (a new chat of the project) is in the list at once.
+  const started = await actions.startChat('f1', '');
+  assert.equal(actions.chatsOf('f1').some((entry) => entry.id === started.conversationId), true);
+});

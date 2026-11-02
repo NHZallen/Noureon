@@ -75,6 +75,7 @@ html.pj-open { overflow: hidden; }
 /* the foot: the search of the list and the box that writes to a project */
 .pj-foot { flex: none; width: 100%; max-width: var(--pj-column); margin: 0 auto; box-sizing: border-box; padding: 0 0 env(safe-area-inset-bottom, 0px); }
 .pj-search { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--input-bar-bg); color: var(--text-secondary); }
+.pj-foot > .pj-search { margin: 0.5rem var(--pj-gutter); }
 .pj-search-icon { display: inline-flex; flex: none; }
 .pj-search-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); }
 .pj-search-input::placeholder, .pj-composer-input::placeholder { color: var(--text-secondary); }

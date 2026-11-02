@@ -53,12 +53,15 @@ export function createProjectActions({
       .map((entry) => entry.folder);
   };
 
+  // The empty chats made for the box of a project's page (prepareChat) and not used yet: they are in the project only for what is typed in them, so no list or count shows them.
+  const prepared = new Set();
+
   /** The conversations of a project: the pinned first, then the newest; none that is in the trash, archived or temporary. */
   const chatsOf = (id) => conversations()
-    .filter((conversation) => conversation.folderId === id && !conversation.deletedAt && !conversation.archived && conversation.retentionMode !== 'ephemeral')
+    .filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && !conversation.archived && conversation.retentionMode !== 'ephemeral')
     .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stamp(right) - stamp(left));
 
-  const countOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
+  const countOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
 
   async function create({ name, icon, color, memoryScope } = {}) {
     const title = cleanName(name);
@@ -242,12 +245,14 @@ export function createProjectActions({
     if (!conversation) return { ok: false, code: 'failed' };
     conversation.folderId = projectId;
     if (!(folder.conversationIds || []).includes(conversation.id)) folder.conversationIds = [...(folder.conversationIds || []), conversation.id];
+    prepared.add(conversation.id);
     return { ok: true, conversationId: conversation.id };
   }
 
   /** The chat made by prepareChat was not used: it is no longer of the project (it is an empty chat, as any the person leaves open). */
   function abandonChat(conversationId) {
     const conversation = conversations().find((entry) => entry.id === conversationId);
+    prepared.delete(conversationId);
     if (!conversation || (conversation.messages || []).length > 0) return false;
     const folder = folderOf(conversation.folderId);
     if (folder) folder.conversationIds = (folder.conversationIds || []).filter((id) => id !== conversationId);
@@ -257,6 +262,7 @@ export function createProjectActions({
 
   /** Something was sent in the chat made by prepareChat: the cloud is told it is in the project. */
   function sentChat(conversationId) {
+    prepared.delete(conversationId);
     deferConversationFolderSync(conversationId);
   }
 
@@ -265,6 +271,7 @@ export function createProjectActions({
     const message = String(text ?? '').trim();
     const made = await prepareChat(projectId);
     if (!made.ok) return made;
+    prepared.delete(made.conversationId);
     deferConversationFolderSync(made.conversationId);
     if (message) sendText(message);
     return { ok: true, conversationId: made.conversationId };
