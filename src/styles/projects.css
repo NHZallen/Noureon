@@ -117,6 +117,9 @@ html.pj-open { overflow: hidden; }
 .pj-backdrop.is-dialog .pj-sheet-head .pj-round { display: none; }
 .pj-backdrop.is-dialog .pj-sheet-title { grid-column: 1; }
 .pj-backdrop.is-dialog .pj-sheet-body { display: block; padding: 0 1.25rem 0.3rem; }
+/* In a sheet laid out as a block (a dialog, or a wide screen) there is no row gap: the title of a text and its box would touch. */
+.pj-backdrop.is-dialog .pj-text-input + .pj-textarea { margin-top: 0.8rem; }
+.pj-backdrop.is-dialog .pj-textarea + .pj-count { margin-top: 0.4rem; }
 
 /* the buttons of a sheet */
 .pj-button { width: 100%; min-height: 2.75rem; padding: 0.5rem 1.2rem; border: 1px solid transparent; border-radius: 9999px; }
@@ -231,6 +234,8 @@ body > .picker-dialog { z-index: 1301; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-body { display: block; padding: 0.3rem 1.5rem 0.5rem; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-intro { text-align: left; margin-bottom: 1rem; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-chips { margin-top: 0.9rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-text-input + .pj-textarea { margin-top: 0.8rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-textarea + .pj-count { margin-top: 0.4rem; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-foot { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; max-width: none; padding: 0.9rem 1.5rem 1.25rem; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-foot .pj-button { width: auto; min-width: 6rem; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-foot.is-stacked { flex-direction: column; align-items: stretch; }
