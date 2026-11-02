@@ -1,5 +1,5 @@
 // A chat that belongs to a project says so: its header becomes the project's (a way back to the project at the left, the project's icon and name in the middle with "Chat" under it), on a phone
-// and on a computer alike (as the apps this one is modelled on do: the person must always know they are writing inside a project). Either the arrow or the name opens the page of the project.
+// and on a computer alike (as the apps this one is modelled on do: the person must always know they are writing inside a project). Only the arrow opens the page of the project; the name is a label and does nothing when tapped.
 // It follows the chat that is open (the chat is drawn again, a project is renamed or taken away, a chat is moved). Names are put in with textContent.
 
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
@@ -44,15 +44,11 @@ export function createProjectCrumb({ document, text, getProject, openProject }) 
     back.setAttribute('aria-label', label);
     back.title = label;
     if (!title?.isConnected) {
-      title = document.createElement('button');
-      title.type = 'button';
+      title = document.createElement('div');
       title.id = 'project-head-title';
       title.className = 'pj-head-title';
-      title.addEventListener('click', () => { const id = title.dataset.projectId; if (id) openProject(id); });
       bar.append(title);
     }
-    title.dataset.projectId = project.id;
-    title.setAttribute('aria-label', label);
     const icon = document.createElement('span');
     icon.className = 'pj-head-icon';
     icon.style.setProperty('color', colorOf(project.color));

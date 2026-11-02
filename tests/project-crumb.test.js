@@ -27,7 +27,8 @@ test('the header of a chat of a project becomes the project\'s (a way back, the 
   assert.equal(document.querySelector('.pj-head-sub').textContent, 'Chat');
   document.getElementById('project-head-back').click();
   document.getElementById('project-head-title').click();
-  assert.deepEqual(opened, ['p1', 'p1']);
+  assert.deepEqual(opened, ['p1'], 'only the arrow opens the project; tapping the name does nothing');
+  assert.equal(document.getElementById('project-head-title').tagName, 'DIV');
   // The chat changes to one outside any project.
   project = null;
   document.dispatchEvent(new window.CustomEvent('noureon:chat-changed'));
