@@ -49,7 +49,7 @@ const previewOf = (conversation) => {
  * vectors ({ status(sourceId), subscribe(listener) }: where the vectors of a source are, runtime/memory-store/page-vectors.js; none: no line about it), notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
  * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, composer = null, onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -188,6 +188,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return search;
   };
   const drawList = () => {
+    composer?.park();
     closeMenu();
     state.view = 'list';
     const wide = isWide(document);
@@ -521,6 +522,12 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     win.requestAnimationFrame?.(fit);
   };
   const makeComposer = (project) => {
+    // The box of the chat itself, moved onto the page (runtime/projects/project-composer.js); the plain box below is for a page opened without it.
+    if (composer) {
+      const slot = make(document, 'div', 'pj-composer-slot');
+      composer.attach(slot, project.id, { done: () => close() });
+      return slot;
+    }
     const box = make(document, 'form', 'pj-composer');
     const area = make(document, 'textarea', 'pj-composer-input');
     area.rows = 1;
@@ -657,7 +664,15 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       const main = make(document, 'main', 'pj-main');
       const head = header({ title, right: more });
       chatsBody = make(document, 'div', 'pj-chats');
-      main.append(head, makeComposer(project), make(document, 'div', 'pj-main-title', text('pjTabChats')), chatsBody);
+      // The box of the chat is under the list, outside what scrolls (its menus open upward over the list). The plain box, when there is none, stays above the list.
+      if (composer) {
+        const scroll = make(document, 'div', 'pj-main-scroll');
+        scroll.append(head, make(document, 'div', 'pj-main-title', text('pjTabChats')), chatsBody);
+        main.classList.add('has-composer');
+        main.append(scroll, makeComposer(project));
+      } else {
+        main.append(head, makeComposer(project), make(document, 'div', 'pj-main-title', text('pjTabChats')), chatsBody);
+      }
       const grid = make(document, 'div', 'pj-three');
       grid.append(projectSide(project), main, projectPanel(project));
       root.replaceChildren(grid, ...inputs);
@@ -669,6 +684,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const choose = (key) => { state.tab = key; drawProject(); };
     if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));
     if (sourcesEnabled && state.tab === 'sources') {
+      composer?.park();
       body.appendChild(sourcesView(project));
       root.replaceChildren(head, body, ...inputs);
       return;
@@ -741,6 +757,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     win.removeEventListener('keydown', onKey);
     media?.removeEventListener?.('change', onMedia);
     unsubscribeVectors?.();
+    // The box of the chat goes home before the page is taken away (the chat it made for the project is given up there if it was not used).
+    composer?.park();
+    void composer?.release();
     document.documentElement.classList.remove('pj-open');
     root.remove();
     current = null;

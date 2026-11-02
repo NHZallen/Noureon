@@ -5,6 +5,7 @@ import { USER_READY_EVENT, getAnnouncedUser } from '../features/user-ready.js';
 import { projectsRouteFromPath } from '../../ui/projects/project-path.js';
 import { createSidebarProjects } from '../../ui/projects/sidebar-projects.js';
 import { createProjectActions } from './project-actions.js';
+import { createProjectComposer } from './project-composer.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 import { getDrivePicker } from './drive-picker.js';
@@ -90,16 +91,22 @@ export function startProjects({
   });
   // The page and its styles are a separate part, loaded the first time (the page still opens plain if the styles fail).
   const loadPage = load || (async () => {
-    const [page] = await Promise.all([import('../../ui/projects/projects-page.js'), import('../../../styles/projects.css').catch((error) => { console.warn('Loading the styles of the projects failed.', error); }), import('../../../styles/projects-wide.css').catch(() => {})]);
+    const [page] = await Promise.all([import('../../ui/projects/projects-page.js'), import('../../../styles/projects.css').catch((error) => { console.warn('Loading the styles of the projects failed.', error); }), import('../../../styles/projects-wide.css').catch(() => {}), import('../../../styles/projects-composer.css').catch(() => {})]);
     return page;
   });
   let opening = null;
+  // The box a project's page writes in is the chat's own (project-composer.js).
+  const composer = createProjectComposer({
+    document, actions, loadChat, getCurrentConversationId,
+    getActiveConversation: () => dataStore.getConversations().find((conversation) => conversation.id === getCurrentConversationId()) || null,
+    conversationExists: (id) => dataStore.getConversations().some((conversation) => conversation.id === id && !conversation.deletedAt)
+  });
   const open = async (route = { list: true }) => {
     // A second tap while the page is being loaded does not load it again.
     opening = opening || loadPage().finally(() => { opening = null; });
     const page = await opening;
     return page.openProjectsPage({
-      document, text, actions, route, sourcesEnabled: true,
+      document, text, actions, route, sourcesEnabled: true, composer,
       readFile: (file) => readProjectFile(file), drive,
       vectors: { status: (sourceId) => getPageVectors()?.sourceStatus?.(sourceId) || 'off', subscribe: (listener) => getPageVectors()?.subscribe?.(listener) },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },

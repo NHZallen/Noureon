@@ -233,20 +233,42 @@ export function createProjectActions({
     return { ok: true, pinned: conversation.pinned };
   }
 
-  /** A new chat in the project, with the text as its first message (without a text: an empty chat in the project, for the person to write in). */
-  async function startChat(projectId, text) {
+  /** An empty chat in the project, open in the box of the message (the folder only knows it; nothing is synced until something is sent). */
+  async function prepareChat(projectId) {
     const folder = folderOf(projectId);
-    const message = String(text ?? '').trim();
     if (!folder) return { ok: false, code: 'gone' };
     await startNewChat({ keepSidebarOpen: false });
     const conversation = conversations().find((entry) => entry.id === getCurrentConversationId());
     if (!conversation) return { ok: false, code: 'failed' };
     conversation.folderId = projectId;
     if (!(folder.conversationIds || []).includes(conversation.id)) folder.conversationIds = [...(folder.conversationIds || []), conversation.id];
-    deferConversationFolderSync(conversation.id);
-    if (message) sendText(message);
     return { ok: true, conversationId: conversation.id };
   }
 
-  return { list, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat };
+  /** The chat made by prepareChat was not used: it is no longer of the project (it is an empty chat, as any the person leaves open). */
+  function abandonChat(conversationId) {
+    const conversation = conversations().find((entry) => entry.id === conversationId);
+    if (!conversation || (conversation.messages || []).length > 0) return false;
+    const folder = folderOf(conversation.folderId);
+    if (folder) folder.conversationIds = (folder.conversationIds || []).filter((id) => id !== conversationId);
+    conversation.folderId = null;
+    return true;
+  }
+
+  /** Something was sent in the chat made by prepareChat: the cloud is told it is in the project. */
+  function sentChat(conversationId) {
+    deferConversationFolderSync(conversationId);
+  }
+
+  /** A new chat in the project, with the text as its first message (without a text: an empty chat in the project, for the person to write in). */
+  async function startChat(projectId, text) {
+    const message = String(text ?? '').trim();
+    const made = await prepareChat(projectId);
+    if (!made.ok) return made;
+    deferConversationFolderSync(made.conversationId);
+    if (message) sendText(message);
+    return { ok: true, conversationId: made.conversationId };
+  }
+
+  return { list, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
 }

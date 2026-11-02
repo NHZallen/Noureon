@@ -851,3 +851,47 @@ test('the report of a deep research shows as "Deep research" in the list of the 
   assert.equal(t.$('.pj-source .pj-source-tile').textContent, '', 'its tile is an icon, not a word');
   } finally { await t.finish(); }
 });
+
+const fakeComposer = () => {
+  const calls = [];
+  return {
+    calls,
+    attach: (slot, projectId, options) => { calls.push(['attach', projectId]); slot.dataset.attached = projectId; slot.__done = options.done; return true; },
+    park: () => calls.push(['park']),
+    release: async () => { calls.push(['release']); }
+  };
+};
+
+test('with the box of the chat given, a project page has it in place of its own box (under the list on a computer, in the foot on a phone), and gives it back when it leaves the project or the page', async () => {
+  for (const wide of [false, true]) {
+    const t = setup({ wide });
+    const composer = fakeComposer();
+    try {
+      t.open({ id: 'f1' }, { composer, sourcesEnabled: true });
+      assert.equal(t.$('.pj-composer-input'), null, 'the plain box is not drawn');
+      const slot = t.$('.pj-composer-slot');
+      assert.equal(slot.dataset.attached, 'f1');
+      if (wide) {
+        assert.equal(slot.parentElement.classList.contains('has-composer'), true);
+        assert.equal(slot.previousElementSibling.classList.contains('pj-main-scroll'), true, 'it is under what scrolls');
+      } else assert.equal(slot.parentElement.classList.contains('pj-foot'), true);
+      assert.deepEqual(composer.calls.filter(([name]) => name === 'attach'), [['attach', 'f1']]);
+      // The tab of the sources has no box: it is given back before that page is drawn.
+      if (!wide) {
+        composer.calls.length = 0;
+        t.byText('.pj-tab', 'Sources')?.click();
+        await t.tick();
+        assert.deepEqual(composer.calls[0], ['park']);
+        assert.equal(t.$('.pj-composer-slot'), null);
+        t.byText('.pj-tab', 'Chats')?.click();
+        await t.tick();
+        assert.equal(t.$('.pj-composer-slot').dataset.attached, 'f1');
+      }
+      // A send in the box closes the page.
+      t.$('.pj-composer-slot').__done();
+      assert.equal(getProjectsPage(), null);
+      assert.equal(composer.calls.some(([name]) => name === 'release'), true);
+      assert.equal(composer.calls.filter(([name]) => name === 'park').length >= 1, true);
+    } finally { await t.finish(); }
+  }
+});

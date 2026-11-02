@@ -187,3 +187,25 @@ test('where the notes are kept is chosen when the project is made, and a project
   await actions.remove('project-2');
   assert.deepEqual(state.droppedNotes, ['project-2']);
 });
+
+test('an empty chat made for the box of the project page is the project\'s, is told to the cloud only once something is sent, and goes back to being plain when it is not used', async () => {
+  const { actions, state } = setup({ folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }] });
+  assert.deepEqual(await actions.prepareChat('nope'), { ok: false, code: 'gone' });
+  const made = await actions.prepareChat('f1');
+  assert.equal(made.ok, true);
+  const conversation = state.conversations.find((entry) => entry.id === made.conversationId);
+  assert.equal(conversation.folderId, 'f1');
+  assert.deepEqual(state.folders[0].conversationIds, [conversation.id]);
+  assert.deepEqual(state.synced, [], 'nothing is told to the cloud for an empty chat');
+  actions.sentChat(conversation.id);
+  assert.deepEqual(state.synced, [conversation.id]);
+  // Not used: it leaves the project.
+  assert.equal(actions.abandonChat(conversation.id), true);
+  assert.equal(conversation.folderId, null);
+  assert.deepEqual(state.folders[0].conversationIds, []);
+  // A chat with something in it is never given up.
+  const used = await actions.prepareChat('f1');
+  state.conversations.find((entry) => entry.id === used.conversationId).messages.push({ role: 'user', parts: [{ text: 'hi' }] });
+  assert.equal(actions.abandonChat(used.conversationId), false);
+  assert.equal(state.conversations.find((entry) => entry.id === used.conversationId).folderId, 'f1');
+});
