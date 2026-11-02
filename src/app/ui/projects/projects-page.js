@@ -208,13 +208,13 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       // A computer: the search and the + are in the title bar, the pills under it, the projects in a column of rows below (projects-wide.css).
       const actionsBox = make(document, 'div', 'pj-head-actions');
       actionsBox.append(makeSearch(), plus);
-      const head = header({ left: round('back', text('pjBack'), () => close()), title, right: actionsBox });
+      const head = header({ left: round('back', text('pjBack'), () => close({ viaBack: true })), title, right: actionsBox });
       const bar = make(document, 'div', 'pj-bar');
       bar.appendChild(tabBar);
       body.appendChild(listBody);
       root.replaceChildren(head, bar, body);
     } else {
-      const head = header({ left: round('back', text('pjBack'), () => close()), title, right: plus });
+      const head = header({ left: round('back', text('pjBack'), () => close({ viaBack: true })), title, right: plus });
       body.append(tabBar, listBody);
       const foot = make(document, 'footer', 'pj-foot');
       foot.appendChild(makeSearch());
@@ -739,7 +739,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
 
   const onPopState = () => {
     const route = projectsRouteFromPath(win.location.pathname);
-    if (!route) { close({ addressDone: true }); return; }
+    if (!route) { close({ addressDone: true, viaBack: true }); return; }
     go(route, false);
   };
   const onKey = (event) => {
@@ -749,7 +749,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (state.view === 'project') back(); else close();
   };
 
-  function close({ addressDone = false } = {}) {
+  function close({ addressDone = false, viaBack = false } = {}) {
     if (closed) return;
     closed = true;
     closeMenu();
@@ -766,7 +766,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     // The address goes back to the chat's; the entries the page added are left in the history (one step back must not leave the site).
     if (!addressDone) { try { win.history.replaceState(win.history.state, '', '/'); } catch { /* nothing to restore */ } }
     try { opener?.focus?.(); } catch { /* the opener may be gone */ }
-    onClose();
+    onClose({ viaBack });
   }
 
   // The page is drawn for the width it has (a phone's or a computer's): it is drawn again when the window crosses that width.

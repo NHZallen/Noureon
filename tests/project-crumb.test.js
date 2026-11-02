@@ -84,6 +84,7 @@ test('on a phone the header of the chat becomes the project\'s: a way back, the 
   assert.equal(header.classList.contains('pj-in-project'), true);
   assert.equal(document.getElementById('project-crumb').hidden, true, 'the line is for a computer');
   assert.equal(document.querySelector('#left').firstElementChild.id, 'project-head-back', 'the way back is first');
+  assert.equal(document.getElementById('project-head-back').className.includes('rounded'), true, 'it is a plain icon like the other buttons of the header');
   assert.equal(document.querySelector('.pj-head-name').textContent, 'Translation');
   assert.equal(document.querySelector('.pj-head-sub').textContent, 'Chat');
   document.getElementById('project-head-back').click();

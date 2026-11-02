@@ -113,7 +113,9 @@ export function startProjects({
       vectors: { status: (sourceId) => getPageVectors()?.sourceStatus?.(sourceId) || 'off', subscribe: (listener) => getPageVectors()?.subscribe?.(listener) },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => loadChat(id),
-      notify: (message, type = 'success') => showNotification(message, type)
+      notify: (message, type = 'success') => showNotification(message, type),
+      // Going back out of the pages of the projects on a phone brings the left menu (the drawer), as going back from a project does in the apps this one is modelled on.
+      onClose: ({ viaBack } = {}) => { if (viaBack && win.matchMedia?.('(max-width: 767px)').matches && !document.getElementById('sidebar-overlay')?.classList.contains('visible')) document.getElementById('menu-toggle-btn')?.click(); }
     });
   };
 

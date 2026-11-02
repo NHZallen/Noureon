@@ -55,8 +55,8 @@ export function createProjectCrumb({ document, text, getProject, openProject }) 
       back = document.createElement('button');
       back.type = 'button';
       back.id = 'project-head-back';
-      back.className = 'pj-head-back';
-      back.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>';
+      back.className = 'pj-head-back p-2 rounded-md hover:bg-[var(--hover-bg)]';
+      back.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>';
       back.addEventListener('click', () => { const id = back.dataset.projectId; if (id) openProject(id); });
       bar.firstElementChild?.prepend(back);
     }
