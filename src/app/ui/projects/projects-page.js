@@ -55,7 +55,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return current;
   }
   const win = document.defaultView;
-  const state = { view: 'list', projectId: null, listTab: 'all', query: '', tab: 'chats' };
+  // `fromList`: the project was opened from the list (going back is a step back in the history); a project opened straight (from its chat) goes back to the list, the page that holds all of them.
+  const state = { view: 'list', projectId: null, listTab: 'all', query: '', tab: 'chats', listDrawn: false, fromList: false };
   const root = make(document, 'div', 'pj');
   root.setAttribute('role', 'region');
   const opener = document.activeElement;
@@ -188,6 +189,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return search;
   };
   const drawList = () => {
+    state.listDrawn = true;
     composer?.park();
     closeMenu();
     state.view = 'list';
@@ -701,6 +703,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   function go(next, push = false) {
     if (closed) return;
     if (next?.id && projectOrNull(next.id)) {
+      state.fromList = state.listDrawn;
       state.projectId = next.id;
       state.tab = 'chats';
       setAddress(projectPath(next.id), push);
@@ -716,7 +719,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     }
   }
   function back() {
-    if (pushed && win.history.state?.projects) win.history.back();
+    if (state.fromList && pushed && win.history.state?.projects) win.history.back();
     else go({ list: true }, false);
   }
   // `alone`: the sheet was asked for from the left menu with no page behind it (root.pj-dialog-only): the page goes away with the sheet unless a project was made.

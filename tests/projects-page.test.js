@@ -895,3 +895,31 @@ test('with the box of the chat given, a project page has it in place of its own 
     } finally { await t.finish(); }
   }
 });
+
+test('back from a project opened straight (from its chat) goes to the list of all the projects, and back from that closes the page and tells it was by going back; from the list a project goes back to the list', async () => {
+  const t = setup();
+  const closed = [];
+  try {
+    t.open({ id: 'f1' }, { onClose: (info) => closed.push(info) });
+    assert.equal(t.$('.pj').classList.contains('is-project'), true);
+    t.$('.pj-head .pj-round').click();
+    await t.tick();
+    assert.equal(getProjectsPage() !== null, true, 'the page is still there');
+    assert.equal(t.$('.pj').classList.contains('is-list'), true, 'it shows all the projects');
+    t.$('.pj-head .pj-round').click();
+    await t.tick();
+    assert.equal(getProjectsPage(), null);
+    assert.deepEqual(closed.map((info) => Boolean(info?.viaBack)), [true]);
+  } finally { await t.finish(); }
+  // From the list: the project goes back to the list.
+  const second = setup();
+  try {
+    second.open({ list: true });
+    second.$('.pj-row, .pj-card, [data-project-id]')?.click();
+    await second.tick();
+    assert.equal(second.$('.pj').classList.contains('is-project'), true);
+    second.$('.pj-head .pj-round').click();
+    await second.tick();
+    assert.equal(second.$('.pj').classList.contains('is-list'), true);
+  } finally { await second.finish(); }
+});
