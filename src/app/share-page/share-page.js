@@ -181,7 +181,7 @@ export async function initializeSharePage({ window, document, supabase = getSupa
           host, message, getLanguage: () => language, showNotification: notify, readOnly: true,
           openReader: async () => {
             const [{ openResearchReader }] = await Promise.all([import('../ui/research/research-reader.js'), import('../ui/research/research-reader.css').catch(() => {})]);
-            return openResearchReader({ messageId: id, getLanguage: () => language, showNotification: notify, document });
+            return openResearchReader({ messageId: id, getLanguage: () => language, showNotification: notify, document, readOnly: true });
           }
         });
       }

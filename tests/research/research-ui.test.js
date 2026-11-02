@@ -195,6 +195,14 @@ test('the report card has its statistics, its title, the start of the text faded
   assert.equal(notices.at(-1)[0], 'Copied');
 });
 
+test('the reader of a shared conversation has no add-to-project item in its download menu', async () => {
+  const { document } = setup();
+  updateResearch('m9s', { report: REPORT });
+  openResearchReader({ messageId: 'm9s', getLanguage: () => 'en', document, readOnly: true });
+  assert.deepEqual([...document.querySelectorAll('.rr .rr-menu-item')].map((item) => item.textContent), ['Copy content', 'Export Markdown', 'Export Word', 'Export PDF']);
+  closeResearchReader();
+});
+
 test('the reader\'s download menu has the three files, and shows that one is being made', async () => {
   const { window, document } = setup();
   updateResearch('m9', { report: REPORT });

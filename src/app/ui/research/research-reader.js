@@ -49,8 +49,8 @@ export const closeResearchReader = () => open?.close();
 
 export { activityLine };
 
-/** Opens the reader of the research whose message is `messageId`. Returns { close } (the open one when it is already open). */
-export function openResearchReader({ messageId, getLanguage, showNotification = () => {}, document = globalThis.document }) {
+/** Opens the reader of the research whose message is `messageId` (`readOnly`: on the page of a shared conversation, where a report cannot be added to a project). Returns { close } (the open one when it is already open). */
+export function openResearchReader({ messageId, getLanguage, showNotification = () => {}, document = globalThis.document, readOnly = false }) {
   const entry = getResearch(messageId);
   const report = entry?.report;
   if (!report) return null;
@@ -288,7 +288,7 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
     if (!kind) menu.hidden = true;
   };
   addMenuItem(t('copy'), async () => showNotification(await copyReport(report, language) ? t('copied') : t('actionFailed'), 'success'));
-  addMenuItem(t('addToProject'), async () => { menu.hidden = true; const { addReportToProject } = await import('./research-project.js'); await addReportToProject({ report, language, document, showNotification }); });
+  if (!readOnly) addMenuItem(t('addToProject'), async () => { menu.hidden = true; const { addReportToProject } = await import('./research-project.js'); await addReportToProject({ report, language, document, showNotification }); });
   for (const [kind, key] of [['md', 'exportMarkdown'], ['docx', 'exportWord'], ['pdf', 'exportPdf']]) {
     addMenuItem(t(key), () => exportWithNotice(kind, report, { language, document, showNotification, onBusy: setBusy }), kind);
   }
