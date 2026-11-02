@@ -262,6 +262,9 @@ export function createServerReply({
     if (webSearch === 'research' || webSearch === 'packet' || documents?.linkedPages) {
       search = searchKeyFor(config);
       if (!search) return { ok: false, reason: LOCAL_REASONS.packetSearch, notify: false };
+    } else if (projectFiles?.entries?.some((entry) => entry.url)) {
+      // The web addresses of the project are read, when the model asks, with the key of the search source (without one the model is told it cannot read them).
+      search = searchKeyFor(config);
     }
     // The model that writes down the documents the reply's model cannot read: with the key of its own provider when that is not the reply's.
     const translator = documents?.translator || null;

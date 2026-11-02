@@ -1,6 +1,7 @@
 // The sheets of the projects (docs/superpowers/specs/2026-10-31-projects-design.md, §7): create one, edit its name and icon, choose the icon and colour, write its instructions, delete it
 // (with the choice of what happens to its chats) and rename a chat. Each asks `actions` (runtime/projects/project-actions.js) and says in words when that did not work.
 
+import { normalizeSourceUrl, PROJECT_URL_MAX, sourceUrlTitle } from '../../../data/project-source-url.js';
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
 import { FOLDER_COLORS } from '../../runtime/shell/runtime-ui-colors.js';
 import { PROJECT_INSTRUCTIONS_MAX } from '../../runtime/projects/project-instructions.js';
@@ -531,6 +532,42 @@ export function openSourceTextSheet({ document, root, text, actions, project, no
     button.disabled = true;
     sheet.setError('');
     const result = await actions.addSource(project.id, { kind: 'text', title: title.value.trim() || text('pjSourceUntitled'), text: area.value }).catch(() => ({ ok: false }));
+    busy = false;
+    redraw();
+    if (!result.ok) { sheet.setError(sourceFailureText(text, result)); return; }
+    sheet.close();
+    notify(text('pjSourceAdded'), 'success');
+    onSaved();
+  });
+  return sheet;
+}
+
+/** The sheet where a web address is added to the sources of a project: only its form is checked (the model reads the page when it needs it, so nothing is fetched now). */
+export function openSourceUrlSheet({ document, root, text, actions, project, notify = () => {}, onSaved = () => {} }) {
+  let busy = false;
+  const { foot, button } = footerButton(document, text('pjSourceUrlAdd'));
+  button.disabled = true;
+  const input = make(document, 'input', 'pj-text-input');
+  input.type = 'url';
+  input.inputMode = 'url';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.maxLength = PROJECT_URL_MAX;
+  input.placeholder = text('pjSourceUrlPlaceholder');
+  input.setAttribute('aria-label', text('pjSourceUrlField'));
+  const hint = make(document, 'p', 'pj-note', text('pjSourceUrlHint'));
+  const redraw = () => { button.disabled = busy || !normalizeSourceUrl(input.value); };
+  input.addEventListener('input', () => { sheet.setError(''); redraw(); });
+  input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); if (!button.disabled) button.click(); } });
+  const sheet = openSheet({ document, root, title: text('pjSourceUrlTitle'), close: text('pjCancel'), footer: foot, className: 'pj-sheet-small', dialog: true, body: (body) => body.append(input, hint) });
+  input.focus?.();
+  button.addEventListener('click', async () => {
+    const url = normalizeSourceUrl(input.value);
+    if (busy || !url) { if (!url) sheet.setError(text('pjSourceUrlInvalid')); return; }
+    busy = true;
+    button.disabled = true;
+    sheet.setError('');
+    const result = await actions.addSource(project.id, { kind: 'url', url, title: sourceUrlTitle(url) }).catch(() => ({ ok: false }));
     busy = false;
     redraw();
     if (!result.ok) { sheet.setError(sourceFailureText(text, result)); return; }

@@ -129,11 +129,14 @@ export function projectFilesListText(entries) {
  * find and what the vectors find together; without it, or when it finds nothing, the keywords are used alone.
  * `mediaEntries`: [{ id, name, kind: 'image' | 'video' | 'audio' | 'scan', size, fileHash, duration?, pages?, attached }], the files that have no text. A search finds them by their names and, with the
  * vectors, by what they show or say (the place is in the piece id: the second a window of a video or a recording starts, the page of a scan).
- * `canView` (the model can see pictures) and `viewMedia(entry, { at, page })` (resolves { mimeType, data (base64) } of a small copy of a picture, an array of them for the frames of a video, or null: the
+ * `linkEntries`: [{ id, name, url }], the web pages of the project: they are not searched (nothing of them is kept); read_project_file fetches the page when asked, with `readLink(entry)` (resolves its text; throws
+ * an error with `code: 'noReader'` when no key of a reading service is there). `canView` (the model can see pictures) and `viewMedia(entry, { at, page })` (resolves { mimeType, data (base64) } of a small copy of a picture, an array of them for the frames of a video, or null: the
  * page and the server each make it) give the model the tool view_project_file.
  */
-export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null, mediaEntries = [], canView = false, viewMedia = null }) {
+export function createProjectFilesLoader({ entries, linkEntries = [], readLink = null, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null, mediaEntries = [], canView = false, viewMedia = null }) {
   const files = entries.map((entry) => ({ ...entry }));
+  const links = (Array.isArray(linkEntries) ? linkEntries : []).filter((entry) => entry?.url).map((entry) => ({ ...entry }));
+  const linkTexts = new Map();
   // The pictures, videos, recordings and scans of the project: [{ id, name, kind, size, fileHash, attached }] (`attached`: it went with the message of this reply). They have no text: a search finds them
   // by their name and, with the vectors, by what they show or say; it says which they are, where in them, and whether the model has them in front of it.
   const media = Array.isArray(mediaEntries) ? mediaEntries : [];
@@ -166,7 +169,29 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     const near = files.filter((entry) => entry.name.toLowerCase().includes(wanted) || wanted.includes(entry.name.toLowerCase()));
     return near.length === 1 ? near[0] : null;
   };
-  const listText = () => files.map((entry) => entry.name).join(', ');
+  const listText = () => [...files, ...links].map((entry) => entry.name).join(', ');
+  const resolveLink = (name) => {
+    const wanted = clean(name, 200).toLowerCase();
+    if (!wanted) return !files.length && links.length === 1 ? links[0] : null;
+    const exact = links.find((entry) => entry.name.toLowerCase() === wanted || entry.url.toLowerCase() === wanted);
+    if (exact) return exact;
+    const near = links.filter((entry) => entry.name.toLowerCase().includes(wanted) || wanted.includes(entry.name.toLowerCase()) || entry.url.toLowerCase().includes(wanted));
+    return near.length === 1 ? near[0] : null;
+  };
+  // The page of a web address, fetched when it is asked for and kept for the reply: { text } or { error: 'noReader' | 'failed' }.
+  const loadLink = (entry) => {
+    if (!linkTexts.has(entry.id)) {
+      linkTexts.set(entry.id, (async () => {
+        if (typeof readLink !== 'function') return { error: 'noReader' };
+        try {
+          return { text: String(await readLink(entry) ?? '') };
+        } catch (error) {
+          return { error: error?.code === 'noReader' ? 'noReader' : 'failed' };
+        }
+      })());
+    }
+    return linkTexts.get(entry.id);
+  };
   const resolveMedia = (name) => {
     const wanted = clean(name, 200).toLowerCase();
     return wanted ? media.find((entry) => entry.name.toLowerCase() === wanted) || null : null;
@@ -218,6 +243,7 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     calls += 1;
     const limit = Math.min(10, Math.max(1, Math.floor(Number(call?.args?.k) || 6)));
     const onlyPicture = call?.args?.file ? resolveMedia(call.args.file) : null;
+    if (call?.args?.file && !resolveMedia(call.args.file) && !resolve(call.args.file) && resolveLink(call.args.file)) return `"${resolveLink(call.args.file).name}" is a web page: web pages are not searched. Read it with read_project_file.`;
     const only = call?.args?.file && !onlyPicture ? resolve(call.args.file) : null;
     if (call?.args?.file && !only && !onlyPicture) return `There is no such file. The files of the project: ${[listText(), ...media.map((entry) => entry.name)].filter(Boolean).join(', ')}.`;
     const { bm25, passages, byPiece } = await buildIndex();
@@ -347,9 +373,21 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
 
   async function read(call) {
     if (calls >= maxCalls) return `The limit of ${maxCalls} looks into the project files per reply is reached. Go on with what you have.`;
-    const entry = resolve(call?.args?.file);
+    const entry = resolve(call?.args?.file) || resolveLink(call?.args?.file);
     if (!entry) return `There is no such file. The files of the project: ${listText()}.`;
     calls += 1;
+    // A web page: fetched now, from the address (it is read live, so it is as new as the page is).
+    if (entry.url) {
+      const page = await loadLink(entry);
+      lastOutcome = { key: 'projectFilesReading', count: page.text ? 1 : 0 };
+      if (page.error === 'noReader') return `The web page "${entry.name}" (${entry.url}) cannot be read: the person has no key of a reading service (Tavily or TinyFish) in the settings. Say so if the question needs it, and go on without it.`;
+      if (page.error || !page.text.trim()) return `The web page "${entry.name}" (${entry.url}) could not be read now (the site may block readers, ask for a login, or have no text to read). Go on without it, or say so.`;
+      const total = page.text.length;
+      const start = Math.min(total, Math.max(0, Math.floor(Number(call?.args?.start) || 0)));
+      const end = Math.min(total, start + Math.min(12000, Math.max(200, Math.floor(Number(call?.args?.length) || 8000))));
+      onUsed?.({ files: [entry.name] });
+      return JSON.stringify({ file: entry.name, url: entry.url, start, end, total, ...(end < total ? { next: end } : { next: null }), text: page.text.slice(start, end) });
+    }
     const text = await load(entry);
     if (text === null) {
       lastOutcome = { key: 'projectFilesReading', count: 0 };
@@ -376,7 +414,7 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
       const open = calls < maxCalls;
       const list = [];
       if ((files.length || media.length) && open) list.push(SEARCH_PROJECT_FILES_TOOL);
-      if (files.length && open) list.push(READ_PROJECT_FILE_TOOL);
+      if ((files.length || links.length) && open) list.push(READ_PROJECT_FILE_TOOL);
       if (seeing) list.push(VIEW_PROJECT_FILE_TOOL);
       return list;
     },

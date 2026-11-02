@@ -243,3 +243,4 @@ body > .picker-dialog { z-index: 1301; }
 .pj-popover .pj-colors { gap: 0.45rem; }
 .pj-popover .pj-dot { width: 1.7rem; height: 1.7rem; }
 .pj-popover .pj-dot[aria-checked="true"]::after { inset: -4px; }
+.pj-source-tile .pj-favicon { width: 1.25rem; height: 1.25rem; object-fit: contain; border-radius: 0.2rem; }

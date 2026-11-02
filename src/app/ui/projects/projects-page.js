@@ -7,8 +7,9 @@ import { liftSandboxRunBlock } from '../sandbox/sandbox-run-block.js';
 import { stripCitationMarkers } from '../citations/citation-model.js';
 import { plainMarkdown } from '../citations/plain-text.js';
 import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
-import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
+import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, openSourceUrlSheet, sourceFailureText } from './project-sheets.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
+import { sourceUrlHost, sourceUrlIcon } from '../../../data/project-source-url.js';
 import { pictureOf } from '../../runtime/projects/project-pieces.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
@@ -283,12 +284,14 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // ----- the sources of a project: texts and files that every chat of the project reads
   // What a source is, in a word: the extension of a file (PDF, DOCX...), a picture, a text.
   const kindLabel = (source) => {
+    if (source.kind === 'url') return text('pjSourceKindUrl');
     if (source.kind === 'image') return text('pjSourceKindImage');
     if (source.kind !== 'file') return text('pjSourceKindText');
     const extension = String(source.title || '').includes('.') ? String(source.title).split('.').pop().toUpperCase() : '';
     return extension && extension.length <= 5 ? extension : text('pjSourceKindFile');
   };
   const sizeText = (source) => {
+    if (source.kind === 'url') return sourceUrlHost(source.url) || source.url;
     const size = Number(source.size) || source.text.length;
     return size >= 1048576 ? `${(size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
   };
@@ -365,6 +368,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         { label: text('pjSourceTakePhoto'), icon: 'camera', action: via(() => (cameraAvailable(document) ? openCameraDialog({ document, root, text, onCapture: async (file) => { await addAll(project, [file]); afterAdd(); }, onError: () => notify(text('pjCameraFailed'), 'error') }) : cameraInput.click())) },
         { label: text('pjSourceAddPhoto'), icon: 'image', action: via(() => photoInput.click()) },
         { label: text('pjSourceAddFile'), icon: 'attach', action: via(() => fileInput.click()) },
+        { label: text('pjSourceAddUrl'), icon: 'link', action: () => openSourceUrlSheet({ document, root, text, actions: project.staging ? stagingActions : actions, project, notify: project.staging ? () => {} : notify, onSaved: () => { addTarget = null; onDone?.(); if (!project.staging) drawProject(); } }) },
         { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions: project.staging ? stagingActions : actions, project, notify: project.staging ? () => {} : notify, onSaved: () => { addTarget = null; onDone?.(); if (!project.staging) drawProject(); } }) },
         ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'driveColor', action: via(() => pickFromDrive(project)) }] : [])
       ]
@@ -383,6 +387,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // The sheet of a written text asks its `actions` to add the source: here it only goes into the list.
   const stagingActions = { addSource: async (_id, source) => {
     if (stageFull()) return { ok: false, code: 'full' };
+    if (source.kind === 'url') { staged.push({ id: `u${staged.length}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, kind: 'url', title: source.title, url: source.url, size: 0, text: '' }); return { ok: true }; }
     staged.push({ id: `t${staged.length}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, kind: 'text', title: source.title, size: source.text.length, text: source.text });
     return { ok: true };
   } };
@@ -399,8 +404,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const items = staged.splice(0, staged.length);
     if (!project) return;
     for (const item of items) {
-      const result = item.kind === 'text'
-        ? await actions.addSource(id, { kind: 'text', title: item.title, text: item.text }).then((added) => { if (!added.ok) notify(sourceFailureText(text, added, item.title), 'error'); return added; }).catch(() => ({ ok: false }))
+      const result = item.kind === 'url' || item.kind === 'text'
+        ? await actions.addSource(id, item.kind === 'url' ? { kind: 'url', title: item.title, url: item.url } : { kind: 'text', title: item.title, text: item.text }).then((added) => { if (!added.ok) notify(sourceFailureText(text, added, item.title), 'error'); return added; }).catch(() => ({ ok: false }))
         : await addFile(project, item.file);
       if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
     }
@@ -424,12 +429,29 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       if (source) indexStatusInto(node, source);
     }
   });
+  // The tile of a web address: the small picture of the site (its own /favicon.ico, asked by the browser, never sent anything of ours), a globe until it has loaded or when it cannot be.
+  const urlTile = (source) => {
+    const tile = sourceTile(document, { icon: ICONS.globe(18) });
+    const address = sourceUrlIcon(source.url);
+    if (address) {
+      const image = document.createElement('img');
+      image.className = 'pj-favicon';
+      image.alt = '';
+      image.width = 20;
+      image.height = 20;
+      image.decoding = 'async';
+      image.referrerPolicy = 'no-referrer';
+      image.addEventListener('load', () => { if (image.naturalWidth > 1) tile.replaceChildren(image); });
+      image.src = address;
+    }
+    return tile;
+  };
   const sourceRow = (project, source, after, onRemove = null) => {
     const row = make(document, 'div', 'pj-row pj-source');
     row.dataset.sourceId = source.id;
     const label = kindLabel(source);
     const tone = source.kind === 'image' ? 'picture' : source.kind === 'file' ? toneOfName(source.title) : '';
-    const tile = tone && source.kind === 'file' && label.length <= 4 ? sourceTile(document, { tone, label })
+    const tile = source.kind === 'url' ? urlTile(source) : tone && source.kind === 'file' && label.length <= 4 ? sourceTile(document, { tone, label })
       : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
     const meta = make(document, 'span', 'pj-row-text');
     meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));

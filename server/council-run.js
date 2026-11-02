@@ -24,6 +24,7 @@ import { formatSandboxRunBlock, hasSandboxRunBlock, liftSandboxRunBlock } from '
 import { withCouncilRecord } from '../src/app/ui/council/council-record.js';
 import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
 import { createSkillLoader } from '../src/data/skill-tool.js';
+import { createLinkReader } from '../src/data/project-link-read.js';
 import { createProjectFileTextReader } from './project-file-text.js';
 import { createServerMediaViewer } from './project-media-view.js';
 import { createServerOfficeReader } from './office-deps.js';
@@ -323,7 +324,9 @@ export async function executeCouncil({
     if (!readProjectText) return null;
     const canView = modelSupportsVision(modelInfo) && Boolean(files);
     return createProjectFilesLoader({
-      entries: projectFiles.entries.map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' })),
+      entries: projectFiles.entries.filter((entry) => !entry.url).map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' })),
+      linkEntries: projectFiles.entries.filter((entry) => entry.url).map((entry) => ({ id: entry.id, name: entry.name, url: entry.url, kind: 'link' })),
+      readLink: createLinkReader({ getFetchPages: () => support.fetchPageContents, signal }),
       mediaEntries: (projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })),
       canView,
       viewMedia: canView ? createServerMediaViewer({ files, userId, signal }) : null,

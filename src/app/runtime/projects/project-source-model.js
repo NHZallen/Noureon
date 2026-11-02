@@ -1,6 +1,8 @@
 // The sources of a project (docs/superpowers/specs/2026-10-31-projects-design.md, §13): texts that are typed and files whose text was read. A source is { id, kind, title, mime, size, text,
 // [file], addedAt } (`kind`: a typed text, a file whose text was read, or a picture; `file` is the original kept for a picture or a scan, given to a model that can see it); the list is a column of the folder, so it is synced with it. Pure: no window, no document, no browser storage (the sync and the server may use it).
 
+import { normalizeSourceUrl } from '../../../data/project-source-url.js';
+
 export const PROJECT_SOURCES_MAX = 20;
 /** The most characters of one source, and of all the sources of a project; and the most bytes of one kept original, and of all of them in a project. */
 export const PROJECT_SOURCE_CHARS_MAX = 100_000;
@@ -9,7 +11,7 @@ export const PROJECT_SOURCE_TITLE_MAX = 120;
 export const PROJECT_SOURCE_FILE_BYTES_MAX = 30 * 1024 * 1024;
 export const PROJECT_SOURCE_FILES_BYTES_MAX = 200 * 1024 * 1024;
 
-const KINDS = new Set(['text', 'file', 'image']);
+const KINDS = new Set(['text', 'file', 'image', 'url']);
 export const TRANSCRIPT_SUFFIX = '~tr';
 
 /** The original of a source kept as a file (a picture, a scan): its name, type, size, the hash of its bytes (the key where it is kept on this device) and, once it is in the cloud, where. */
@@ -48,9 +50,11 @@ export function normalizeSource(value) {
   const id = String(value.id ?? '').trim();
   const text = typeof value.text === 'string' ? value.text.slice(0, PROJECT_SOURCE_CHARS_MAX) : '';
   const file = normalizeSourceFile(value.file);
-  if (!id || (!text.trim() && !file)) return null;
+  // A web address is a source of its own: only the address is kept, the page is read when the model needs it.
+  const url = value.kind === 'url' ? normalizeSourceUrl(value.url) : '';
+  if (!id || (!text.trim() && !file && !url)) return null;
   const transcript = file ? normalizeTranscript(value.transcript) : null;
-  const kind = KINDS.has(value.kind) ? value.kind : 'text';
+  const kind = url ? 'url' : (KINDS.has(value.kind) && value.kind !== 'url' ? value.kind : 'text');
   const size = Number.isFinite(Number(value.size)) && Number(value.size) >= 0 ? Math.floor(Number(value.size)) : (file?.size || text.length);
   return {
     id: id.slice(0, 80),
@@ -60,6 +64,7 @@ export function normalizeSource(value) {
     size,
     text: text.trim() ? text : '',
     ...(file ? { file } : {}),
+    ...(url ? { url } : {}),
     ...(transcript ? { transcript } : {}),
     addedAt: typeof value.addedAt === 'string' ? value.addedAt : ''
   };

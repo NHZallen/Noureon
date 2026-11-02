@@ -2,6 +2,7 @@
 // Noura, the provider support around it (search packets, linked pages, translated attachments), the council, the calls that must
 // answer in a JSON shape, and naming a conversation from its first messages.
 
+import { setPageReader } from '../projects/page-reader-ref.js';
 import {
     buildTavilySearchQuery,
     formatTavilySearchPacket,
@@ -68,6 +69,8 @@ export function createModelRequestEngine({
         councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
         councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS
     });
+    // The web addresses that are sources of a project are read with the same reader (projects/project-files-access.js).
+    setPageReader(providerRequestSupport.fetchPageContents);
     const {
         buildSingleModelTranslatedRequestParts,
         extractTextFromParts,

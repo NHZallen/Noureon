@@ -6,6 +6,7 @@ import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/runtime/
 import { runSkillsReply } from '../src/app/runtime/reply/skills-reply.js';
 import { runWebResearchReply } from '../src/app/runtime/features/web-research-reply.js';
 import { createWebResearchTools } from '../src/app/runtime/features/web-research-tools.js';
+import { createLinkReader } from '../src/data/project-link-read.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
@@ -333,14 +334,17 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   if (spec.tools.projectFiles && userId && mode !== 'grounding') {
     const readText = createProjectFileTextReader({ files, userId, signal });
     const byId = new Map(spec.tools.projectFiles.entries.map((entry) => [entry.id, entry]));
-    const entries = spec.tools.projectFiles.entries.map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' }));
+    const entries = spec.tools.projectFiles.entries.filter((entry) => !entry.url).map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' }));
+    // The web addresses of the project: the page is fetched when the model asks, with the reading service of the person's key for this reply (nothing is kept).
+    const linkEntries = spec.tools.projectFiles.entries.filter((entry) => entry.url).map((entry) => ({ id: entry.id, name: entry.name, url: entry.url, kind: 'link' }));
+    const pageReader = linkEntries.length ? createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch }) : null;
     // By meaning too, when the person synced the vectors of their files and the page gave a key for this reply (it lives only for the run).
     const vectorSearch = spec.tools.projectFiles.vector && secrets.embeddingKey && memory?.projectVectors
       ? memory.projectVectors.forReply({ userId, vector: { provider: spec.tools.projectFiles.vector.provider, key: secrets.embeddingKey }, signal })
       : null;
     const canView = spec.tools.projectFiles.canView === true;
     projectFilesLoader = createProjectFilesLoader({
-      entries, mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })), canView,
+      entries, linkEntries, readLink: createLinkReader({ getFetchPages: () => pageReader?.fetchPageContents, signal }), mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })), canView,
       // A small copy of a picture, frames of a video or a page of a scan, made from the file read from the person's cloud storage like the text of a file (nothing is kept).
       viewMedia: canView ? createServerMediaViewer({ files, userId, signal }) : null,
       language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });

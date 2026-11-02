@@ -633,6 +633,14 @@
       "note": "Reviewed 2026-11-02: pure (silent pieces are not sent, a transcript that loops is cut down to one saying); no browser globals."
     },
     {
+      "path": "src/data/project-source-url.js",
+      "note": "Reviewed 2026-11-02: pure (a web address as a source of a project: its normal form, host, title and icon address); no browser globals."
+    },
+    {
+      "path": "src/data/project-link-read.js",
+      "note": "Reviewed 2026-11-02: pure (the page of a web address read with the reader of web pages that is given); no browser globals."
+    },
+    {
       "path": "src/data/speech-settings.js",
       "note": "Reviewed 2026-11-02: pure (the settings of speech to text and their normal form); no browser globals."
     },

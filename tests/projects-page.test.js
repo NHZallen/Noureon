@@ -412,7 +412,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
 
     t.$('.pj-source-add').click();
     assert.equal(t.$('.pj-action-title').textContent, 'Add a source');
-    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Camera', 'Photo library', 'Add a file', 'Add text']);
+    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Camera', 'Photo library', 'Add a file', 'Add a web address', 'Add text']);
     t.byText('.pj-action-item', 'Add text').click();
     assert.equal(t.$('.pj-action-sheet'), null, 'a choice closes the list');
     assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
@@ -461,7 +461,7 @@ test('the Google Drive choice: only when the page has the picker; it is warmed w
     t.open({ id: 'f2' }, { sourcesEnabled: true });
     t.byText('.pj-tab', 'Sources').click();
     t.$('.pj-source-add').click();
-    assert.equal(t.$$('.pj-action-item').length, 4, 'no Drive without the picker');
+    assert.equal(t.$$('.pj-action-item').length, 5, 'no Drive without the picker');
     await t.finish();
 
     const log = { warmed: 0, picks: 0 };
@@ -815,4 +815,25 @@ test('a source says where its vectors are (only when they are on), and the line 
     listener();
     assert.deepEqual(lines().map((line) => line.split(':')[0]), ['b', 'c'], 'a source with nothing in the vectors has no line');
   } finally { await t.finish(); }
+});
+
+test('a web address is added as a source: only its form is checked, the site icon shows (a globe until it loads), and the row says the site', async () => {
+  const t = setup();
+  t.open({ id: 'f2' }, { sourcesEnabled: true });
+  t.byText('.pj-tab', 'Sources').click();
+  t.$('.pj-source-add').click();
+  t.byText('.pj-action-item', 'Add a web address').click();
+  assert.equal(t.byText('.pj-sheet .pj-button', 'Add').disabled, true, 'nothing to add yet');
+  t.type(t.$('.pj-sheet .pj-text-input'), 'not an address');
+  assert.equal(t.byText('.pj-sheet .pj-button', 'Add').disabled, true, 'a text that is not an address cannot be added');
+  t.type(t.$('.pj-sheet .pj-text-input'), 'www.example.com/guide?page=2');
+  assert.equal(t.byText('.pj-sheet .pj-button', 'Add').disabled, false);
+  t.byText('.pj-sheet .pj-button', 'Add').click();
+  await t.tick();
+  const source = t.state.folders.find((folder) => folder.id === 'f2').sources[0];
+  assert.deepEqual([source.kind, source.url, source.title, source.text], ['url', 'https://www.example.com/guide?page=2', 'example.com/guide?page=2', '']);
+  assert.deepEqual(t.state.notified.at(-1), ['Source added.', 'success']);
+  assert.equal(t.$('.pj-source .pj-row-title').textContent, 'example.com/guide?page=2');
+  assert.equal(t.$('.pj-source .pj-row-meta').textContent, 'Web address · example.com');
+  assert.ok(t.$('.pj-source .pj-source-tile svg'), 'a globe shows until the icon of the site has loaded');
 });

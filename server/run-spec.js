@@ -2,6 +2,7 @@
 // together everything the reply needs; this checks its shape and size before anything is done with it. Errors name a place in the
 // request and say what is wrong, and never repeat a value: a key must not end up in an error message or a log.
 
+import { normalizeSourceUrl } from '../src/data/project-source-url.js';
 import { SPEECH_LANGUAGES, WHISPER_SIZES } from '../src/app/runtime/transcription/whisper-audio.js';
 import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../src/data/cli-net.js';
@@ -71,7 +72,10 @@ function checkProjectFilesTool(tools, fail) {
       else if (typeof entry.text === 'string') {
         total += entry.text.length;
         if (entry.text.length > PROJECT_FILE_TEXT_MAX) fail(`tools.projectFiles.entries[${index}].text`, `must be at most ${PROJECT_FILE_TEXT_MAX} characters`);
-      } else if (!isObject(entry.file) || typeof entry.file.hash !== 'string' || !HASH.test(entry.file.hash) || (entry.file.mimeType !== undefined && typeof entry.file.mimeType !== 'string') || (entry.file.name !== undefined && typeof entry.file.name !== 'string')) fail(`tools.projectFiles.entries[${index}]`, 'must have a text, or a file with the hash of its bytes');
+      } else if (typeof entry.url === 'string') {
+        // A web address of the project: the page is read when the model asks (with the key of a reading service of this reply).
+        if (normalizeSourceUrl(entry.url) !== entry.url) fail(`tools.projectFiles.entries[${index}].url`, 'must be an http or https address');
+      } else if (!isObject(entry.file) || typeof entry.file.hash !== 'string' || !HASH.test(entry.file.hash) || (entry.file.mimeType !== undefined && typeof entry.file.mimeType !== 'string') || (entry.file.name !== undefined && typeof entry.file.name !== 'string')) fail(`tools.projectFiles.entries[${index}]`, 'must have a text, an address, or a file with the hash of its bytes');
     });
     if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
   }
@@ -93,7 +97,7 @@ function checkProjectFilesTool(tools, fail) {
 function normalizeProjectFiles(value) {
   return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, kind: PROJECT_MEDIA_KINDS.includes(entry.kind) ? entry.kind : 'image', size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), ...(Number(entry.duration) > 0 ? { duration: Math.min(86_400, Number(entry.duration)) } : {}), ...(Number(entry.pages) > 0 ? { pages: Math.min(100_000, Math.floor(Number(entry.pages))) } : {}), ...(entry.transcribe === true ? { transcribe: true } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
-    ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
+    ...(typeof entry.text === 'string' ? { text: entry.text } : typeof entry.url === 'string' ? { url: entry.url } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };
 }
 

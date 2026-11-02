@@ -84,7 +84,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
   }
   // Each member searches by itself (docs/superpowers/specs/2026-10-19-council-tools-design.md): Gemini with Google, the others with Tavily or TinyFish
   // (without a key of them, they answer without searching, as they would here).
-  const search = webSearch === 'on' ? searchKeyFor(config) : null;
+  let search = webSearch === 'on' ? searchKeyFor(config) : null;
   let instructions;
   let projectFiles = null;
   try {
@@ -96,6 +96,8 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
     const memberBase = await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT });
     // The files of the project the chat is in: the members are told their names and look into them with their own tools on the server (read-only; the synthesis is not given them).
     projectFiles = await projectFilesFor(conversation, loadProjectAccess, { userParts, keepFile, ...(prepareVideos ? { prepareVideos } : {}) });
+    // The web addresses of the project are read by the members, when they ask, with the key of the search source.
+    if (!search && projectFiles?.snapshot?.entries?.some((entry) => entry.url)) search = searchKeyFor(config);
     const member = [memberBase, projectFiles?.catalogText].filter(Boolean).join('\n\n');
     instructions = { participant: member, deliberation: member, synthesis: await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, historyForApi: [], onMemoryContextResolved }) };
   } catch (error) {
