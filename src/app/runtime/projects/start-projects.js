@@ -80,11 +80,11 @@ export function startProjects({
   setProjectsApi({
     list: () => actions.list().map((folder) => ({ id: folder.id, name: folder.name, sources: actions.sourcesOf(folder.id).length })),
     // One file added as a source like a file chosen in the project: refused with the code of the reason, 'duplicate' for a text the project already has.
-    async addFile(projectId, file) {
+    async addFile(projectId, file, { origin = '' } = {}) {
       const read = await readProjectFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
       if (!read.ok) return { ok: false, code: read.code || 'unreadable' };
       if (read.text && actions.sourcesOf(projectId).some((source) => source.text === read.text)) return { ok: false, code: 'duplicate' };
-      const added = await actions.addSource(projectId, { kind: 'file', title: read.title, mime: read.mime, size: read.size, text: read.text, ...(read.file ? { file: read.file } : {}) }).catch(() => ({ ok: false }));
+      const added = await actions.addSource(projectId, { kind: 'file', title: read.title, mime: read.mime, size: read.size, text: read.text, ...(origin === 'research' ? { origin } : {}), ...(read.file ? { file: read.file } : {}) }).catch(() => ({ ok: false }));
       return added.ok ? { ok: true, truncated: Boolean(read.truncated) } : { ok: false, code: added.code || 'failed' };
     }
   });

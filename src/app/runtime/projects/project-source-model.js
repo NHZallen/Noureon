@@ -65,6 +65,8 @@ export function normalizeSource(value) {
     text: text.trim() ? text : '',
     ...(file ? { file } : {}),
     ...(url ? { url } : {}),
+    // Where the source came from, when it is not a file or a text the person added: the report of a deep research.
+    ...(value.origin === 'research' ? { origin: 'research' } : {}),
     ...(transcript ? { transcript } : {}),
     addedAt: typeof value.addedAt === 'string' ? value.addedAt : ''
   };

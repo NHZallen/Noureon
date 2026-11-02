@@ -284,6 +284,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // ----- the sources of a project: texts and files that every chat of the project reads
   // What a source is, in a word: the extension of a file (PDF, DOCX...), a picture, a text.
   const kindLabel = (source) => {
+    if (source.origin === 'research') return text('pjSourceKindResearch');
     if (source.kind === 'url') return text('pjSourceKindUrl');
     if (source.kind === 'image') return text('pjSourceKindImage');
     if (source.kind !== 'file') return text('pjSourceKindText');
@@ -451,7 +452,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     row.dataset.sourceId = source.id;
     const label = kindLabel(source);
     const tone = source.kind === 'image' ? 'picture' : source.kind === 'file' ? toneOfName(source.title) : '';
-    const tile = source.kind === 'url' ? urlTile(source) : tone && source.kind === 'file' && label.length <= 4 ? sourceTile(document, { tone, label })
+    const tile = source.kind === 'url' ? urlTile(source) : tone && source.kind === 'file' && source.origin !== 'research' && label.length <= 4 ? sourceTile(document, { tone, label })
       : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
     const meta = make(document, 'span', 'pj-row-text');
     meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));

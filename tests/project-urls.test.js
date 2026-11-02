@@ -107,3 +107,14 @@ test('without a reader of web pages on the page the model is told it cannot read
     assert.match(await loader.run({ name: 'read_project_file', args: { file: 'example.com/guide' } }), /no key of a reading service/);
   } finally { setProjectFoldersReader(null); }
 });
+
+test('the report of a deep research is a source marked as such: the mark is kept by the model and the model is told what it is', async () => {
+  const kept = normalizeSource({ id: 'r1', kind: 'file', title: 'Report.md', mime: 'text/markdown', size: 10, text: '# Report', origin: 'research' });
+  assert.equal(kept.origin, 'research');
+  assert.equal(normalizeSource({ id: 'r2', kind: 'file', title: 'x.md', text: 'x', origin: 'something else' }).origin, undefined);
+  setProjectFoldersReader(() => [{ id: 'f1', name: 'P', sources: [kept] }]);
+  try {
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' } });
+    assert.match(access.catalogText, /- Report\.md \(deep research report/);
+  } finally { setProjectFoldersReader(null); }
+});

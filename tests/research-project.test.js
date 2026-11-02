@@ -35,7 +35,7 @@ test('with no projects, or no projects service, the person is told and nothing o
 
 test('the sheet lists the projects; the one chosen gets the report as a Markdown file with its sources, and the person is told', async () => {
   const added = [];
-  const api = { list: () => [{ id: 'p1', name: 'Home' }, { id: 'p2', name: 'Work' }], addFile: async (id, file) => { added.push([id, file.name, file.type, await file.text()]); return { ok: true, truncated: false }; } };
+  const api = { list: () => [{ id: 'p1', name: 'Home' }, { id: 'p2', name: 'Work' }], addFile: async (id, file, options) => { added.push([id, file.name, file.type, await file.text(), options?.origin]); return { ok: true, truncated: false }; } };
   const { window, notes, run } = setup(api);
   const pending = run();
   await tick();
@@ -47,6 +47,7 @@ test('the sheet lists the projects; the one chosen gets the report as a Markdown
   assert.equal(added.length, 1);
   assert.deepEqual([added[0][0], added[0][1]], ['p2', 'Heat pumps a survey.md']);
   assert.match(added[0][2], /^text\/markdown/);
+  assert.equal(added[0][4], 'research', 'the source is marked as the report of a deep research');
   assert.equal(added[0][3], reportMarkdown(REPORT, 'en'));
   assert.match(added[0][3], /\[1\] Agency guide — https:\/\/example\.org\/guide/, 'the list of sources comes with it');
   assert.deepEqual(notes, [['Added to "Work".', 'success']]);

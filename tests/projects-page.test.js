@@ -819,6 +819,7 @@ test('a source says where its vectors are (only when they are on), and the line 
 
 test('a web address is added as a source: only its form is checked, the site icon shows (a globe until it loads), and the row says the site', async () => {
   const t = setup();
+  try {
   t.open({ id: 'f2' }, { sourcesEnabled: true });
   t.byText('.pj-tab', 'Sources').click();
   t.$('.pj-source-add').click();
@@ -836,4 +837,17 @@ test('a web address is added as a source: only its form is checked, the site ico
   assert.equal(t.$('.pj-source .pj-row-title').textContent, 'example.com/guide?page=2');
   assert.equal(t.$('.pj-source .pj-row-meta').textContent, 'Web address · example.com');
   assert.ok(t.$('.pj-source .pj-source-tile svg'), 'a globe shows until the icon of the site has loaded');
+  } finally { await t.finish(); }
+});
+
+test('the report of a deep research shows as "Deep research" in the list of the sources', async () => {
+  const t = setup();
+  try {
+  t.state.folders.find((folder) => folder.id === 'f2').sources = [{ id: 'r1', kind: 'file', title: 'Heat pumps.md', mime: 'text/markdown', size: 4096, text: '# Heat', origin: 'research', addedAt: '' }];
+  t.open({ id: 'f2' }, { sourcesEnabled: true });
+  t.byText('.pj-tab', 'Sources').click();
+  assert.equal(t.$('.pj-source .pj-row-title').textContent, 'Heat pumps.md');
+  assert.equal(t.$('.pj-source .pj-row-meta').textContent.startsWith('Deep research · '), true);
+  assert.equal(t.$('.pj-source .pj-source-tile').textContent, '', 'its tile is an icon, not a word');
+  } finally { await t.finish(); }
 });

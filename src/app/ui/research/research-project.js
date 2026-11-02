@@ -35,7 +35,7 @@ export async function addReportToProject({ report, language = 'en', document = g
         action: async () => {
           chosen = true;
           const file = new globalThis.File([reportMarkdown(report, language)], reportFileName(report, 'md'), { type: 'text/markdown' });
-          const result = await api.addFile(project.id, file).catch(() => ({ ok: false, code: 'failed' }));
+          const result = await api.addFile(project.id, file, { origin: 'research' }).catch(() => ({ ok: false, code: 'failed' }));
           if (result.ok) showNotification(`${t('addedToProject', { name: project.name })}${result.truncated ? ` ${t('addedTruncated')}` : ''}`, 'success');
           else showNotification(t(addFailureKey(result.code), { name: project.name }), 'error');
           resolve({ ok: Boolean(result.ok), project: project.id });

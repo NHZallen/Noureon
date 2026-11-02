@@ -88,7 +88,7 @@ export async function createProjectFilesAccess({ conversation, toolsAllowed = tr
   const entries = sources.map((source) => {
     const kind = searchableKindOf(source);
     const name = String(source.file?.name || source.title || 'Untitled').replace(/\s+/g, ' ').trim().slice(0, 120);
-    return { id: source.id, name, kind, kindText: KIND_TEXTS[kind] || kind, size: Number(source.file?.size || source.size) || String(source.text || '').length };
+    return { id: source.id, name, kind, kindText: source.origin === 'research' ? 'deep research report' : KIND_TEXTS[kind] || kind, size: Number(source.file?.size || source.size) || String(source.text || '').length };
   });
   // Two sources with the same name: the second gets its place in the list in its name, so a call can tell them apart.
   const seen = new Map();
