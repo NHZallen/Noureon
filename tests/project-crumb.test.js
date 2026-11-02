@@ -9,36 +9,40 @@ import { projectPlaceholder, setProjectPlaceholder } from '../src/app/runtime/pr
 // A chat that belongs to a project says so under its header; the empty box says whom it writes to; the menu of the left list opens toward the middle of the screen as the other menus there do.
 
 const wait = (ms = 70) => new Promise((resolve) => setTimeout(resolve, ms));
-const text = (key, values = {}) => (key === 'pjCrumb' ? `Chat in ${values.name}` : key);
 
-test('the line under the header shows the project of the open chat, opens its page, and follows the chat', async () => {
+test('the header of a chat of a project becomes the project\'s (a way back, the name with "Chat" under it), opens its page, and follows the chat', async () => {
   const window = new Window({ url: 'https://noureon.test/' });
   const { document } = window;
-  document.body.innerHTML = '<main id="chat-workspace"><header>H</header><div id="chat-container"></div></main><div id="history-list"></div>';
+  document.body.innerHTML = '<main id="chat-workspace"><header><div id="left"><button id="menu-toggle-btn"></button><button id="new-chat-btn-header"></button></div></header></main><div id="history-list"></div>';
   let project = { id: 'p1', name: 'Translation <b>x</b>', icon: 'book', color: 'blue' };
   const opened = [];
-  const crumb = createProjectCrumb({ document, text, getProject: () => project, openProject: (id) => opened.push(id) });
-  const node = document.getElementById('project-crumb');
-  assert.equal(node.previousElementSibling.tagName, 'HEADER', 'it stands right under the header');
-  assert.equal(node.hidden, false);
-  assert.equal(node.querySelector('.pj-crumb-name').textContent, 'Translation <b>x</b>', 'the name is text');
-  assert.equal(node.querySelector('b'), null);
-  assert.equal(node.title, 'Chat in Translation <b>x</b>');
-  node.click();
-  assert.deepEqual(opened, ['p1']);
+  const labels = { pjHeadSub: 'Chat' };
+  const crumb = createProjectCrumb({ document, text: (key, values = {}) => (key === 'pjCrumb' ? `Chat in ${values.name}` : labels[key] || key), getProject: () => project, openProject: (id) => opened.push(id) });
+  const header = document.querySelector('#chat-workspace > header');
+  assert.equal(header.classList.contains('pj-in-project'), true);
+  assert.equal(document.querySelector('#left').firstElementChild.id, 'project-head-back', 'the way back is first');
+  assert.equal(document.getElementById('project-head-back').className.includes('rounded'), true, 'it is a plain icon like the other buttons of the header');
+  assert.equal(document.querySelector('.pj-head-name').textContent, 'Translation <b>x</b>', 'the name is text');
+  assert.equal(document.querySelector('.pj-head-title b'), null);
+  assert.equal(document.querySelector('.pj-head-sub').textContent, 'Chat');
+  document.getElementById('project-head-back').click();
+  document.getElementById('project-head-title').click();
+  assert.deepEqual(opened, ['p1', 'p1']);
   // The chat changes to one outside any project.
   project = null;
   document.dispatchEvent(new window.CustomEvent('noureon:chat-changed'));
   await wait();
-  assert.equal(node.hidden, true);
+  assert.equal(header.classList.contains('pj-in-project'), false);
+  assert.equal(document.getElementById('project-head-back'), null);
+  assert.equal(document.getElementById('project-head-title'), null);
   // The project is renamed (the history is drawn again).
   project = { id: 'p1', name: 'Renamed', icon: 'book', color: 'blue' };
   document.getElementById('history-list').appendChild(document.createElement('div'));
   await wait();
-  assert.equal(node.hidden, false);
-  assert.equal(node.querySelector('.pj-crumb-name').textContent, 'Renamed');
+  assert.equal(document.querySelector('.pj-head-name').textContent, 'Renamed');
   crumb.stop();
-  assert.equal(document.getElementById('project-crumb'), null);
+  assert.equal(document.getElementById('project-head-title'), null);
+  assert.equal(header.classList.contains('pj-in-project'), false);
   await window.happyDOM.abort();
 });
 
@@ -69,32 +73,5 @@ test('a menu of the left list opens from the left edge of its button (toward the
   const end = openMenu({ document, root: document.body, anchor, items });
   assert.equal(Number.parseInt(end.element.style.left, 10) <= 263 - 1, true, 'its right edge is at the button\'s');
   end.close();
-  await window.happyDOM.abort();
-});
-
-test('on a phone the header of the chat becomes the project\'s: a way back, the name with "Chat" under it, and no line under the header', async () => {
-  const window = new Window({ url: 'https://noureon.test/' });
-  const { document } = window;
-  window.matchMedia = (query) => ({ matches: /max-width: 767px/.test(query), media: query, addEventListener() {}, removeEventListener() {} });
-  document.body.innerHTML = '<main id="chat-workspace"><header><div id="left"><button id="menu-toggle-btn"></button><button id="new-chat-btn-header"></button></div></header></main>';
-  let project = { id: 'p1', name: 'Translation', icon: 'book', color: 'blue' };
-  const opened = [];
-  const crumb = createProjectCrumb({ document, text: (key, values = {}) => (key === 'pjHeadSub' ? 'Chat' : key === 'pjCrumb' ? `Chat in ${values.name}` : key), getProject: () => project, openProject: (id) => opened.push(id) });
-  const header = document.querySelector('#chat-workspace > header');
-  assert.equal(header.classList.contains('pj-in-project'), true);
-  assert.equal(document.getElementById('project-crumb').hidden, true, 'the line is for a computer');
-  assert.equal(document.querySelector('#left').firstElementChild.id, 'project-head-back', 'the way back is first');
-  assert.equal(document.getElementById('project-head-back').className.includes('rounded'), true, 'it is a plain icon like the other buttons of the header');
-  assert.equal(document.querySelector('.pj-head-name').textContent, 'Translation');
-  assert.equal(document.querySelector('.pj-head-sub').textContent, 'Chat');
-  document.getElementById('project-head-back').click();
-  document.getElementById('project-head-title').click();
-  assert.deepEqual(opened, ['p1', 'p1']);
-  project = null;
-  crumb.update();
-  assert.equal(header.classList.contains('pj-in-project'), false);
-  assert.equal(document.getElementById('project-head-back'), null);
-  assert.equal(document.getElementById('project-head-title'), null);
-  crumb.stop();
   await window.happyDOM.abort();
 });

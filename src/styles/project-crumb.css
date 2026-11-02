@@ -1,24 +1,13 @@
-/* The line under the header of a chat that belongs to a project (ui/projects/project-crumb.js). */
-.pj-crumb { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; max-width: calc(100% - 1.5rem); margin: 0.3rem 0.75rem 0; padding: 0.3rem 0.6rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.8125rem; cursor: pointer; }
-.pj-crumb[hidden] { display: none; }
-.pj-crumb:hover { background: var(--hover-bg); color: var(--text-primary); }
-.pj-crumb-icon { flex: none; width: 1.1rem; height: 1.1rem; display: inline-flex; }
-.pj-crumb-icon svg { width: 100%; height: 100%; }
-.pj-crumb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.pj-crumb-arrow { flex: none; display: inline-flex; opacity: 0.6; }
-
-/* A phone: the header of a chat of a project is the project's (back, icon and name, "Chat"). The name stands on the line of the buttons; "Chat" is under it. */
+/* The header of a chat of a project is the project's (ui/projects/project-crumb.js): back, icon and name, "Chat" under it. The name stands on the line of the buttons, "Chat" is under it, and the
+   header is a little taller to hold both. On a phone the buttons for the left menu and for a new chat are left out (going back leads to the menu); a computer keeps them. */
+#chat-workspace > header.pj-in-project { min-height: 3.5rem; }
+.pj-head-back { flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--text-primary); cursor: pointer; }
+.pj-head-title { position: absolute; left: 0; right: 0; top: 50%; margin: 0 auto; width: max-content; z-index: 1; max-width: calc(100% - 8rem); display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
+.pj-head-top { max-width: 100%; height: 1.5rem; margin-top: -0.75rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+.pj-head-icon { flex: none; width: 1.15rem; height: 1.15rem; display: inline-flex; }
+.pj-head-icon svg { width: 100%; height: 100%; }
+.pj-head-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; font-weight: 500; line-height: 1.5rem; }
+.pj-head-sub { font-size: 0.75rem; line-height: 1rem; color: var(--text-secondary); }
 @media (max-width: 767px) {
-  #chat-workspace > header.pj-in-project { min-height: 3.5rem; }
   #chat-workspace > header.pj-in-project #new-chat-btn-header, #chat-workspace > header.pj-in-project #menu-toggle-btn { display: none; }
-  .pj-head-back { flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--text-primary); cursor: pointer; }
-  .pj-head-title { position: absolute; left: 0; right: 0; top: 50%; margin: 0 auto; width: max-content; z-index: 1; max-width: calc(100% - 8rem); display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; }
-  .pj-head-top { max-width: 100%; height: 1.5rem; margin-top: -0.75rem; display: inline-flex; align-items: center; gap: 0.4rem; }
-  .pj-head-icon { flex: none; width: 1.15rem; height: 1.15rem; display: inline-flex; }
-  .pj-head-icon svg { width: 100%; height: 100%; }
-  .pj-head-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; font-weight: 500; line-height: 1.5rem; }
-  .pj-head-sub { font-size: 0.75rem; line-height: 1rem; color: var(--text-secondary); }
-}
-@media (min-width: 768px) {
-  .pj-head-back, .pj-head-title { display: none; }
 }
