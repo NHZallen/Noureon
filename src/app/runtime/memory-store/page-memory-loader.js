@@ -4,6 +4,7 @@
 
 import { createMemoryLoader } from '../../../data/memory-tool.js';
 import { scopedView } from '../memory-notes/scope.js';
+import { categoriesOf } from '../memory-notes/categories.js';
 import { memoryScopeOf, projectIdOf } from '../projects/project-instructions.js';
 import { recordEvent, recordHistory, recordUsed } from './memory-trace.js';
 
@@ -53,7 +54,7 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
     }),
     make: (language) => createMemoryLoader({
       getNotes: () => store.getNotes(),
-      getContext: () => ({ conversationId, messages: userMessagesOf(conversation), appliedOps }),
+      getContext: () => ({ conversationId, messages: userMessagesOf(conversation), appliedOps, categories: categoriesOf(store.getSettings()) }),
       commit: (result) => store.commitWrite(result, { conversationId }),
       canWrite,
       onUsed: ({ ids }) => {

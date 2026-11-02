@@ -76,7 +76,9 @@ const EXAMPLES = [
 const exampleText = () => EXAMPLES.map((example, index) => `Example ${index + 1}\nThe user said: ${JSON.stringify(example.said)}${example.note ? `\n${example.note}` : ''}\nAnswer: ${JSON.stringify({ ops: example.ops })}`).join('\n\n');
 
 /** The request to the model: what to keep, what not, the notes already there, what the person said and the answer's shape. */
-export function buildCuratorPrompt({ notes = [], hints = [], current, assistantExcerpt = '', now = new Date().toISOString(), batch = false }) {
+export function buildCuratorPrompt({ notes = [], hints = [], current, assistantExcerpt = '', now = new Date().toISOString(), batch = false, categories = null }) {
+  // The categories of the person (their ids are what "kind" holds); the five a memory starts with when none are given.
+  const kindIds = categories ? categories.map((category) => category.id) : ['preference', 'fact', 'project', 'relationship', 'routine'];
   const lines = [
     batch
       ? 'You keep the long-term memory of a chat assistant. Below are the messages the user wrote in one past conversation (numbered, oldest first). Decide whether they hold something worth remembering about THEM for future conversations.'
@@ -84,7 +86,8 @@ export function buildCuratorPrompt({ notes = [], hints = [], current, assistantE
     'Keep: stable preferences, lasting facts about their life or work, projects they are working on, important people, routines, and what they ask you to remember or to forget. Write each note as one short fact about the user, in the language the user writes ("The user prefers short answers"), never as an order.',
     'Do not keep: a request for this one conversation, a guess, a question, something that fails or is tried out, anything that comes from the assistant\'s reply, a secret (a password, a key, a number of a card or of a paper). Most messages hold nothing to keep: then answer with no operations. When in doubt, keep nothing.',
     'Every operation needs "quote": the user\'s own words that show it, copied letter for letter from the message below (a few words are enough). When a note already says it, use "update" with its id instead of adding a second one. If the user says something newer that replaces a note, update it. "forget" removes a note the user asked to forget.',
-    `Answer with JSON only, in this shape: {"ops":[{"op":"add"|"update"|"forget","text":"...","id":"(for update and forget)","quote":"...","kind":"preference|fact|project|relationship|routine","keywords":["..."],"standing":false,"valid_until":"(a date, only for a fact that ends)"}]}. At most ${LIMITS.maxOpsPerCall} operations. An empty list is the usual answer.`,
+    `Answer with JSON only, in this shape: {"ops":[{"op":"add"|"update"|"forget","text":"...","id":"(for update and forget)","quote":"...","kind":"${kindIds.length ? kindIds.join('|') : 'none'}","keywords":["..."],"standing":false,"valid_until":"(a date, only for a fact that ends)"}]}. At most ${LIMITS.maxOpsPerCall} operations. An empty list is the usual answer.`,
+    ...(categories && categories.some((category) => category.name) ? [`The categories the user sorts notes into (use the id as "kind"; pick the closest, "none" when none fits): ${categories.map((category) => `${category.id} = ${category.name || category.id}`).join(', ')}.`] : []),
     `Today is ${String(now).slice(0, 10)}.`,
     '',
     exampleText(),
@@ -133,10 +136,10 @@ export function parseCuratorOps(output) {
  * `callModel(prompt)` gives the model's text; `commit(result)` saves an accepted write; `onWrite(result)` is told of each. Never throws: a model that fails leaves the memory as it was.
  * Resolves { skipped, applied: [results], refused: [{ op, code }], error? }.
  */
-export async function runCurator({ notes, turn, callModel, commit, onWrite = null, conversationId = '', appliedOps = [], batch = false, createId, now = () => new Date().toISOString() }) {
+export async function runCurator({ notes, turn, callModel, commit, onWrite = null, conversationId = '', appliedOps = [], batch = false, createId, categories = null, now = () => new Date().toISOString() }) {
   const current = turn?.current;
   if (!worthCurating(current?.text)) return { skipped: 'too_short', applied: [], refused: [] };
-  const prompt = buildCuratorPrompt({ notes: relatedNotes(notes, current.text), hints: relatedHints(notes, current.text), current, assistantExcerpt: turn.assistantExcerpt, now: now(), batch });
+  const prompt = buildCuratorPrompt({ notes: relatedNotes(notes, current.text), hints: relatedHints(notes, current.text), current, assistantExcerpt: turn.assistantExcerpt, now: now(), batch, categories });
   let output;
   try {
     output = await callModel(prompt);
@@ -149,7 +152,7 @@ export async function runCurator({ notes, turn, callModel, commit, onWrite = nul
   let working = notes;
   const done = [...appliedOps];
   for (const op of parseCuratorOps(output)) {
-    const result = applyWrite({ notes: working, request: op, context: { conversationId, messages, who: 'curator', appliedOps: done, createId, now } });
+    const result = applyWrite({ notes: working, request: op, context: { conversationId, messages, who: 'curator', appliedOps: done, createId, now, ...(categories ? { categories } : {}) } });
     if (!result.ok) {
       refused.push({ op, code: result.code });
       continue;

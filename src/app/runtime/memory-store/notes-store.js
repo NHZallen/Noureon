@@ -110,7 +110,7 @@ export function createNotesStore({ backend, now = () => new Date().toISOString()
     }),
     setSettings: (patch) => enqueue(async () => {
       const merged = normalizeSettings({ ...defaultSettings(), ...normalizeSettings(rows.get(SETTINGS_KEY)?.payload), ...patch });
-      await persist([{ key: SETTINGS_KEY, payload: merged, deleted: false }], (change, remote) => ({ ...change, payload: { ...normalizeSettings(remote?.payload), ...merged } }));
+      await persist([{ key: SETTINGS_KEY, payload: merged, deleted: false }], (change, remote) => { const theirs = normalizeSettings(remote?.payload); return { ...change, payload: { ...theirs, ...merged, categories: merged.categories ?? theirs.categories } }; });
       emit();
       return merged;
     }),

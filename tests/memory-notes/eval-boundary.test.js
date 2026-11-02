@@ -32,10 +32,12 @@ test('a note is read as a note: a text and an id are needed, the limits hold, a 
   assert.equal(normalizeNote(null), null);
   assert.equal(normalizeNote({ id: '', text: 'x' }), null);
   assert.equal(normalizeNote({ id: 'a', text: '   ' }), null);
-  const note = normalizeNote({ id: 'a', text: `  ${'x '.repeat(200)} `, keywords: Array.from({ length: 20 }, (_, index) => `k${index}`), kind: 'nope', evidenceCount: -4, validUntil: 'not a date' });
+  const note = normalizeNote({ id: 'a', text: `  ${'x '.repeat(200)} `, keywords: Array.from({ length: 20 }, (_, index) => `k${index}`), kind: 'not a kind!', evidenceCount: -4, validUntil: 'not a date' });
   assert.equal(note.text.length <= LIMITS.maxText, true);
   assert.equal(note.keywords.length, LIMITS.maxKeywords);
-  assert.equal(note.kind, 'fact');
+  assert.equal(note.kind, 'fact', 'a kind that cannot be the id of a category is a fact');
+  // The id of a category of the person is kept as it is (it shows as uncategorized when that category is gone).
+  assert.equal(normalizeNote({ id: 'a', text: 'x', kind: 'c-pets' }).kind, 'c-pets');
   assert.equal(note.evidenceCount, 1);
   assert.equal(note.validUntil, null);
   assert.equal(note.status, NOTE_STATUS.active);

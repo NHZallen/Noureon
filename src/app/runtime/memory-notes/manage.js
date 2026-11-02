@@ -2,7 +2,8 @@
 // it off, say "do not bring it up", delete it (it becomes a tombstone so it is not learned again), find notes, and undo a change the model or the curator made. Each function takes
 // the whole list of notes and gives the new list (the page saves it with the store), so they are plain to test. Shared by the page and the tests: no window, no document, no browser storage.
 
-import { LIMITS, NOTE_KINDS, NOTE_STATUS, createNote, isActive, isTombstone, normalizeKeywords } from './notes.js';
+import { LIMITS, NOTE_KINDS, NOTE_STATUS, UNCATEGORIZED, createNote, isActive, isTombstone, normalizeKeywords } from './notes.js';
+import { kindFor, resolveKind } from './categories.js';
 import { canBeStanding } from './standing.js';
 import { makeTombstone } from './tombstone.js';
 import { plainWords } from './tokenize.js';
@@ -14,7 +15,7 @@ const find = (notes, id) => notes.find((note) => note.id === id) || null;
 const fail = (code) => ({ ok: false, code });
 
 /** A note the person writes: their own words are its source. Refused when it is empty, there is no room, or the same note is there. */
-export function addByUser(notes, { text, kind = 'fact', createId, now = () => new Date().toISOString() }) {
+export function addByUser(notes, { text, kind = 'fact', categories = null, createId, now = () => new Date().toISOString() }) {
   const clean = squash(text).slice(0, LIMITS.maxText);
   if (!clean) return fail('empty');
   if (notes.filter(isActive).length >= LIMITS.maxActive) return fail('full');
@@ -23,7 +24,7 @@ export function addByUser(notes, { text, kind = 'fact', createId, now = () => ne
   const note = createNote({
     id: createId(),
     text: clean,
-    kind: NOTE_KINDS.includes(kind) ? kind : 'fact',
+    kind: categories ? resolveKind(kind, categories) : NOTE_KINDS.includes(kind) ? kind : 'fact',
     source: { conversationId: '', messageIds: [], quote: clean },
     now
   });
@@ -42,6 +43,14 @@ export function editByUser(notes, id, { text, now = () => new Date().toISOString
     ok: true,
     notes: replaceNote(notes, id, (note) => ({ ...note, text: clean, keywords: normalizeKeywords([...plainWords(clean), ...note.keywords]), observedAt: at, updatedAt: at, locked: true, standing: note.standing && canBeStanding({ ...note, text: clean }) }))
   };
+}
+
+/** Moves a note to another category (`kind` is the id of one of `categories`, or `none` for uncategorized). It is the person's doing, so the note is locked against the curator rewriting it. */
+export function setKindByUser(notes, id, kind, { categories, now = () => new Date().toISOString() } = {}) {
+  const target = find(notes, id);
+  if (!target || !isActive(target)) return fail('missing');
+  if (kind !== UNCATEGORIZED && !(categories || []).some((category) => category.id === kind)) return fail('missing');
+  return { ok: true, notes: replaceNote(notes, id, (note) => ({ ...note, kind, updatedAt: now() })) };
 }
 
 /** Puts a note on the first page (or takes it off). Only preferences and facts that may be mentioned can be there, and there is a limit. */
@@ -70,13 +79,23 @@ export function deleteByUser(notes, id, { now = () => new Date().toISOString() }
 }
 
 /** The notes to show: `view` is 'active' (the default), 'standing' or 'archived'; `query` is looked for in the words and the keywords; `kind` narrows to one kind. The newest change first. */
-export function filterNotes(notes, { view = 'active', kind = '', query = '' } = {}) {
+export function filterNotes(notes, { view = 'active', kind = '', query = '', categories = null } = {}) {
   const needle = squash(query).toLowerCase();
   return notes
     .filter((note) => (view === 'archived' ? note.status === NOTE_STATUS.archived : isActive(note) && (view !== 'standing' || note.standing)))
-    .filter((note) => !kind || note.kind === kind)
+    .filter((note) => !kind || (categories ? kindFor(note, categories) : note.kind) === kind)
     .filter((note) => !needle || `${note.text} ${note.keywords.join(' ')}`.toLowerCase().includes(needle))
     .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)));
+}
+
+/** How many notes in use each category holds, with `none` for the uncategorized: { [id]: n }. */
+export function countByCategory(notes, categories) {
+  const counts = {};
+  for (const note of notes.filter(isActive)) {
+    const kind = kindFor(note, categories);
+    counts[kind] = (counts[kind] || 0) + 1;
+  }
+  return counts;
 }
 
 /** The numbers of the summary: notes in use, on the first page, archived, and when something changed last. */

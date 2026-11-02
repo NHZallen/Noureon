@@ -21,7 +21,9 @@ const EXPLICIT = [
 export const isExplicitPreference = (quote) => EXPLICIT.some((pattern) => pattern.test(String(quote || '')));
 
 /** Whether a note may be on the first page at all. */
-export const canBeStanding = (note) => isActive(note) && note.surface === 'normal' && (note.kind === 'preference' || note.kind === 'fact') && note.notRelevant < LIMITS.notRelevantLimit;
+/** Notes about a project, a person or a routine are never rules for every answer, whatever the category holds them (the person may make their own categories). */
+const NOT_STANDING_KINDS = Object.freeze(['project', 'relationship', 'routine']);
+export const canBeStanding = (note) => isActive(note) && note.surface === 'normal' && !NOT_STANDING_KINDS.includes(note.kind) && note.notRelevant < LIMITS.notRelevantLimit;
 
 /** Whether a note earns the first page by being seen again (on another day or in another conversation). */
 export const earnsStanding = (note) => canBeStanding(note) && note.evidenceCount >= 2;

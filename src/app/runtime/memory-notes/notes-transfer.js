@@ -4,7 +4,8 @@
 // order to the assistant, no note that a deleted one stands for, no more than the notebook holds; a note that is there already is not added twice. The notes of a file the person wrote or
 // exported are theirs: each keeps its own words as its source. Pure functions; shared by the page and the tests: no window, no document, no browser storage.
 
-import { LIMITS, NOTE_KINDS, SURFACES, createNote, isActive, isTombstone, normalizeKeywords } from './notes.js';
+import { LIMITS, SURFACES, createNote, isActive, isTombstone, normalizeKeywords } from './notes.js';
+import { MAX_CATEGORIES, categoryName, normalizeCategories, resolveKind } from './categories.js';
 import { notesInScope } from './scope.js';
 import { canBeStanding } from './standing.js';
 import { findTombstone, makeTombstone } from './tombstone.js';
@@ -18,12 +19,14 @@ const same = (left, right) => squash(left).toLowerCase() === squash(right).toLow
 const isoOr = (value, fallback) => (typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : fallback);
 
 /** The file: `{ version, exportedAt, notes: [...], blocked: [{ keywords, hint }] }`. Notes in use only; the deleted ones are only their words. */
-export function buildNotesExport(allNotes, now = () => new Date().toISOString()) {
+export function buildNotesExport(allNotes, now = () => new Date().toISOString(), categories = null) {
   // The memory of the account only: the notes a project keeps for itself stay in that project (scope.js).
   const notes = notesInScope(allNotes, '');
   return {
     version: TRANSFER_VERSION,
     exportedAt: now(),
+    // The categories of the person (with the names they gave), so that a note comes back into a category of its own name.
+    ...(categories ? { categories: categories.map((category) => ({ id: category.id, name: categoryName(category) })) } : {}),
     notes: notes.filter(isActive).map((note) => ({
       text: note.text,
       kind: note.kind,
@@ -43,8 +46,15 @@ export function buildNotesExport(allNotes, now = () => new Date().toISOString())
  * Reads a file into the notes. Returns { ok, notes: the whole list after, added, skipped: { empty, secret, forbidden_category, instruction, forgotten, duplicate, full }, blocked: how many deleted words were added }
  * or { ok: false, code } when the file is not one of ours.
  */
-export function planNotesImport(notes, data, { createId, now = () => new Date().toISOString() }) {
+export function planNotesImport(notes, data, { createId, now = () => new Date().toISOString(), categories = null }) {
   if (!data || typeof data !== 'object' || data.version !== TRANSFER_VERSION || !Array.isArray(data.notes)) return { ok: false, code: 'not_a_notes_file' };
+  // The categories of the file that this memory does not have are added (up to the limit); a note of a category that stays unknown goes to "fact", or is uncategorized without it.
+  let known = categories || normalizeCategories(['preference', 'fact', 'project', 'relationship', 'routine'].map((id) => ({ id, name: '' })));
+  for (const entry of (Array.isArray(data.categories) ? normalizeCategories(data.categories) || [] : [])) {
+    if (known.length >= MAX_CATEGORIES) break;
+    if (known.some((category) => category.id === entry.id || (entry.name && categoryName(category).toLowerCase() === entry.name.toLowerCase()))) continue;
+    if (entry.name) known = [...known, entry];
+  }
   const skipped = { empty: 0, secret: 0, forbidden_category: 0, instruction: 0, forgotten: 0, duplicate: 0, full: 0 };
   let next = [...notes];
   let added = 0;
@@ -75,7 +85,7 @@ export function planNotesImport(notes, data, { createId, now = () => new Date().
       id: createId(),
       text,
       keywords: keywords.length ? keywords : undefined,
-      kind: NOTE_KINDS.includes(entry.kind) ? entry.kind : 'fact',
+      kind: resolveKind(entry.kind, known),
       surface: SURFACES.includes(entry.surface) ? entry.surface : 'normal',
       source: { conversationId: '', messageIds: [], quote: text },
       observedAt: isoOr(entry.observedAt, at),
@@ -88,5 +98,5 @@ export function planNotesImport(notes, data, { createId, now = () => new Date().
     added += 1;
     keep(details.added, text.slice(0, 80));
   }
-  return { ok: true, notes: next, added, skipped, blocked, details };
+  return { ok: true, notes: next, added, skipped, blocked, details, categories: known };
 }

@@ -13,10 +13,11 @@
 // Shared by the page and the server: no window, no document, no browser storage.
 
 import { LIMITS, NOTE_KINDS, createNote, isActive, normalizeKeywords } from './notes.js';
+import { resolveKind } from './categories.js';
 import { jaccard, normalizeText, overlapCoefficient, plainWords, termSet } from './tokenize.js';
 import { canSupersede, supersede } from './supersede.js';
 import { makeRoom, reinforce, sightingKey } from './lifecycle.js';
-import { isExplicitPreference } from './standing.js';
+import { canBeStanding, isExplicitPreference } from './standing.js';
 import { findTombstone, makeTombstone } from './tombstone.js';
 
 const DUPLICATE = 0.8;
@@ -202,9 +203,10 @@ export function applyWrite({ notes, request, context }) {
   const candidate = { text, keywords, messageIds: [message.id] };
   if (findTombstone(candidate, notes)) return refuse('forgotten', 'The user deleted a note like this one: it is not saved again.');
 
-  const kind = NOTE_KINDS.includes(request.kind) ? request.kind : 'fact';
+  // The categories of the person when they are given (the caller reads them from the settings), else the five a memory starts with.
+  const kind = Array.isArray(context.categories) ? resolveKind(request.kind, context.categories) : NOTE_KINDS.includes(request.kind) ? request.kind : 'fact';
   const source = { conversationId, messageIds: [message.id], quote: String(request.quote).replace(/\s+/g, ' ').trim().slice(0, LIMITS.maxQuote), seen: [sightingKey(conversationId, observedAt)] };
-  const standing = request.standing === true && (kind === 'preference' || kind === 'fact') && isExplicitPreference(source.quote);
+  const standing = request.standing === true && canBeStanding({ status: 'active', surface: 'normal', kind, notRelevant: 0 }) && isExplicitPreference(source.quote);
   const sameWords = termSet(text, keywords);
 
   if (op === 'update') {

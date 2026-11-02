@@ -5,7 +5,13 @@
 
 import { plainWords } from './tokenize.js';
 
+/** The five categories a memory starts with (the ids of the kinds the notes were made with); the person may rename, remove and add (memory-notes/categories.js). */
 export const NOTE_KINDS = Object.freeze(['preference', 'fact', 'project', 'relationship', 'routine']);
+/** The kind of a note whose category is gone (or was never chosen). */
+export const UNCATEGORIZED = 'none';
+const KIND_ID = /^[a-z0-9][a-z0-9_-]{0,39}$/i;
+/** Whether a text can be the id of a category (a note keeps the id of its category in `kind`). */
+export const isKindId = (value) => typeof value === 'string' && KIND_ID.test(value);
 export const NOTE_STATUS = Object.freeze({ active: 'active', archived: 'archived', deleted: 'deleted' });
 export const SURFACES = Object.freeze(['normal', 'never']);
 
@@ -65,7 +71,7 @@ export function normalizeNote(raw, { now = () => new Date().toISOString() } = {}
     id: raw.id,
     text,
     keywords: normalizeKeywords(raw.keywords),
-    kind: NOTE_KINDS.includes(raw.kind) ? raw.kind : 'fact',
+    kind: isKindId(raw.kind) ? raw.kind : 'fact',
     standing: raw.standing === true,
     surface: SURFACES.includes(raw.surface) ? raw.surface : 'normal',
     locked: raw.locked === true,

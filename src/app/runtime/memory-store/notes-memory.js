@@ -7,6 +7,7 @@
 // No `window`, no `document`: the page gives the storage and the database client.
 
 import { buildPrefetch, buildSystemText } from '../memory-notes/inject.js';
+import { categoriesOf } from '../memory-notes/categories.js';
 import { isActive } from '../memory-notes/notes.js';
 import { notesInScope } from '../memory-notes/scope.js';
 import { createCloudBackend, createLocalBackend, createMirroredBackend } from './backends.js';
@@ -74,7 +75,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
     }
     // No notes and nothing of the past that bears on the question: nothing to say. (Past conversations alone make a slip.)
     if (!notes.some(isActive) && !history.length) return EMPTY;
-    const systemText = buildSystemText({ notes, canSearch });
+    const systemText = buildSystemText({ notes, canSearch, categories: categoriesOf(settings) });
     const slip = buildPrefetch({ notes, question, history });
     return { systemText, slipText: slip.text, noteIds: slip.noteIds, historyIds: slip.historyIds };
   };

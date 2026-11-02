@@ -11,7 +11,8 @@
 // no document, no browser storage.
 
 import { createBm25Index } from './bm25.js';
-import { LIMITS, NOTE_KINDS, isActive, noteSearchTexts } from './notes.js';
+import { LIMITS, NOTE_KINDS, UNCATEGORIZED, isActive, noteSearchTexts } from './notes.js';
+import { categoryIds, kindFor } from './categories.js';
 import { standingNotes } from './standing.js';
 import { terms } from './tokenize.js';
 
@@ -47,7 +48,7 @@ export function selectPrefetch(notes, question, { minNorm = PREFETCH.minNorm, mi
 }
 
 /** The first page and the catalogue, as the text added to the system instructions. Empty when there is nothing to say. */
-export function buildSystemText({ notes, canSearch = false }) {
+export function buildSystemText({ notes, canSearch = false, categories = null }) {
   const active = notes.filter(isActive);
   if (!active.length) return '';
   const standing = standingNotes(notes);
@@ -56,12 +57,18 @@ export function buildSystemText({ notes, canSearch = false }) {
   lines.push('', 'Rules for using memory:', ...MEMORY_RULES.map((rule) => `- ${rule}`));
   const rest = active.filter((note) => !standing.includes(note));
   if (rest.length) {
-    const counts = NOTE_KINDS.map((kind) => [kind, rest.filter((note) => note.kind === kind).length]).filter(([, count]) => count > 0);
-    const kinds = counts.map(([kind, count]) => `${KIND_LABEL[kind]} (${count})`).join(', ');
+    // The categories of the person (named as they named them); the five of a memory that was not changed are named in English as before.
+    const kindsOf = categories ? [...categoryIds(categories), UNCATEGORIZED] : NOTE_KINDS;
+    const labelOf = (kind) => categories?.find((category) => category.id === kind)?.name || KIND_LABEL[kind] || (kind === UNCATEGORIZED ? 'other' : kind);
+    const counts = kindsOf.map((kind) => [kind, rest.filter((note) => (categories ? kindFor(note, categories) : note.kind) === kind).length]).filter(([, count]) => count > 0);
+    const kinds = counts.map(([kind, count]) => `${labelOf(kind)} (${count})`).join(', ');
     lines.push('', canSearch
       ? `There are ${rest.length} more notes about the user that you can look up with search_memory when a request depends on them: ${kinds}.`
       : `(There are ${rest.length} more notes about the user: ${kinds}. They appear below only when a request clearly bears on them.)`);
   }
+  // The categories the person made (or renamed): the model uses their ids as the "kind" of a note it saves.
+  const named = (categories || []).filter((category) => category.name);
+  if (named.length) lines.push('', `Categories for the "kind" of a note you save (id = name): ${named.map((category) => `${category.id} = ${category.name}`).join(', ')}.`);
   return lines.join('\n');
 }
 

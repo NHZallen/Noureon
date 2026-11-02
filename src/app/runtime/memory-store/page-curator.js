@@ -5,6 +5,7 @@
 
 import { pickCuratorModel, runCurator } from '../../../data/memory-curator.js';
 import { userMessagesOf } from './page-memory-loader.js';
+import { categoriesOf } from '../memory-notes/categories.js';
 import { toolsOffered } from './memory-trace.js';
 import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
 import { tidyNotes } from './page-tidy.js';
@@ -49,6 +50,7 @@ async function curateTurn({ conversation, getConfig, getMemory, runMemoryModel, 
       onWrite: (written) => { if (written.event?.id) events.push(written.event.id); },
       conversationId: conversation.id,
       appliedOps: store.getCursor(conversation.id).appliedOps,
+      categories: categoriesOf(store.getSettings()),
       createId,
       now
     });

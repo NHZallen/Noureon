@@ -4,6 +4,7 @@
 // the clock are given. Shared by the page and the tests: no window, no document, no browser storage.
 
 import { runCurator, worthCurating } from './memory-curator.js';
+import { categoriesOf } from '../app/runtime/memory-notes/categories.js';
 
 export const REBUILD = Object.freeze({ conversations: 30, userMessages: 12, maxChars: 6000, maxFailuresInARow: 3 });
 
@@ -74,6 +75,7 @@ export async function rebuildFromHistory({ conversations, store, callModel, limi
       commit: (written) => store.commitWrite(written, { conversationId: conversation.id }),
       conversationId: conversation.id,
       appliedOps: store.getCursor(conversation.id).appliedOps,
+      categories: categoriesOf(store.getSettings?.()),
       createId,
       now
     });

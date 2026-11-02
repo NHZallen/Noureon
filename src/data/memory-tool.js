@@ -4,7 +4,7 @@
 // Nothing the model says is believed here: every write goes through `applyWrite` (memory-notes/write-check.js), which asks for the user's own words and checks them.
 // Pure functions, shared by the page and the server: no window, no document, no browser storage.
 
-import { NOTE_KINDS, isActive } from '../app/runtime/memory-notes/notes.js';
+import { isActive } from '../app/runtime/memory-notes/notes.js';
 import { searchNotes } from '../app/runtime/memory-notes/inject.js';
 import { applyWrite } from '../app/runtime/memory-notes/write-check.js';
 import { sandboxText } from '../app/runtime/sandbox/sandbox-texts.js';
@@ -39,7 +39,7 @@ export const MEMORY_WRITE_TOOL = Object.freeze({
       id: { type: 'string', maxLength: 80, description: 'The id of the note to update or forget.' },
       quote: { type: 'string', maxLength: 400, description: 'The user\'s own words that show it, exactly as they wrote them.' },
       keywords: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 10, description: 'Up to ten words the note should be found by, in the languages the user may use.' },
-      kind: { type: 'string', enum: [...NOTE_KINDS], description: 'preference, fact, project, relationship or routine.' },
+      kind: { type: 'string', maxLength: 40, description: 'The category of the note: preference, fact, project, relationship or routine, or the id of a category the user made (the list is in the memory text). Leave it out when none fits.' },
       standing: { type: 'boolean', description: 'True only when the user said plainly that it holds for every answer ("always", "from now on").' },
       valid_until: { type: 'string', description: 'For a fact that ends, the date it stops being true (ISO, for example 2026-12-31).' },
       distinct: { type: 'boolean', description: 'True when this is a different fact from the alike note you were told about.' }
@@ -105,7 +105,7 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
     const result = applyWrite({
       notes: getNotes(),
       request: { op: args.op, text: args.text, id: args.id, quote: args.quote, keywords: args.keywords, kind: args.kind, standing: args.standing === true, distinct: args.distinct === true, validUntil: args.valid_until },
-      context: { conversationId: context.conversationId || '', messages: context.messages || [], who: 'tool', appliedOps: context.appliedOps || [], createId, now }
+      context: { conversationId: context.conversationId || '', messages: context.messages || [], who: 'tool', appliedOps: context.appliedOps || [], createId, now, ...(context.categories ? { categories: context.categories } : {}) }
     });
     if (!result.ok) {
       const similar = (result.similar || []).map((entry) => `- id ${entry.id}: ${entry.text}`);

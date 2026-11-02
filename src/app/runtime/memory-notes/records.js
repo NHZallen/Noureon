@@ -5,6 +5,7 @@
 // Shared by the page and the server: no window, no document, no browser storage.
 
 import { NOTE_STATUS, isTombstone, normalizeKeywords, normalizeNote } from './notes.js';
+import { normalizeCategories } from './categories.js';
 import { later } from './supersede.js';
 
 export const SETTINGS_KEY = 'meta:settings';
@@ -24,6 +25,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   use: true,
   /** Paused: nothing is written, nothing is learned, what is there is still used. */
   paused: false,
+  /** The categories the notes are sorted into (categories.js): `null` while the person has not changed the five a memory starts with. */
+  categories: null,
   /** The model that tidies and learns for a model with no tools ('' is automatic). */
   curatorModelId: '',
   /** When the memory was first built from the past conversations on its own (once for the account, see memory-store/page-rebuild.js). */
@@ -65,6 +68,7 @@ export function normalizeSettings(raw) {
     learn: value.learn !== false,
     use: value.use !== false,
     paused: value.paused === true,
+    categories: normalizeCategories(value.categories),
     curatorModelId: typeof value.curatorModelId === 'string' ? value.curatorModelId.slice(0, 120) : '',
     rebuiltAt: typeof value.rebuiltAt === 'string' && !Number.isNaN(Date.parse(value.rebuiltAt)) ? value.rebuiltAt : null,
     consolidatedAt: typeof value.consolidatedAt === 'string' && !Number.isNaN(Date.parse(value.consolidatedAt)) ? value.consolidatedAt : null,

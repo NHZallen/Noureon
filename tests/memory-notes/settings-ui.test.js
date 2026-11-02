@@ -322,17 +322,78 @@ test('the notes page has no import or export of its own: they are in the data se
   assert.match(root().textContent, /Export and import are in Settings → Data/);
 });
 
-test('on the manage page each kind and the standing tag have an icon, and a standing note says it comes with every reply instead of "not used yet"', async () => {
+test('on the manage page a note is quiet text with its category under it, a standing note says it comes with every reply instead of "not used yet", and the actions are in one menu', async () => {
   const standing = { ...createNote({ id: 'zh', text: 'Always answer in Traditional Chinese', kind: 'preference' }), standing: true };
   const { window, root, click } = await setup({ notes: [dog, standing] });
   await click('Manage notes →');
   const rows = [...root().querySelectorAll('.mn-note')];
   const ofText = (word) => rows.find((row) => row.textContent.includes(word));
-  assert.match(ofText('Shiba').textContent, /Not used yet/);
+  assert.match(ofText('Shiba').querySelector('.mn-meta').textContent, /People & pets · Not used yet/);
   assert.match(ofText('Traditional Chinese').textContent, /Standing: brought to every reply/);
   assert.doesNotMatch(ofText('Traditional Chinese').textContent, /Not used yet/);
-  assert.ok(ofText('Shiba').querySelector('.mn-tag .mi-svg'), 'the kind has an icon');
-  assert.equal(ofText('Traditional Chinese').querySelectorAll('.mn-tag .mi-svg').length, 2, 'the kind and the pin');
-  assert.ok(root().querySelector('.mn-chips .mn-chip .mi-svg'), 'the filters have icons too');
+  assert.equal(ofText('Traditional Chinese').querySelectorAll('.mn-meta .mi-svg').length, 1, 'a standing note has the pin');
+  assert.equal(root().querySelector('.mn-actions'), null, 'no row of links under a note');
+  assert.equal(root().querySelector('.mn-menu'), null, 'the menu is closed until its button is pressed');
+  window.happyDOM.abort();
+});
+
+test('the categories are one row: All, Standing, the five of a memory with their counts, and a + to add; the uncategorized shows only when there are some', async () => {
+  const { window, root } = await setup({ notes: [dog, tea, createNote({ id: 'old', text: 'The user lives in Taipei', kind: 'gone-category' })] });
+  await (async () => { [...root().querySelectorAll('button')].find((node) => node.textContent.trim() === 'Manage notes →').click(); await tick(); })();
+  const chips = [...root().querySelectorAll('.mn-chips .mn-chip')].map((node) => node.textContent.trim());
+  assert.deepEqual(chips, ['All', 'Standing', 'Preference1', 'Fact', 'Project', 'People & pets1', 'Routine', 'Uncategorized1', '＋']);
+  window.happyDOM.abort();
+});
+
+test('a category is added, renamed and removed from the page, and the notes of a removed one become uncategorized (none is deleted)', async () => {
+  const { window, root, click, answers, memory, notices } = await setup({ notes: [dog, tea] });
+  await click('Manage notes →');
+  // Add.
+  answers.push('Pets');
+  root().querySelector('.mn-chip-add').click();
+  await tick();
+  const settings = memory.getStore().getSettings();
+  assert.equal(settings.categories.length, 6);
+  assert.equal(settings.categories.at(-1).name, 'Pets');
+  assert.match([...root().querySelectorAll('.mn-chip-on')].map((node) => node.textContent).join(''), /Pets/, 'the new category is the one chosen');
+  // A second one with the same name is refused.
+  answers.push('pets');
+  root().querySelector('.mn-chip-add').click();
+  await tick();
+  assert.equal(memory.getStore().getSettings().categories.length, 6);
+  assert.equal(notices.at(-1).kind, 'error');
+  // Rename the chosen one.
+  root().querySelector('.mn-cat-more').click();
+  await tick();
+  answers.push('Animals');
+  await click('Rename');
+  assert.equal(memory.getStore().getSettings().categories.at(-1).name, 'Animals');
+  // Remove "People & pets" (it holds the dog): the dog stays, uncategorized.
+  [...root().querySelectorAll('.mn-chips .mn-chip')].find((node) => node.textContent.startsWith('People & pets')).click();
+  await tick();
+  root().querySelector('.mn-cat-more').click();
+  await tick();
+  answers.push(true);
+  await click('Delete category');
+  const notes = memory.getStore().getNotes();
+  assert.equal(notes.find((note) => note.id === 'dog').kind, 'none');
+  assert.equal(memory.getStore().getSettings().categories.some((category) => category.id === 'relationship'), false);
+  assert.ok([...root().querySelectorAll('.mn-chips .mn-chip')].some((node) => node.textContent.startsWith('Uncategorized')), 'the uncategorized shows now');
+  window.happyDOM.abort();
+});
+
+test('a note is moved to another category from its menu, and moved out of every category', async () => {
+  const { window, root, click, memory } = await setup({ notes: [dog] });
+  await click('Manage notes →');
+  root().querySelector('.mn-more').click();
+  await tick();
+  await click('Change category');
+  const options = [...root().querySelectorAll('.mn-menu .mn-menu-label')].map((node) => node.textContent);
+  assert.deepEqual(options, ['← Change category', 'Preference', 'Fact', 'Project', 'People & pets', 'Routine', 'Uncategorized']);
+  assert.equal(root().querySelector('.mn-menu .mn-menu-check').previousSibling.textContent, 'People & pets', 'the one it is in is ticked');
+  [...root().querySelectorAll('.mn-menu button')].find((node) => node.textContent.trim() === 'Project').click();
+  await tick();
+  assert.equal(memory.getStore().getNotes().find((note) => note.id === 'dog').kind, 'project');
+  assert.equal(root().querySelector('.mn-menu'), null, 'the menu closes');
   window.happyDOM.abort();
 });

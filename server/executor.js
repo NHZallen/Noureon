@@ -29,6 +29,7 @@ import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
+import { categoriesOf } from '../src/app/runtime/memory-notes/categories.js';
 import { createServerTidy } from './memory-tidy.js';
 import { scopedMemory } from './memory-scope.js';
 import { createServerMediaViewer } from './project-media-view.js';
@@ -274,6 +275,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
               },
               conversationId,
               appliedOps: fresh.cursor.appliedOps,
+              categories: categoriesOf(settings),
               createId: () => crypto.randomUUID(),
               now: () => new Date(now()).toISOString()
             });
@@ -287,7 +289,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         const canWrite = spec.tools.memory.canWrite === true && loaded.settings.learn && !loaded.settings.paused;
         memoryLoader = createMemoryLoader({
           getNotes: () => loaded.notes,
-          getContext: () => ({ conversationId, messages: spec.tools.memory.messages.map((message) => ({ id: message.id, role: 'user', text: message.text, at: message.at })), appliedOps }),
+          getContext: () => ({ conversationId, messages: spec.tools.memory.messages.map((message) => ({ id: message.id, role: 'user', text: message.text, at: message.at })), appliedOps, categories: categoriesOf(loaded.settings) }),
           commit: async (result) => {
             await scopedStore.saveWrite(userId, { before: loaded, result, conversationId });
             loaded = await scopedStore.load(userId, { conversationId });

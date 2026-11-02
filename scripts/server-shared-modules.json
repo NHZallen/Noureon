@@ -537,6 +537,10 @@
       "note": "Reviewed 2026-10-30: no browser globals (reinforce, expire, fade of notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     },
     {
+      "path": "src/app/runtime/memory-notes/categories.js",
+      "note": "Reviewed 2026-11-02: no browser globals (the categories the notes are sorted into, kept in meta:settings; the model and the curator pick from them)."
+    },
+    {
       "path": "src/app/runtime/memory-notes/standing.js",
       "note": "Reviewed 2026-10-30: no browser globals (which notes are on the first page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     },

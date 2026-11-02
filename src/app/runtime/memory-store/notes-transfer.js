@@ -2,6 +2,7 @@
 // (the table cannot be read, or nobody is signed in yet) there is nothing to take out and nowhere to put in: the callers carry on without it.
 
 import { buildNotesExport, planNotesImport } from '../memory-notes/notes-transfer.js';
+import { categoriesOf } from '../memory-notes/categories.js';
 import { getNotesMemory } from './memory-ref.js';
 
 const loadedStore = async () => {
@@ -12,14 +13,18 @@ const loadedStore = async () => {
 /** The file of the notes as it is now, or null when the memory is not loaded. */
 export async function exportNotes({ now = () => new Date().toISOString() } = {}) {
   const store = await loadedStore();
-  return store ? buildNotesExport(store.getNotes(), now) : null;
+  return store ? buildNotesExport(store.getNotes(), now, categoriesOf(store.getSettings())) : null;
 }
 
 /** Puts the notes of a file into the memory (checked as every write is). Resolves { ok, added, skipped, blocked } or { ok: false, code }. */
 export async function importNotes({ data, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString() }) {
   const store = await loadedStore();
   if (!store) return { ok: false, code: 'memory_not_loaded' };
-  const plan = planNotesImport(store.getNotes(), data, { createId, now });
-  if (plan.ok) await store.commitNotes(plan.notes);
+  const before = categoriesOf(store.getSettings());
+  const plan = planNotesImport(store.getNotes(), data, { createId, now, categories: before });
+  if (plan.ok) {
+    await store.commitNotes(plan.notes);
+    if (plan.categories.length !== before.length) await store.setSettings({ categories: plan.categories });
+  }
   return plan;
 }

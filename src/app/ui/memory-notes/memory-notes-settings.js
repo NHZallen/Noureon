@@ -5,14 +5,15 @@
 
 import { renderVectorCard } from './memory-vector-card.js';
 import { memoryIcon } from '../icons/memory-icons.js';
-import { addByUser, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
-import { NOTE_KINDS, isActive } from '../../runtime/memory-notes/notes.js';
+import { addByUser, countByCategory, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setKindByUser, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
+import { UNCATEGORIZED, isActive } from '../../runtime/memory-notes/notes.js';
+import { addCategory, categoriesOf, categoryName, kindFor, removeCategory, renameCategory } from '../../runtime/memory-notes/categories.js';
 
 const PAGE = 50;
 const RECENT = 3;
-const KIND_ICON = Object.freeze({ preference: 'heart', fact: 'fact', project: 'project', relationship: 'people', routine: 'daily' });
 const KIND_KEY = Object.freeze({ preference: 'mnKindPreference', fact: 'mnKindFact', project: 'mnKindProject', relationship: 'mnKindRelationship', routine: 'mnKindRoutine' });
 const ERROR_KEY = Object.freeze({ full: 'mnErrFull', duplicate: 'mnErrDuplicate', empty: 'mnErrEmpty', cannot: 'mnErrCannotPin', missing: 'mnErrMissing' });
+const CATEGORY_ERROR_KEY = Object.freeze({ empty: 'mnCatErrEmpty', duplicate: 'mnCatErrDuplicate', full: 'mnCatErrFull', missing: 'mnErrMissing' });
 
 export function createMemoryNotesSettings({
   document,
@@ -34,7 +35,7 @@ export function createMemoryNotesSettings({
   createId = () => globalThis.crypto.randomUUID(),
   now = () => new Date().toISOString()
 }) {
-  const state = { view: 'summary', query: '', kind: '', filter: 'active', shown: PAGE, menu: '' };
+  const state = { view: 'summary', query: '', kind: '', filter: 'active', shown: PAGE, menu: '', menuView: '', catMenu: false };
   let container = null;
   // The notes the person manages: those of the account and those of the projects that still keep their own.
   const shownNotes = (live) => live.getNotes().filter((note) => !note.projectId || getProjectName(note.projectId));
@@ -44,6 +45,14 @@ export function createMemoryNotesSettings({
 
   const text = (key, values = {}) => Object.entries(values).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, String(value)), getText(key) || key);
   const store = () => getMemory()?.getStore?.() || null;
+  // The categories of the person (the five a memory starts with until they change them), and the name each is shown with.
+  const categories = () => categoriesOf(store()?.getSettings?.());
+  const builtinName = (id) => (KIND_KEY[id] ? text(KIND_KEY[id]) : '');
+  const nameOfCategory = (category) => categoryName(category, builtinName);
+  const nameOfKind = (kind) => {
+    const found = categories().find((category) => category.id === kind);
+    return found ? nameOfCategory(found) : text('mnKindNone');
+  };
 
   const el = (tag, className = '', content = '') => {
     const node = document.createElement(tag);
@@ -124,6 +133,46 @@ export function createMemoryNotesSettings({
     async never(note) {
       await commit(setNeverByUser(store().getNotes(), note.id, note.surface !== 'never', { now }));
     },
+    async move(note, kind) {
+      const result = setKindByUser(store().getNotes(), note.id, kind, { categories: categories(), now });
+      go({ menu: '', menuView: '' });
+      if (!result.ok) return say(result.code, 'mnErrMissing');
+      await store().commitNotes(result.notes);
+      showNotification(text('mnCatMoved', { name: nameOfKind(kind) }), 'success');
+    },
+    async addCategory() {
+      go({ catMenu: false });
+      const answer = await ask({ title: text('mnCatAddTitle'), message: text('mnCatNamePrompt'), value: '' });
+      if (typeof answer !== 'string') return;
+      const result = addCategory(categories(), answer, { nameOf: nameOfCategory });
+      if (!result.ok) return showNotification(text(CATEGORY_ERROR_KEY[result.code]), 'error');
+      await store().setSettings({ categories: result.categories });
+      go({ filter: 'active', kind: result.category.id, shown: PAGE });
+    },
+    async renameCategory(id) {
+      go({ catMenu: false });
+      const current = categories().find((category) => category.id === id);
+      if (!current) return;
+      const answer = await ask({ title: text('mnCatRenameTitle'), message: text('mnCatNamePrompt'), value: nameOfCategory(current) });
+      if (typeof answer !== 'string') return;
+      const result = renameCategory(categories(), id, answer, { nameOf: nameOfCategory });
+      if (!result.ok) return showNotification(text(CATEGORY_ERROR_KEY[result.code]), 'error');
+      await store().setSettings({ categories: result.categories });
+    },
+    async removeCategory(id) {
+      go({ catMenu: false });
+      const current = categories().find((category) => category.id === id);
+      if (!current) return;
+      const held = shownNotes(store()).filter((note) => isActive(note) && note.kind === id).length;
+      const message = `${text('mnCatDeleteAsk', { name: nameOfCategory(current) })}${held ? `\n\n${text('mnCatDeleteNotes', { n: held })}` : ''}`;
+      if (!await ask({ title: text('mnCatDelete'), message, confirmLabel: text('mnDelete') })) return;
+      const result = removeCategory(categories(), id, store().getNotes(), { now });
+      if (!result.ok) return;
+      // The notes first (they say `none`), then the list: a device that reads one before the other still shows every note somewhere.
+      if (held) await store().commitNotes(result.notes);
+      await store().setSettings({ categories: result.categories });
+      go({ kind: '', filter: 'active' });
+    },
     async undo(event) {
       const result = undoEvent(store().getNotes(), event, { now });
       if (result.ok) await store().commitNotes(result.notes);
@@ -137,7 +186,7 @@ export function createMemoryNotesSettings({
     }
   };
 
-  const go = (patch) => { Object.assign(state, patch); render(); };
+  const go = (patch) => { Object.assign(state, patch); watchOutside(); render(); };
 
   const tidyLine = (event) => {
     const info = describeTidy(event);
@@ -289,44 +338,119 @@ export function createMemoryNotesSettings({
     if (icon) node.prepend(memoryIcon(document, icon, { size: 14 }));
     return node;
   };
-  // A small label (the kind of a note, that it is standing), with its icon in front.
-  const tag = (label, className, icon) => {
-    const node = el('span', className);
-    if (icon) node.append(memoryIcon(document, icon, { size: 13 }));
-    node.append(document.createTextNode(label));
+
+  // Closing what is open (the menu of a note, the menu of a category) by a tap anywhere else, or Escape.
+  let stopOutside = null;
+  const watchOutside = () => {
+    const open = Boolean(state.menu || state.catMenu);
+    if (!open) { stopOutside?.(); stopOutside = null; return; }
+    if (stopOutside) return;
+    const onClick = (event) => { if (!event.target.closest?.('.mn-menu, .mn-more, .mn-cat-more')) go({ menu: '', menuView: '', catMenu: false }); };
+    const onKey = (event) => { if (event.key === 'Escape') go({ menu: '', menuView: '', catMenu: false }); };
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKey, true);
+    stopOutside = () => { document.removeEventListener('click', onClick, true); document.removeEventListener('keydown', onKey, true); };
+  };
+
+  const menuItem = (label, onClick, { danger = false, icon = '', checked = false, back = false } = {}) => {
+    const node = button('', `mn-menu-item${danger ? ' mn-danger' : ''}`, onClick);
+    node.setAttribute('role', 'menuitem');
+    if (icon) node.append(memoryIcon(document, icon, { size: 15 }));
+    node.append(el('span', 'mn-menu-label', label));
+    if (checked) node.append(el('span', 'mn-menu-check', '✓'));
+    if (back) node.classList.add('mn-menu-back');
     return node;
   };
 
+  // The menu of a note: what can be done with it. "Change category" opens the list of categories in the same place.
+  const noteMenu = (note) => {
+    const menu = el('div', 'mn-menu');
+    menu.setAttribute('role', 'menu');
+    if (state.menuView === 'kind') {
+      menu.append(menuItem(`← ${text('mnMoveTo')}`, () => go({ menuView: '' }), { back: true }));
+      const current = kindFor(note, categories());
+      for (const category of categories()) menu.append(menuItem(nameOfCategory(category), () => void actions.move(note, category.id), { checked: current === category.id }));
+      menu.append(menuItem(text('mnKindNone'), () => void actions.move(note, UNCATEGORIZED), { checked: current === UNCATEGORIZED }));
+      return menu;
+    }
+    menu.append(
+      menuItem(text('mnEdit'), () => void actions.edit(note)),
+      menuItem(text('mnMoveTo'), () => go({ menuView: 'kind' })),
+      menuItem(text(note.standing ? 'mnUnpin' : 'mnPin'), () => void actions.standing(note)),
+      menuItem(text(note.surface === 'never' ? 'mnMention' : 'mnNoMention'), () => void actions.never(note)),
+      menuItem(text('mnDelete'), () => void actions.remove(note), { danger: true })
+    );
+    return menu;
+  };
+
+  // One note: its words, and under them in small quiet letters the category, whether it is standing and when it was last used. Everything that can be done is in the menu on the right.
   const noteRow = (note) => {
     const row = el('div', 'mn-note');
     const body = el('div', 'mn-note-body');
     body.append(el('div', 'mn-note-text', note.text));
     const meta = el('div', 'mn-meta');
-    meta.append(tag(text(KIND_KEY[note.kind]), 'mn-tag', KIND_ICON[note.kind]));
+    const bits = [nameOfKind(kindFor(note, categories()))];
     // A note a project keeps for itself says which project.
-    if (note.projectId) meta.append(tag(text('mnTagProject', { name: getProjectName(note.projectId) }), 'mn-tag', 'project'));
-    if (note.standing) meta.append(tag(text('mnTagStanding'), 'mn-tag mn-tag-strong', 'pin'));
-    if (note.surface === 'never') meta.append(el('span', 'mn-tag', text('mnTagNever')));
+    if (note.projectId) bits.push(text('mnTagProject', { name: getProjectName(note.projectId) }));
+    if (note.surface === 'never') bits.push(text('mnTagNever'));
     // A standing note comes with every reply, so "not used yet" would be wrong for it.
-    meta.append(el('span', '', note.standing ? text('mnStandingEveryTime') : note.lastUsedAt ? text('mnLastUsed', { when: relative(note.lastUsedAt) }) : text('mnNeverUsed')));
+    bits.push(note.standing ? text('mnStandingEveryTime') : note.lastUsedAt ? text('mnLastUsed', { when: relative(note.lastUsedAt) }) : text('mnNeverUsed'));
+    if (note.standing) meta.append(memoryIcon(document, 'pin', { size: 12 }));
+    meta.append(document.createTextNode(bits.join(' · ')));
     body.append(meta);
-    if (state.menu === note.id) {
-      const menu = el('div', 'mn-actions');
-      menu.append(
-        button(text('mnEdit'), 'mn-link', () => void actions.edit(note)),
-        button(text(note.standing ? 'mnUnpin' : 'mnPin'), 'mn-link', () => void actions.standing(note)),
-        button(text(note.surface === 'never' ? 'mnMention' : 'mnNoMention'), 'mn-link', () => void actions.never(note)),
-        button(text('mnDelete'), 'mn-link mn-danger', () => void actions.remove(note))
-      );
-      body.append(menu);
-    }
-    row.append(body, button('•••', 'mn-more', () => go({ menu: state.menu === note.id ? '' : note.id }), { ariaLabel: text('mnMenu') }));
+    row.append(body);
+    const open = state.menu === note.id;
+    const more = button('•••', `mn-more${open ? ' is-open' : ''}`, () => go({ menu: open ? '' : note.id, menuView: '' }), { ariaLabel: text('mnMenu') });
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-expanded', String(open));
+    row.append(more);
+    if (open) row.append(noteMenu(note));
     return row;
+  };
+
+  // The categories, in one row that slides sideways: All, Standing, each category (with its menu while it is the one chosen), the uncategorized when there are some, the archive, and + for a new one.
+  const categoryChips = (live, stats) => {
+    const wrap = el('div', 'mn-cats');
+    const chips = el('div', 'mn-chips');
+    const counts = countByCategory(shownNotes(live), categories());
+    const chosen = state.filter === 'active' ? state.kind : '';
+    chips.append(chip(text('mnFilterAll'), state.filter === 'active' && !state.kind, () => go({ filter: 'active', kind: '', shown: PAGE, catMenu: false })));
+    chips.append(chip(text('mnFilterStanding'), state.filter === 'standing', () => go({ filter: 'standing', kind: '', shown: PAGE, catMenu: false }), 'pin'));
+    for (const category of categories()) {
+      const on = chosen === category.id;
+      const node = chip(nameOfCategory(category), on, () => go({ filter: 'active', kind: category.id, shown: PAGE, catMenu: false }));
+      if (counts[category.id]) node.append(el('span', 'mn-chip-count', String(counts[category.id])));
+      chips.append(node);
+    }
+    if (counts[UNCATEGORIZED]) {
+      const node = chip(text('mnKindNone'), chosen === UNCATEGORIZED, () => go({ filter: 'active', kind: UNCATEGORIZED, shown: PAGE, catMenu: false }));
+      node.append(el('span', 'mn-chip-count', String(counts[UNCATEGORIZED])));
+      chips.append(node);
+    }
+    if (stats.archived) chips.append(chip(`${text('mnFilterArchived')} ${stats.archived}`, state.filter === 'archived', () => go({ filter: 'archived', kind: '', shown: PAGE, catMenu: false })));
+    const add = button('＋', 'mn-chip mn-chip-add', () => void actions.addCategory(), { ariaLabel: text('mnCatAdd') });
+    add.title = text('mnCatAdd');
+    chips.append(add);
+    wrap.append(chips);
+    // The menu of the category that is chosen (not of "All", "Standing" or the uncategorized, which are not the person's to rename or remove).
+    if (categories().some((category) => category.id === chosen)) {
+      const more = button('•••', `mn-cat-more${state.catMenu ? ' is-open' : ''}`, () => go({ catMenu: !state.catMenu }), { ariaLabel: text('mnCatOptions') });
+      more.setAttribute('aria-haspopup', 'menu');
+      more.setAttribute('aria-expanded', String(state.catMenu));
+      wrap.append(more);
+      if (state.catMenu) {
+        const menu = el('div', 'mn-menu mn-menu-cat');
+        menu.setAttribute('role', 'menu');
+        menu.append(menuItem(text('mnCatRename'), () => void actions.renameCategory(chosen)), menuItem(text('mnCatDelete'), () => void actions.removeCategory(chosen), { danger: true }));
+        wrap.append(menu);
+      }
+    }
+    return wrap;
   };
 
   const renderManage = (live) => {
     const page = el('section', 'pz-card mn-page');
-    const back = button(`← ${text('mnBack')}`, 'mn-back', () => go({ view: 'summary', query: '', kind: '', filter: 'active', menu: '' }));
+    const back = button(`← ${text('mnBack')}`, 'mn-back', () => go({ view: 'summary', query: '', kind: '', filter: 'active', menu: '', menuView: '', catMenu: false }));
     const stats = summarize(shownNotes(live));
     const head = el('div', 'mn-page-head');
     head.append(el('h3', '', text('mnManageTitle')), el('span', 'mn-faint', `${stats.active} / 300`));
@@ -341,20 +465,15 @@ export function createMemoryNotesSettings({
       renderList(live, list);
     });
     tools.append(search, button(`＋ ${text('mnAdd')}`, 'btn-primary mn-btn', () => void actions.add()));
-    const chips = el('div', 'mn-chips');
-    chips.append(chip(text('mnFilterAll'), state.filter === 'active' && !state.kind, () => go({ filter: 'active', kind: '', shown: PAGE })));
-    chips.append(chip(text('mnFilterStanding'), state.filter === 'standing', () => go({ filter: 'standing', kind: '', shown: PAGE }), 'pin'));
-    for (const kind of NOTE_KINDS) chips.append(chip(text(KIND_KEY[kind]), state.filter === 'active' && state.kind === kind, () => go({ filter: 'active', kind, shown: PAGE }), KIND_ICON[kind]));
-    if (stats.archived) chips.append(chip(`${text('mnFilterArchived')} ${stats.archived}`, state.filter === 'archived', () => go({ filter: 'archived', kind: '', shown: PAGE })));
     const list = el('div', 'mn-list');
     renderList(live, list);
-    page.append(back, head, tools, chips, list);
+    page.append(back, head, tools, categoryChips(live, stats), list);
     return page;
   };
 
   function renderList(live, list) {
     list.replaceChildren();
-    const all = filterNotes(shownNotes(live), { view: state.filter, kind: state.kind, query: state.query });
+    const all = filterNotes(shownNotes(live), { view: state.filter, kind: state.kind, query: state.query, categories: categories() });
     if (!all.length) {
       list.append(el('p', 'pz-sub mn-pad text-[var(--text-secondary)]', text(shownNotes(live).some(isActive) ? 'mnNoMatch' : 'mnEmpty')));
       return;
