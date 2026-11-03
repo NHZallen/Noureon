@@ -762,7 +762,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     unsubscribeVectors?.();
     // The box of the chat goes home before the page is taken away (the chat it made for the project is given up there if it was not used).
     composer?.park();
-    void composer?.release();
+    void composer?.release({ leaveProject: viaBack });
     document.documentElement.classList.remove('pj-open');
     root.remove();
     current = null;

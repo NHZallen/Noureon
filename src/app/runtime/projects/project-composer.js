@@ -5,9 +5,9 @@
 const COMPOSER_ID = 'input-bar-container';
 
 /**
- * deps: document, actions (prepareChat, abandonChat, sentChat), getActiveConversation(), getCurrentConversationId(), conversationExists(id), loadChat(id).
+ * deps: document, actions (prepareChat, abandonChat, sentChat), getActiveConversation(), getCurrentConversationId(), conversationExists(id), isInProject(id), loadChat(id).
  */
-export function createProjectComposer({ document, actions, getActiveConversation, getCurrentConversationId, conversationExists = () => false, loadChat }) {
+export function createProjectComposer({ document, actions, getActiveConversation, getCurrentConversationId, conversationExists = () => false, isInProject = () => false, loadChat }) {
   const win = document.defaultView || globalThis;
   let box = null; // the element itself: it is found even while it is out of the document
   const node = () => box || document.getElementById(COMPOSER_ID);
@@ -99,7 +99,7 @@ export function createProjectComposer({ document, actions, getActiveConversation
   }
 
   /** The page leaves: the box goes home; a chat of the project that was not used is given up for the one that was open. */
-  async function release() {
+  async function release({ leaveProject = false } = {}) {
     await preparing;
     park();
     const chat = held;
@@ -109,6 +109,11 @@ export function createProjectComposer({ document, actions, getActiveConversation
     // The chat was changed meanwhile (a chat of the project, or one of the menu, was opened): there is nothing to give back, and the empty chat that was made leaves the project (one with messages stays).
     if (current?.id !== chat.chatId) { actions.abandonChat(chat.chatId); return; }
     actions.abandonChat(chat.chatId);
+    // Going back out of the overview of the projects must leave the projects: the chat of a project that was open before is not brought back (it would make the way back a circle); the empty chat stays, as a new chat.
+    if (leaveProject && chat.previousId && isInProject(chat.previousId)) {
+      document.dispatchEvent(new win.CustomEvent('noureon:chat-changed'));
+      return;
+    }
     if (chat.previousId && conversationExists(chat.previousId)) loadChat(chat.previousId);
   }
 

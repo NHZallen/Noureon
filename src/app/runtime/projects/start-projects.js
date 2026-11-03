@@ -101,6 +101,7 @@ export function startProjects({
   const composer = createProjectComposer({
     document, actions, loadChat, getCurrentConversationId,
     getActiveConversation: () => dataStore.getConversations().find((conversation) => conversation.id === getCurrentConversationId()) || null,
+    isInProject: (id) => dataStore.getConversations().some((conversation) => conversation.id === id && conversation.folderId),
     conversationExists: (id) => dataStore.getConversations().some((conversation) => conversation.id === id && !conversation.deletedAt)
   });
   // The left menu over the page: a phone brings it with the back button; a tap on the dim layer shuts it and leaves the page; a choice in the menu leaves the page for what was chosen.

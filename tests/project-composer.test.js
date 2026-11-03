@@ -9,7 +9,7 @@ import { createProjectComposer } from '../src/app/runtime/projects/project-compo
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 5));
 
-const setup = ({ previous = 'old', previousExists = true } = {}) => {
+const setup = ({ previous = 'old', previousExists = true, previousInProject = false } = {}) => {
   const window = new Window({ url: 'https://noureon.test/' });
   const { document } = window;
   document.body.innerHTML = '<main id="chat-workspace"><div id="input-bar-container"><form id="chat-form"><textarea></textarea></form></div><footer id="after"></footer></main><div id="page"></div>';
@@ -32,6 +32,7 @@ const setup = ({ previous = 'old', previousExists = true } = {}) => {
     getActiveConversation: () => state.conversations.get(state.current) || null,
     getCurrentConversationId: () => state.current,
     conversationExists: (id) => previousExists && state.conversations.has(id),
+    isInProject: (id) => previousInProject && id === 'old',
     loadChat: (id) => { state.loaded.push(id); state.current = id; }
   });
   const slotOnPage = () => { const slot = document.createElement('div'); document.getElementById('page').appendChild(slot); return slot; };
@@ -103,4 +104,22 @@ test('a send in the box tells the cloud, closes the page and keeps the chat in t
   assert.deepEqual(state.abandoned, [], 'a chat that was sent is not given up');
   assert.deepEqual(state.loaded, []);
   await window.happyDOM.abort();
+});
+
+test('going back out of the overview does not bring back the chat of a project that was open (the way out would be a circle); a chat outside the projects does come back', async () => {
+  const inside = setup({ previousInProject: true });
+  inside.composer.attach(inside.slotOnPage(), 'p1');
+  await flush();
+  let changed = 0;
+  inside.document.addEventListener('noureon:chat-changed', () => { changed += 1; });
+  await inside.composer.release({ leaveProject: true });
+  assert.deepEqual(inside.state.loaded, [], 'the chat of the project stays closed');
+  assert.equal(changed, 1, 'the header is told the chat changed');
+  await inside.window.happyDOM.abort();
+  const outside = setup({ previousInProject: false });
+  outside.composer.attach(outside.slotOnPage(), 'p1');
+  await flush();
+  await outside.composer.release({ leaveProject: true });
+  assert.deepEqual(outside.state.loaded, ['old']);
+  await outside.window.happyDOM.abort();
 });
