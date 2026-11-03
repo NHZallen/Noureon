@@ -508,7 +508,7 @@ export function createMemoryNotesSettings({
   const scrollParentOf = (node) => {
     for (let parent = node?.parentElement; parent; parent = parent.parentElement) {
       const overflow = document.defaultView?.getComputedStyle?.(parent)?.overflowY;
-      if ((overflow === 'auto' || overflow === 'scroll') && parent.scrollHeight > parent.clientHeight) return parent;
+      if (overflow === 'auto' || overflow === 'scroll') return parent;
     }
     return null;
   };
@@ -544,6 +544,9 @@ export function createMemoryNotesSettings({
         }
       }
       if (scroller && scroller.scrollTop !== scrolled) scroller.scrollTop = scrolled;
+    } else if (scroller && scroller.scrollTop !== 0) {
+      // Another page of the part (the notes are opened, or left): it starts at its top, not where the page before was scrolled to.
+      scroller.scrollTop = 0;
     }
     placeCategoryMenu();
     drawnView = state.view;
@@ -567,6 +570,7 @@ export function createMemoryNotesSettings({
       stopVectors = getVectors()?.subscribe?.(() => render()) || null;
       // Opening the settings starts at the summary, not where the person left the list.
       state.view = 'summary';
+      drawnView = null; // opened: from the top
       render();
       return true;
     },

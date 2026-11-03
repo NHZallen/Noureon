@@ -359,6 +359,24 @@ test('choosing a category draws the page again but keeps where the row of the ca
   window.happyDOM.abort();
 });
 
+test('opening or leaving the page of the notes starts at its top, while choosing a category keeps where the page was scrolled to', async () => {
+  const { window, document, root, click } = await setup({ notes: [dog, tea] });
+  const section = document.getElementById('memory-section');
+  section.style.overflowY = 'auto';
+  Object.defineProperty(section, 'scrollHeight', { value: 2000, configurable: true });
+  Object.defineProperty(section, 'clientHeight', { value: 800, configurable: true });
+  section.scrollTop = 300;
+  await click('Manage notes →');
+  assert.equal(section.scrollTop, 0, 'the notes are opened from their top, not where the summary was scrolled to');
+  section.scrollTop = 250;
+  [...root().querySelectorAll('.mn-chips .mn-chip')].find((node) => node.textContent.startsWith('Fact')).click();
+  await tick();
+  assert.equal(section.scrollTop, 250, 'a chosen category keeps the place');
+  await click('← Memory');
+  assert.equal(section.scrollTop, 0, 'back to the summary starts at its top too');
+  window.happyDOM.abort();
+});
+
 test('a category is added, renamed and removed from the page, and the notes of a removed one become uncategorized (none is deleted)', async () => {
   const { window, root, click, answers, memory, notices } = await setup({ notes: [dog, tea] });
   await click('Manage notes →');
