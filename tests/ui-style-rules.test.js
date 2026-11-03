@@ -40,7 +40,7 @@ test('on a phone the pages laid over the app end where the seen area ends (the t
   const layout = readFileSync(new URL('../src/styles/layout.css', import.meta.url), 'utf8');
   assert.match(layout, /#app-container[^}]*height: var\(--vv-bottom, 100%\)/);
   const composer = readFileSync(new URL('../src/styles/projects-composer.css', import.meta.url), 'utf8');
-  assert.match(composer, /@media \(pointer: coarse\) \{\s*\.pj, \.pj-backdrop \{ bottom: auto; height: var\(--vv-bottom, 100%\); \}/);
+  assert.match(composer, /@media \(pointer: coarse\) \{\s*\.pj, \.pj-backdrop \{ top: var\(--vv-top, 0px\); bottom: auto; height: calc\(var\(--vv-bottom, 100%\) - var\(--vv-top, 0px\)\); \}/);
   const store = readFileSync(new URL('../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
-  assert.match(store, /@media \(pointer: coarse\) \{ \.cs \{ bottom: auto; height: var\(--vv-bottom, 100%\); \} \}/);
+  assert.match(store, /@media \(pointer: coarse\) \{ \.cs \{ top: var\(--vv-top, 0px\); bottom: auto; height: calc\(var\(--vv-bottom, 100%\) - var\(--vv-top, 0px\)\); \} \}/);
 });

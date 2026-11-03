@@ -146,3 +146,17 @@ test('the sign-in page (the home page) is a long page the person scrolls by touc
   t.document.getElementById('auth-container').style.display = 'none';
   assert.equal(drag(t, text), true, 'in the app the page is held again');
 });
+
+test('the panels over the app start where the seen area starts while a box is typed in with the keyboard up, and at the top otherwise', () => {
+  const t = page();
+  installViewportLock(t.window, t.document);
+  assert.equal(value(t, '--vv-top'), '0px');
+  t.document.getElementById('editor').focus();
+  t.viewport.height = 330;
+  t.viewport.offsetTop = 120;
+  t.listeners.scroll();
+  assert.equal(value(t, '--vv-top'), '120px');
+  t.document.getElementById('editor').blur();
+  t.listeners.resize();
+  assert.equal(value(t, '--vv-top'), '0px', 'nothing typed in: the panels are at the top');
+});

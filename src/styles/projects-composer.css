@@ -7,7 +7,8 @@
 .pj-main.has-composer .pj-composer-slot { flex: none; box-sizing: border-box; max-width: 48rem; margin: 0 auto; padding: 0; }
 
 /* On a phone the app ends where the seen area ends (viewport-lock.js gives it --vv-bottom: the top of the keyboard), so that the box and the header stay in view while one types; the pages of
-   the projects, which are laid over the app, end there too, or the keyboard covers the box and the phone slides the page. */
+   the projects, which are laid over the app, end there too, or the keyboard covers the box and the phone slides the page; and they start where the seen area starts (--vv-top, while one types), so the
+   list is not slid out of sight above the search. */
 @media (pointer: coarse) {
-  .pj, .pj-backdrop { bottom: auto; height: var(--vv-bottom, 100%); }
+  .pj, .pj-backdrop { top: var(--vv-top, 0px); bottom: auto; height: calc(var(--vv-bottom, 100%) - var(--vv-top, 0px)); }
 }

@@ -7,6 +7,8 @@
 // page is about twice as tall as what is seen, and a finger on anything that does not scroll (the composer's frame, an empty chat) dragged all
 // of it: every jump in the recordings came between a touchstart and its touchend, and the page's own code asked for no scroll at all. So while
 // the page can be dragged, a finger that would drag it is held (the boxes that scroll still scroll, and two fingers still zoom).
+// The full-page panels laid over the app (the projects, the extensions) also start where the seen area starts (--vv-top, only while a box is typed in with the keyboard up),
+// so their top and the list under it stay in view instead of sliding out of sight above the box that is being typed in.
 // Chrome on iPhone also puts its own bar (the cog, the arrows and the tick) over the foot of the page while a box is being typed in, and the
 // page is not told of it, so that much is kept free at the foot while the keyboard is up.
 
@@ -40,6 +42,7 @@ export function installViewportLock(win = window, doc = document) {
     // A page the person has zoomed is left as it is.
     if (Math.abs((viewport.scale || 1) - 1) > 0.01) {
       root.style.removeProperty('--vv-bottom');
+      root.style.removeProperty('--vv-top');
       return;
     }
     // Where the seen area ends in the page's own measures: the same whether or not the phone has slid the page.
@@ -47,6 +50,7 @@ export function installViewportLock(win = window, doc = document) {
     const keyboardUp = isTypingTarget(doc.activeElement) && (win.innerHeight || 0) - seenBottom > KEYBOARD_MIN_HEIGHT;
     const reserved = keyboardUp && chromeOnIphone ? CHROME_IOS_ACCESSORY_BAR : 0;
     root.style.setProperty('--vv-bottom', `${Math.max(0, Math.round(seenBottom - reserved))}px`);
+    root.style.setProperty('--vv-top', keyboardUp ? `${Math.max(0, Math.round(viewport.offsetTop || 0))}px` : '0px');
   };
   const queue = () => {
     if (frame) return;
@@ -106,5 +110,6 @@ export function installViewportLock(win = window, doc = document) {
     doc.removeEventListener('touchstart', onTouchStart, { capture: true });
     doc.removeEventListener('touchmove', onTouchMove, { capture: true });
     root.style.removeProperty('--vv-bottom');
+    root.style.removeProperty('--vv-top');
   };
 }
