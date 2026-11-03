@@ -408,7 +408,10 @@ export function createMemoryNotesSettings({
     return row;
   };
 
-  // The categories, in one row that slides sideways: All, Standing, each category (with its menu while it is the one chosen), the uncategorized when there are some, the archive, and + for a new one.
+  // The categories: one row that slides sideways (All, Standing, each category, the uncategorized when there are some, the archive) and a round + that stays at its right, outside the row. The category that
+  // is chosen carries its own ••• (rename, remove) inside its pill, so nothing outside the row appears or goes away when one is chosen.
+  const ICON_PLUS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  const ICON_DOTS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
   const categoryChips = (live, stats) => {
     const wrap = el('div', 'mn-cats');
     const chips = el('div', 'mn-chips');
@@ -420,7 +423,17 @@ export function createMemoryNotesSettings({
       const on = chosen === category.id;
       const node = chip(nameOfCategory(category), on, () => go({ filter: 'active', kind: category.id, shown: PAGE, catMenu: false }));
       if (counts[category.id]) node.append(el('span', 'mn-chip-count', String(counts[category.id])));
-      chips.append(node);
+      if (!on) { chips.append(node); continue; }
+      // The chosen one: its pill holds the chip and its menu button.
+      node.classList.remove('mn-chip', 'mn-chip-on');
+      node.classList.add('mn-chip-main');
+      const more = button('', `mn-cat-more${state.catMenu ? ' is-open' : ''}`, () => go({ catMenu: !state.catMenu }), { ariaLabel: text('mnCatOptions') });
+      more.innerHTML = ICON_DOTS;
+      more.setAttribute('aria-haspopup', 'menu');
+      more.setAttribute('aria-expanded', String(state.catMenu));
+      const pill = el('span', 'mn-chip mn-chip-on mn-chip-split');
+      pill.append(node, more);
+      chips.append(pill);
     }
     if (counts[UNCATEGORIZED]) {
       const node = chip(text('mnKindNone'), chosen === UNCATEGORIZED, () => go({ filter: 'active', kind: UNCATEGORIZED, shown: PAGE, catMenu: false }));
@@ -429,18 +442,11 @@ export function createMemoryNotesSettings({
     }
     if (stats.archived) chips.append(chip(`${text('mnFilterArchived')} ${stats.archived}`, state.filter === 'archived', () => go({ filter: 'archived', kind: '', shown: PAGE, catMenu: false })));
     wrap.append(chips);
-    // + stays at the right whatever the row is slid to (it is not one of the chips), and the place of the menu of the chosen category is kept (hidden when there is no menu) so the row does not change width.
-    const add = button('＋', 'mn-chip mn-chip-add', () => void actions.addCategory(), { ariaLabel: text('mnCatAdd') });
+    const add = button('', 'mn-cat-add', () => void actions.addCategory(), { ariaLabel: text('mnCatAdd') });
+    add.innerHTML = ICON_PLUS;
     add.title = text('mnCatAdd');
     wrap.append(add);
-    // The menu of the category that is chosen (not of "All", "Standing" or the uncategorized, which are not the person's to rename or remove).
-    const hasMenu = categories().some((category) => category.id === chosen);
-    const more = button('•••', `mn-cat-more${state.catMenu && hasMenu ? ' is-open' : ''}${hasMenu ? '' : ' is-idle'}`, () => go({ catMenu: !state.catMenu }), { ariaLabel: text('mnCatOptions') });
-    more.setAttribute('aria-haspopup', 'menu');
-    more.setAttribute('aria-expanded', String(state.catMenu && hasMenu));
-    if (!hasMenu) { more.disabled = true; more.tabIndex = -1; more.setAttribute('aria-hidden', 'true'); }
-    wrap.append(more);
-    if (hasMenu && state.catMenu) {
+    if (state.catMenu && categories().some((category) => category.id === chosen)) {
       const menu = el('div', 'mn-menu mn-menu-cat');
       menu.setAttribute('role', 'menu');
       menu.append(menuItem(text('mnCatRename'), () => void actions.renameCategory(chosen)), menuItem(text('mnCatDelete'), () => void actions.removeCategory(chosen), { danger: true }));
@@ -485,6 +491,19 @@ export function createMemoryNotesSettings({
     if (all.length > state.shown) list.append(button(text('mnMore'), 'mn-btn mn-more-btn', () => go({ shown: state.shown + PAGE })));
   }
 
+  // The menu of the chosen category opens under its own ••• (not at an edge of the page), kept inside the row.
+  const placeCategoryMenu = () => {
+    const menu = container?.querySelector('.mn-menu-cat');
+    const more = container?.querySelector('.mn-chip-split .mn-cat-more');
+    const wrap = menu?.parentElement;
+    if (!menu || !more || !wrap || !wrap.clientWidth) return;
+    const room = wrap.getBoundingClientRect();
+    const at = more.getBoundingClientRect();
+    const left = Math.max(0, Math.min(room.width - menu.offsetWidth, at.right - room.left - menu.offsetWidth));
+    menu.style.left = `${Math.round(left)}px`;
+    menu.style.right = 'auto';
+  };
+
   let drawnView = null;
   const scrollParentOf = (node) => {
     for (let parent = node?.parentElement; parent; parent = parent.parentElement) {
@@ -521,6 +540,7 @@ export function createMemoryNotesSettings({
       }
       if (scroller && scroller.scrollTop !== scrolled) scroller.scrollTop = scrolled;
     }
+    placeCategoryMenu();
     drawnView = state.view;
   }
 

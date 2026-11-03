@@ -62,6 +62,10 @@ const documentedImportantUsage = {
     max: 15,
     category: 'required: regression override / legacy compatibility'
   },
+  'src/styles/memory-notes.css': {
+    max: 10,
+    category: 'required: regression override / legacy compatibility'
+  },
   'src/styles/settings-cards.css': {
     max: 30,
     category: 'required: regression override / legacy compatibility'

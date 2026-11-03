@@ -342,11 +342,10 @@ test('the categories are one row: All, Standing, the five of a memory with their
   await (async () => { [...root().querySelectorAll('button')].find((node) => node.textContent.trim() === 'Manage notes →').click(); await tick(); })();
   const chips = [...root().querySelectorAll('.mn-chips .mn-chip')].map((node) => node.textContent.trim());
   assert.deepEqual(chips, ['All', 'Standing', 'Preference1', 'Fact', 'Project', 'People & pets1', 'Routine', 'Uncategorized1']);
-  const outside = root().querySelector('.mn-cats > .mn-chip-add');
+  const outside = root().querySelector('.mn-cats > .mn-cat-add');
   assert.ok(outside, 'the + is not one of the chips that slide: it stays at the right of the row');
-  assert.equal(root().querySelector('.mn-chips .mn-chip-add'), null);
-  const idle = root().querySelector('.mn-cats > .mn-cat-more');
-  assert.equal(idle.classList.contains('is-idle'), true, 'the place of the menu of a category is kept, hidden, while none is chosen');
+  assert.equal(root().querySelector('.mn-chips .mn-cat-add'), null);
+  assert.equal(root().querySelector('.mn-cat-more'), null, 'no menu button while no category is chosen');
   window.happyDOM.abort();
 });
 
@@ -365,7 +364,7 @@ test('a category is added, renamed and removed from the page, and the notes of a
   await click('Manage notes →');
   // Add.
   answers.push('Pets');
-  root().querySelector('.mn-chip-add').click();
+  root().querySelector('.mn-cat-add').click();
   await tick();
   const settings = memory.getStore().getSettings();
   assert.equal(settings.categories.length, 6);
@@ -373,7 +372,7 @@ test('a category is added, renamed and removed from the page, and the notes of a
   assert.match([...root().querySelectorAll('.mn-chip-on')].map((node) => node.textContent).join(''), /Pets/, 'the new category is the one chosen');
   // A second one with the same name is refused.
   answers.push('pets');
-  root().querySelector('.mn-chip-add').click();
+  root().querySelector('.mn-cat-add').click();
   await tick();
   assert.equal(memory.getStore().getSettings().categories.length, 6);
   assert.equal(notices.at(-1).kind, 'error');
