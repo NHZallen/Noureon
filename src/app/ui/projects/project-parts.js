@@ -16,7 +16,6 @@ const svg = (inner, size = 20) => `<svg xmlns="http://www.w3.org/2000/svg" width
 
 export const ICONS = {
   back: (size) => svg('<polyline points="15 18 9 12 15 6"></polyline>', size),
-  sidebar: (size) => svg('<rect x="3" y="4" width="18" height="16" rx="4.5"></rect><line x1="8.25" y1="9.5" x2="8.25" y2="14.5"></line>', size),
   plus: (size) => svg('<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>', size),
   close: (size) => svg('<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>', size),
   dots: (size) => svg('<circle cx="5" cy="12" r="1.2"></circle><circle cx="12" cy="12" r="1.2"></circle><circle cx="19" cy="12" r="1.2"></circle>', size),

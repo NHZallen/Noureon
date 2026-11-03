@@ -40,7 +40,7 @@ test('the entry is in the left menu below the Extensions, in the language of the
   assert.equal(entry.querySelector('.cli-sidebar-label').textContent, 'Projects');
   let overlayClicks = 0;
   t.$('#sidebar-overlay').classList.add('visible');
-  t.$('#sidebar-overlay').addEventListener('click', () => { overlayClicks += 1; });
+  t.$('#menu-toggle-btn').addEventListener('click', () => { overlayClicks += 1; });
   entry.click();
   await tick();
   assert.deepEqual(t.opened, [{ list: true }]);

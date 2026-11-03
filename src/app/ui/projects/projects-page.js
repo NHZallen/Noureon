@@ -49,7 +49,7 @@ const previewOf = (conversation) => {
  * vectors ({ status(sourceId), subscribe(listener) }: where the vectors of a source are, runtime/memory-store/page-vectors.js; none: no line about it), notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
  * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, composer = null, backOut = () => false, sidebarToggle = null, onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, composer = null, backOut = () => false, onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -88,15 +88,6 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     button.innerHTML = ICONS[icon](20);
     button.addEventListener('click', onClick);
     return button;
-  };
-  // On a wide computer the left menu is docked beside the page and the button that closes it (in the header of the chat) is under the page: the page has one of its own, at the left of the back button.
-  const menuButton = () => (sidebarToggle && win.matchMedia?.('(min-width: 1024px)')?.matches ? round('sidebar', text('pjSidebar'), () => sidebarToggle()) : null);
-  const withMenuButton = (back) => {
-    const toggle = menuButton();
-    if (!toggle) return back;
-    const box = make(document, 'span', 'pj-head-lefts');
-    box.append(toggle, back);
-    return box;
   };
   const emptyState = (title, hint, iconKey = 'folder') => {
     const box = make(document, 'div', 'pj-empty');
@@ -219,7 +210,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       // A computer: the search and the + are in the title bar, the pills under it, the projects in a column of rows below (projects-wide.css).
       const actionsBox = make(document, 'div', 'pj-head-actions');
       actionsBox.append(makeSearch(), plus);
-      const head = header({ left: withMenuButton(round('back', text('pjBack'), () => { if (!backOut()) close({ viaBack: true }); })), title, right: actionsBox });
+      const head = header({ left: round('back', text('pjBack'), () => { if (!backOut()) close({ viaBack: true }); }), title, right: actionsBox });
       const bar = make(document, 'div', 'pj-bar');
       bar.appendChild(tabBar);
       body.appendChild(listBody);
@@ -573,7 +564,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const top = make(document, 'div', 'pj-side-head');
     const title = headingOf(document, 'pj-title');
     title.textContent = text('pjTitle');
-    top.append(...[menuButton(), round('back', text('pjBack'), () => back())].filter(Boolean), title, round('plus', text('pjNew'), () => newProject()));
+    top.append(round('back', text('pjBack'), () => back()), title, round('plus', text('pjNew'), () => newProject()));
     const list = make(document, 'div', 'pj-side-list');
     const draw = () => {
       const query = state.query.trim().toLowerCase();

@@ -940,24 +940,3 @@ test('the back button of the overview asks backOut first: when it takes the back
     assert.equal(getProjectsPage(), null);
   } finally { await t.finish(); }
 });
-
-test('on a wide computer the page has a button of its own for the docked left menu, at the left of the back button, in the overview and in a project; a phone has none', async () => {
-  let toggles = 0;
-  const wide = setup({ wide: true });
-  try {
-    wide.open({ list: true }, { sidebarToggle: () => { toggles += 1; } });
-    const buttons = [...wide.document.querySelectorAll('.pj-head .pj-round')];
-    assert.equal(buttons[0].getAttribute('aria-label'), 'Sidebar');
-    assert.equal(buttons[1].getAttribute('aria-label'), 'Back');
-    buttons[0].click();
-    assert.equal(toggles, 1);
-    wide.$('.pj-row, .pj-card, [data-project-id]')?.click();
-    await wide.tick();
-    assert.equal(wide.$('.pj-side-head .pj-round').getAttribute('aria-label'), 'Sidebar');
-  } finally { await wide.finish(); }
-  const phone = setup();
-  try {
-    phone.open({ list: true }, { sidebarToggle: () => {} });
-    assert.equal([...phone.document.querySelectorAll('.pj-head .pj-round')].some((button) => button.getAttribute('aria-label') === 'Sidebar'), false);
-  } finally { await phone.finish(); }
-});

@@ -116,6 +116,8 @@ export function startProjects({
     toggle.click();
     return true;
   };
+  // Choosing something in the menu shuts it, as choosing a chat of the history does (on a phone the drawer, on a wide computer the docked menu).
+  const closeDrawer = () => { if (drawerOpen()) document.getElementById('menu-toggle-btn')?.click(); };
   const watchDrawer = (page) => {
     if (drawerPage === page) return;
     drawerPage = page;
@@ -146,11 +148,10 @@ export function startProjects({
       readFile: (file) => readProjectFile(file), drive,
       vectors: { status: (sourceId) => getPageVectors()?.sourceStatus?.(sourceId) || 'off', subscribe: (listener) => getPageVectors()?.subscribe?.(listener) },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
-      openChat: (id) => loadChat(id),
+      openChat: (id) => { loadChat(id); closeDrawer(); },
       notify: (message, type = 'success') => showNotification(message, type),
       // Going back out of the overview on a phone brings the left menu (the drawer) over the page, which stays behind its dim layer (as in the apps this one is modelled on).
       backOut: () => drawerOverPage(),
-      sidebarToggle: () => document.getElementById('menu-toggle-btn')?.click(),
       onClose: () => {}
     });
     watchDrawer(opened);
@@ -175,8 +176,7 @@ export function startProjects({
       entry.dataset.bound = 'true';
       entry.addEventListener('click', () => {
         // On a phone the menu is a drawer over the chat: it goes away as the page comes.
-        const overlay = document.getElementById('sidebar-overlay');
-        if (overlay?.classList.contains('visible')) overlay.click();
+        closeDrawer();
         void open({ list: true });
       });
     }
@@ -199,8 +199,8 @@ export function startProjects({
   // ----- the projects in the left menu (a computer): drawn again whenever the history is
   const sidebarProjects = createSidebarProjects({
     document, text, actions,
-    openProject: (id) => { void open({ id }); },
-    openSettings: (id) => { void open({ id, edit: true }); },
+    openProject: (id) => { closeDrawer(); void open({ id }); },
+    openSettings: (id) => { closeDrawer(); void open({ id, edit: true }); },
     askDelete: async (id) => {
       const project = actions.folderOf(id);
       if (!project) return;
@@ -208,9 +208,9 @@ export function startProjects({
       void page;
       sheets.openDeleteSheet({ document, root: document.body, text, actions, project, notify: (message, type = 'success') => showNotification(message, type), onDeleted: () => {} });
     },
-    openChat: (id) => loadChat(id),
+    openChat: (id) => { loadChat(id); closeDrawer(); },
     createProject: () => { void open({ create: true }); },
-    openList: () => { void open({ list: true }); },
+    openList: () => { closeDrawer(); void open({ list: true }); },
     getCurrentConversationId,
     loadParts: () => loadPage().then(() => {}),
     storage: (() => { try { return win.localStorage; } catch { return null; } })()
