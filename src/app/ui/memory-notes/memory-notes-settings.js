@@ -428,22 +428,23 @@ export function createMemoryNotesSettings({
       chips.append(node);
     }
     if (stats.archived) chips.append(chip(`${text('mnFilterArchived')} ${stats.archived}`, state.filter === 'archived', () => go({ filter: 'archived', kind: '', shown: PAGE, catMenu: false })));
+    wrap.append(chips);
+    // + stays at the right whatever the row is slid to (it is not one of the chips), and the place of the menu of the chosen category is kept (hidden when there is no menu) so the row does not change width.
     const add = button('＋', 'mn-chip mn-chip-add', () => void actions.addCategory(), { ariaLabel: text('mnCatAdd') });
     add.title = text('mnCatAdd');
-    chips.append(add);
-    wrap.append(chips);
+    wrap.append(add);
     // The menu of the category that is chosen (not of "All", "Standing" or the uncategorized, which are not the person's to rename or remove).
-    if (categories().some((category) => category.id === chosen)) {
-      const more = button('•••', `mn-cat-more${state.catMenu ? ' is-open' : ''}`, () => go({ catMenu: !state.catMenu }), { ariaLabel: text('mnCatOptions') });
-      more.setAttribute('aria-haspopup', 'menu');
-      more.setAttribute('aria-expanded', String(state.catMenu));
-      wrap.append(more);
-      if (state.catMenu) {
-        const menu = el('div', 'mn-menu mn-menu-cat');
-        menu.setAttribute('role', 'menu');
-        menu.append(menuItem(text('mnCatRename'), () => void actions.renameCategory(chosen)), menuItem(text('mnCatDelete'), () => void actions.removeCategory(chosen), { danger: true }));
-        wrap.append(menu);
-      }
+    const hasMenu = categories().some((category) => category.id === chosen);
+    const more = button('•••', `mn-cat-more${state.catMenu && hasMenu ? ' is-open' : ''}${hasMenu ? '' : ' is-idle'}`, () => go({ catMenu: !state.catMenu }), { ariaLabel: text('mnCatOptions') });
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-expanded', String(state.catMenu && hasMenu));
+    if (!hasMenu) { more.disabled = true; more.tabIndex = -1; more.setAttribute('aria-hidden', 'true'); }
+    wrap.append(more);
+    if (hasMenu && state.catMenu) {
+      const menu = el('div', 'mn-menu mn-menu-cat');
+      menu.setAttribute('role', 'menu');
+      menu.append(menuItem(text('mnCatRename'), () => void actions.renameCategory(chosen)), menuItem(text('mnCatDelete'), () => void actions.removeCategory(chosen), { danger: true }));
+      wrap.append(menu);
     }
     return wrap;
   };
@@ -484,10 +485,24 @@ export function createMemoryNotesSettings({
     if (all.length > state.shown) list.append(button(text('mnMore'), 'mn-btn mn-more-btn', () => go({ shown: state.shown + PAGE })));
   }
 
+  let drawnView = null;
+  const scrollParentOf = (node) => {
+    for (let parent = node?.parentElement; parent; parent = parent.parentElement) {
+      const overflow = document.defaultView?.getComputedStyle?.(parent)?.overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && parent.scrollHeight > parent.clientHeight) return parent;
+    }
+    return null;
+  };
+
   function render() {
     if (!container) return;
     if (!stopListening) stopListening = getMemory()?.onChange?.(render) || null;
     // The page that manages the notes stands alone (with a way back); every other view starts with the title.
+    // Drawn again, the page keeps where it was: the row of the categories slid sideways and the settings scrolled (the row used to start over at "All" at every tap).
+    const same = drawnView === state.view;
+    const chipsLeft = container.querySelector('.mn-chips')?.scrollLeft || 0;
+    const scroller = scrollParentOf(container);
+    const scrolled = scroller ? scroller.scrollTop : 0;
     container.replaceChildren(...(state.view === 'manage' && store()?.isLoaded() ? [] : [renderMasterCard()]));
     const live = store();
     if (!live?.isLoaded()) {
@@ -496,6 +511,17 @@ export function createMemoryNotesSettings({
     }
     if (state.view === 'manage') container.append(renderManage(live));
     else container.append(renderSwitches(live), ...renderSummary(live));
+    if (same) {
+      const chips = container.querySelector('.mn-chips');
+      if (chips) {
+        chips.scrollLeft = chipsLeft;
+        // The chosen one is kept in sight.
+        const on = chips.querySelector('.mn-chip-on');
+        if (on && chips.clientWidth > 0 && (on.offsetLeft < chips.scrollLeft || on.offsetLeft + on.offsetWidth > chips.scrollLeft + chips.clientWidth)) chips.scrollLeft = Math.max(0, on.offsetLeft - 12);
+      }
+      if (scroller && scroller.scrollTop !== scrolled) scroller.scrollTop = scrolled;
+    }
+    drawnView = state.view;
   }
 
   return {

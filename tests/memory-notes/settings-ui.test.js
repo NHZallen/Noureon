@@ -341,7 +341,22 @@ test('the categories are one row: All, Standing, the five of a memory with their
   const { window, root } = await setup({ notes: [dog, tea, createNote({ id: 'old', text: 'The user lives in Taipei', kind: 'gone-category' })] });
   await (async () => { [...root().querySelectorAll('button')].find((node) => node.textContent.trim() === 'Manage notes →').click(); await tick(); })();
   const chips = [...root().querySelectorAll('.mn-chips .mn-chip')].map((node) => node.textContent.trim());
-  assert.deepEqual(chips, ['All', 'Standing', 'Preference1', 'Fact', 'Project', 'People & pets1', 'Routine', 'Uncategorized1', '＋']);
+  assert.deepEqual(chips, ['All', 'Standing', 'Preference1', 'Fact', 'Project', 'People & pets1', 'Routine', 'Uncategorized1']);
+  const outside = root().querySelector('.mn-cats > .mn-chip-add');
+  assert.ok(outside, 'the + is not one of the chips that slide: it stays at the right of the row');
+  assert.equal(root().querySelector('.mn-chips .mn-chip-add'), null);
+  const idle = root().querySelector('.mn-cats > .mn-cat-more');
+  assert.equal(idle.classList.contains('is-idle'), true, 'the place of the menu of a category is kept, hidden, while none is chosen');
+  window.happyDOM.abort();
+});
+
+test('choosing a category draws the page again but keeps where the row of the categories was slid to (it used to start over at All)', async () => {
+  const { window, root, click } = await setup({ notes: [dog, tea] });
+  await click('Manage notes →');
+  root().querySelector('.mn-chips').scrollLeft = 60;
+  [...root().querySelectorAll('.mn-chips .mn-chip')].find((node) => node.textContent.startsWith('Fact')).click();
+  await tick();
+  assert.equal(root().querySelector('.mn-chips').scrollLeft, 60);
   window.happyDOM.abort();
 });
 
