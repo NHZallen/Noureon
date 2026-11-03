@@ -124,12 +124,16 @@ export function startProjects({
     const onPick = (event) => {
       if (!page.element?.isConnected) { side.removeEventListener('click', onPick, true); drawerPage = null; return; }
       const target = event.target;
-      // Staying: the entry of the projects, the projects themselves (they change what the page shows), and the windows the menu opens (search, settings, account). Anything else chosen in the menu leaves the page.
-      if (!target?.closest?.('button, a, [role="button"], [data-chat-id]')) return;
-      if (target.closest('#open-projects-btn, #sidebar-projects-new-btn, #open-search-btn, #settings-btn, #user-profile-btn') || (target.closest('[data-section="projects"]') && !target.closest('[data-chat-id]'))) return;
+      // Leaving: a chat or a Noura of the lists, a new chat, the Extensions (not the buttons inside a row: the ⋯ of a chat, selecting). Everything else (the entry of the projects, the projects themselves, the windows
+      // of the menu: search, settings, account) keeps the page.
+      const row = target?.closest?.('#history-list .sidebar-item, #astras-list > *, [data-chat-id], #new-chat-btn, #open-cli-store-btn');
+      if (!row || row.closest('#sidebar-projects-list') && !row.matches('[data-chat-id]')) return;
+      const button = target.closest('button');
+      if (button && button !== row) return;
+      if (target.closest('.conv-select-checkbox') || document.querySelector('#history-list .conv-select-checkbox')) return;
       side.removeEventListener('click', onPick, true);
       drawerPage = null;
-      page.close();
+      page.close({ restore: false });
     };
     side.addEventListener('click', onPick, true);
   };
@@ -146,6 +150,7 @@ export function startProjects({
       notify: (message, type = 'success') => showNotification(message, type),
       // Going back out of the overview on a phone brings the left menu (the drawer) over the page, which stays behind its dim layer (as in the apps this one is modelled on).
       backOut: () => drawerOverPage(),
+      sidebarToggle: () => document.getElementById('menu-toggle-btn')?.click(),
       onClose: () => {}
     });
     watchDrawer(opened);

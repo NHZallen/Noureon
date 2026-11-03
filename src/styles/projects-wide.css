@@ -11,7 +11,8 @@
 .pj.is-wide .pj-round.has-label .pj-round-label { display: inline; white-space: nowrap; }
 
 /* ----- the list of the projects */
-.pj.is-wide.is-list .pj-head { max-width: none; grid-template-columns: 2.25rem minmax(0, 1fr) auto; padding: 1rem var(--page-gutter); border-bottom: 1px solid var(--border-color); }
+.pj.is-wide.is-list .pj-head { max-width: none; grid-template-columns: auto minmax(0, 1fr) auto; padding: 1rem var(--page-gutter); border-bottom: 1px solid var(--border-color); }
+.pj-head-lefts { display: inline-flex; align-items: center; gap: 0.25rem; }
 .pj-head-actions { display: flex; align-items: center; gap: 0.75rem; }
 .pj-head-actions .pj-search { width: 17.5rem; padding: 0.45rem 0.9rem; border: 0; background: var(--hover-bg); }
 .pj.is-wide.is-list .pj-round.has-label { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }

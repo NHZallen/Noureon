@@ -99,7 +99,7 @@ export function createProjectComposer({ document, actions, getActiveConversation
   }
 
   /** The page leaves: the box goes home; a chat of the project that was not used is given up for the one that was open. */
-  async function release({ leaveProject = false } = {}) {
+  async function release({ leaveProject = false, restore = true } = {}) {
     await preparing;
     park();
     const chat = held;
@@ -109,6 +109,8 @@ export function createProjectComposer({ document, actions, getActiveConversation
     // The chat was changed meanwhile (a chat of the project, or one of the menu, was opened): there is nothing to give back, and the empty chat that was made leaves the project (one with messages stays).
     if (current?.id !== chat.chatId) { actions.abandonChat(chat.chatId); return; }
     actions.abandonChat(chat.chatId);
+    // The page was left for something chosen in the left menu (a chat, a new chat): that opens by itself, nothing is brought back here.
+    if (!restore) return;
     // Going back out of the overview of the projects must leave the projects: the chat of a project that was open before is not brought back (it would make the way back a circle); the empty chat stays, as a new chat.
     if (leaveProject && chat.previousId && isInProject(chat.previousId)) {
       document.dispatchEvent(new win.CustomEvent('noureon:chat-changed'));

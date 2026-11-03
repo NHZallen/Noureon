@@ -15,7 +15,7 @@ const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions 
   const window = new Window({ url });
   const { document } = window;
   window.matchMedia = (query) => ({ matches: phone && /max-width: 767px/.test(query), media: query, addEventListener() {}, removeEventListener() {} });
-  document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${staticEntry ? '<button id="open-projects-btn" class="sidebar-item"><span class="cli-sidebar-label">專案</span></button>' : ''}${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest"><button id="a-chat" data-chat-id="c9">history</button></div></div><button id="settings-btn">Settings</button></aside><div id="sidebar-overlay"></div><button id="menu-toggle-btn"></button>`;
+  document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${staticEntry ? '<button id="open-projects-btn" class="sidebar-item"><span class="cli-sidebar-label">專案</span></button>' : ''}${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest"><button id="a-chat" data-chat-id="c9">history</button></div><div id="history-list"><div class="sidebar-item" data-id="h1"><span class="title">An old chat</span><button class="chat-options-btn">⋯</button></div></div></div><button id="settings-btn">Settings</button></aside><div id="sidebar-overlay"></div><button id="menu-toggle-btn"></button>`;
   const config = { language };
   const opened = [];
   const state = { folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }], conversations: [] };
@@ -124,7 +124,8 @@ test('an entry that is in the page from its first paint gets its label and its c
 test('on a phone the back of the overview brings the menu over the page, which stays; choosing in the menu leaves the page, the settings and the entry of the projects do not', async () => {
   const closed = [];
   let args = null;
-  const page = { element: null, close: () => { closed.push('closed'); page.element.remove(); }, go() {} };
+  const closeArgs = [];
+  const page = { element: null, close: (given) => { closed.push('closed'); closeArgs.push(given); page.element.remove(); }, go() {} };
   const t = setup({ phone: true, staticEntry: true, load: async () => ({ openProjectsPage: (given) => { args = given; page.element = t.document.createElement('div'); t.document.body.appendChild(page.element); return page; } }) });
   let toggles = 0;
   t.$('#menu-toggle-btn').addEventListener('click', () => { toggles += 1; t.$('#sidebar-overlay').classList.add('visible'); });
@@ -137,8 +138,11 @@ test('on a phone the back of the overview brings the menu over the page, which s
   t.$('#settings-btn').click();
   t.$('#open-projects-btn').click();
   assert.deepEqual(closed, [], 'the settings and the entry of the projects keep the page');
-  t.$('#a-chat').click();
-  assert.deepEqual(closed, ['closed'], 'a chat chosen in the menu leaves the page');
+  t.$('#history-list .chat-options-btn').click();
+  assert.deepEqual(closed, [], 'the ⋯ of a chat is not a choice of the chat');
+  t.$('#history-list .title').click();
+  assert.deepEqual(closed, ['closed'], 'a chat of the history chosen in the menu leaves the page');
+  assert.deepEqual(closeArgs, [{ restore: false }], 'and the chat that was open before is not brought back over it');
   await t.window.happyDOM.abort();
 });
 
