@@ -132,7 +132,7 @@ test('on a phone the back of the overview brings the menu over the page, which s
   await tick();
   assert.equal(args.backOut(), true, 'the back is taken: the page stays');
   assert.equal(toggles, 1, 'the menu is brought');
-  assert.equal(args.backOut(), true);
+  assert.equal(args.backOut(), false, 'a menu that is open is not toggled shut; the back leaves the page');
   assert.equal(toggles, 1, 'a menu that is open is not toggled shut');
   t.$('#settings-btn').click();
   t.$('#open-projects-btn').click();
@@ -142,11 +142,16 @@ test('on a phone the back of the overview brings the menu over the page, which s
   await t.window.happyDOM.abort();
 });
 
-test('on a computer the back of the overview is not taken (it closes the page)', async () => {
+test('on a computer the back of the overview also brings the menu (docked, the page moves over); with the menu already open the back leaves the page', async () => {
   let args = null;
   const t = setup({ phone: false, staticEntry: true, load: async () => ({ openProjectsPage: (given) => { args = given; return { go() {} }; } }) });
+  let toggles = 0;
+  t.$('#menu-toggle-btn').addEventListener('click', () => { toggles += 1; t.$('#sidebar').classList.add('open'); });
   t.$('#open-projects-btn').click();
   await tick();
-  assert.equal(args.backOut(), false);
+  assert.equal(args.backOut(), true);
+  assert.equal(toggles, 1);
+  assert.equal(args.backOut(), false, 'the menu is open: the back is not taken, the page closes');
+  assert.equal(toggles, 1);
   await t.window.happyDOM.abort();
 });

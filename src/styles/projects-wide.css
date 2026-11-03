@@ -69,3 +69,10 @@
 
 /* a folder or files dragged over the sheet that makes a project */
 .pj-backdrop.is-dropping .pj-folder-box { border-style: dashed; border-color: var(--text-secondary); }
+
+/* On a wide computer the left menu is docked (it takes room beside the app, not a layer over it): the page of the projects, laid over the app, leaves that room free while the menu is open, so the
+   back button of the overview can bring the menu as it does on a phone, and the page stays beside it. */
+@media (min-width: 1024px) {
+  #app-container > .pj:not(.pj-dialog-only) { transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  #app-container.sidebar-open > .pj:not(.pj-dialog-only) { left: 18rem; }
+}

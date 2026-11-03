@@ -104,13 +104,16 @@ export function startProjects({
     isInProject: (id) => dataStore.getConversations().some((conversation) => conversation.id === id && conversation.folderId),
     conversationExists: (id) => dataStore.getConversations().some((conversation) => conversation.id === id && !conversation.deletedAt)
   });
-  // The left menu over the page: a phone brings it with the back button; a tap on the dim layer shuts it and leaves the page; a choice in the menu leaves the page for what was chosen.
+  // The left menu next to or over the page, the same on a phone and on a computer: the back button of the overview opens the menu (on a phone a drawer over the page, which stays behind its dim layer; on a wide
+  // computer the menu is docked and the page moves over to make room, styles/projects-wide.css); with the menu already open the back leaves the page. A tap on the dim layer shuts the menu and leaves the
+  // page there; a choice in the menu leaves the page for what was chosen.
   let drawerPage = null;
-  const isPhone = () => Boolean(win.matchMedia?.('(max-width: 767px)').matches);
+  const drawerOpen = () => Boolean(document.getElementById('sidebar')?.classList.contains('open') || document.getElementById('sidebar-overlay')?.classList.contains('visible') || document.getElementById('app-container')?.classList.contains('sidebar-open'));
   const drawerOverPage = () => {
-    if (!isPhone()) return false;
-    const overlay = document.getElementById('sidebar-overlay');
-    if (!overlay?.classList.contains('visible')) document.getElementById('menu-toggle-btn')?.click();
+    if (drawerOpen()) return false;
+    const toggle = document.getElementById('menu-toggle-btn');
+    if (!toggle) return false;
+    toggle.click();
     return true;
   };
   const watchDrawer = (page) => {
