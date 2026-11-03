@@ -411,7 +411,7 @@ export function createMemoryNotesSettings({
   // The categories: one row that slides sideways (All, Standing, each category, the uncategorized when there are some, the archive) and a round + that stays at its right, outside the row. The category that
   // is chosen carries its own ••• (rename, remove) inside its pill, so nothing outside the row appears or goes away when one is chosen.
   const ICON_PLUS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-  const ICON_DOTS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+  const ICON_DOTS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>';
   const categoryChips = (live, stats) => {
     const wrap = el('div', 'mn-cats');
     const chips = el('div', 'mn-chips');
@@ -534,9 +534,14 @@ export function createMemoryNotesSettings({
       const chips = container.querySelector('.mn-chips');
       if (chips) {
         chips.scrollLeft = chipsLeft;
-        // The chosen one is kept in sight.
+        // The chosen one is kept in sight, and clear of the fade at the right end of the row (its ••• would be faded out).
         const on = chips.querySelector('.mn-chip-on');
-        if (on && chips.clientWidth > 0 && (on.offsetLeft < chips.scrollLeft || on.offsetLeft + on.offsetWidth > chips.scrollLeft + chips.clientWidth)) chips.scrollLeft = Math.max(0, on.offsetLeft - 12);
+        if (on && chips.clientWidth > 0) {
+          const FADE = 32;
+          const right = on.offsetLeft + on.offsetWidth;
+          if (right > chips.scrollLeft + chips.clientWidth - FADE) chips.scrollLeft = right - chips.clientWidth + FADE + 8;
+          if (on.offsetLeft < chips.scrollLeft) chips.scrollLeft = Math.max(0, on.offsetLeft - 12);
+        }
       }
       if (scroller && scroller.scrollTop !== scrolled) scroller.scrollTop = scrolled;
     }

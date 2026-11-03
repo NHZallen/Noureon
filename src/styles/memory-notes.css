@@ -77,11 +77,12 @@
 #settings-modal .mn-root .mn-chip-split { display: inline-flex; align-items: center; padding: 0; gap: 0; }
 #settings-modal .mn-root .mn-chip-main { display: inline-flex; align-items: center; gap: 0.35rem; height: 100%; padding: 0 0.2rem 0 0.85rem; border: 0; border-radius: 999px 0 0 999px; background: transparent; color: var(--gpt-primary-action-text) !important; font: inherit; line-height: 1; cursor: pointer; }
 #settings-modal .mn-root .mn-chip-split .mn-cat-more { display: inline-flex; align-items: center; justify-content: center; width: 1.625rem; height: 1.625rem; margin: 0 0.25rem 0 0; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--gpt-primary-action-text) !important; opacity: 0.75; cursor: pointer; }
-#settings-modal .mn-root .mn-chip-split svg { color: inherit !important; }
+/* The settings modal paints every icon with its own colour (a rule with an id in it), so the icons of the chips (and their strokes, which the rule paints too) are given the colour of their button with a selector that beats it. */
+#settings-modal #memory-notes-settings .mn-chip svg, #settings-modal #memory-notes-settings .mn-chip svg *, #settings-modal #memory-notes-settings .mn-cat-add svg, #settings-modal #memory-notes-settings .mn-cat-add svg * { color: inherit !important; }
+#settings-modal #memory-notes-settings .mn-chip span, #settings-modal #memory-notes-settings .mn-chip-main span { color: inherit !important; }
 #settings-modal .mn-root .mn-chip-split .mn-cat-more:hover, #settings-modal .mn-root .mn-chip-split .mn-cat-more.is-open { background: color-mix(in srgb, var(--gpt-primary-action-text) 16%, transparent); color: var(--gpt-primary-action-text) !important; opacity: 1; }
 #settings-modal .mn-root .mn-cat-add { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-secondary) !important; cursor: pointer; }
 #settings-modal .mn-root .mn-cat-add:hover { background: var(--hover-bg); color: var(--text-primary) !important; }
-#settings-modal .mn-root .mn-cat-add svg { color: inherit !important; }
 #settings-modal .mn-root .mn-more { flex: none; width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0.5rem; background: transparent; color: var(--text-tertiary); font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer; }
 #settings-modal .mn-root .mn-more:hover, #settings-modal .mn-root .mn-more.is-open { background: var(--hover-bg); color: var(--text-primary); }
 #settings-modal .mn-root .mn-menu { position: absolute; top: 2.4rem; right: 0.5rem; z-index: 30; min-width: 11.5rem; max-height: 18rem; overflow-y: auto; padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--modal-bg); box-shadow: var(--shadow-sm); }

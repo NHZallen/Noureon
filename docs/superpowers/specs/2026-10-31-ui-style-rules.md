@@ -47,4 +47,6 @@
 - 一排會左右滑的膠囊，右邊留 `1.75rem` 的空位並用 `mask-image` 淡出；「＋」是一顆 `2rem` 圓形圖示按鈕，放在滑動列**外面**固定在右邊，不要放成列裡最後一個膠囊。
 - 選中項目要有自己的選單（⋯）時，放在選中的膠囊裡面（一顆膠囊兩個按鈕），不要在列外另留位置，避免選取時列的寬度改變而抖動。重畫時要還原列的橫向捲動位置。
 - 設定視窗裡 `#settings-modal :not(.toggle-label)` 用 `!important` 把所有文字色蓋成 `--gpt-control-text`，元件的文字色要加 `!important`（選擇器要比它具體）才會生效。
+- 設定視窗還有一條帶 id 的規則（`#settings-modal button:not(#submit-btn) svg`）把所有圖示塗成固定色，連 `path`、`circle` 的描邊也被 `:not(.toggle-label)` 那條塗掉；放在黑底（或深色模式的淺底）上的圖示與文字，選擇器要用 `#settings-modal #元件id …` 加 `svg`、`svg *`、`span` 一起設成 `inherit !important`，並且淺色、深色模式各看一次截圖。
+- 選中的膠囊要避開列右邊淡出的那一段（捲動時把它捲進來），否則它的 ⋯ 會被淡掉。
 
