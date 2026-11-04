@@ -25,7 +25,7 @@ const page = ({ lang = 'en' } = {}) => {
   const happy = new Window();
   happy.document.documentElement.lang = lang;
   // The words of the page, one for each thing the sign-in can tell, so what is shown can be told apart.
-  happy.i18n = { en: { cloudAuthMissingFields: 'MISSING', cloudAuthCheckEmail: 'CHECK-MAIL', loginWeakPassword: 'WEAK', authRateLimited: 'LIMITED', loginNetworkError: 'NETWORK', loginCaptchaFailed: 'CAPTCHA', loginUserExists: 'EXISTS', turnstileRequired: 'CHECK-REQUIRED', turnstileAgain: 'CHECK-AGAIN' } };
+  happy.i18n = { en: { cloudAuthMissingFields: 'MISSING', cloudAuthCheckEmail: 'CHECK-MAIL', cloudAuthExists: 'ACCOUNT-EXISTS', loginWeakPassword: 'WEAK', authRateLimited: 'LIMITED', loginNetworkError: 'NETWORK', loginCaptchaFailed: 'CAPTCHA', loginUserExists: 'EXISTS', turnstileRequired: 'CHECK-REQUIRED', turnstileAgain: 'CHECK-AGAIN' } };
   happy.document.body.innerHTML = `
     <form id="auth-form">
       <input id="username-input"><input id="password-input" type="password">
@@ -151,6 +151,19 @@ test('a correct email and password signs in; a new email creates the account and
   assert.equal(fresh.calls.reload, 0, 'no session until the mailbox is checked');
   assert.equal(fresh.status(), 'CHECK-MAIL');
   assert.equal(fresh.field('register-btn').disabled, false, 'the buttons are given back');
+});
+
+test('a sign-in that failed for an Email that has an account is not answered as "account created": the pretended sign-up of the service (no user identity, no mail) is told as it is', async () => {
+  const auth = makeAuth({ signUp: async () => ({ data: { user: { ...USER, identities: [] }, session: null }, error: null }) });
+  const ui = await boot({ auth });
+  await ui.submit();
+  assert.equal(ui.status(), 'ACCOUNT-EXISTS');
+  assert.equal(ui.calls.reload, 0);
+  assert.equal(ui.field('register-btn').disabled, false);
+  // A real new account (it has its identity) still waits for the mail.
+  const fresh = await boot({ auth: makeAuth({ signUp: async () => ({ data: { user: { ...USER, identities: [{ provider: 'email' }] }, session: null }, error: null }) }) });
+  await fresh.submit();
+  assert.equal(fresh.status(), 'CHECK-MAIL');
 });
 
 test('what the sign-in service refuses with is told in the page\'s words: weak password, rate limit, network, captcha, already registered', async () => {

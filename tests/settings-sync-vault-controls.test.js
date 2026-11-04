@@ -394,3 +394,106 @@ test('the errors Supabase answers in English are shown in the person\'s language
     assert.equal(message.classList.contains('is-error'), true);
   }
 });
+
+const fillEmailForm = (document, { email = '', password = 'long-enough-1', confirmation = password } = {}) => {
+  document.getElementById('account-link-email').value = email;
+  document.getElementById('account-link-password').value = password;
+  document.getElementById('account-link-password-confirmation').value = confirmation;
+};
+const submitEmailForm = async (document, window) => {
+  document.getElementById('account-email-link-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+};
+
+test('an account made with Google that set a password has an Email login although it has no Email identity: the page says so (the password is what counts)', async () => {
+  const state = { password: false, calls: [] };
+  const client = {
+    auth: {
+      getUserIdentities: async () => ({ data: { identities: [{ provider: 'google' }] }, error: null }),
+      getUser: async () => ({ data: { user: { email: 'person@example.com', user_metadata: {} } }, error: null }),
+      updateUser: async (payload) => { state.calls.push(payload); state.password = true; return { error: null }; }
+    },
+    rpc: async (name) => (name === 'account_has_password' ? { data: state.password, error: null } : { data: null, error: { message: 'no' } })
+  };
+  const { window, controls, setCurrentUser } = createFixture({ getSupabase: () => client, isConfigured: () => true });
+  setCurrentUser(cloudUser);
+  controls.ensureSyncVaultSettings();
+  await controls.refreshSyncVaultControls();
+  const { document } = window;
+  assert.equal(document.getElementById('account-email-link-toggle').classList.contains('hidden'), false, 'no password yet: there is a button to set it');
+  assert.equal(document.getElementById('login-password-row').classList.contains('hidden'), true);
+
+  document.getElementById('account-email-link-toggle').click();
+  fillEmailForm(document);
+  await submitEmailForm(document, window);
+  assert.equal(state.calls.length, 1);
+  assert.equal(state.calls[0].password, 'long-enough-1');
+  assert.equal(state.calls[0].data.email_password_set, true, 'the mark that stands in for the answer where the function is not in the project');
+  assert.match(document.getElementById('account-email-message')?.textContent || document.getElementById('user-section').textContent, /Email 登入密碼已設定/);
+  assert.equal(document.getElementById('account-email-link-toggle').classList.contains('hidden'), true, 'the button is gone: it is bound now');
+  assert.equal(document.getElementById('account-email-status').classList.contains('hidden'), false);
+  assert.equal(document.getElementById('login-password-row').classList.contains('hidden'), false, 'the login password can be changed now');
+});
+
+test('where the function is not in the project yet, the mark in the metadata of the account stands in; a function that says there is no password wins over a stale mark', async () => {
+  const makeClient = (rpc, mark) => ({
+    auth: {
+      getUserIdentities: async () => ({ data: { identities: [{ provider: 'google' }] }, error: null }),
+      getUser: async () => ({ data: { user: { user_metadata: mark ? { email_password_set: true } : {} } }, error: null })
+    },
+    rpc
+  });
+  const bound = async (client) => {
+    const { window, controls, setCurrentUser } = createFixture({ getSupabase: () => client, isConfigured: () => true });
+    setCurrentUser(cloudUser);
+    controls.ensureSyncVaultSettings();
+    await controls.refreshSyncVaultControls();
+    return window.document.getElementById('account-email-link-toggle').classList.contains('hidden');
+  };
+  assert.equal(await bound(makeClient(async () => ({ data: null, error: { code: 'PGRST202' } }), true)), true, 'no function, marked: bound');
+  assert.equal(await bound(makeClient(async () => ({ data: null, error: { code: 'PGRST202' } }), false)), false, 'no function, not marked: not bound');
+  assert.equal(await bound(makeClient(async () => ({ data: false, error: null }), true)), false, 'the function says no password: the mark is stale');
+});
+
+test('an Email that is registered already is told so (no mail is sent for it), the wait for the local data is cleared, and nothing is said about a mail', async () => {
+  const log = [];
+  const client = {
+    auth: {
+      getUserIdentities: async () => ({ data: { identities: [] }, error: null }),
+      signInWithPassword: async () => ({ data: {}, error: { message: 'Invalid login credentials' } }),
+      signUp: async () => { log.push('signUp'); return { data: { user: { id: 'u1', identities: [] }, session: null }, error: null }; }
+    }
+  };
+  const { window, controls, storage, values } = createFixture({ getSupabase: () => client, isConfigured: () => true });
+  controls.ensureSyncVaultSettings();
+  await controls.refreshSyncVaultControls();
+  const { document } = window;
+  document.getElementById('account-email-link-toggle').click();
+  fillEmailForm(document, { email: 'me@example.com' });
+  await submitEmailForm(document, window);
+  assert.deepEqual(log, ['signUp']);
+  const message = document.getElementById('user-section').textContent;
+  assert.match(message, /已經註冊過/);
+  assert.doesNotMatch(message, /驗證信已寄出/);
+  assert.equal(values.has('chat_pendingCloudLink_v1'), false, 'the account is not waiting for a mail that does not come');
+  void storage;
+});
+
+test('a new Email is told to wait for the mail, as before', async () => {
+  const client = {
+    auth: {
+      getUserIdentities: async () => ({ data: { identities: [] }, error: null }),
+      signInWithPassword: async () => ({ data: {}, error: { message: 'Invalid login credentials' } }),
+      signUp: async () => ({ data: { user: { id: 'u2', identities: [{ provider: 'email' }] }, session: null }, error: null })
+    }
+  };
+  const { window, controls, values } = createFixture({ getSupabase: () => client, isConfigured: () => true });
+  controls.ensureSyncVaultSettings();
+  await controls.refreshSyncVaultControls();
+  const { document } = window;
+  document.getElementById('account-email-link-toggle').click();
+  fillEmailForm(document, { email: 'new@example.com' });
+  await submitEmailForm(document, window);
+  assert.match(document.getElementById('user-section').textContent, /驗證信已寄出/);
+  assert.equal(values.has('chat_pendingCloudLink_v1'), true, 'the local data waits for the confirmation');
+});

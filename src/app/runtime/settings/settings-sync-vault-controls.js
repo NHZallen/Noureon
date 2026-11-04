@@ -3,6 +3,7 @@ import { createUserUidControls } from './settings-user-uid-controls.js';
 import { announceUser } from '../features/user-ready.js';
 import { isSyncVaultUnlocked, readSyncVaultRecord, syncVaultPolicy } from '../../sync/sync-vault.js';
 import { getSupabaseClient, isSupabaseConfigured } from '../../auth/supabase-client.js';
+import { readEmailLogin } from '../../auth/email-login-state.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
 import { SERVICES, getService } from '../services.js';
 import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-section-markup.js';
@@ -198,11 +199,13 @@ export function createSettingsSyncVaultControls({
     if (!user?.username || !elements.emailStatus) return;
     const isCloudUser = user.authProvider === 'supabase';
     let providers = [];
+    let emailBound = false;
     if (isCloudUser && isConfigured()) {
-      const { data, error } = await getSupabase().auth.getUserIdentities();
-      if (!error) providers = (data?.identities || []).map(identity => identity.provider);
+      // Email login is "has a password", not "has an Email identity": an account made with Google that set a password has none (auth/email-login-state.js).
+      const state = await readEmailLogin(getSupabase());
+      providers = state.providers;
+      emailBound = state.emailLogin;
     }
-    const emailBound = providers.includes('email');
     const googleBound = providers.includes('google');
     const canChangeLoginPassword = isCloudUser && emailBound;
     setProviderStatus(elements.emailStatus, emailBound);

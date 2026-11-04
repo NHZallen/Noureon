@@ -6,6 +6,7 @@ import { migrateSyncVaultRecord } from '../sync/sync-vault.js';
 import { completePendingCloudAccountLink } from './account-linking.js';
 import { verifyLegacyPassword } from './legacy-password.js';
 import { openPasswordRecovery } from './password-recovery-route.js';
+import { isRepeatedSignUp } from './email-login-state.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
@@ -489,6 +490,11 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
     }
     if (result.data.session && result.data.user) {
       await finishCloudLogin({ window, elements, storage, user: result.data.user });
+      return;
+    }
+    // The sign-in failed and the Email has an account: nothing was made and no mail was sent (a wrong password, or an account made with Google), not "account created".
+    if (isRepeatedSignUp(result)) {
+      setStatus(elements, getAuthText(elements, 'cloudAuthExists', '這個 Email 已經有帳號了：可能是密碼不對，或當初是用 Google 登入建立的。'), 'error');
       return;
     }
     setStatus(elements, getAuthText(elements, 'cloudAuthCheckEmail', '帳號已建立，請確認信箱完成驗證後再登入。'), 'success');

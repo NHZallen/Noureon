@@ -4,6 +4,7 @@
 import { clearPendingCloudAccountLink, completePendingCloudAccountLink, markPendingCloudAccountLink } from '../../auth/account-linking.js';
 import { createCloudUserRecord } from '../../auth/supabase-auth-bridge.js';
 import { openPasswordRecovery } from '../../auth/password-recovery-route.js';
+import { EMAIL_PASSWORD_MARK, isRepeatedSignUp } from '../../auth/email-login-state.js';
 
 export function bindAccountLinkingActions(elements, {
   window, document, storage, getCurrentUser, text, getSupabase, reloadPage, scheduleTimeout, isBusy, setBusy, getAccountTurnstile,
@@ -22,7 +23,8 @@ export function bindAccountLinkingActions(elements, {
       setBusy(true);
       const supabase = getSupabase();
       if (isCloudUser) {
-        const { error } = await supabase.auth.updateUser({ password });
+        // The mark in the user's metadata is for the page only (the truth is account_has_password(), email-login-state.js): it stands in where that is not in the project yet.
+        const { error } = await supabase.auth.updateUser({ password, data: { [EMAIL_PASSWORD_MARK]: true } });
         if (error) throw error;
         setAccountMessage(text('emailLoginEnabled', 'Email 登入密碼已設定。'));
         elements.emailPassword.value = '';
@@ -53,6 +55,11 @@ export function bindAccountLinkingActions(elements, {
       if (result.error) {
         await clearPendingCloudAccountLink(storage);
         throw result.error;
+      }
+      // An Email that is registered already is answered as if the account were made, and no mail is sent: the person is told so, not asked to wait for a mail that does not come.
+      if (isRepeatedSignUp(result)) {
+        await clearPendingCloudAccountLink(storage);
+        throw new Error(text('emailAlreadyRegistered', '這個 Email 已經註冊過，所以沒有寄出驗證信。'));
       }
       if (result.data.session?.user) {
         await completePendingCloudAccountLink({
