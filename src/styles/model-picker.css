@@ -163,6 +163,10 @@
 .mp-group[hidden],
 .mp-row[hidden],
 .mp-empty[hidden] { display: none; }
+/* The rows are given their display by a rule with the id of the picker in it, which beats the rules above: a row the search leaves out stayed on the list (at the top, before the ones that fit). */
+#model-council-control .mp-group[hidden],
+#model-council-control .mp-row[hidden],
+#model-council-control .mp-empty[hidden] { display: none; }
 
 .mp-group-title {
     margin: 0.45rem 0.5rem 0.1rem;

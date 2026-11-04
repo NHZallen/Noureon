@@ -35,7 +35,7 @@ export const getSettingsMobileGroups = (getText) => {
         { section: 'data-management', label: text('dataManagement', '資料管理') },
         { section: 'privacy', label: text('privacy', '隱私') },
         { section: 'permissions', label: text('permissions', '權限') },
-        { section: 'tool-models', label: text('toolModels', '模型可呼叫模型') },
+        { section: 'tool-models', label: text('toolModels', '可呼叫的模型') },
         { section: 'accessibility', label: text('accessibility', '輔助功能') },
         { section: 'trash', label: text('trash', '垃圾桶') }
       ]

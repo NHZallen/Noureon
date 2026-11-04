@@ -1,3 +1,4 @@
+import { installPopoverEscape } from './popover-escape.js';
 import { createAppBootstrapComposition } from './app-bootstrap-composition.js';
 import { createStoreNavigationLifecycle } from './store-navigation-lifecycle.js';
 import { createP2PLifecycle } from './p2p-lifecycle.js';
@@ -285,6 +286,7 @@ export function createAppBootstrapLifecycle({
         });
         ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
         installScrollbarArrows(document);
+        installPopoverEscape({ document, closeAll: closeAllPopovers });
         document.addEventListener('click', (e) => {
             let clickedInsidePopover = false;
             document.querySelectorAll('.popover.visible').forEach(popover => {

@@ -39,8 +39,9 @@ export function createSettingsDesktopSectionHelper(dependencies = {}) {
     navItems.forEach(item => {
       if (item.dataset.settingsDesktopBound === 'true') return;
       item.dataset.settingsDesktopBound = 'true';
+      // The tabs are read again at the click: a tab added after the first binding (the models it can call, the permissions…) must lose its mark too when another one is chosen.
       item.addEventListener('click', () => {
-        activateDesktopSettingsSection(item, navItems);
+        activateDesktopSettingsSection(item);
       });
     });
     return navItems;

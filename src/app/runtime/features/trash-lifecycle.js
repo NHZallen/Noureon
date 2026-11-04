@@ -76,8 +76,10 @@ export function createTrashLifecycle({
       try {
         logger.warn('Noureon cloud permanent delete failed; keeping local trash for safety.', error);
       } catch {}
+      // The code of the failure goes with the words, so a report of "nothing happened" says what stopped it (the checks of the cloud delete have codes: the snapshots, the markers, what was left behind).
+      const reason = error?.code ? ` (${error.code})` : '';
       showNotification(
-        getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。',
+        `${getTexts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。'}${reason}`,
         'error'
       );
       return false;
@@ -180,7 +182,18 @@ export function createTrashLifecycle({
     }
   };
 
-  const handleDeleteTrashItemPermanently = async (conversationId) => {
+  // A button that does nothing is the worst answer: what throws that the handlers did not expect is told too.
+  const guarded = (action) => async (...args) => {
+    try {
+      return await action(...args);
+    } catch (error) {
+      try { logger.error('Noureon trash action failed.', error); } catch {}
+      showNotification(`${getTexts().trashActionFailed || '操作失敗，請稍後再試。'}${error?.code ? ` (${error.code})` : ''}`, 'error');
+      return undefined;
+    }
+  };
+
+  const handleDeleteTrashItemPermanently = guarded(async (conversationId) => {
     if (!(await showCustomConfirm(
       getTexts().confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？',
       getTexts().permanentDeleteTitle || '永久刪除確認'
@@ -195,7 +208,7 @@ export function createTrashLifecycle({
     renderSidebar();
     renderTrash();
     showNotification(getTexts().itemPermanentlyDeleted || '項目已永久刪除。', 'success');
-  };
+  });
 
   const showTrashItemInViewModal = (conversationId) => {
     const conversation = getConversations().find(item => item.id === conversationId);

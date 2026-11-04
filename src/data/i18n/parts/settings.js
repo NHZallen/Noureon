@@ -7,7 +7,7 @@ export default {
         dataManagement: '資料管理',
         privacy: '隱私',
         permissions: '權限',
-        toolModels: '模型可呼叫模型',
+        toolModels: '可呼叫的模型',
         accessibility: '輔助功能',
         about: '關於',
         languageSettings: '語言設定',

@@ -14,7 +14,10 @@ export const SERVICES = Object.freeze({
   // Called once the page's runtime is up, so the live cloud workspace may be applied (cloud-workspace-live-lifecycle.js).
   cloudRuntimeReady: 'cloud-runtime-ready',
   // The dialog that offers a new version (startup-lifecycle.js), for the service worker and the recovery from a missing chunk.
-  showUpdateDialog: 'show-update-dialog'
+  showUpdateDialog: 'show-update-dialog',
+  // The page's own dialog that asks "are you sure" (dialog-notification-lifecycle.js): (message, title) -> a promise of true or false. The sign-in part uses it to ask before logging out, as
+  // the rest of the page asks, instead of the browser's own box (which some browsers hold back, and a page that is driven by a tool cannot answer).
+  confirmDialog: 'confirm-dialog'
 });
 
 const NAMES = new Set(Object.values(SERVICES));

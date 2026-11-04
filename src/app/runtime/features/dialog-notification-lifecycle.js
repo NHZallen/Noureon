@@ -1,4 +1,5 @@
 import { createToastCenter } from '../../ui/notifications/toast-center.js';
+import { SERVICES, provideService } from '../services.js';
 
 export function createDialogNotificationLifecycle({
   document,
@@ -156,6 +157,7 @@ export function createDialogNotificationLifecycle({
       { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (_input, checked, selected) => (remember || checklist ? { accepted: true, remember: checked, ...(checklist ? { selected } : {}) } : true) }
     ]
   });
+  provideService(SERVICES.confirmDialog, (message, title) => showCustomConfirm(message, title));
   const showCustomPrompt = (message, title = null, inputType = 'text') => showCustomDialog({ title: title || getText('dialogPromptTitle', '請輸入'), message, input: { type: inputType, placeholder: getText('dialogInputPlaceholder', '請在此輸入…') }, buttons: [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });
 
   return {

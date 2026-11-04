@@ -12,7 +12,7 @@ export const PERMISSION_TEXTS = Object.freeze({
     netAlways: '一律詢問',
     netAlwaysDesc: '每次回覆第一次連到每個網站都先問，即使已經允許過。',
     imageTitle: '圖片生成',
-    imageDesc: '文字模型想畫圖時（用「模型可呼叫模型」裡選的圖片模型），怎麼決定要不要放行。',
+    imageDesc: '文字模型想畫圖時（用「可呼叫的模型」裡選的圖片模型），怎麼決定要不要放行。',
     imageAsk: '每次都問',
     imageAskDesc: '預設。畫圖前先給你看提示詞和參考圖，由你決定。',
     imageAlways: '永遠允許',

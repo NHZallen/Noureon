@@ -2,7 +2,7 @@
 
 export const TOOL_MODEL_TEXTS = Object.freeze({
   'zh-TW': {
-    nav: '模型可呼叫模型',
+    nav: '可呼叫的模型',
     desc: '文字模型可以自己呼叫的模型。選好之後，模型選單裡標有「可呼叫模型」的文字模型就能直接用它。',
     imageTitle: '圖片生成',
     imageDesc: '文字模型想畫圖時用的圖片模型。每次畫圖前，會依「權限」分頁的設定先問你。',

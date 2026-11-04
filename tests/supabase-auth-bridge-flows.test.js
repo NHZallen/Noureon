@@ -1,3 +1,4 @@
+import { SERVICES, getService, provideService, withdrawService } from '../src/app/runtime/services.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -262,6 +263,26 @@ test('signing out asks first; yes ends the session and forgets the account of th
   try { await second.press('logout-btn'); } finally { console.warn = warn; }
   assert.equal(storage2.data.has('chat_lastUser'), false, 'forgotten anyway');
   assert.equal(second.calls.reload, 1);
+});
+
+test('signing out is asked in the page\'s own dialog when the page has one (the browser\'s box is held back by some browsers), and only there', async () => {
+  const asked = [];
+  let answer = false;
+  provideService(SERVICES.confirmDialog, async (message, title) => { asked.push([message, title]); return answer; });
+  try {
+    const storage = makeStorage({ chat_lastUser: CLOUD_NAME });
+    const ui = await boot({ storage, startupIdentity: { sessionChecked: true, session: { user: USER } } });
+    await ui.press('logout-btn');
+    assert.equal(asked.length, 1);
+    assert.equal(ui.calls.confirms.length, 0, 'the browser\'s box is not used');
+    assert.equal(ui.auth.log.signOut.length, 0, 'no: nothing changes');
+    answer = true;
+    await ui.press('logout-btn');
+    assert.deepEqual(ui.auth.log.signOut, [{ scope: 'local' }]);
+    assert.equal(ui.calls.reload, 1);
+  } finally {
+    withdrawService(SERVICES.confirmDialog, getService(SERVICES.confirmDialog));
+  }
 });
 
 test('a logout button when nobody is signed in is left to the page\'s own handler', async () => {

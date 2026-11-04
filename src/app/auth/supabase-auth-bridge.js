@@ -7,6 +7,7 @@ import { completePendingCloudAccountLink } from './account-linking.js';
 import { verifyLegacyPassword } from './legacy-password.js';
 import { openPasswordRecovery } from './password-recovery-route.js';
 import { isRepeatedSignUp } from './email-login-state.js';
+import { SERVICES, getService } from '../runtime/services.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
@@ -546,7 +547,10 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
     if (!activeCloudSession && !(await hasCachedCloudUser(storage))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (!window.confirm(getAuthText(elements, 'confirmLogout', '您確定要登出嗎？'))) return;
+    // Asked in the page's own dialog (as a local account is); the browser's own box only where the page has none yet.
+    const logoutQuestion = getAuthText(elements, 'confirmLogout', '您確定要登出嗎？');
+    const ask = getService(SERVICES.confirmDialog);
+    if (!(ask ? await ask(logoutQuestion, getAuthText(elements, 'logoutConfirmation', '登出確認')) : window.confirm(logoutQuestion))) return;
     try {
       await supabase.auth.signOut({ scope: 'local' });
     } catch (error) {

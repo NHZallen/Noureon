@@ -253,3 +253,9 @@ test('clicking the same target removes the existing popover without recreating i
   assert.equal(existingPopover.removed, true);
   assert.equal(document.body.children.length, 0);
 });
+
+test('the projects to move a chat to open on a tap or a click as well as on hover (a phone has no hover), and the stylesheet shows them', () => {
+  const source = readSource('src/app/runtime/settings/settings-history-menu-helper.js');
+  assert.match(source, /querySelectorAll\('\.group > button'\)[\s\S]{0,200}classList\.toggle\('submenu-open'\)/);
+  assert.match(readSource('src/styles/sidebar.css'), /\.popover \.group\.submenu-open > \.absolute \{ display: block; \}/);
+});

@@ -72,6 +72,16 @@ export function createPickerChoices({
     return true;
   };
 
+  // The name of the level is also in the title and the label of the button ("Thinking: Medium"): they follow it (the words around it come in the language of the page, so only the level is replaced).
+  const renameDepthTrigger = (valueNode, before, after) => {
+    const button = valueNode.closest('button');
+    for (const attribute of ['title', 'aria-label']) {
+      const current = button?.getAttribute(attribute);
+      const at = current && before ? current.lastIndexOf(before) : -1;
+      if (at >= 0) button.setAttribute(attribute, `${current.slice(0, at)}${after}${current.slice(at + before.length)}`);
+    }
+  };
+
   const DEPTH_KEYS = Object.freeze({ ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, Home: 'first', End: 'last' });
 
   // Draws the thumb, the fill and the name at a position between 0 and the last level.
@@ -97,7 +107,10 @@ export function createPickerChoices({
     input.setAttribute('aria-valuetext', label);
     // The button in the composer follows the thumb while it is dragged, not only when it lands (its width does not change: it keeps the longest name).
     const shown = input.closest('#model-council-control')?.querySelector('.mp-depth-trigger-value');
-    if (shown && shown.textContent !== label) shown.textContent = label;
+    if (shown && shown.textContent !== label) {
+      renameDepthTrigger(shown, shown.textContent, label);
+      shown.textContent = label;
+    }
     return label;
   };
 
@@ -113,7 +126,10 @@ export function createPickerChoices({
     if (!conv || !chosen || chosen === normalizeReasoningEffort(info, conv.reasoningEffort)) return;
     chooseEffort(conv, info.id, chosen);
     const shown = container.querySelector('.mp-depth-trigger-value');
-    if (shown && label) shown.textContent = label;
+    if (shown && label) {
+      if (shown.textContent !== label) renameDepthTrigger(shown, shown.textContent, label);
+      shown.textContent = label;
+    }
     await saveAppData();
   };
 

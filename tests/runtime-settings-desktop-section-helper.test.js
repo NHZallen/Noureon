@@ -123,6 +123,22 @@ test('clicking nav item activates expected nav item and section', () => {
   assert.equal(sections.get('appearance-section').classList.contains('active'), true);
 });
 
+test('a tab added after the first binding loses its mark when another tab is chosen (no two tabs marked)', () => {
+  const { helper, navItems, sections } = createFixture();
+  helper.bindDesktopSettingsSections();
+  const late = createElement({ section: 'tool-models' });
+  navItems.push(late);
+  sections.set('tool-models-section', createElement());
+  helper.bindDesktopSettingsSections();
+  late.dispatch('click');
+  assert.equal(late.classList.contains('active'), true);
+  assert.equal(navItems[0].classList.contains('active'), false);
+  navItems[1].dispatch('click');
+  assert.equal(late.classList.contains('active'), false, 'the tab that came late is not left marked');
+  assert.equal(sections.get('tool-models-section').classList.contains('active'), false);
+  assert.equal(navItems[1].classList.contains('active'), true);
+});
+
 test('desktop sync preserves active nav class and active section class', () => {
   const { calls, helper, navItems, sections, settingsModal } = createFixture();
   navItems[0].classList.remove('active');

@@ -174,6 +174,12 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
       popover.remove();
     }));
 
+    // The projects to move to open beside the item on hover; a tap (a phone has no hover) or a click opens them too.
+    popover.querySelectorAll('.group > button').forEach((trigger) => trigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      trigger.parentElement.classList.toggle('submenu-open');
+    }));
+
     const newFolderBtn = popover.querySelector('.new-folder-from-menu-btn');
     if (newFolderBtn) {
       newFolderBtn.addEventListener('click', async () => {

@@ -524,3 +524,18 @@ test('in selection mode a row click toggles its checkbox, and a click on the che
     harness.window.close();
   }
 });
+
+test('a permanent delete that the cloud refuses keeps the row and says why (with the code of the check that stopped it); one that throws unexpectedly is told too, not silent', async () => {
+  const conversations = [{ id: 'c1', title: 'One', deletedAt: '2026-11-01T00:00:00.000Z', messages: [] }];
+  const refused = createHarness({ conversations, deleteConversationsFromCloud: async () => { throw Object.assign(new Error('left behind'), { code: 'ASTRA_REMOTE_DELETE_VERIFY_FAILED' }); } });
+  await refused.lifecycle.handleDeleteTrashItemPermanently('c1');
+  assert.equal(refused.getConversations().length, 1, 'kept for safety');
+  const refusal = refused.calls.find((call) => call[0] === 'notification');
+  assert.match(refusal[1], /ASTRA_REMOTE_DELETE_VERIFY_FAILED/);
+  assert.equal(refusal[2], 'error');
+
+  const broken = createHarness({ conversations: [...conversations], invalidateConversationMemory: async () => { throw new Error('memory is gone'); } });
+  await broken.lifecycle.handleDeleteTrashItemPermanently('c1');
+  const told = broken.calls.find((call) => call[0] === 'notification' && call[2] === 'error');
+  assert.ok(told, 'a failure that nobody planned for still answers the tap');
+});

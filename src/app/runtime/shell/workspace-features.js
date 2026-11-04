@@ -2,6 +2,7 @@
 // voice input; the dashboard, made the first time it is used; the warning on the API key; the
 // closing of popovers and the copy to the clipboard. Made once by the application shell (shell.js), which hands in what they use.
 
+import { collapseTriggers } from '../features/popover-escape.js';
 import { createBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createSearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
@@ -194,10 +195,8 @@ export function createWorkspaceFeatures({
         document.querySelectorAll('.popover.visible').forEach(popover => {
             popover.classList.remove('visible');
         });
-        // The model and thinking buttons stay highlighted while they read as expanded.
-        document.querySelectorAll('#model-council-control .mp-trigger[aria-expanded="true"]').forEach(trigger => {
-            trigger.setAttribute('aria-expanded', 'false');
-        });
+        // The model, thinking and attachment buttons stay highlighted while they read as expanded.
+        collapseTriggers(document);
     }
 
     async function copyTextToClipboard(text) {

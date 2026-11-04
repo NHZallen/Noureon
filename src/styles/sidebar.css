@@ -214,3 +214,6 @@
     border-radius: 0.75rem;
     background: var(--hover-bg);
 }
+
+/* The menu of a chat: the projects to move it to are a submenu that opens on hover and, for a tap or a click (a phone has no hover), when the item is opened (settings-history-menu-helper.js). */
+.popover .group.submenu-open > .absolute { display: block; }

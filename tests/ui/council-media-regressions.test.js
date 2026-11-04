@@ -61,8 +61,10 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
 
 test('closing popovers from outside also collapses the model and thinking buttons', () => {
   const source = readUiSource('src/app/runtime/shell/workspace-features.js');
+  const triggers = readUiSource('src/app/runtime/features/popover-escape.js');
 
-  assert.match(source, /function closeAllPopovers\(\)\s*\{[\s\S]*#model-council-control \.mp-trigger\[aria-expanded="true"\][\s\S]*setAttribute\('aria-expanded',\s*'false'\)/);
+  assert.match(source, /function closeAllPopovers\(\)\s*\{[\s\S]*collapseTriggers\(document\)/);
+  assert.match(triggers, /#model-council-control \.mp-trigger\[aria-expanded="true"\][\s\S]*setAttribute\('aria-expanded',\s*'false'\)/);
 });
 
 test('on a phone the "+" menu, the design panel and the model panel all end just above the composer box', async () => {
