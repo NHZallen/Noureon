@@ -14,6 +14,8 @@ import { createFakeIndexedDb } from '../helpers/fake-indexeddb.js';
 
 const noteRow = (note) => ({ record_key: `note:${note.id}`, payload: note, version: 1, updated_at: note.updatedAt, deleted_at: null });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
+// Waits until `check()` is true (a busy machine may need longer than one tick for work that is not synchronous).
+const until = async (check, { tries = 200 } = {}) => { for (let index = 0; index < tries && !check(); index += 1) await tick(); };
 
 async function setup({ language = 'en', notes = [], extraRows = [], conversations = [], makeVectors = () => null } = {}) {
   const window = new Window();
@@ -269,6 +271,7 @@ test('the card of the search by meaning: needs a key, shows what will be sent be
   assert.equal([...keyed.root().querySelectorAll('button')].some((button) => button.textContent === 'Turn on sync'), false, 'and has no switch for the cloud');
 
   await keyed.click('Turn off and delete vectors');
+  await until(() => /Turned off/.test(keyed.notices.at(-1)?.message || ''));
   assert.equal(keyed.vectors.isEnabled(), false);
   assert.match(keyed.notices.at(-1).message, /Turned off/);
   assert.match(keyed.root().textContent, /Turn on…/);
