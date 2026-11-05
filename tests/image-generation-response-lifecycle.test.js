@@ -23,7 +23,7 @@ test('uses translated search context and new image attachments for generation', 
       { text: 'turn it into watercolor' },
       { inlineData: { mimeType: 'image/jpeg', data: 'new-reference' } }
     ],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' },
     conversation: {
       imageConfig: { aspectRatio: '16:9', resolution: '2K' },
       messages: [{ role: 'model', parts: [{ generatedImage: { id: 'old', storageKey: 'old-key' } }] }]
@@ -53,12 +53,12 @@ test('preserves prompts when translation returns the original OpenRouter request
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: '畫一隻穿雨衣的柴犬' }],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
   assert.equal(request.prompt, '畫一隻穿雨衣的柴犬');
-  assert.equal(request.model, 'openai/gpt-image-2.5-flare');
+  assert.equal(request.model, 'openai/gpt-image-2.6-flare');
 });
 
 test('falls back to the latest generated image when there is no new attachment', async () => {
@@ -77,7 +77,7 @@ test('falls back to the latest generated image when there is no new attachment',
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: 'make it darker' }],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' },
     conversation: {
       messages: [
         { role: 'model', parts: [{ generatedImage: { id: 'older', storageKey: '1' } }] },
@@ -109,7 +109,7 @@ test('tells the user when the latest generated image can no longer be reused', a
   await lifecycle.run({
     targetElement: { innerHTML: '', querySelector: () => label },
     userParts: [{ text: 'make it darker' }],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' },
     conversation: {
       messages: [{ role: 'model', parts: [{ generatedImage: { id: 'latest', storageKey: 'gone' } }] }]
     }
@@ -136,7 +136,7 @@ test('stays silent when the conversation has no generated image to reuse', async
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: 'a shiba inu in a raincoat' }],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
@@ -162,7 +162,7 @@ test('keeps image-to-image requests buffered even when the model supports genera
       { text: 'make it winter' },
       { inlineData: { mimeType: 'image/png', data: 'reference' } }
     ],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
+    modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
@@ -344,7 +344,7 @@ test('quality, background and compression are sent only to a model that lists th
     modelInfo,
     conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { ...advanced }, messages: [] }
   });
-  await run({ id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportedImageOptions: ['quality', 'background', 'outputCompression'] });
+  await run({ id: 'openai/gpt-image-2.6-flare', provider: 'openrouter', supportedImageOptions: ['quality', 'background', 'outputCompression'] });
   await run({ id: 'black-forest-labs/flux-3-image', provider: 'openrouter' });
   assert.equal(requests[0].config.quality, 'high');
   assert.equal(requests[0].config.background, 'opaque');
@@ -462,7 +462,7 @@ test('a picture built on the earlier one keeps its shape; a shape that was said,
     getApiKey: () => 'key',
     getText: (_key, fallback) => fallback
   });
-  const model = { id: 'openai/gpt-image-2.5-sunburst', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '3:2', '9:16', '16:9'] };
+  const model = { id: 'openai/gpt-image-2.6-sunburst', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '3:2', '9:16', '16:9'] };
   const earlier = (aspectRatio) => ({ role: 'model', parts: [{ generatedImage: { id: 'old', storageKey: 'old-key', aspectRatio } }] });
   const run = (userParts, aspectRatio = '9:16', requestImageDecisions = null) => lifecycle.run({
     targetElement: { innerHTML: '' }, userParts, modelInfo: model, requestImageDecisions,
@@ -496,7 +496,7 @@ test('two pictures wanted after two pictures: the picture at each place is built
     getApiKey: () => 'key',
     getText: (_key, fallback) => fallback
   });
-  const model = { id: 'openai/gpt-image-2.5-sunburst', provider: 'openrouter', maxImageCount: 10, supportedImageAspectRatios: ['1:1', '9:16', '16:9'] };
+  const model = { id: 'openai/gpt-image-2.6-sunburst', provider: 'openrouter', maxImageCount: 10, supportedImageAspectRatios: ['1:1', '9:16', '16:9'] };
   const earlier = { role: 'model', parts: [{ generatedImage: { id: 'old-1', storageKey: 'k1', aspectRatio: '9:16' } }, { generatedImage: { id: 'old-2', storageKey: 'k2', aspectRatio: '16:9' } }] };
   const run = (userParts, { advanced = { n: 2 }, decision = null, messages = [earlier], serverReply = null } = {}) => lifecycle.run({
     targetElement: { innerHTML: '' }, userParts, modelInfo: model, serverReply, assistantMessageId: serverReply ? 'a1' : null,
@@ -540,4 +540,56 @@ test('two pictures wanted after two pictures: the picture at each place is built
     { references: ['data:image/png;base64,old-1'], aspectRatio: '9:16' },
     { references: ['data:image/png;base64,old-2'], aspectRatio: '16:9' }
   ]);
+});
+
+test('GPT Image 2.6: a gif asks for its frames, an svg for one picture, neither carries an earlier picture or takes attached ones, and a format the model lacks falls back to png', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/gif' }] };
+    },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/png;base64,earlier',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const gpt = { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter', maxImageCount: 10, maxImageReferences: 16, supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'], supportedImageOptions: ['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration'] };
+  const earlier = { messages: [{ role: 'model', parts: [{ generatedImage: { id: 'e1', mediaType: 'image/png' } }] }] };
+  const run = (modelInfo, advanced, extra = {}, parts = [{ text: 'a spinning cat' }]) => lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: parts,
+    modelInfo,
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { ...advanced }, ...earlier, ...extra }
+  });
+
+  // A png builds on the earlier picture (as before); a gif and an svg do not.
+  await run(gpt, { outputFormat: 'png', n: 2 });
+  assert.deepEqual(requests[0].inputReferences, ['data:image/png;base64,earlier']);
+  await run(gpt, { outputFormat: 'gif', frameCount: 6, frameDuration: 150, outputCompression: 80, n: 2 });
+  assert.deepEqual(requests[1].inputReferences, [], 'a gif is made from words');
+  assert.deepEqual([requests[1].config.outputFormat, requests[1].config.frameCount, requests[1].config.frameDuration, requests[1].config.n, 'outputCompression' in requests[1].config], ['gif', 6, 150, 2, false]);
+  await run(gpt, { outputFormat: 'svg', n: 4, frameCount: 6 });
+  assert.deepEqual(requests[2].inputReferences, []);
+  assert.deepEqual([requests[2].config.outputFormat, requests[2].config.n, 'frameCount' in requests[2].config], ['svg', 1, false], 'an svg is one picture and has no frames');
+
+  // Pictures the person attached cannot go with a gif or an svg: nothing is sent, and it says why.
+  const attached = [{ text: 'animate this' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }];
+  const before = requests.length;
+  await assert.rejects(run(gpt, { outputFormat: 'gif' }, {}, attached), /GIF or an SVG is made from words alone/);
+  assert.equal(requests.length, before, 'nothing was sent');
+  await run(gpt, { outputFormat: 'webp' }, {}, attached);
+  assert.equal(requests.at(-1).inputReferences.length, 1, 'a webp takes them');
+
+  // An earlier gif or svg is not a picture to build on: the new picture is made from the words.
+  const gifEarlier = { messages: [{ role: 'model', parts: [{ generatedImage: { id: 'g1', mediaType: 'image/gif' } }] }] };
+  await run(gpt, { outputFormat: 'png' }, gifEarlier);
+  assert.deepEqual(requests.at(-1).inputReferences, []);
+
+  // A format saved with GPT Image goes back to png for a model that does not make it, and its animation settings are not sent.
+  const flux = { id: 'black-forest-labs/flux-3-image', provider: 'openrouter' };
+  await run(flux, { outputFormat: 'gif', frameCount: 6, frameDuration: 150 });
+  assert.equal(requests.at(-1).config.outputFormat, 'png');
+  assert.ok(!('frameCount' in requests.at(-1).config) && !('frameDuration' in requests.at(-1).config));
 });

@@ -5,6 +5,15 @@ import {
   resolveSupportedAspectRatio,
   resolveSupportedResolution
 } from './image-generation-config.js';
+import {
+  GIF_FRAME_COUNTS,
+  GIF_FRAME_COUNT_DEFAULT,
+  GIF_FRAME_DURATIONS_MS,
+  GIF_FRAME_DURATION_DEFAULT_MS,
+  GPT_IMAGE_26_FORMATS,
+  isAnimatedOrVectorFormat,
+  supportedFormatsOf
+} from './image-formats.js';
 
 const createSelectControl = ({ document, id, label, values }) => {
   const row = document.createElement('label');
@@ -46,6 +55,8 @@ export function createImageModeControls({
     outputFormat: 'png',
     background: 'auto',
     outputCompression: 90,
+    frameCount: GIF_FRAME_COUNT_DEFAULT,
+    frameDuration: GIF_FRAME_DURATION_DEFAULT_MS,
     seed: ''
   };
 
@@ -81,6 +92,8 @@ export function createImageModeControls({
       outputFormat: advanced.fields.outputFormat.value,
       background: advanced.fields.background.value,
       outputCompression: Number(advanced.fields.outputCompression.value),
+      frameCount: Number(advanced.fields.frameCount.value),
+      frameDuration: Number(advanced.fields.frameDuration.value),
       ...(seedValue ? { seed: Number(seedValue) } : {}),
       ...(provider ? { provider } : {})
     };
@@ -102,9 +115,11 @@ export function createImageModeControls({
     const specs = [
       ['n', 'imageCount', 'Count', Array.from({ length: 10 }, (_, index) => String(index + 1))],
       ['quality', 'imageQuality', 'Quality', ['auto', 'low', 'medium', 'high', 'xhigh', 'max']],
-      ['outputFormat', 'imageFormat', 'Format', ['png', 'jpeg', 'webp']],
+      ['outputFormat', 'imageFormat', 'Format', GPT_IMAGE_26_FORMATS],
       ['background', 'imageBackground', 'Background', ['auto', 'transparent', 'opaque']],
-      ['outputCompression', 'imageCompression', 'Compression', Array.from({ length: 11 }, (_, index) => String(index * 10))]
+      ['outputCompression', 'imageCompression', 'Compression', Array.from({ length: 11 }, (_, index) => String(index * 10))],
+      ['frameCount', 'imageFrameCount', 'Frames', GIF_FRAME_COUNTS.map(String)],
+      ['frameDuration', 'imageFrameDuration', 'Frame time (ms)', GIF_FRAME_DURATIONS_MS.map(String)]
     ];
     const fields = {};
     const labels = { summary };
@@ -170,6 +185,8 @@ export function createImageModeControls({
     advanced.labels.outputFormat.textContent = getText('imageFormat', 'Format');
     advanced.labels.background.textContent = getText('imageBackground', 'Background');
     advanced.labels.outputCompression.textContent = getText('imageCompression', 'Compression');
+    advanced.labels.frameCount.textContent = getText('imageFrameCount', 'Frames');
+    advanced.labels.frameDuration.textContent = getText('imageFrameDuration', 'Frame time (ms)');
     advanced.labels.seed.textContent = getText('imageSeedOptional', 'Seed (optional)');
     advanced.labels.provider.textContent = getText('imageProviderOptions', 'Provider options (JSON)');
   };
@@ -227,21 +244,34 @@ export function createImageModeControls({
     Object.entries(advanced.fields).forEach(([key, field]) => {
       field.value = key === 'provider'
         ? (advancedConfig.provider ? JSON.stringify(advancedConfig.provider) : '')
-        : (advancedConfig[key] ?? '');
+        : String(advancedConfig[key] ?? '');
     });
-    // A model that makes one picture per request (maxImageCount) offers no more in the count.
-    const maxCount = Number(activeModel?.maxImageCount) || 10;
+    // The formats the model makes (GPT Image 2.6 adds gif and svg); a format saved with another model is put back to png.
+    const formats = supportedFormatsOf(activeModel);
+    Array.from(advanced.fields.outputFormat.options).forEach((option) => {
+      const supported = formats.includes(option.value);
+      option.disabled = !supported;
+      option.hidden = !supported;
+    });
+    if (!formats.includes(advanced.fields.outputFormat.value)) advanced.fields.outputFormat.value = 'png';
+    const format = advanced.fields.outputFormat.value;
+    // A model that makes one picture per request (maxImageCount) offers no more in the count; an SVG is one picture.
+    const maxCount = format === 'svg' ? 1 : Number(activeModel?.maxImageCount) || 10;
     Array.from(advanced.fields.n.options).forEach((option) => {
       const supported = Number(option.value) <= maxCount;
       option.disabled = !supported;
       option.hidden = !supported;
     });
     advanced.fields.n.value = String(Math.min(Number(advancedConfig.n) || 1, maxCount));
-    // Quality, background and compression belong to GPT Image alone; the other models do not show them.
-    ['quality', 'background', 'outputCompression'].forEach((key) => {
+    // Quality, background and compression belong to GPT Image alone; the other models do not show them. The frames and their time are for a GIF; a GIF and an SVG take no compression.
+    const moves = format === 'gif';
+    const shows = { quality: true, background: true, outputCompression: !isAnimatedOrVectorFormat(format), frameCount: moves, frameDuration: moves };
+    Object.entries(shows).forEach(([key, shown]) => {
       const row = advanced.fields[key]?.closest?.('label');
-      if (row) row.style.display = activeModel?.supportedImageOptions?.includes(key) ? '' : 'none';
+      if (row) row.style.display = shown && activeModel?.supportedImageOptions?.includes(key) ? '' : 'none';
     });
+    // A GIF or an SVG is made from words alone: said on the format when one of them is chosen.
+    advanced.fields.outputFormat.title = isAnimatedOrVectorFormat(format) ? getText('imageFormatWordsOnlyHint', '') : '';
     // The qualities a model takes (GPT Image adds xhigh and max); a model that lists none keeps the four common ones.
     const qualities = activeModel?.supportedImageQualities || ['auto', 'low', 'medium', 'high'];
     Array.from(advanced.fields.quality.options).forEach((option) => {

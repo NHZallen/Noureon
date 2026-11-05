@@ -1,5 +1,6 @@
 import { normalizeImageGenerationConfig, resolveSupportedAspectRatio, resolveSupportedResolution } from './image-generation-config.js';
 import { imageThumbsPlaceholder, imageWaitMarkup, loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
+import { isAnimatedOrVectorFormat, settleImageFormatConfig, supportedFormatsOf } from './image-formats.js';
 import { COLLAGE_INSTRUCTION, SEVERAL_INSTRUCTION, SHAPE_INSTRUCTION, limitsOf, readSpokenRequest, spokenProblemText } from './image-spoken-request.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
@@ -162,13 +163,23 @@ export function createImageGenerationResponseLifecycle({
     const spokenInstruction = spoken.collage ? COLLAGE_INSTRUCTION : spoken.count > 1 ? SEVERAL_INSTRUCTION : spoken.aspectRatio ? SHAPE_INSTRUCTION : '';
     const prompt = spokenInstruction ? `${editedPrompt}\n\n${spokenInstruction}` : editedPrompt;
 
+    // The format: the one saved, when this model makes it (a GIF saved with GPT Image must not go to a model that makes none); else a png (or the first the model lists).
+    const modelFormats = supportedFormatsOf(modelInfo);
+    const savedFormat = conversation.imageAdvancedConfig?.outputFormat;
+    const outputFormat = !savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png';
+    // A GIF and an SVG are made from words alone: no picture to start from goes with them (the endpoint that edits does not make them).
+    const fromWordsOnly = isAnimatedOrVectorFormat(outputFormat);
     let inputReferences = getInlineReferences(requestParts);
     const attachedByPerson = inputReferences.length > 0;
+    if (attachedByPerson && fromWordsOnly) {
+      throw new Error(getText('imageFormatWordsOnly', 'A GIF or an SVG is made from words alone.'));
+    }
     // The earlier picture that goes along as the one to build on, when none is attached.
     let carriedImage = null;
-    if (inputReferences.length === 0) {
+    if (inputReferences.length === 0 && !fromWordsOnly) {
       const latest = findLatestGeneratedImage(conversation);
-      if (latest) {
+      // An earlier GIF or SVG is not a picture the others can be built on (they take png, jpeg and webp): the new picture is made from the words.
+      if (latest && !/^image\/(gif|svg)/.test(latest.mediaType)) {
         const dataUrl = await getStoredImageDataUrl(latest);
         if (dataUrl) {
           inputReferences = [dataUrl];
@@ -238,13 +249,16 @@ export function createImageGenerationResponseLifecycle({
       signal
     };
     // Quality, background and compression are sent only to a model that lists them (GPT Image); the others would be asked for what they do not take.
-    for (const key of ['quality', 'background', 'outputCompression']) {
+    for (const key of ['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration']) {
       if (!modelInfo.supportedImageOptions?.includes(key)) delete generationRequest.config[key];
     }
     // What was said about the count wins for this message; a count saved with another model must not ask a one-picture model for more.
     if (spoken.count) generationRequest.config.n = spoken.count;
     if (groups) generationRequest.config.n = groups.length;
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
+    // The format, put right for the model; then for the format (a GIF has its frames and no compression, an SVG is one picture).
+    if (outputFormat) generationRequest.config.outputFormat = outputFormat;
+    generationRequest.config = settleImageFormatConfig(generationRequest.config);
     const reasoningConfig = getModelReasoningConfig(modelInfo);
     const reasoningEffort = reasoningConfig
       ? normalizeReasoningEffort(modelInfo, conversation.reasoningEffort)

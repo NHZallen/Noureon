@@ -404,3 +404,29 @@ test('with groups the server asks once for each, each with its own pictures and 
   assert.equal(result.parts.length, 2);
   assert.deepEqual(result.parts.map((part) => part.generatedImage.aspectRatio), ['9:16', '16:9'], 'in the order of the groups, each in its own shape');
 });
+
+test('an image request for a GIF carries its frames and their time (whole numbers inside what the page offers), and an SVG made on the server is made safe before it is kept', async () => {
+  const ok = validateRunSpec(imageSpec({ image: { prompt: 'a spinning cat', config: { aspectRatio: '1:1', outputFormat: 'gif', frameCount: 6, frameDuration: 150 } } }));
+  assert.equal(ok.ok, true, JSON.stringify(ok.errors));
+  assert.deepEqual(ok.spec.image.config, { aspectRatio: '1:1', outputFormat: 'gif', frameCount: 6, frameDuration: 150 });
+  const paths = (result) => result.errors.map((error) => error.path);
+  const bad = (config) => validateRunSpec(imageSpec({ image: { prompt: 'x', config: { aspectRatio: '1:1', outputFormat: 'gif', ...config } } }));
+  assert.ok(paths(bad({ frameCount: 1 })).includes('image.config.frameCount'));
+  assert.ok(paths(bad({ frameCount: 17 })).includes('image.config.frameCount'));
+  assert.ok(paths(bad({ frameCount: 'many' })).includes('image.config.frameCount'));
+  assert.ok(paths(bad({ frameDuration: 10 })).includes('image.config.frameDuration'));
+  assert.ok(paths(bad({ frameDuration: 5000 })).includes('image.config.frameDuration'));
+
+  // The picture maker of the server is the shared one: the SVG it gets is made safe in it, so what is kept in the cloud space holds no script.
+  const dirty = Buffer.from('<svg width="4" height="4"><script>alert(1)</script><rect width="4" height="4" onclick="x()"/></svg>').toString('base64');
+  const saved = [];
+  const files = { save: async ({ bytes, mimeType }) => { saved.push({ text: Buffer.from(bytes).toString('utf8'), mimeType }); return { __astraCloudAsset: { path: `${USER}/x`, mimeType, encoding: 'blob' } }; }, load: async () => PICTURE };
+  const fetchImpl = async () => new Response(JSON.stringify({ data: [{ b64_json: dirty, media_type: 'image/svg+xml' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  const spec = validateRunSpec(imageSpec({ model: { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare', info: { name: 'GPT Image', provider: 'openrouter' } }, image: { prompt: 'a logo', config: { aspectRatio: '1:1', outputFormat: 'svg' } } })).spec;
+  const done = await executeImage({ spec, secrets: { providerKey: KEY }, signal: new AbortController().signal, userId: USER, files, fetchImpl });
+  assert.equal(done.status, 'done');
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].mimeType, 'image/svg+xml');
+  assert.equal(saved[0].text, '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4"/></svg>');
+  assert.equal(done.parts[0].generatedImage.mediaType, 'image/svg+xml');
+});

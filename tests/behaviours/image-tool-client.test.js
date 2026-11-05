@@ -8,7 +8,7 @@ import { registerToolModelsBridge, rememberImageAlways } from '../../src/app/run
 import { createDom } from './helpers/create-dom.js';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
-const ASK = { type: 'image', event: 'ask', kind: 'draw', id: 'ask-image-1', model: { id: 'openai/gpt-image-2.5-flare', name: 'GPT Image' }, prompt: 'A blue living room with a water jug on the table', count: 1, references: [{ round: 2, source: 'generated', number: 3 }], waitMs: 600000 };
+const ASK = { type: 'image', event: 'ask', kind: 'draw', id: 'ask-image-1', model: { id: 'openai/gpt-image-2.6-flare', name: 'GPT Image' }, prompt: 'A blue living room with a water jug on the table', count: 1, references: [{ round: 2, source: 'generated', number: 3 }], waitMs: 600000 };
 
 test('the card names the picture model, shows the prompt and has three answers; the answer settles it when the server says so', async () => {
   const dom = createDom('<div id="host"></div>');

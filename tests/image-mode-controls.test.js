@@ -206,3 +206,54 @@ test('quality, background and compression are shown only for a model that lists 
   assert.equal(shown('image-output-format-select'), true, 'the format stays');
   cleanup();
 });
+
+test('GPT Image 2.6: the formats gif and svg are offered, the frames and their time show only for a gif, an svg is one picture, other models have neither', async () => {
+  const { window, document, cleanup } = createDom('<div id="file-options-popover"></div>');
+  const conversation = { imageAdvancedConfig: { outputFormat: 'gif', frameCount: 12, frameDuration: 100, n: 4 } };
+  let model = {
+    outputModality: 'image', maxImageCount: 10, supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'],
+    supportedImageOptions: ['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration'], supportedImageQualities: ['auto', 'low', 'medium', 'high', 'xhigh', 'max']
+  };
+  const controls = createImageModeControls({ document, getActiveConversation: () => conversation, getActiveModel: () => model, modelGeneratesImages: () => true, saveAppData: async () => {}, getText: (key, fallback) => (key === 'imageFormatWordsOnlyHint' ? 'WORDS ONLY' : fallback) });
+  const row = (id) => document.getElementById(id).closest('label');
+  const visible = (id) => row(id).style.display !== 'none';
+  const offered = () => [...document.getElementById('image-output-format-select').options].filter((option) => !option.hidden).map((option) => option.value);
+
+  controls.sync();
+  assert.deepEqual(offered(), ['png', 'jpeg', 'webp', 'gif', 'svg']);
+  assert.equal(document.getElementById('image-output-format-select').value, 'gif');
+  assert.ok(visible('image-frame-count-select') && visible('image-frame-duration-select'), 'a gif has its frames and their time');
+  assert.equal(document.getElementById('image-frame-count-select').value, '12');
+  assert.equal(document.getElementById('image-frame-duration-select').value, '100');
+  assert.equal(visible('image-output-compression-select'), false, 'a gif takes no compression');
+  assert.equal(document.getElementById('image-output-format-select').title, 'WORDS ONLY', 'it says on the format that a gif is made from words alone');
+
+  const format = document.getElementById('image-output-format-select');
+  format.value = 'svg';
+  format.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await Promise.resolve();
+  controls.sync();
+  assert.equal(visible('image-frame-count-select'), false, 'an svg has no frames');
+  assert.equal(visible('image-output-compression-select'), false);
+  assert.equal(document.getElementById('image-n-select').value, '1', 'an svg is one picture');
+  assert.deepEqual([...document.getElementById('image-n-select').options].filter((option) => !option.hidden).map((option) => option.value), ['1']);
+
+  format.value = 'webp';
+  format.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await Promise.resolve();
+  controls.sync();
+  assert.ok(visible('image-output-compression-select'), 'a webp has its compression again');
+  assert.equal(visible('image-frame-count-select'), false);
+  assert.equal(document.getElementById('image-output-format-select').title, '', 'no words for a webp');
+  assert.equal(conversation.imageAdvancedConfig.outputFormat, 'webp');
+  assert.equal(conversation.imageAdvancedConfig.frameCount, 12, 'the frames are kept for when the format is a gif again');
+
+  // A model that makes still pictures only: the format saved with GPT Image goes back to png and the animation rows are not there.
+  conversation.imageAdvancedConfig.outputFormat = 'gif';
+  model = { outputModality: 'image', supportedImageOptions: [] };
+  controls.sync();
+  assert.deepEqual(offered(), ['png', 'jpeg', 'webp']);
+  assert.equal(document.getElementById('image-output-format-select').value, 'png');
+  assert.equal(visible('image-frame-count-select'), false);
+  cleanup();
+});

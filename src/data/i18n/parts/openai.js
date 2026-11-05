@@ -15,8 +15,8 @@ export default {
         model_openai_gpt_6_luna_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/0.50$',
         model_openai_gpt_6_1_terra_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
         model_openai_gpt_6_1_sol_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
-        model_openai_gpt_image_2_5_flare_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
-        model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$'
+        model_openai_gpt_image_2_6_flare_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
+        model_openai_gpt_image_2_6_sunburst_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$'
     },
     en: {
         imageKeyRequiredOpenAI: 'Enter your OpenAI API key in Settings first.',
@@ -33,8 +33,8 @@ export default {
         model_openai_gpt_6_luna_desc_tier_paid: '$0.10/M input, $0.50/M output',
         model_openai_gpt_6_1_terra_desc_tier_paid: '$1/M input, $5/M output',
         model_openai_gpt_6_1_sol_desc_tier_paid: '$2/M input, $10/M output',
-        model_openai_gpt_image_2_5_flare_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
-        model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output'
+        model_openai_gpt_image_2_6_flare_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
+        model_openai_gpt_image_2_6_sunburst_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output'
     },
     fr: {
         imageKeyRequiredOpenAI: 'Saisissez d’abord votre clé API OpenAI dans les réglages.',
@@ -51,8 +51,8 @@ export default {
         model_openai_gpt_6_luna_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
         model_openai_gpt_6_1_terra_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
         model_openai_gpt_6_1_sol_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
-        model_openai_gpt_image_2_5_flare_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
-        model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image'
+        model_openai_gpt_image_2_6_flare_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
+        model_openai_gpt_image_2_6_sunburst_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image'
     },
     ru: {
         imageKeyRequiredOpenAI: 'Сначала введите ключ API OpenAI в настройках.',
@@ -69,8 +69,8 @@ export default {
         model_openai_gpt_6_luna_desc_tier_paid: 'Вход $0,10/млн, выход $0,50/млн',
         model_openai_gpt_6_1_terra_desc_tier_paid: 'Вход $1/млн, выход $5/млн',
         model_openai_gpt_6_1_sol_desc_tier_paid: 'Вход $2/млн, выход $10/млн',
-        model_openai_gpt_image_2_5_flare_desc_tier_paid: 'Текстовый вход $5/млн, вход изображения $8/млн, выход изображения $30/млн',
-        model_openai_gpt_image_2_5_sunburst_desc_tier_paid: 'Текстовый вход $5/млн, вход изображения $8/млн, выход изображения $30/млн'
+        model_openai_gpt_image_2_6_flare_desc_tier_paid: 'Текстовый вход $5/млн, вход изображения $8/млн, выход изображения $30/млн',
+        model_openai_gpt_image_2_6_sunburst_desc_tier_paid: 'Текстовый вход $5/млн, вход изображения $8/млн, выход изображения $30/млн'
     },
     es: {
         imageKeyRequiredOpenAI: 'Primero introduce tu clave de API de OpenAI en Ajustes.',
@@ -87,7 +87,7 @@ export default {
         model_openai_gpt_6_luna_desc_tier_paid: '$0,10/M de entrada, $0,50/M de salida',
         model_openai_gpt_6_1_terra_desc_tier_paid: '$1/M de entrada, $5/M de salida',
         model_openai_gpt_6_1_sol_desc_tier_paid: '$2/M de entrada, $10/M de salida',
-        model_openai_gpt_image_2_5_flare_desc_tier_paid: '$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen',
-        model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen'
+        model_openai_gpt_image_2_6_flare_desc_tier_paid: '$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen',
+        model_openai_gpt_image_2_6_sunburst_desc_tier_paid: '$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen'
     }
 };

@@ -7,6 +7,8 @@
 //
 // Shared by the page and the server: no window, no document, no browser storage.
 
+import { GPT_IMAGE_26_FORMATS } from '../images/image-formats.js';
+
 export const OPENAI_PROVIDER = 'openai';
 export const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export const OPENAI_ID_PREFIX = 'openai-api/';
@@ -15,7 +17,7 @@ export const OPENAI_REASONING_PARAMETER = 'openaiReasoningEffort';
 // The same ratios as the GPT Image models of OpenRouter (the size is worked out from the ratio and the tier: openai-image-generation.js).
 const IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', 'auto']);
 const IMAGE_QUALITIES = Object.freeze(['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
-const IMAGE_OPTIONS = Object.freeze(['quality', 'background', 'outputCompression']);
+const IMAGE_OPTIONS = Object.freeze(['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration']);
 // The size follows the ratio and the quality at OpenRouter (no resolution); here a tier is offered because OpenAI takes any size: 1K, 2K and 4K.
 const IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
 
@@ -24,8 +26,8 @@ const RELEASED = Object.freeze({
   'gpt-6-luna': [20260922, 0.5],
   'gpt-6.1-terra': [20261027, 5],
   'gpt-6.1-sol': [20260929, 10],
-  'gpt-image-2.5-flare': [20260909, 30],
-  'gpt-image-2.5-sunburst': [20260909, 30]
+  'gpt-image-2.6-flare': [20261104, 30],
+  'gpt-image-2.6-sunburst': [20261104, 30]
 });
 
 // [id at OpenAI, name, text of the description, depths of thinking, the one used when none is chosen]
@@ -38,8 +40,8 @@ const TEXT_ROWS = [
 ];
 
 const IMAGE_ROWS = [
-  ['gpt-image-2.5-sunburst', 'GPT Image 2.5 Sunburst', 'model_openai_gpt_image_2_5_sunburst_desc'],
-  ['gpt-image-2.5-flare', 'GPT Image 2.5 Flare', 'model_openai_gpt_image_2_5_flare_desc']
+  ['gpt-image-2.6-sunburst', 'GPT Image 2.6 Sunburst', 'model_openai_gpt_image_2_6_sunburst_desc'],
+  ['gpt-image-2.6-flare', 'GPT Image 2.6 Flare', 'model_openai_gpt_image_2_6_flare_desc']
 ];
 
 const base = (apiId, name, descriptionKey) => ({
@@ -58,12 +60,15 @@ export const OPENAI_MODELS = Object.freeze([
   ...TEXT_ROWS.map(([apiId, name, descriptionKey]) => Object.freeze({ ...base(apiId, name, descriptionKey), category: 'general' })),
   ...IMAGE_ROWS.map(([apiId, name, descriptionKey]) => Object.freeze({
     ...base(apiId, name, descriptionKey),
+    // GPT Image 2.6 replaced 2.5 (released 2026-11-04; the owner asked for it on 2026-11-06): a chat or a setting saved with the 2.5 id means the 2.6 one.
+    legacyIds: [`${OPENAI_ID_PREFIX}${apiId.replace('2.6', '2.5')}`],
     category: 'image_generation',
     outputModality: 'image',
     supportedImageAspectRatios: IMAGE_RATIOS,
     supportedImageResolutions: IMAGE_RESOLUTIONS,
     supportedImageQualities: IMAGE_QUALITIES,
     supportedImageOptions: IMAGE_OPTIONS,
+    supportedImageFormats: GPT_IMAGE_26_FORMATS,
     maxImageCount: 10,
     maxImageReferences: 16
   }))

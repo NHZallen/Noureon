@@ -16,16 +16,16 @@ import {
 } from '../src/app/runtime/images/image-generation-config.js';
 
 const EXPECTED_MODELS = [
-  'openai/gpt-image-2.5-flare',
-  'openai/gpt-image-2.5-sunburst',
+  'openai/gpt-image-2.6-flare',
+  'openai/gpt-image-2.6-sunburst',
   'google/gemini-nano-banana-2.1',
   'black-forest-labs/flux-3-image',
   'black-forest-labs/flux-3-image-klein',
   'krea/k3-edit',
   'qwen/qwen-image-2.1-turbo',
   'qwen/qwen-image-2.1-pro',
-  'openai-api/gpt-image-2.5-sunburst',
-  'openai-api/gpt-image-2.5-flare'
+  'openai-api/gpt-image-2.6-sunburst',
+  'openai-api/gpt-image-2.6-flare'
 ];
 
 test('registers the curated image generation models', () => {
@@ -67,9 +67,9 @@ test('every image model lists the ratios it accepts, 1:1 first, each one a ratio
   assert.deepEqual(byId('google/gemini-nano-banana-2.1'), ['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
   assert.deepEqual([...byId('black-forest-labs/flux-3-image')].sort(), ['1:1', '1:2', '16:9', '2:1', '2:3', '21:9', '3:2', '3:4', '4:3', '4:5', '5:4', '5:7', '7:5', '9:16', '9:21', 'auto'].sort(), 'FLUX.3 takes fifteen ratios and auto');
   assert.deepEqual(byId('black-forest-labs/flux-3-image-klein'), byId('black-forest-labs/flux-3-image'), 'Klein takes the same fifteen ratios');
-  assert.ok(!byId('openai/gpt-image-2.5-flare').includes('4:5'), 'GPT Image has no 4:5');
-  assert.ok(byId('openai/gpt-image-2.5-flare').includes('auto') && byId('openai/gpt-image-2.5-sunburst').includes('auto'), 'GPT Image takes auto');
-  assert.ok(!byId('openai/gpt-image-2.5-sunburst').includes('1:4'));
+  assert.ok(!byId('openai/gpt-image-2.6-flare').includes('4:5'), 'GPT Image has no 4:5');
+  assert.ok(byId('openai/gpt-image-2.6-flare').includes('auto') && byId('openai/gpt-image-2.6-sunburst').includes('auto'), 'GPT Image takes auto');
+  assert.ok(!byId('openai/gpt-image-2.6-sunburst').includes('1:4'));
 });
 
 test('a ratio the model lacks moves to the nearest one it has', () => {
@@ -88,9 +88,9 @@ test('every image model lists its resolutions', () => {
   assert.deepEqual(byId('google/gemini-nano-banana-2.1'), ['1K', '2K', '4K'], 'no 512 size');
   assert.deepEqual(byId('black-forest-labs/flux-3-image'), ['768', '1K', '1.5K', '2K', '4K']);
   assert.deepEqual(byId('black-forest-labs/flux-3-image-klein'), ['768', '1K', '1.5K', '2K', '4K']);
-  // OpenRouter lists no resolution for GPT Image 2.5 (2026-10-17): none is sent.
-  assert.deepEqual(byId('openai/gpt-image-2.5-flare'), []);
-  assert.deepEqual(byId('openai/gpt-image-2.5-sunburst'), []);
+  // OpenRouter lists no resolution for GPT Image 2.6 (2026-10-17): none is sent.
+  assert.deepEqual(byId('openai/gpt-image-2.6-flare'), []);
+  assert.deepEqual(byId('openai/gpt-image-2.6-sunburst'), []);
 });
 
 test('a resolution the model lacks moves to the nearest tier it has', () => {
@@ -128,7 +128,7 @@ test('FLUX.3 Image, Klein and Krea make one picture per request, the other image
   const single = ['black-forest-labs/flux-3-image', 'black-forest-labs/flux-3-image-klein', 'krea/k3-edit'];
   for (const id of single) assert.equal(MODELS.find(model => model.id === id).maxImageCount, 1, id);
   // GPT Image takes 1 to 10 (OpenRouter's parameters); Nano Banana lists no count, so none is claimed for it.
-  for (const id of ['openai/gpt-image-2.5-flare', 'openai/gpt-image-2.5-sunburst']) assert.equal(MODELS.find(model => model.id === id).maxImageCount, 10, id);
+  for (const id of ['openai/gpt-image-2.6-flare', 'openai/gpt-image-2.6-sunburst']) assert.equal(MODELS.find(model => model.id === id).maxImageCount, 10, id);
   assert.equal(MODELS.find(model => model.id === 'google/gemini-nano-banana-2.1').maxImageCount, undefined);
 });
 
@@ -145,11 +145,11 @@ test('Krea K3 Edit: seven ratios, 1K and 2K, one picture per request, one to eig
 
 test('reference picture limits and the GPT Image qualities follow OpenRouter\'s parameters (2026-10-17)', () => {
   const find = (id) => MODELS.find(model => model.id === id);
-  assert.equal(find('openai/gpt-image-2.5-flare').maxImageReferences, 16);
-  assert.equal(find('openai/gpt-image-2.5-sunburst').maxImageReferences, 16);
+  assert.equal(find('openai/gpt-image-2.6-flare').maxImageReferences, 16);
+  assert.equal(find('openai/gpt-image-2.6-sunburst').maxImageReferences, 16);
   assert.equal(find('black-forest-labs/flux-3-image').maxImageReferences, 10);
   assert.equal(find('black-forest-labs/flux-3-image-klein').maxImageReferences, 10);
-  assert.deepEqual(find('openai/gpt-image-2.5-flare').supportedImageQualities, ['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.deepEqual(find('openai/gpt-image-2.6-flare').supportedImageQualities, ['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(find('krea/k3-edit').supportedImageQualities, undefined);
 });
 

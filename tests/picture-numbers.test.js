@@ -98,7 +98,7 @@ test('the numbers are shown only while a picture model is chosen', () => {
   const dom = createDom('<div></div>');
   try {
     const root = dom.document.documentElement;
-    assert.equal(syncPictureNumbers(root, { toolModels: { image: { provider: 'openrouter', id: 'openai/gpt-image-2.5-flare' } } }), true);
+    assert.equal(syncPictureNumbers(root, { toolModels: { image: { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare' } } }), true);
     assert.equal(root.getAttribute('data-picture-numbers'), 'on');
     assert.equal(syncPictureNumbers(root, { toolModels: { image: null } }), false);
     assert.equal(root.hasAttribute('data-picture-numbers'), false);

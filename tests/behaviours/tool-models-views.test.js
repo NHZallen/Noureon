@@ -8,7 +8,7 @@ import { imagePermissionCard } from '../../src/app/ui/tool-models/image-permissi
 import { createDom } from './helpers/create-dom.js';
 
 const MODELS = [
-  { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', name: 'GPT Image 2.5 Flare', providerLabel: 'OpenRouter' },
+  { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter', name: 'GPT Image 2.6 Flare', providerLabel: 'OpenRouter' },
   { id: 'gemini-image', provider: 'gemini', name: 'Gemini Image', providerLabel: 'Gemini' }
 ];
 const fire = (window, node) => node.dispatchEvent(new window.Event('change', { bubbles: true }));
@@ -35,7 +35,7 @@ test('the tab lists none and every picture model, and choosing one changes and s
 
     radios()[1].checked = true;
     fire(dom.window, radios()[1]);
-    assert.deepEqual(chosen, { provider: 'openrouter', id: 'openai/gpt-image-2.5-flare' });
+    assert.deepEqual(chosen, { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare' });
     assert.equal(radios()[1].checked, true, 'it is drawn again with the choice');
     assert.equal(saves.length, 1);
 

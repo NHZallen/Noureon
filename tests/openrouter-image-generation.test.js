@@ -11,7 +11,7 @@ test('posts a normalized buffered request and returns raster and vector images',
       return new Response(JSON.stringify({
         data: [
           { b64_json: 'raster' },
-          { b64_json: 'vector', media_type: 'image/svg+xml' }
+          { b64_json: 'PHN2ZyB3aWR0aD0iNCIgaGVpZ2h0PSI0Ij48cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0Ii8+PC9zdmc+', media_type: 'image/svg+xml' }
         ]
       }), { status: 200, headers: { 'content-type': 'application/json' } });
     }
@@ -19,7 +19,7 @@ test('posts a normalized buffered request and returns raster and vector images',
 
   const result = await generate({
     apiKey: 'secret',
-    model: 'openai/gpt-image-2.5-flare',
+    model: 'openai/gpt-image-2.6-flare',
     prompt: 'a red panda',
     config: {
       aspectRatio: '16:9',
@@ -37,7 +37,7 @@ test('posts a normalized buffered request and returns raster and vector images',
   assert.equal(request.url, 'https://openrouter.ai/api/v1/images');
   assert.equal(request.options.headers.Authorization, 'Bearer secret');
   assert.deepEqual(request.body, {
-    model: 'openai/gpt-image-2.5-flare',
+    model: 'openai/gpt-image-2.6-flare',
     prompt: 'a red panda',
     n: 2,
     resolution: '2K',
@@ -54,7 +54,7 @@ test('posts a normalized buffered request and returns raster and vector images',
   });
   assert.deepEqual(result.images, [
     { b64Json: 'raster', mediaType: 'image/png' },
-    { b64Json: 'vector', mediaType: 'image/svg+xml' }
+    { b64Json: 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiLz48L3N2Zz4=', mediaType: 'image/svg+xml' }
   ]);
 });
 
@@ -63,7 +63,7 @@ test('surfaces OpenRouter image API errors', async () => {
     fetchImpl: async () => new Response(JSON.stringify({ error: { message: 'unsupported resolution' } }), { status: 400 })
   });
   await assert.rejects(
-    generate({ apiKey: 'secret', model: 'openai/gpt-image-2.5-flare', prompt: 'test' }),
+    generate({ apiKey: 'secret', model: 'openai/gpt-image-2.6-flare', prompt: 'test' }),
     /unsupported resolution/
   );
 });
@@ -97,7 +97,7 @@ test('a model that gives the same picture again for a request of several gets on
   // One picture, or a model that does not need it: one request as before.
   bodies.length = 0;
   await generate({ apiKey: 'k', model: 'qwen/qwen-image-2.1-turbo', prompt: 'x', config: { n: 1 } });
-  await generate({ apiKey: 'k', model: 'openai/gpt-image-2.5-flare', prompt: 'x', config: { n: 4 } });
+  await generate({ apiKey: 'k', model: 'openai/gpt-image-2.6-flare', prompt: 'x', config: { n: 4 } });
   assert.equal(bodies.length, 2);
   assert.equal(bodies[1].n, 4);
 });
@@ -129,7 +129,7 @@ test('groups: one picture for each, each from its own pictures and shape, in the
     }
   });
   const result = await generate({
-    apiKey: 'k', model: 'openai/gpt-image-2.5-sunburst', prompt: 'add some animals', config: { aspectRatio: '1:1', n: 2 },
+    apiKey: 'k', model: 'openai/gpt-image-2.6-sunburst', prompt: 'add some animals', config: { aspectRatio: '1:1', n: 2 },
     groups: [{ inputReferences: ['one'], aspectRatio: '9:16' }, { inputReferences: ['two'] }]
   });
   assert.deepEqual(calls.map(call => [call.n, call.aspect_ratio]), [[1, '9:16'], [1, '1:1']]);

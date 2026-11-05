@@ -45,7 +45,7 @@ test('a run gives a result without the key, even when the service repeats it', a
   const seen = [];
   const fetchImpl = async (url, init) => {
     seen.push({ url, auth: init.headers.Authorization, body: init.body ? JSON.parse(init.body) : null });
-    if (url.endsWith('/models')) return json(200, { data: [{ id: 'gpt-6-luna' }, { id: 'gpt-image-2.5-flare' }] });
+    if (url.endsWith('/models')) return json(200, { data: [{ id: 'gpt-6-luna' }, { id: 'gpt-image-2.6-flare' }] });
     if (init.headers.Authorization === 'Bearer sk-this-is-not-a-key') return json(401, { error: { message: `Incorrect API key provided: ${KEY}`, type: 'invalid_request_error', code: 'invalid_api_key' } });
     if (url.endsWith('/chat/completions')) return json(200, { choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }], usage: { prompt_tokens: 5, completion_tokens: 2 } });
     const body = JSON.parse(init.body);

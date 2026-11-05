@@ -69,6 +69,7 @@ export function nthWeekday(year, month, weekday, n) {
 
 const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 12);
 const sameDay = (date, month, day) => date.getMonth() + 1 === month && date.getDate() === day;
+const sameDate = (a, b) => sameDay(a, b.getMonth() + 1, b.getDate());
 const startsWithAny = (zone, prefixes) => prefixes.some((prefix) => zone.startsWith(prefix));
 
 /** Does the rule hold on this day (a date at noon)? Every key of the rule must hold. Plain data, so a language's table can be cut by the build. */
@@ -84,12 +85,12 @@ export function ruleHolds(rule, day, zone = '') {
   if (rule.easter !== undefined || rule.notEaster !== undefined) {
     const easter = westernEaster(year);
     const sunday = new Date(year, easter.month - 1, easter.day, 12);
-    if (rule.easter !== undefined && !sameDay(day, ...dayOf(addDays(sunday, rule.easter)))) return false;
-    if (rule.notEaster !== undefined && sameDay(day, ...dayOf(addDays(sunday, rule.notEaster)))) return false;
+    if (rule.easter !== undefined && !sameDate(day, addDays(sunday, rule.easter))) return false;
+    if (rule.notEaster !== undefined && sameDate(day, addDays(sunday, rule.notEaster))) return false;
   }
   if (rule.orthodox !== undefined) {
     const easter = orthodoxEaster(year);
-    if (!sameDay(day, ...dayOf(addDays(new Date(year, easter.month - 1, easter.day, 12), rule.orthodox)))) return false;
+    if (!sameDate(day, addDays(new Date(year, easter.month - 1, easter.day, 12), rule.orthodox))) return false;
   }
   if (rule.lunar) {
     const lunar = lunarDate(day);
@@ -101,7 +102,6 @@ export function ruleHolds(rule, day, zone = '') {
   }
   return true;
 }
-const dayOf = (date) => [date.getMonth() + 1, date.getDate()];
 
 /** A holiday that lasts `span` days (default 1): does it hold on this day? */
 export function holidayHolds(holiday, day, zone) {
@@ -184,6 +184,6 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&'
  */
 export function greetingHtml({ language, name, fallback, date = new Date(), timeZone = deviceTimeZone() } = {}) {
   let text = '';
-  try { text = pickGreeting({ date, language, name, timeZone })?.text || ''; } catch { text = ''; }
+  try { text = pickGreeting({ date, language, name, timeZone })?.text || ''; } catch { /* the old line */ }
   return escapeHtml(text || `${name}, ${fallback}`);
 }

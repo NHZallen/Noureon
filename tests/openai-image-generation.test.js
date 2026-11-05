@@ -45,12 +45,12 @@ test('a picture from words goes to the generations endpoint, and one built on pi
   const calls = [];
   const fetchImpl = async (url, init) => { calls.push({ url, init }); return json({ data: [{ b64_json: 'QUJD' }], output_format: 'jpeg' }); };
   const generate = createOpenAiImageGenerator({ fetchImpl, getSafetyIdentifier: async () => 'ident' });
-  const fresh = await generate({ apiKey: 'sk-1', model: 'gpt-image-2.5-flare', prompt: 'a cat', config: { aspectRatio: '1:1', resolution: '1K', quality: 'low', outputFormat: 'jpeg' } });
+  const fresh = await generate({ apiKey: 'sk-1', model: 'gpt-image-2.6-flare', prompt: 'a cat', config: { aspectRatio: '1:1', resolution: '1K', quality: 'low', outputFormat: 'jpeg' } });
   assert.deepEqual(fresh.images, [{ b64Json: 'QUJD', mediaType: 'image/jpeg' }]);
   assert.equal(calls[0].url, 'https://api.openai.com/v1/images/generations');
   assert.equal(calls[0].init.headers.Authorization, 'Bearer sk-1');
-  assert.deepEqual(JSON.parse(calls[0].init.body), { model: 'gpt-image-2.5-flare', prompt: 'a cat', size: '1024x1024', quality: 'low', output_format: 'jpeg', safety_identifier: 'ident' });
-  const edited = await generate({ apiKey: 'sk-1', model: 'gpt-image-2.5-flare', prompt: 'make it blue', config: { aspectRatio: '1:1' }, inputReferences: [PNG, PNG] });
+  assert.deepEqual(JSON.parse(calls[0].init.body), { model: 'gpt-image-2.6-flare', prompt: 'a cat', size: '1024x1024', quality: 'low', output_format: 'jpeg', safety_identifier: 'ident' });
+  const edited = await generate({ apiKey: 'sk-1', model: 'gpt-image-2.6-flare', prompt: 'make it blue', config: { aspectRatio: '1:1' }, inputReferences: [PNG, PNG] });
   assert.equal(edited.images.length, 1);
   assert.equal(calls[1].url, 'https://api.openai.com/v1/images/edits');
   assert.equal('Content-Type' in calls[1].init.headers, false, 'the form sets its own');
@@ -74,7 +74,7 @@ test('pictures that each build on their own earlier picture are one request each
 test('the one function for pictures sends a request to the provider it names', async () => {
   const urls = [];
   const generate = createImageGenerator({ fetchImpl: async (url) => { urls.push(String(url)); return json({ data: [{ b64_json: 'QQ==' }] }); }, getSafetyIdentifier: async () => '' });
-  await generate({ provider: 'openai', apiKey: 'k', model: 'gpt-image-2.5-flare', prompt: 'p', config: {} });
-  await generate({ provider: 'openrouter', apiKey: 'k', model: 'openai/gpt-image-2.5-flare', prompt: 'p', config: {} });
+  await generate({ provider: 'openai', apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'p', config: {} });
+  await generate({ provider: 'openrouter', apiKey: 'k', model: 'openai/gpt-image-2.6-flare', prompt: 'p', config: {} });
   assert.deepEqual(urls, ['https://api.openai.com/v1/images/generations', 'https://openrouter.ai/api/v1/images']);
 });

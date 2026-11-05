@@ -1,6 +1,6 @@
 // Pictures from OpenAI's own Images API (docs/superpowers/specs/2026-10-29-openai-provider-design.md): `POST /v1/images/generations` (JSON) for a picture from words,
 // `POST /v1/images/edits` (a form with the pictures to start from) when there are reference pictures. The probe of 2026-10-29 found both answer a browser and take
-// `gpt-image-2.5-flare` at low quality (about 5 seconds, 196 picture tokens). Nothing is kept on OpenAI's side that the person did not ask for: a picture is returned as data
+// `gpt-image-2.5-flare` at low quality (about 5 seconds, 196 picture tokens; 2.6 has the same parameters and adds the formats gif and svg). Nothing is kept on OpenAI's side that the person did not ask for: a picture is returned as data
 // and the app keeps it; a picture built on an earlier one is sent as data, never as an id.
 //
 // The same function as the one for OpenRouter (openrouter-image-generation.js): `({ apiKey, model, prompt, config, inputReferences, groups, signal }) => { images }`, so the
@@ -9,6 +9,7 @@
 // Shared by the page and the server: no window, no document, no browser storage.
 
 import { OPENAI_BASE_URL } from '../shell/openai-models.js';
+import { IMAGE_MEDIA_TYPES, SVG_REFUSED_MESSAGE, isAnimatedOrVectorFormat, makeSvgsSafe, settleImageFormatConfig } from './image-formats.js';
 
 // How many pixels each tier means (the nearest the rules allow is taken); a shape is a ratio of width to height.
 const TIER_PIXELS = Object.freeze({ '512': 262_144, '768': 589_824, '1K': 1_048_576, '1.5K': 2_359_296, '2K': 4_194_304, '4K': 8_294_400 });
@@ -43,14 +44,15 @@ export function openAiImageSize(aspectRatio, resolution) {
   return `${width}x${height}`;
 }
 
-const MEDIA_TYPES = Object.freeze({ png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' });
+const MEDIA_TYPES = IMAGE_MEDIA_TYPES;
 
 const copyIfDefined = (target, key, value) => {
   if (value !== undefined && value !== null && value !== '') target[key] = value;
 };
 
 /** The fields of a request to either endpoint (the form adds the pictures to start from). */
-export function buildOpenAiImageFields({ model, prompt, config = {}, safetyIdentifier = '' }) {
+export function buildOpenAiImageFields({ model, prompt, config: asked = {}, safetyIdentifier = '' }) {
+  const config = settleImageFormatConfig(asked);
   const fields = { model, prompt };
   copyIfDefined(fields, 'n', config.n);
   fields.size = openAiImageSize(config.aspectRatio, config.resolution);
@@ -59,6 +61,9 @@ export function buildOpenAiImageFields({ model, prompt, config = {}, safetyIdent
   copyIfDefined(fields, 'background', config.background);
   // A compression is for the formats that lose something.
   if (config.outputFormat === 'jpeg' || config.outputFormat === 'webp') copyIfDefined(fields, 'output_compression', config.outputCompression);
+  // A GIF (GPT Image 2.6): the number of frames and the time of one; they are only for that format.
+  copyIfDefined(fields, 'frame_count', config.frameCount);
+  copyIfDefined(fields, 'frame_duration_ms', config.frameDuration);
   copyIfDefined(fields, 'safety_identifier', safetyIdentifier);
   return fields;
 }
@@ -86,6 +91,8 @@ export function createOpenAiImageGenerator({ fetchImpl = (...args) => globalThis
   const callOnce = async ({ apiKey, model, prompt, config, inputReferences, signal }) => {
     const fields = buildOpenAiImageFields({ model, prompt, config, safetyIdentifier: await getSafetyIdentifier() });
     let response;
+    // A GIF and an SVG are made from words alone (the endpoint that edits does not make them).
+    if (inputReferences.length > 0 && isAnimatedOrVectorFormat(config?.outputFormat)) throw new Error('A GIF or an SVG is made from words alone.');
     if (inputReferences.length > 0) {
       const form = new FormData();
       for (const [name, value] of Object.entries(fields)) form.append(name, String(value));
@@ -100,7 +107,10 @@ export function createOpenAiImageGenerator({ fetchImpl = (...args) => globalThis
     if (!response.ok) throw new Error(await readError(response));
     const body = await response.json();
     const mediaType = MEDIA_TYPES[body.output_format] || MEDIA_TYPES[fields.output_format] || 'image/png';
-    return (body.data || []).filter((image) => image?.b64_json).map((image) => ({ b64Json: image.b64_json, mediaType }));
+    // An SVG is made safe before anything of it is kept or shown (svg-sanitize.js); one that cannot be made safe is left out.
+    const { images, refused } = await makeSvgsSafe((body.data || []).filter((image) => image?.b64_json).map((image) => ({ b64Json: image.b64_json, mediaType })));
+    if (!images.length && refused) throw new Error(SVG_REFUSED_MESSAGE);
+    return images;
   };
 
   return async function generateOpenAiImage({

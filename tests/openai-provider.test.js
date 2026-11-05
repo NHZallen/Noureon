@@ -57,7 +57,7 @@ test('web search: OpenAI\'s own tool unless the person chose the search service,
   assert.equal(modelUsesNativeWebSearch(luna, { openaiWebSearch: 'provider' }), false);
   assert.equal(modelUsesTavilySearch(luna, { openaiWebSearch: 'provider' }), true);
   // The picture models search nothing.
-  assert.equal(modelUsesNativeWebSearch(model('gpt-image-2.5-flare')), false);
+  assert.equal(modelUsesNativeWebSearch(model('gpt-image-2.6-flare')), false);
   // The page's registry reads the choice from the settings each time.
   let config = { openaiWebSearch: 'official' };
   const registry = createModelRegistry({ getConfig: () => config, normalizeConversationModel: () => luna });

@@ -4,10 +4,14 @@ import {
     createModelIdCanonicalizer,
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
+import { GPT_IMAGE_26_FORMATS } from '../images/image-formats.js';
 import { OPENAI_IMAGE_MODEL_IDS, OPENAI_MODELS, OPENAI_PROVIDER, OPENAI_REASONING_CONFIGS, OPENAI_TEXT_MODEL_IDS, openAiUsesOfficialSearch } from './openai-models.js';
 
 export { openAiUsesOfficialSearch };
 import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelReadsFile, opencodeModelReadsPdf, opencodeModelSupportsVision } from './opencode-models.js';
+
+// The anonymous test model of OpenRouter (written in several lists below).
+const CROUTON_ALPHA = 'stealth/crouton-alpha';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
     'gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
@@ -43,7 +47,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'minimax/minimax-m3.1-flash': { releasedAt: 20261020, outputPricePerMillion: 0.55 },
     'moonshotai/kimi-k3.1-pro': { releasedAt: 20261024, outputPricePerMillion: 10 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
-    'stealth/crouton-alpha': { releasedAt: 20261106, outputPricePerMillion: 0 },
+    [CROUTON_ALPHA]: { releasedAt: 20261106, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
@@ -51,8 +55,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'openai/gpt-6-luna': { releasedAt: 20260922, outputPricePerMillion: 0.5 },
     'openai/gpt-6.1-terra': { releasedAt: 20261027, outputPricePerMillion: 5 },
     'openai/gpt-6.1-sol': { releasedAt: 20260929, outputPricePerMillion: 10 },
-    'openai/gpt-image-2.5-flare': { releasedAt: 20260909, outputPricePerMillion: 30 },
-    'openai/gpt-image-2.5-sunburst': { releasedAt: 20260909, outputPricePerMillion: 30 },
+    'openai/gpt-image-2.6-flare': { releasedAt: 20261104, outputPricePerMillion: 30 },
+    'openai/gpt-image-2.6-sunburst': { releasedAt: 20261104, outputPricePerMillion: 30 },
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
     'qwen/qwen3.8-max-0902': { releasedAt: 20260903, outputPricePerMillion: 6 },
@@ -76,12 +80,13 @@ const KREA_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
 const QWEN_IMAGE_RATIOS = Object.freeze(['1:1', '1:2', '1:4', '2:1', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '9:16', '16:9']);
 const QWEN_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
 const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', 'auto']);
-// GPT Image 2.5 (OpenRouter's parameters, 2026-10-17): aspect_ratio with auto, quality up to xhigh and max, background, n 1-10, 0-16 reference pictures, output_compression 0-100; no resolution.
+// GPT Image 2.6 (OpenRouter's parameters, 2026-11-06; the same as 2.5): aspect_ratio with auto, quality up to xhigh and max, background, n 1-10, 0-16 reference pictures, output_compression 0-100; no resolution. New in 2.6: the formats gif
+// (frame_count and frame_duration_ms) and svg (one picture, no compression): image-formats.js.
 const GPT_IMAGE_QUALITIES = Object.freeze(['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
 // Only GPT Image lists quality, background and output_compression: the other image models get none of them (no controls, nothing sent).
-const GPT_IMAGE_OPTIONS = Object.freeze(['quality', 'background', 'outputCompression']);
+const GPT_IMAGE_OPTIONS = Object.freeze(['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration']);
 // The sizes (resolution tiers) each model accepts. Gemini Nano Banana 2.1 makes 1K, 2K and 4K (it has no 512 size, a saved 512 moves to
-// 1K); the GPT Image 2.5 models take no resolution (the size follows the ratio and the quality); FLUX.3 Image takes 768, 1K, 1.5K, 2K and 4K. (A model whose list is empty would get no resolution control and none is sent.)
+// 1K); the GPT Image 2.6 models take no resolution (the size follows the ratio and the quality); FLUX.3 Image takes 768, 1K, 1.5K, 2K and 4K. (A model whose list is empty would get no resolution control and none is sent.)
 const GEMINI_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
 const FLUX_IMAGE_RESOLUTIONS = Object.freeze(['768', '1K', '1.5K', '2K', '4K']);
 const GPT_IMAGE_RESOLUTIONS = Object.freeze([]);
@@ -155,7 +160,7 @@ export const MODEL_CATALOG = [
 
     // OpenRouter Free Models (Stealth): an anonymous model OpenRouter lends for testing (free, 1,048,576 tokens, thinking always on). The owner's tests of 2026-11-06: tools (two calls at once), JSON by schema, a 92,000-token text
     // (the needle was found), Chinese instructions; a picture is read but the small digits of an invoice came back cut ("4,28" for "4,286"). It can be taken down or changed at any time, so it is not a default.
-    { id: 'stealth/crouton-alpha', name: 'Crouton Alpha (test)', provider: 'openrouter', descriptionKey: 'model_crouton_alpha_desc', category: 'general', tier: ['free'] },
+    { id: CROUTON_ALPHA, name: 'Crouton Alpha (test)', provider: 'openrouter', descriptionKey: 'model_crouton_alpha_desc', category: 'general', tier: ['free'] },
 
     // OpenRouter Free Models (NVIDIA)
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
@@ -169,8 +174,11 @@ export const MODEL_CATALOG = [
     { id: 'openai/gpt-6.1-terra', legacyIds: ['openai/gpt-5.6-terra'], name: 'OpenAI GPT-6.1 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
     { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
-    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, maxImageCount: 10, maxImageReferences: 16 },
-    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, maxImageCount: 10, maxImageReferences: 16 },
+    // GPT Image 2.6 (released 2026-11-04; the owner asked for it on 2026-11-06) took the place of 2.5: a chat that names a 2.5 model goes to the same one of 2.6.
+    ...[['flare', ['openai/gpt-image-2.5-flare', 'openai/gpt-image-2']], ['sunburst', ['openai/gpt-image-2.5-sunburst']]].map(([name, legacyIds]) => ({
+        id: `openai/gpt-image-2.6-${name}`, legacyIds, name: `OpenAI GPT Image 2.6 ${name[0].toUpperCase()}${name.slice(1)}`, provider: 'openrouter', descriptionKey: `model_gpt_image_2_6_${name}_desc`, category: 'image_generation', outputModality: 'image',
+        supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, supportedImageFormats: GPT_IMAGE_26_FORMATS, maxImageCount: 10, maxImageReferences: 16
+    })),
 
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },
@@ -200,8 +208,8 @@ export const isModelRetired = (model, now = new Date()) => {
 };
 export const MODELS = MODEL_CATALOG.filter((model) => !isModelRetired(model));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
-    'openai/gpt-image-2.5-flare',
-    'openai/gpt-image-2.5-sunburst',
+    'openai/gpt-image-2.6-flare',
+    'openai/gpt-image-2.6-sunburst',
     'google/gemini-nano-banana-2.1',
     'black-forest-labs/flux-3-image',
     'black-forest-labs/flux-3-image-klein',
@@ -226,7 +234,7 @@ export const OPENROUTER_VISION_MODELS = [
     'moonshotai/kimi-k3.1-pro',
     'nvidia/nemotron-3.5-super-vl:free',
     // The tests of 2026-11-06: a picture is read (the small digits can be cut).
-    'stealth/crouton-alpha',
+    CROUTON_ALPHA,
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-6.1-terra',
@@ -275,7 +283,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'moonshotai/kimi-k3.1-pro',
     'poolside/laguna-s-2.1:free',
     // The tests of 2026-11-06: two calls at once with valid arguments.
-    'stealth/crouton-alpha',
+    CROUTON_ALPHA,
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',
@@ -345,6 +353,9 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/stepfun-ai/step-5-preview']],
     // Mistral Large 4 on NVIDIA: low, medium and high are taken; "none" is refused (400), so the thinking cannot be turned off (the probe of 2026-10-30).
     [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/mistralai/mistral-large-4-1t-a52b']],
+    // Crouton Alpha (the owner's tests of 2026-11-06): all six depths are taken and all answered right on three hard problems; the time grows with the depth (the hardest: 52 s at minimal, 144 s at medium, 167 s at max).
+    // OpenRouter's own default is max, which is slow for what most chats ask, so the one used when none is chosen is medium. The upstream pool is shared and answers 429 when many requests come together.
+    [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', [CROUTON_ALPHA]],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-haiku-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],

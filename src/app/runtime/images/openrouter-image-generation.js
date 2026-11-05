@@ -1,10 +1,13 @@
+import { IMAGE_MEDIA_TYPES, SVG_REFUSED_MESSAGE, makeSvgsSafe, settleImageFormatConfig } from './image-formats.js';
+
 const IMAGE_API_URL = 'https://openrouter.ai/api/v1/images';
 
 const copyIfDefined = (target, key, value) => {
   if (value !== undefined && value !== null && value !== '') target[key] = value;
 };
 
-export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputReferences = [] }) {
+export function buildOpenRouterImagePayload({ model, prompt, config: asked = {}, inputReferences = [] }) {
+  const config = settleImageFormatConfig(asked);
   const payload = { model, prompt };
   copyIfDefined(payload, 'n', config.n);
   copyIfDefined(payload, 'resolution', config.resolution);
@@ -14,6 +17,9 @@ export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputR
   copyIfDefined(payload, 'output_format', config.outputFormat);
   copyIfDefined(payload, 'background', config.background);
   copyIfDefined(payload, 'output_compression', config.outputCompression);
+  // A GIF (GPT Image 2.6): the number of frames and the time of one, as OpenAI names them.
+  copyIfDefined(payload, 'frame_count', config.frameCount);
+  copyIfDefined(payload, 'frame_duration_ms', config.frameDuration);
   copyIfDefined(payload, 'seed', config.seed);
   if (config.provider) payload.provider = config.provider;
   if (config.reasoningEffort) payload.reasoning = { effort: config.reasoningEffort };
@@ -26,9 +32,10 @@ export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputR
   return payload;
 }
 
-const normalizeImage = (image = {}) => ({
+// The type of a picture is the one the answer says; when it says none, a GIF or an SVG is what was asked for (nothing else would be) and the rest is taken for a png, as before.
+const normalizeImage = (image = {}, config = {}) => ({
   b64Json: image.b64_json || '',
-  mediaType: image.media_type || 'image/png'
+  mediaType: image.media_type || (config.outputFormat === 'gif' || config.outputFormat === 'svg' ? IMAGE_MEDIA_TYPES[config.outputFormat] : 'image/png')
 });
 
 async function readError(response) {
@@ -61,7 +68,10 @@ export function createOpenRouterImageGenerator({ fetchImpl = fetch, makeSeed = r
     });
     if (!response.ok) throw new Error(await readError(response));
     const body = await response.json();
-    return (body.data || []).map(normalizeImage).filter(image => image.b64Json);
+    // An SVG is made safe before anything of it is kept or shown (svg-sanitize.js); one that cannot be made safe is left out.
+    const { images, refused } = await makeSvgsSafe((body.data || []).map(image => normalizeImage(image, config)).filter(image => image.b64Json));
+    if (!images.length && refused) throw new Error(SVG_REFUSED_MESSAGE);
+    return images;
   };
 
   return async function generateOpenRouterImage({

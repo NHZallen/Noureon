@@ -26,7 +26,7 @@ const goodSpec = (permission = 'always', extraTools = {}) => ({
   sequence: 4,
   model: { provider: 'openrouter', id: 'test/model', info: { name: 'Test', provider: 'openrouter', id: 'openrouter-test', apiId: 'test/model' } },
   request: { history: [], currentMessage: { parts: [{ text: 'draw me a cat' }] }, systemInstruction: 'Be brief.', language: 'en' },
-  tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false, imageGeneration: { model: { provider: 'openrouter', id: 'openai/gpt-image-2.5-flare', info: { name: 'GPT Image', maxImageCount: 4 } }, permission }, ...extraTools },
+  tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false, imageGeneration: { model: { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare', info: { name: 'GPT Image', maxImageCount: 4 } }, permission }, ...extraTools },
   secrets: { providerKey: 'sk-provider-secret-value', imageKey: 'sk-image-secret-value' }
 });
 

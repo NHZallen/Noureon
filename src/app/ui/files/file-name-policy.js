@@ -99,7 +99,7 @@ export function nameKeyword(raw) {
   return Array.from(kept.replace(/-/g, '')).length >= 2 ? kept : '';
 }
 
-const IMAGE_EXTENSIONS = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'image/png': 'png' };
+export const IMAGE_EXTENSIONS = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'image/png': 'png' };
 
 /** The name a picture is downloaded under: noureon-<words>-<date>-<time>-<number>.<png|jpg|…>. `description` is its summary or the prompt it was drawn from. */
 export function createImageFileName({ description = '', createdAt = null, number = 1, mediaType = 'image/png', now = new Date() } = {}) {

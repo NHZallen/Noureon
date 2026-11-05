@@ -20,7 +20,7 @@ const good = (extra = {}) => ({
   tools: {
     webSearch: 'off',
     advanced: false,
-    imageGeneration: { model: { provider: 'openrouter', id: 'openai/gpt-image-2.5-flare', info: { name: 'GPT Image', outputModality: 'image', maxImageReferences: 16 } }, permission: 'ask' },
+    imageGeneration: { model: { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare', info: { name: 'GPT Image', outputModality: 'image', maxImageReferences: 16 } }, permission: 'ask' },
     ...extra.tools
   },
   secrets: { providerKey: 'sk-provider-secret-value', imageKey: 'sk-image-secret-value', ...extra.secrets }
@@ -36,7 +36,7 @@ test('the protocol is version 2', () => {
 test('a reply that draws keeps the picture model, the permission and the key of the picture model', () => {
   const result = validateRunSpec(good());
   assert.equal(result.ok, true, JSON.stringify(result.errors));
-  assert.deepEqual(result.spec.tools.imageGeneration.model.id, 'openai/gpt-image-2.5-flare');
+  assert.deepEqual(result.spec.tools.imageGeneration.model.id, 'openai/gpt-image-2.6-flare');
   assert.equal(result.spec.tools.imageGeneration.permission, 'ask');
   assert.equal(result.spec.secrets.imageKey, 'sk-image-secret-value');
   const always = validateRunSpec(good({ tools: { imageGeneration: { model: { provider: 'openrouter', id: 'x', info: {} }, permission: 'always' } } }));

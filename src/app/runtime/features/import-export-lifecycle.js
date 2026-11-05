@@ -1,7 +1,7 @@
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
 import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
-import { createBackupFileName } from '../../ui/files/file-name-policy.js';
+import { IMAGE_EXTENSIONS, createBackupFileName } from '../../ui/files/file-name-policy.js';
 import {
   decryptSyncVaultPayload,
   encryptSyncVaultPayload,
@@ -294,10 +294,7 @@ export function createImportExportLifecycle({
                 } else if (part.generatedImage) {
                   const blob = await getGeneratedImageBlob(part.generatedImage);
                   if (blob) {
-                    const extension = part.generatedImage.mediaType === 'image/webp'
-                      ? 'webp'
-                      : part.generatedImage.mediaType === 'image/jpeg' ? 'jpg'
-                        : part.generatedImage.mediaType === 'image/svg+xml' ? 'svg' : 'png';
+                    const extension = IMAGE_EXTENSIONS[part.generatedImage.mediaType] || 'png';
                     const imageName = `generated_${part.generatedImage.id}.${extension}`;
                     imagesFolder.file(imageName, blob);
                     part.generatedImage._zipRef = `images/${imageName}`;

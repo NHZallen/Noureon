@@ -9,7 +9,7 @@ import { digestSettings } from '../src/data/settings-merge.js';
 // The models a text model may call and the permission for pictures: what the settings keep, and how a bad value is read.
 
 test('a chosen model is a provider and an id, and anything else is none', () => {
-  assert.deepEqual(normalizeToolModel({ provider: 'openrouter', id: 'openai/gpt-image-2.5-flare', extra: 1 }), { provider: 'openrouter', id: 'openai/gpt-image-2.5-flare' });
+  assert.deepEqual(normalizeToolModel({ provider: 'openrouter', id: 'openai/gpt-image-2.6-flare', extra: 1 }), { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare' });
   for (const bad of [null, undefined, 'openrouter', 5, [], {}, { provider: 'openrouter' }, { id: 'x' }, { provider: '', id: 'x' }, { provider: 'a'.repeat(41), id: 'x' }, { provider: 'a', id: 'x'.repeat(201) }]) {
     assert.equal(normalizeToolModel(bad), null, JSON.stringify(bad));
   }

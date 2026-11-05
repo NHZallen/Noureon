@@ -25,7 +25,7 @@ const baseSpec = (overrides = {}) => ({
     currentMessage: { parts: [{ text: 'put the kettle on the table' }, attached('sofa.jpg')] },
     language: 'en'
   },
-  tools: { imageGeneration: { model: { provider: 'openrouter', id: 'openai/gpt-image-2.5-flare', info: { name: 'GPT Image', maxImageCount: 4, maxImageReferences: 16, supportedImageAspectRatios: ['1:1', '16:9', '9:16'] } }, permission: 'always' } },
+  tools: { imageGeneration: { model: { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare', info: { name: 'GPT Image', maxImageCount: 4, maxImageReferences: 16, supportedImageAspectRatios: ['1:1', '16:9', '9:16'] } }, permission: 'always' } },
   ...overrides
 });
 
@@ -88,7 +88,7 @@ test('a new picture: the prompt goes to the picture model with the picture key a
   assert.equal(requests.length, 1);
   assert.match(requests[0].url, /openrouter\.ai\/api\/v1\/images$/);
   assert.equal(requests[0].headers.Authorization, `Bearer ${KEY}`, 'the key of the picture model, not the reply\'s');
-  assert.equal(requests[0].body.model, 'openai/gpt-image-2.5-flare');
+  assert.equal(requests[0].body.model, 'openai/gpt-image-2.6-flare');
   assert.equal(requests[0].body.prompt, 'a cat in the rain');
   assert.equal(requests[0].body.aspect_ratio, '9:16');
   assert.equal(requests[0].body.input_references, undefined, 'no reference, no starting picture');
@@ -124,7 +124,7 @@ test('the person is asked first unless they allowed it for good; once, always or
   assert.equal(ask.kind, 'draw');
   assert.equal(ask.prompt, 'a cat');
   assert.equal(ask.count, 3);
-  assert.deepEqual(ask.model, { id: 'openai/gpt-image-2.5-flare', name: 'GPT Image' });
+  assert.deepEqual(ask.model, { id: 'openai/gpt-image-2.6-flare', name: 'GPT Image' });
   assert.equal(f.requests.length, 0, 'nothing is drawn before the answer');
   assert.equal(f.loader.answer(ask.id, 'maybe').answered, false, 'an answer the question does not take');
   assert.equal(f.loader.answer(ask.id, 'once').answered, true);

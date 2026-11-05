@@ -268,7 +268,7 @@ test('the picture is made here when the server is not chosen, does not take it, 
 
 test('no picture is previewed while it is made here: the request carries no callback for one', async () => {
   const { run, generated } = lifecycleHarness();
-  await run({ modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' }, userParts: [{ text: 'a cat' }] });
+  await run({ modelInfo: { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' }, userParts: [{ text: 'a cat' }] });
   assert.equal(generated[0].onPartial, undefined);
 });
 

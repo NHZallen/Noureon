@@ -70,8 +70,8 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-fable-5'), false);
   assert.ok(MODELS.some((model) => model.id === 'openai/gpt-6-astra' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'openai/gpt-5.5'), false);
-  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-flare' && model.provider === 'openrouter'));
-  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-sunburst' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.6-flare' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.6-sunburst' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => 'supportsImageStreaming' in model), false, 'no image model streams preview pictures');
   assert.equal(MODELS.some((model) => model.id === 'openai/gpt-image-2'), false);
   assert.equal(MODELS.some((model) => model.id === 'stealth/ox-alpha'), false);
@@ -101,7 +101,12 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-0731'), 'deepseek/deepseek-v4.1-flash-1017');
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-vision-exp'), 'deepseek/deepseek-v4.1-flash-1017');
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-pro-0813'), 'deepseek/deepseek-v4.1-flash-1017');
-  assert.equal(getCanonicalModelId('openai/gpt-image-2'), 'openai/gpt-image-2.5-flare');
+  assert.equal(getCanonicalModelId('openai/gpt-image-2'), 'openai/gpt-image-2.6-flare');
+  // GPT Image 2.6 took the place of 2.5 (both providers): a chat or a setting that names a 2.5 model goes to the same one of 2.6.
+  assert.equal(getCanonicalModelId('openai/gpt-image-2.5-flare'), 'openai/gpt-image-2.6-flare');
+  assert.equal(getCanonicalModelId('openai/gpt-image-2.5-sunburst'), 'openai/gpt-image-2.6-sunburst');
+  assert.equal(getCanonicalModelId('openai-api/gpt-image-2.5-flare'), 'openai-api/gpt-image-2.6-flare');
+  assert.equal(getCanonicalModelId('openai-api/gpt-image-2.5-sunburst'), 'openai-api/gpt-image-2.6-sunburst');
 });
 
 test('model registry preserves provider labels and API id aliases', () => {
@@ -293,8 +298,8 @@ test('model registry leaves excluded models on default reasoning', () => {
     'nvidia/nemotron-3.5-lightning:free',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
-    'openai/gpt-image-2.5-flare',
-    'openai/gpt-image-2.5-sunburst'
+    'openai/gpt-image-2.6-flare',
+    'openai/gpt-image-2.6-sunburst'
   ];
 
   for (const id of excludedIds) {
@@ -438,6 +443,10 @@ test('Crouton Alpha, the anonymous test model of OpenRouter: free, sees pictures
   assert.equal(modelSupportsVision(model), true);
   assert.ok(TOOL_CALLING_MODEL_IDS.includes('stealth/crouton-alpha'));
   assert.notEqual(CHEAP_MODEL_ID, 'stealth/crouton-alpha');
+  // The tests of 2026-11-06: six depths of thinking, medium when none is chosen (OpenRouter's own default is max, which is slow).
+  const reasoning = getModelReasoningConfig(model);
+  assert.deepEqual(reasoning.options, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(reasoning.defaultEffort, 'medium');
   const { computeAppCounts } = await import('../scripts/app-counts.mjs');
   const counts = await computeAppCounts();
   const { HOME_FACTS } = await import('../src/data/home-texts.js');
