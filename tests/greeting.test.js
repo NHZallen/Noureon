@@ -35,7 +35,7 @@ test('the parts of the day, and a night owl whatever the day', () => {
       assert.ok(GREETING_TEXTS[language].pools.lateNight.some((text) => putName(text, 'Allen') === line.text));
     }
   }
-  assert.match(greet('zh-TW', at(2026, 3, 4, 2)).text, /夜貓子/);
+  assert.ok(GREETING_TEXTS['zh-TW'].pools.lateNight.filter((text) => /夜貓子/.test(text)).length >= 2, 'the night owl is in the Chinese lines');
 });
 
 test('the same hour of the same day gives the same line, and another hour or day can give another one', () => {
@@ -43,7 +43,7 @@ test('the same hour of the same day gives the same line, and another hour or day
     assert.equal(greet(language, at(2026, 3, 4, 15)).text, greet(language, at(2026, 3, 4, 15)).text);
     const lines = new Set();
     for (let day = 2; day < 30; day += 1) lines.add(greet(language, at(2026, 3, day, 15)).text);
-    assert.ok(lines.size >= 3, `${language}: the lines change from day to day`);
+    assert.ok(lines.size >= 5, `${language}: the lines change from day to day`);
   }
 });
 
@@ -155,7 +155,7 @@ test('every language has the same parts, enough lines, only the {name} place, an
     const words = GREETING_TEXTS[language];
     assert.deepEqual(Object.keys(words.pools), parts, `${language}: the same parts`);
     for (const [part, lines] of Object.entries(words.pools)) {
-      assert.ok(lines.length >= (['monday', 'friday', 'saturday', 'sunday'].includes(part) ? 2 : 3), `${language} ${part}: enough lines`);
+      assert.ok(lines.length >= (['monday', 'friday', 'saturday', 'sunday'].includes(part) ? 2 : 7), `${language} ${part}: enough lines`);
       assert.equal(new Set(lines).size, lines.length, `${language} ${part}: no line twice`);
     }
     const ids = words.holidays.map((holiday) => holiday.id);
