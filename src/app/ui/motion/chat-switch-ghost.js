@@ -9,6 +9,8 @@ export function fadeOutPreviousChat({ messageList, chatContainer, document }) {
   const view = document?.defaultView;
   if (!messageList || !chatContainer || !view || typeof messageList.animate !== 'function') return false;
   if (view.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return false;
+  // A page of the projects lies over the chat (the chat made for its box is drawn under it): a copy of the old chat fading out over the page would show the greeting on top of it.
+  if (document.querySelector('#app-container > .pj:not(.pj-dialog-only)')) return false;
   const children = Array.from(messageList.children || []);
   if (children.length === 0) return false;
 

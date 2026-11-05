@@ -123,3 +123,17 @@ test('going back out of the overview does not bring back the chat of a project t
   assert.deepEqual(outside.state.loaded, ['old']);
   await outside.window.happyDOM.abort();
 });
+
+test('leaving the page always tells the header of the chat, also when the chat that was open is gone (a header that is not told keeps showing the project, and its arrow brings the page back)', async () => {
+  for (const options of [{ previousExists: false }, { previous: null }]) {
+    const { window, document, state, composer, slotOnPage } = setup(options);
+    composer.attach(slotOnPage(), 'p1');
+    await flush();
+    let changed = 0;
+    document.addEventListener('noureon:chat-changed', () => { changed += 1; });
+    await composer.release({ leaveProject: true });
+    assert.ok(changed >= 1, JSON.stringify(options));
+    assert.deepEqual(state.loaded, []);
+    await window.happyDOM.abort();
+  }
+});
