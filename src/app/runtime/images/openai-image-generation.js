@@ -68,9 +68,9 @@ export function buildOpenAiImageFields({ model, prompt, config: asked = {}, safe
   // A GIF (GPT Image 2.6): the number of frames and the time of one; they are only for that format.
   copyIfDefined(fields, 'frame_count', config.frameCount);
   copyIfDefined(fields, 'frame_duration_ms', config.frameDuration);
-  // A GIF is a sheet of its frames cut up by OpenAI, and a sheet has to fit its limits (the longest edge, the pixels): 1024x1024 made 400 for 4 frames and for 9 (probe, 2026-11-06), 960x960 and `auto`
-  // (512x512) were taken. The size is left to the model.
-  if (config.outputFormat === 'gif') fields.size = 'auto';
+  // A GIF is a sheet of its frames cut up by OpenAI, and a sheet has to fit its limits (the longest edge 3840, the pixels): 1024x1024 made 400 for 4 frames and for 9 (probe, 2026-11-06). 512x512 was taken
+  // for 2, 4 and 16 frames (the range probe of the same day), and is what `auto` gave for 4, so it is the size of a GIF.
+  if (config.outputFormat === 'gif') fields.size = '512x512';
   if (config.outputFormat === 'svg') fields.svg = { model: OPENAI_SVG_MODEL };
   copyIfDefined(fields, 'safety_identifier', safetyIdentifier);
   return fields;

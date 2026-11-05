@@ -45,7 +45,7 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 **改了什麼**：
 
 - **拿掉**：`svg-sanitize.js`、它的測試、`server-shared-modules.json` 的那一筆、`makeSvgsSafe` 與 `SVG_REFUSED_MESSAGE`、顯示前的清理（`generated-image-assets.js`）、「只用文字」的錯誤訊息與格式選單的提示。**風險要記著**：SVG 是 `<img>` 顯示，不會執行腳本；但把圖的 blob 位址單獨在新分頁打開，裡面的腳本會用 app 的權限執行（app 內目前沒有這個動作，下載是 `<a download>`）。以後若加「在新分頁開啟圖片」，SVG 要另外處理（例如開成下載或放在沙盒 iframe）。
-- **請求**：有附圖時 GIF 和 SVG 都照送（OpenAI 走 `/images/edits`）。OpenAI 的 GIF 一律送 `size: auto`（探測：`auto` 給 512×512，不會被拆表限制擋）；OpenAI 的 SVG 自動帶 `svg: { model: 'gpt-6-luna' }`（`OPENAI_SVG_MODEL`，app 本來就有這個模型，不給人選）。前一張圖會自動當底圖給 png/webp/jpeg/gif；SVG 不自動帶（edits 做不了 SVG，只會 400）；前一張圖是 GIF 或 SVG 時一樣不當底圖（edits 只收 png、jpeg、webp）。
+- **請求**：有附圖時 GIF 和 SVG 都照送（OpenAI 走 `/images/edits`）。OpenAI 的 GIF 一律送 `size: 512x512`（探測：2、4、16 格都成功；先前用過的 `auto` 在 4 格也是 512×512，但 9、16 格沒驗證過，所以改成明確的尺寸）；OpenAI 的 SVG 自動帶 `svg: { model: 'gpt-6-luna' }`（`OPENAI_SVG_MODEL`，app 本來就有這個模型，不給人選）。前一張圖會自動當底圖給 png/webp/jpeg/gif；SVG 不自動帶（edits 做不了 SVG，只會 400）；前一張圖是 GIF 或 SVG 時一樣不當底圖（edits 只收 png、jpeg、webp）。
 - **類型看位元組**：`sniffImageType`（`image-formats.js`）從開頭的位元組認出 gif/png/jpeg/webp/svg，優先於「回答說的」和「要求的」，所以 OpenRouter 在圖+文字要 GIF 時回的 PNG 分格圖會被當成 png，不會被存成壞掉的 gif。
 - **文字偵測**（`decisions/image-decisions.js`、`images/image-spoken-request.js`）：判斷模型多四個是非題：要動的圖（`animated`）、要向量圖（`vector`）、有說影格數（`frames_stated`）、有說每格時間（`frame_time_stated`）。是就用，只對這一則訊息有效，設定不動；數字由 `readWrittenFrames`（「8 frames」「8 格」「六格」「12 кадров」…，「每秒 30 格」不算）和 `readWrittenFrameTime`（「200 ms」「0.5 秒」「0,5 s」…，換算成毫秒、取到 10，不在 20 到 2000 的不算，所以「整段 3 秒」不會被當成每格時間）從話裡讀。GIF 才讀影格；模型做不出該格式（不是 GPT Image 2.6）就不送並說明（`imageFormatOverLimit`，五語）。要動圖時 prompt 多一句，叫模型畫動作本身、不要畫一排格子或寫出數字（`GIF_INSTRUCTION`、`SVG_INSTRUCTION`）。判斷模型沒答（沒金鑰、太慢、暫停）就只照設定。
 - **介面**：影格數、每格時間（和品質、背景、壓縮）只要模型有就一直顯示；格式不用的設定留著、不送出（`settleImageFormatConfig`）。
@@ -66,3 +66,14 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 - 沒有「GIF 模式」之類的切換鈕：格式只是進階設定裡的下拉，說一句「做成 GIF／SVG」就會自動切（只對那則訊息）。
 
 **還沒驗證**：OpenRouter 的 `openai/gpt-6-luna` 帶圖片的 chat/completions 請求（OpenRouter 的視覺輸入格式是標準的 `image_url`，單元測試用假的回答驗證了請求長相和讀取，沒有真實連線）；判斷模型 `svg` 題的實際準確度（`scripts/decisions-image-probe.mjs` 可以加句子驗）；文字模型寫出很大的 SVG 時的耗時（非串流，一次等回答）。
+
+## 7. 實測結果（2026-11-06 04:14–04:17，Allen 的兩份報告）
+
+**SVG 寫手**（`svg-writer-probe-standalone.mjs`）：openrouter-text 21.3 秒、openrouter-picture 3.7 秒（方圓三角都有）、openai-picture 4.5 秒（同）、openai-images-svg（官方方式）61.1 秒。所以圖 → SVG 走文字模型比官方的 Images API 快很多。判斷模型 `svg` 題 14 句（五語）14 句全對，要的 0.96–0.99，不要的 0.01–0.09，門檻 0.8 沒有誤判。
+
+**GIF 參數範圍**（flare、low）：
+- `frame_count`：兩家都是 2–16（1、17 都 400），預設 9。與介面一致。
+- `frame_duration_ms`：OpenAI 下限 20（10、15、19 回 400），文件寫四捨五入到 10 ms、上限 655,350，實測 3000 成功；OpenRouter 自己擋在 20–2000。介面用 20–2000（兩家共同的範圍），不改。
+- 尺寸：OpenAI 1024×1024 配 4 或 9 格 400；512×512 在 2、4、16 格成功。OpenRouter 1:1 每格 512×512。16:9 沒測到（OpenRouter 402，見下）。
+- OpenAI 的 GIF「需有 GIF 預覽權限」：沒有權限的帳號會收到 API 的錯誤，app 原樣顯示。
+- OpenRouter 的 402 `in_flight_budget_exhausted` 是帳戶餘額不夠預留併發請求（報告寫總儲值 31 USD、已用 29.37 USD），不是程式或參數的問題。

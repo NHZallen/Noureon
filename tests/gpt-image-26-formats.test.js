@@ -69,7 +69,7 @@ test('a gif and an svg come back with their own types, and pictures to start fro
   assert.deepEqual(gif.images, [{ b64Json: gifBytes, mediaType: 'image/gif' }]);
   const gifBody = JSON.parse(sent[0].init.body);
   assert.equal(gifBody.frame_count, 4);
-  assert.equal(gifBody.size, 'auto', 'a sheet of frames has to fit OpenAI limits: 1024x1024 was refused, the size is left to the model');
+  assert.equal(gifBody.size, '512x512', 'a sheet of frames has to fit OpenAI limits: 1024x1024 was refused, 512x512 was taken for 2, 4 and 16 frames');
   assert.equal(sent[0].url, 'https://api.openai.com/v1/images/generations');
   // A picture to start from goes to the endpoint that edits, for a GIF as for any format (it made a GIF in the probe of 2026-11-06).
   await openai({ apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'animate it', config: { outputFormat: 'gif', frameCount: 4 }, inputReferences: ['data:image/png;base64,QQ=='] });
