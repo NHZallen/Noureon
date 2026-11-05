@@ -10,6 +10,7 @@ import { createImageAsk } from './image-ask.js';
 import { randomUUID } from 'node:crypto';
 
 import { currentRound, listPictures, pictureCaption, pictureData, pictureIndexLines, pictureRef, resolvePictureRefs, selectPictures } from '../src/data/conversation-pictures.js';
+import { isAnimatedOrVectorType } from '../src/app/runtime/images/image-formats.js';
 import { IMAGE_ASPECT_RATIOS, resolveSupportedAspectRatio, resolveSupportedResolution } from '../src/app/runtime/images/image-generation-config.js';
 import { makeThumbnail } from './picture-thumb.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
@@ -192,6 +193,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       if (loaded.reason === 'gone') return { error: `The picture (${refName(pictureRef(picture))}) is not available any more: it was never kept in the user's cloud space. Tell the user, and go on without it only if they agree.` };
       if (loaded.reason === 'foreign') return { error: `The picture (${refName(pictureRef(picture))}) cannot be read.` };
       if (loaded.missing) return { error: `The picture (${refName(pictureRef(picture))}) could not be read now. Tell the user briefly.` };
+      // A GIF and an SVG cannot be the picture another one is built on (the endpoints that edit take png, jpeg and webp).
+      if (isAnimatedOrVectorType(loaded.mimeType)) return { error: `The picture (${refName(pictureRef(picture))}) is a GIF or an SVG, and a new picture cannot be built on one of those. Draw the new picture from words alone (describe it), without that picture in \`references\`.` };
       urls.push(toDataUrl(loaded.bytes, loaded.mimeType));
     }
     return { urls };

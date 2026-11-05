@@ -31,7 +31,7 @@ const IMAGE_PROVIDERS = ['openrouter', 'openai'];
 const OPENAI_WEB_SEARCH = ['official', 'provider'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
 // What the page may ask of an image model (the fields of the request to OpenRouter's images endpoint that the app sets).
-const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality', 'outputFormat', 'background', 'outputCompression', 'seed', 'provider', 'reasoningEffort'];
+const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality', 'outputFormat', 'background', 'outputCompression', 'frameCount', 'frameDuration', 'seed', 'provider', 'reasoningEffort'];
 const CLOUD_ASSET = '__astraCloudAsset';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -195,6 +195,9 @@ function validateImageSpec(input) {
         if (given[name] !== undefined && !text(given[name], max)) fail(`image.config.${name}`, `must be a short text (at most ${max} characters)`);
       }
       if (given.outputCompression !== undefined && !isInteger(given.outputCompression, 0, 100)) fail('image.config.outputCompression', 'must be a whole number from 0 to 100');
+      // A GIF (GPT Image 2.6): the number of frames the page offers (2 to 16) and the time of one in milliseconds (20 to 2000).
+      if (given.frameCount !== undefined && !isInteger(given.frameCount, 2, 16)) fail('image.config.frameCount', 'must be a whole number from 2 to 16');
+      if (given.frameDuration !== undefined && !isInteger(given.frameDuration, 20, 2000)) fail('image.config.frameDuration', 'must be a whole number from 20 to 2000');
       if (given.seed !== undefined && !Number.isSafeInteger(given.seed)) fail('image.config.seed', 'must be a whole number');
       if (given.provider !== undefined && (!isObject(given.provider) || JSON.stringify(given.provider).length > 4096)) fail('image.config.provider', 'must be an object of at most 4 KB');
       config = Object.fromEntries(IMAGE_CONFIG_FIELDS.filter((name) => given[name] !== undefined && given[name] !== '').map((name) => [name, given[name]]));
