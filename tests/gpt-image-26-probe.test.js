@@ -41,8 +41,7 @@ test('the probe asks as the app does, reads what comes back, and never lets the 
   assert.ok(!results['gif-default-frames'].error.includes(KEY), 'the key is taken out of what the service says');
   const svg = results.svg.pictures[0];
   assert.equal(svg.mediaType, 'image/svg+xml');
-  assert.equal(svg.svg.cleaning.ok, true);
-  assert.equal(svg.svg.cleaning.changed, true, 'the cleaning of the app took the script out');
+  assert.match(svg.svg.startsWith, /^<svg/);
   assert.ok(!JSON.stringify(result).includes(KEY), 'the key is nowhere in the result');
   const gifRequest = sent.find((entry) => entry.body?.output_format === 'gif');
   assert.deepEqual([gifRequest.body.frame_count, gifRequest.body.frame_duration_ms, gifRequest.url], [4, 200, 'https://openrouter.ai/api/v1/images']);
@@ -50,7 +49,7 @@ test('the probe asks as the app does, reads what comes back, and never lets the 
   assert.ok(sent.filter((entry) => entry.body).every((entry) => !('output_compression' in entry.body) || entry.body.output_format !== 'gif'));
 
   const openai = await runProbe({ provider: 'openai', key: KEY, model: 'gpt-image-2.6-flare', tests: ['gif'], fetchImpl });
-  assert.equal(openai.results['gif-4-frames'].request.size, '1024x1024');
+  assert.equal(openai.results['gif-4-frames'].request.size, 'auto', 'a GIF is a sheet of frames: 1024x1024 was refused by OpenAI, the size is left to the model');
   assert.ok(sent.some((entry) => entry.url === 'https://api.openai.com/v1/images/generations'));
 });
 

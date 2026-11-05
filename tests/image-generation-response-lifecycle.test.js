@@ -542,7 +542,7 @@ test('two pictures wanted after two pictures: the picture at each place is built
   ]);
 });
 
-test('GPT Image 2.6: a gif asks for its frames, an svg for one picture, neither carries an earlier picture or takes attached ones, and a format the model lacks falls back to png', async () => {
+test('GPT Image 2.6: a gif asks for its frames, an svg for one picture, pictures may be attached to either, and a format the model lacks falls back to png', async () => {
   const requests = [];
   const lifecycle = createImageGenerationResponseLifecycle({
     buildSingleModelTranslatedRequestParts: async parts => parts,
@@ -564,23 +564,22 @@ test('GPT Image 2.6: a gif asks for its frames, an svg for one picture, neither 
     conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { ...advanced }, ...earlier, ...extra }
   });
 
-  // A png builds on the earlier picture (as before); a gif and an svg do not.
+  // A png and a gif build on the earlier picture; an svg does not (the endpoint that edits does not make one).
   await run(gpt, { outputFormat: 'png', n: 2 });
   assert.deepEqual(requests[0].inputReferences, ['data:image/png;base64,earlier']);
   await run(gpt, { outputFormat: 'gif', frameCount: 6, frameDuration: 150, outputCompression: 80, n: 2 });
-  assert.deepEqual(requests[1].inputReferences, [], 'a gif is made from words');
+  assert.deepEqual(requests[1].inputReferences, ['data:image/png;base64,earlier'], 'a gif is made from the earlier picture');
   assert.deepEqual([requests[1].config.outputFormat, requests[1].config.frameCount, requests[1].config.frameDuration, requests[1].config.n, 'outputCompression' in requests[1].config], ['gif', 6, 150, 2, false]);
   await run(gpt, { outputFormat: 'svg', n: 4, frameCount: 6 });
   assert.deepEqual(requests[2].inputReferences, []);
   assert.deepEqual([requests[2].config.outputFormat, requests[2].config.n, 'frameCount' in requests[2].config], ['svg', 1, false], 'an svg is one picture and has no frames');
 
-  // Pictures the person attached cannot go with a gif or an svg: nothing is sent, and it says why.
+  // Pictures the person attached go with a gif and an svg as with any format.
   const attached = [{ text: 'animate this' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }];
-  const before = requests.length;
-  await assert.rejects(run(gpt, { outputFormat: 'gif' }, {}, attached), /GIF or an SVG is made from words alone/);
-  assert.equal(requests.length, before, 'nothing was sent');
-  await run(gpt, { outputFormat: 'webp' }, {}, attached);
-  assert.equal(requests.at(-1).inputReferences.length, 1, 'a webp takes them');
+  for (const outputFormat of ['gif', 'svg', 'webp']) {
+    await run(gpt, { outputFormat }, {}, attached);
+    assert.equal(requests.at(-1).inputReferences.length, 1, `a ${outputFormat} takes them`);
+  }
 
   // An earlier gif or svg is not a picture to build on: the new picture is made from the words.
   const gifEarlier = { messages: [{ role: 'model', parts: [{ generatedImage: { id: 'g1', mediaType: 'image/gif' } }] }] };
@@ -592,4 +591,41 @@ test('GPT Image 2.6: a gif asks for its frames, an svg for one picture, neither 
   await run(flux, { outputFormat: 'gif', frameCount: 6, frameDuration: 150 });
   assert.equal(requests.at(-1).config.outputFormat, 'png');
   assert.ok(!('frameCount' in requests.at(-1).config) && !('frameDuration' in requests.at(-1).config));
+});
+
+test('GPT Image 2.6: "make a GIF, 6 frames, 150 ms" in words sets the format and the animation for that message, and the settings stay', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/gif' }] }; },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const gpt = { id: 'openai/gpt-image-2.6-flare', provider: 'openrouter', maxImageCount: 10, supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'], supportedImageOptions: ['quality', 'frameCount', 'frameDuration'] };
+  const none = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05, animated: 0.03, vector: 0.03, framesStated: 0.02, frameTimeStated: 0.02 };
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', frameCount: 9, frameDuration: 200 } };
+  const run = (text, decision, modelInfo = gpt) => lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text }], modelInfo, conversation, requestImageDecisions: async () => ({ ...none, ...decision }) });
+
+  await run('make a GIF of a bouncing ball, 6 frames, 150 ms per frame', { animated: 0.95, framesStated: 0.9, frameTimeStated: 0.9 });
+  const gif = requests.at(-1);
+  assert.deepEqual([gif.config.outputFormat, gif.config.frameCount, gif.config.frameDuration], ['gif', 6, 150]);
+  assert.match(gif.prompt, /animation is made from this picture as a GIF/);
+  assert.deepEqual(conversation.imageAdvancedConfig, { outputFormat: 'png', frameCount: 9, frameDuration: 200 }, 'the settings are not changed by what was said');
+
+  // An SVG in words: one picture, no frames, even though the settings hold some.
+  await run('a logo as an SVG', { vector: 0.95 });
+  const svg = requests.at(-1);
+  assert.deepEqual([svg.config.outputFormat, svg.config.n, 'frameCount' in svg.config], ['svg', 1, false]);
+  assert.match(svg.prompt, /vector graphic \(SVG\)/);
+
+  // Frames said with no GIF asked for are not used; the saved png stays a png.
+  await run('6 frames of a cat', { framesStated: 0.9 });
+  assert.deepEqual([requests.at(-1).config.outputFormat, 'frameCount' in requests.at(-1).config], ['png', false]);
+
+  // A model that does not make a GIF: nothing is sent, and it says so.
+  const before = requests.length;
+  await assert.rejects(run('a GIF please', { animated: 0.95 }, { id: 'flux', provider: 'openrouter' }), /does not make GIF, so nothing was sent/);
+  assert.equal(requests.length, before);
 });

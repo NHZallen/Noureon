@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createGeneratedImageAssetStore } from '../src/app/runtime/images/generated-image-assets.js';
-import { GIF_FRAME_COUNTS, GIF_FRAME_COUNT_DEFAULT, GIF_FRAME_DURATIONS_MS, GPT_IMAGE_26_FORMATS, settleImageFormatConfig, supportedFormatsOf } from '../src/app/runtime/images/image-formats.js';
-import { buildOpenAiImageFields, createOpenAiImageGenerator } from '../src/app/runtime/images/openai-image-generation.js';
+import { GIF_FRAME_COUNTS, GIF_FRAME_COUNT_DEFAULT, GIF_FRAME_DURATIONS_MS, GPT_IMAGE_26_FORMATS, settleImageFormatConfig, sniffImageType, supportedFormatsOf } from '../src/app/runtime/images/image-formats.js';
+import { OPENAI_SVG_MODEL, buildOpenAiImageFields, createOpenAiImageGenerator } from '../src/app/runtime/images/openai-image-generation.js';
 import { buildOpenRouterImagePayload, createOpenRouterImageGenerator } from '../src/app/runtime/images/openrouter-image-generation.js';
 import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 
@@ -11,8 +10,7 @@ import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const b64 = (text) => Buffer.from(text).toString('base64');
-const SVG = '<svg width="4" height="4"><script>alert(1)</script><rect width="4" height="4"/></svg>';
-const SAFE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4"/></svg>';
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4"/></svg>';
 
 test('the formats a model makes: GPT Image 2.6 of both providers makes gif and svg too, the others the still ones', () => {
   const models = MODELS.filter((model) => /gpt-image-2\.6/.test(model.id));
@@ -62,38 +60,50 @@ test('OpenAI and OpenRouter are asked in the same way for a gif and for an svg',
   assert.ok(!('frame_count' in still), 'only a gif has frames');
 });
 
-test('a gif and an svg come back with their own types, the svg made safe; a gif or an svg cannot be made from pictures to start from', async () => {
+test('a gif and an svg come back with their own types, and pictures to start from may go with them', async () => {
   const sent = [];
   const gifBytes = b64('GIF89a-frames');
   const fetchImpl = async (url, init) => { sent.push({ url: String(url), init }); return json({ data: [{ b64_json: String(url).includes('openrouter') ? b64(SVG) : gifBytes }] }); };
   const openai = createOpenAiImageGenerator({ fetchImpl, getSafetyIdentifier: async () => '' });
   const gif = await openai({ apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'a spinning cat', config: { aspectRatio: '1:1', outputFormat: 'gif', frameCount: 4 } });
   assert.deepEqual(gif.images, [{ b64Json: gifBytes, mediaType: 'image/gif' }]);
-  assert.equal(JSON.parse(sent[0].init.body).frame_count, 4);
+  const gifBody = JSON.parse(sent[0].init.body);
+  assert.equal(gifBody.frame_count, 4);
+  assert.equal(gifBody.size, 'auto', 'a sheet of frames has to fit OpenAI limits: 1024x1024 was refused, the size is left to the model');
   assert.equal(sent[0].url, 'https://api.openai.com/v1/images/generations');
-  await assert.rejects(() => openai({ apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'p', config: { outputFormat: 'svg' }, inputReferences: ['data:image/png;base64,QQ=='] }), /words alone/);
+  // A picture to start from goes to the endpoint that edits, for a GIF as for any format (it made a GIF in the probe of 2026-11-06).
+  await openai({ apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'animate it', config: { outputFormat: 'gif', frameCount: 4 }, inputReferences: ['data:image/png;base64,QQ=='] });
+  assert.equal(sent[1].url, 'https://api.openai.com/v1/images/edits');
+  assert.equal(sent[1].init.body.get('output_format'), 'gif');
+  assert.equal(sent[1].init.body.get('frame_count'), '4');
+  // An SVG is written by a text model that the API asks for by name; the person does not choose it.
+  await openai({ apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'a logo', config: { outputFormat: 'svg' } });
+  assert.deepEqual(JSON.parse(sent[2].init.body).svg, { model: OPENAI_SVG_MODEL });
+  assert.equal(JSON.parse(sent[2].init.body).output_format, 'svg');
   const router = createOpenRouterImageGenerator({ fetchImpl });
-  const svg = await router({ apiKey: 'k', model: 'openai/gpt-image-2.6-flare', prompt: 'a logo', config: { outputFormat: 'svg' } });
+  const svg = await router({ apiKey: 'k', model: 'openai/gpt-image-2.6-flare', prompt: 'a logo', config: { outputFormat: 'svg' }, inputReferences: ['data:image/png;base64,QQ=='] });
   assert.equal(svg.images.length, 1);
-  assert.equal(svg.images[0].mediaType, 'image/svg+xml', 'no type in the answer: an svg was asked for');
-  assert.equal(Buffer.from(svg.images[0].b64Json, 'base64').toString('utf8'), SAFE_SVG, 'the script is left out');
-  // An SVG that cannot be made safe is refused with a message; it is not kept.
-  const broken = createOpenRouterImageGenerator({ fetchImpl: async () => json({ data: [{ b64_json: b64('<html><body onload="x()">'), media_type: 'image/svg+xml' }] }) });
-  await assert.rejects(() => broken({ apiKey: 'k', model: 'm', prompt: 'p', config: { outputFormat: 'svg' } }), /not safe to show/);
+  assert.equal(svg.images[0].mediaType, 'image/svg+xml');
+  assert.equal(Buffer.from(svg.images[0].b64Json, 'base64').toString('utf8'), SVG, 'the SVG is kept as it came');
+  assert.ok(JSON.parse(sent[3].init.body).input_references, 'the pictures to start from go along');
 });
 
-test('an svg is made safe again when it is shown, whatever way it came; one that cannot be made safe is not shown', async () => {
-  const blobs = new Map([['good', new Blob([SVG], { type: 'image/svg+xml' })], ['bad', new Blob(['<html onload="x()">'], { type: 'image/svg+xml' })], ['png', new Blob(['PNG'], { type: 'image/png' })]]);
-  const shown = [];
-  const store = createGeneratedImageAssetStore({ setItem: async () => {}, getItem: async (key) => blobs.get(key), getUserName: () => 'a', createObjectURL: (blob) => { shown.push(blob); return `blob:${shown.length}`; } });
-  const elements = [];
-  const root = { querySelectorAll: (selector) => elements.filter((element) => selector.includes(element.id)) };
-  const img = (id) => ({ id, addEventListener() {}, closest: () => null, style: {} });
-  for (const id of ['good', 'bad', 'png']) elements.push(img(`data-generated-image-id="${id}"`));
-  await store.bind(root, [{ id: 'good', storageKey: 'good', mediaType: 'image/svg+xml' }, { id: 'bad', storageKey: 'bad', mediaType: 'image/svg+xml' }, { id: 'png', storageKey: 'png', mediaType: 'image/png' }]);
-  const texts = await Promise.all(shown.map((blob) => blob.text()));
-  assert.ok(texts.includes(SAFE_SVG), 'the svg is shown without its script');
-  assert.ok(texts.includes('PNG'), 'a picture of another type is shown as it is');
-  assert.ok(!texts.some((text) => /<script|onload/.test(text)), 'nothing unsafe is shown');
-  assert.equal(shown.length, 2, 'the svg that cannot be made safe is not shown');
+test('the type of a picture is what its bytes are, not what was asked for or said', async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]).toString('base64');
+  assert.equal(sniffImageType(png), 'image/png');
+  assert.equal(sniffImageType(b64('GIF89a....')), 'image/gif');
+  assert.equal(sniffImageType(b64('GIF87a....')), 'image/gif');
+  assert.equal(sniffImageType(b64('RIFF\u0000\u0000\u0000\u0000WEBPVP8 ')), 'image/webp');
+  assert.equal(sniffImageType(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]).toString('base64')), 'image/jpeg');
+  assert.equal(sniffImageType(b64('<?xml version="1.0"?>\n<svg xmlns="x"/>')), 'image/svg+xml');
+  assert.equal(sniffImageType(b64('  <svg width="1"/>')), 'image/svg+xml');
+  assert.equal(sniffImageType(b64('hello')), '');
+  assert.equal(sniffImageType(''), '');
+  assert.equal(sniffImageType('%%%not base64'), '');
+  // OpenRouter answered a PNG sheet of frames when a GIF was asked for with a picture to start from: it is called what it is.
+  const fetchImpl = async () => json({ data: [{ b64_json: png, media_type: 'image/gif' }] });
+  const result = await createOpenRouterImageGenerator({ fetchImpl })({ apiKey: 'k', model: 'm', prompt: 'p', config: { outputFormat: 'gif' } });
+  assert.equal(result.images[0].mediaType, 'image/png');
+  const openaiResult = await createOpenAiImageGenerator({ fetchImpl: async () => json({ data: [{ b64_json: png }] }) })({ apiKey: 'k', model: 'm', prompt: 'p', config: { outputFormat: 'gif' } });
+  assert.equal(openaiResult.images[0].mediaType, 'image/png');
 });

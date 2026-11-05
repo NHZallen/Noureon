@@ -11,7 +11,6 @@ import {
   GIF_FRAME_DURATIONS_MS,
   GIF_FRAME_DURATION_DEFAULT_MS,
   GPT_IMAGE_26_FORMATS,
-  isAnimatedOrVectorFormat,
   supportedFormatsOf
 } from './image-formats.js';
 
@@ -263,15 +262,12 @@ export function createImageModeControls({
       option.hidden = !supported;
     });
     advanced.fields.n.value = String(Math.min(Number(advancedConfig.n) || 1, maxCount));
-    // Quality, background and compression belong to GPT Image alone; the other models do not show them. The frames and their time are for a GIF; a GIF and an SVG take no compression.
-    const moves = format === 'gif';
-    const shows = { quality: true, background: true, outputCompression: !isAnimatedOrVectorFormat(format), frameCount: moves, frameDuration: moves };
-    Object.entries(shows).forEach(([key, shown]) => {
+    // Quality, background, compression and the frames of a GIF belong to GPT Image alone; the other models do not show them. Every one is there whatever the format: a setting that
+    // the format does not use (the frames of a png, the compression of a GIF) is kept and left out of the request (settleImageFormatConfig), so the person does not have to pick the format first.
+    ['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration'].forEach((key) => {
       const row = advanced.fields[key]?.closest?.('label');
-      if (row) row.style.display = shown && activeModel?.supportedImageOptions?.includes(key) ? '' : 'none';
+      if (row) row.style.display = activeModel?.supportedImageOptions?.includes(key) ? '' : 'none';
     });
-    // A GIF or an SVG is made from words alone: said on the format when one of them is chosen.
-    advanced.fields.outputFormat.title = isAnimatedOrVectorFormat(format) ? getText('imageFormatWordsOnlyHint', '') : '';
     // The qualities a model takes (GPT Image adds xhigh and max); a model that lists none keeps the four common ones.
     const qualities = activeModel?.supportedImageQualities || ['auto', 'low', 'medium', 'high'];
     Array.from(advanced.fields.quality.options).forEach((option) => {

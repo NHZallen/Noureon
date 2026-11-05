@@ -54,7 +54,7 @@ test('posts a normalized buffered request and returns raster and vector images',
   });
   assert.deepEqual(result.images, [
     { b64Json: 'raster', mediaType: 'image/png' },
-    { b64Json: 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiLz48L3N2Zz4=', mediaType: 'image/svg+xml' }
+    { b64Json: 'PHN2ZyB3aWR0aD0iNCIgaGVpZ2h0PSI0Ij48cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0Ii8+PC9zdmc+', mediaType: 'image/svg+xml' }
   ]);
 });
 

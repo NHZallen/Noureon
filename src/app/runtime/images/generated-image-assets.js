@@ -117,23 +117,9 @@ export function createGeneratedImageAssetStore({
     return `data:${descriptor.mediaType || blob.type || 'image/png'};base64,${encodeBase64(bytes)}`;
   };
 
-  // An SVG is made safe again before it is shown, whatever way it came (made here, by the server, restored from the cloud, imported from a file or a shared chat): its address is one of the app,
-  // and a blob address opened in a tab would run what is in it with the rights of the app. A picture that cannot be made safe is not shown.
-  const safeToShow = async (descriptor, blob) => {
-    if (descriptor?.mediaType !== 'image/svg+xml') return blob;
-    try {
-      const { sanitizeSvg } = await import('./svg-sanitize.js');
-      const result = sanitizeSvg(await blob.text());
-      return result.ok ? new Blob([result.svg], { type: 'image/svg+xml' }) : null;
-    } catch {
-      return null;
-    }
-  };
-
   const bind = async (root, descriptors = []) => {
     await Promise.all(descriptors.map(async descriptor => {
-      const stored = await getBlob(descriptor);
-      const blob = stored ? await safeToShow(descriptor, stored) : null;
+      const blob = await getBlob(descriptor);
       if (!blob) {
         settlePictures(root, descriptor.id);
         return;

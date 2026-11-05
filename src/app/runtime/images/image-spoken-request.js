@@ -2,11 +2,14 @@
 // Decisions model (runtime/decisions/image-decisions.js). What is said counts for this message only: the numbers of the settings are not changed.
 //   - a count ("two pictures") sets how many the request makes; a collage is one picture made of parts, so it makes one;
 //   - a shape written as numbers (9:16) or in a word (portrait, wide, square) sets the shape;
-//   - more than the model can do (a count, a shape it lacks) is a problem: the request is not sent.
+//   - a moving picture (a GIF) or a vector picture (an SVG) sets the format, and the frames of a GIF and the time of a frame set those two; the format and the frames stand in
+//     for this message only and are used by a GIF alone (the other formats leave them out), so a setting never has to be chosen first;
+//   - more than the model can do (a count, a shape or a format it lacks) is a problem: the request is not sent.
 // Without answers (no key, slow, paused) nothing is read and the request goes with the settings.
 
 import { IMAGE_ASPECT_RATIOS } from './image-generation-config.js';
-import { MAX_SPOKEN_COUNT, readWrittenRatio } from '../decisions/image-decisions.js';
+import { MAX_SPOKEN_COUNT, readWrittenFrameTime, readWrittenFrames, readWrittenRatio } from '../decisions/image-decisions.js';
+import { supportedFormatsOf } from './image-formats.js';
 import { DECISION_THRESHOLD } from '../decisions/decision-store.js';
 
 const TALL = ['9:16', '3:4', '2:3', '4:5'];
@@ -24,10 +27,12 @@ const yes = (value) => typeof value === 'number' && value >= DECISION_THRESHOLD;
 // the real ones 0.89 and more (the probe of 2026-10-17). A word for the shape alone ("portrait", "a phone wallpaper") needs 0.75: it is a guess about what is meant.
 const COLLAGE_THRESHOLD = 0.85;
 const SHAPE_WORD_THRESHOLD = 0.75;
+// A GIF or an SVG is a different file, not a shade of the same one: it needs a surer yes than a count.
+const FORMAT_THRESHOLD = 0.8;
 
-/** { count, aspectRatio, collage, problem }: each is empty ('' or null or false) when nothing was said about it; `problem` is { code, ... } for a request the model cannot do. */
+/** { count, aspectRatio, collage, format, frameCount, frameDuration, problem }: each is empty ('' or null or false) when nothing was said about it; `problem` is { code, ... } for a request the model cannot do. */
 export function readSpokenRequest({ decision, message, modelInfo = {}, attached = 0 } = {}) {
-  const nothing = { count: null, aspectRatio: '', collage: false, problem: null };
+  const nothing = { count: null, aspectRatio: '', collage: false, format: '', frameCount: null, frameDuration: null, problem: null };
   if (!decision) return nothing;
   const collage = typeof decision.collage === 'number' && decision.collage >= COLLAGE_THRESHOLD;
   // A count of two or more that was read ("exactly N") wins; when a count was said but it is not two or more, it is one.
@@ -58,7 +63,15 @@ export function readSpokenRequest({ decision, message, modelInfo = {}, attached 
     const choices = best === 'portrait' ? TALL : best === 'landscape' ? WIDE : best === 'square' ? ['1:1'] : [];
     aspectRatio = choices.find((ratio) => supported.length === 0 || supported.includes(ratio)) || '';
   }
-  return { count: Number.isInteger(count) ? count : null, aspectRatio, collage, problem: null };
+  // A moving picture or a vector picture (the surer of the two, if both are asked): a model that does not make that format is a problem, as a count or a shape it lacks.
+  const animated = typeof decision.animated === 'number' && decision.animated >= FORMAT_THRESHOLD ? decision.animated : 0;
+  const vector = typeof decision.vector === 'number' && decision.vector >= FORMAT_THRESHOLD ? decision.vector : 0;
+  const format = animated || vector ? (animated >= vector ? 'gif' : 'svg') : '';
+  if (format && !supportedFormatsOf(modelInfo).includes(format)) return { ...nothing, problem: { code: 'format', format: format.toUpperCase() } };
+  // The frames and their time: said with a number (the yes says it was said, the number is read from the words); they are for a GIF, so they are read only when one is asked for.
+  const frameCount = format === 'gif' && yes(decision.framesStated) ? readWrittenFrames(message) : null;
+  const frameDuration = format === 'gif' && yes(decision.frameTimeStated) ? readWrittenFrameTime(message) : null;
+  return { count: Number.isInteger(count) ? count : null, aspectRatio, collage, format, frameCount, frameDuration, problem: null };
 }
 
 /** The words for a problem, in the language of the page (`getText(key, fallback)`). */
@@ -66,6 +79,7 @@ export function spokenProblemText(problem, getText) {
   const fill = (text, values) => Object.entries(values).reduce((result, [name, value]) => result.replaceAll(`{${name}}`, String(value)), text);
   if (problem.code === 'count') return fill(getText('imageCountOverLimit', 'This model makes {max} pictures per request at most and you asked for {n}, so nothing was sent.'), problem);
   if (problem.code === 'count-any') return fill(getText('imageCountOverLimitAny', 'You asked for more pictures than this model makes per request ({max} at most), so nothing was sent.'), problem);
+  if (problem.code === 'format') return fill(getText('imageFormatOverLimit', 'This model does not make {format}, so nothing was sent.'), problem);
   return fill(getText('imageRatioOverLimit', 'This model does not take the shape {ratio}, so nothing was sent.'), problem);
 }
 
@@ -73,6 +87,11 @@ export function spokenProblemText(problem, getText) {
 export const SEVERAL_INSTRUCTION = 'Make exactly ONE picture of a single scene (no collage, no panels, no frames). How many pictures are made and their shape are set separately, so the words of the request about the number of pictures or the shape are not part of this picture.';
 /** The line added when a shape was said and no count: the shape is set separately, and must not be drawn as frames or written in the picture. */
 export const SHAPE_INSTRUCTION = 'The shape of the picture is set separately: do not draw frames or panels for it and do not write it in the picture.';
+
+/** The line added when a GIF was asked for in words: the frames and their time are set separately, so the model draws the motion and not a strip of frames or the words of the request. */
+export const GIF_INSTRUCTION = 'The animation is made from this picture as a GIF: its number of frames and the time of a frame are set separately, so do not draw a strip, a grid or panels of frames and do not write numbers, the word GIF or the word frames in the picture.';
+/** The line added when an SVG was asked for in words. */
+export const SVG_INSTRUCTION = 'The picture is returned as a vector graphic (SVG): do not write the word SVG or vector in the picture.';
 
 /** The line added to the prompt of a collage, so that the model makes one picture of parts and not several pictures. */
 export const COLLAGE_INSTRUCTION = 'Make this ONE single image, composed as a collage of its parts (not separate images).';

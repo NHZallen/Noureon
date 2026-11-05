@@ -11,7 +11,7 @@
 //
 // The key is read from the environment, never printed, never written, and taken out of whatever the service says back. One request at a time; it stops after four 429 in a row.
 // What it gives is a JSON (no key) with, for each test: the status, how long, the type and size of the picture, and for a GIF the frames, the time of each and whether it loops,
-// and for an SVG what the app's own cleaning (src/app/runtime/images/svg-sanitize.js) made of it. A default run is four small low-quality requests.
+// and for an SVG how it starts. A default run is four small low-quality requests.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -19,7 +19,6 @@ import { fileURLToPath } from 'node:url';
 
 import { buildOpenAiImageFields } from '../src/app/runtime/images/openai-image-generation.js';
 import { buildOpenRouterImagePayload } from '../src/app/runtime/images/openrouter-image-generation.js';
-import { sanitizeSvg } from '../src/app/runtime/images/svg-sanitize.js';
 
 export const TESTS = Object.freeze(['list', 'png', 'gif', 'frames', 'duration', 'svg', 'svgcount', 'refs']);
 const DEFAULT_TESTS = ['list', 'png', 'gif', 'svg'];
@@ -90,10 +89,7 @@ export async function runProbe({ provider, key, model, tests, fetchImpl = fetch,
           const mediaType = item.media_type || parsed?.media_type || kinds(body.output_format || kind);
           const info = { mediaType, bytes: bytes.length, answeredType: item.media_type || null };
           if (/gif/.test(mediaType)) info.gif = gifInfo(bytes);
-          if (/svg/.test(mediaType)) {
-            const result = sanitizeSvg(bytes.toString('utf8'));
-            info.svg = { startsWith: bytes.toString('utf8', 0, 120), cleaning: result.ok ? { ok: true, keptBytes: Buffer.byteLength(result.svg), changed: result.svg !== bytes.toString('utf8') } : result };
-          }
+          if (/svg/.test(mediaType)) info.svg = { startsWith: bytes.toString('utf8', 0, 120) };
           if (picturesDir && bytes.length) {
             const file = join(picturesDir, `${name}-${index + 1}.${(body.output_format || kind) === 'jpeg' ? 'jpg' : (body.output_format || kind)}`);
             writeFileSync(file, bytes);

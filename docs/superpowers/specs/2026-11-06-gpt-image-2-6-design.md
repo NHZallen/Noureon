@@ -15,20 +15,40 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 
 - **模型**：兩個供應商的 2.5 換成 2.6（`openai/gpt-image-2.6-*` 與 `openai-api/gpt-image-2.6-*`），舊 id（含 `openai/gpt-image-2`）自動轉到同名的 2.6。模型多了 `supportedImageFormats`（沒列的模型只有 png、jpeg、webp），`supportedImageOptions` 多了 `frameCount`、`frameDuration`。共用常數與一個把請求整理好的函式在 `src/app/runtime/images/image-formats.js`（頁面與伺服器共用）。
 - **請求**（`openai-image-generation.js`、`openrouter-image-generation.js` 都用 `settleImageFormatConfig`）：gif 帶 `frame_count`（2–16，預設 9）與 `frame_duration_ms`（20–2000，預設 200），不帶壓縮；svg 一定 `n=1`、不帶壓縮、不帶影格；其他格式沒有影格。回傳的類型照回答裡的 `media_type`，沒有時 gif 與 svg 照要求的格式，其餘當 png。
-- **只用文字**：GIF 與 SVG 不能搭配「要修改的圖」（edits 端點不出這兩種）。介面選了這兩種會說明；附了圖就不送出並說明；前一張圖是 GIF 或 SVG 時不再自動拿來當底圖（新圖從文字畫）；伺服器的圖片工具遇到 GIF 或 SVG 當參考圖會告訴模型改用文字畫。目前不會把 GIF 的第一格或 SVG 轉成 png 當底圖（以後可以做）。
-- **SVG 安全**（`src/app/runtime/images/svg-sanitize.js`，頁面與伺服器共用，沒有 DOM）：SVG 不只是圖，能含腳本、事件處理、連到外面的連結與外站圖片；blob 位址在新分頁打開會用 app 的權限執行。所以模型寫的 SVG 一律「逐個標籤讀、只把會畫的元素與屬性重新寫出」：白名單的元素（形狀、漸層、濾鏡、文字、`use`、`image` 等）與屬性；事件屬性、`script`、`foreignObject`、`iframe`、動畫、外部連結一律拿掉；`href` 只能是圖內的 `#id`，`image` 只能是 data 的 png、jpeg、webp、gif；`url(...)` 只能指向 `#id`；`style` 內容有 `@import`、反斜線、非 `#` 的 `url()` 就拿掉；屬性值先解碼實體再檢查，重新寫出時再跳脫；有 DOCTYPE 或實體宣告、根不是 `svg`、標籤沒閉合、太大（2 MB）、太多元素（2 萬）、太深（64 層）一律整個拒絕。產圖函式回傳前先清理（頁面與伺服器都一樣），**顯示前再清理一次**（`generated-image-assets.js` 的 `bind`），所以從雲端還原、匯入檔案、分享的對話進來的 SVG 也一樣安全；清不乾淨的不顯示。測試有各種攻擊與隨機組合（2 萬組）。
-- **介面**（`image-mode-controls.js`）：格式選單依模型（GPT Image 2.6 有 gif 與 svg）；選 gif 才出現「影格數」與「每格時間（毫秒）」；選 svg 張數只剩 1；gif 與 svg 不顯示壓縮率；選了這兩種會有一行說明。新字串五語（`parts/model-descriptions.js`）。
+- **只用文字、SVG 安全**：第一版有這兩條規則，探測之後（第 5 節）都拿掉了，不要照這一段做。
+- **介面**（`image-mode-controls.js`）：格式選單依模型（GPT Image 2.6 有 gif 與 svg）；「影格數」與「每格時間（毫秒）」永遠都在（模型有這兩個選項時），不用先選 gif；選 svg 張數只剩 1。（第 5 節）新字串五語（`parts/model-descriptions.js`）。
 - **伺服器**：`run-spec.js` 多收 `frameCount`（2–16）與 `frameDuration`（20–2000）；`image-tool.js` 對 GIF/SVG 參考圖的處理；匯出對話檔的副檔名多了 gif（`import-export-lifecycle.js`）。
 - **幫助中心**：圖片生成那一段五語加了一句 GIF 與 SVG。
 - **探測腳本**：`scripts/gpt-image-26-probe.mjs`（Allen 在自己電腦跑；金鑰只放環境變數、不印出不寫檔）。預設 `list,png,gif,svg` 約四個低品質小請求；`--tests frames` 量影格上限，`duration` 量每格時間上限，`svgcount` 試 `n=2`，`refs` 試 GIF/SVG 搭配參考圖；`--openai` 走直連。結果 JSON 與圖片檔寫在本機，貼 JSON 給我即可。
 
-## 3. 還沒確定（等探測結果）
+## 3. 第一版時還沒確定的事
 
-- GIF 在 OpenRouter 與直連各自能不能用、需不需要預覽資格；影格數的實際上限（目前介面給 2–16）；每格時間的上限。
-- SVG 在 OpenRouter 是否被接受；官方提到的「SVG model selection」是不是還有一個要送的欄位。
-- GIF 的尺寸限制（目前尺寸照比例與解析度 1K 算，太大可能被拒，錯誤會原樣顯示）。
-- 這個模組放進 `scripts/server-shared-modules.json` 的兩個新檔（`image-formats.js`、`svg-sanitize.js`）需要 Allen 確認。
+見第 5 節的探測結果。
 
 ## 4. 測試
 
-`tests/svg-sanitize.test.js`、`tests/gpt-image-26-formats.test.js`、`tests/gpt-image-26-probe.test.js`，以及 `image-mode-controls`、`image-generation-response-lifecycle`、`server-image`、`runtime-model-registry` 各補了一項。
+`tests/gpt-image-26-formats.test.js`、`tests/gpt-image-26-probe.test.js`，以及 `image-mode-controls`、`image-generation-response-lifecycle`、`runtime-image-decisions`、`server-image`、`runtime-model-registry` 各補了一項。
+
+## 5. 探測之後（2026-11-06，Allen 跑了 `gpt-image-26-probe.mjs` 與三支補測腳本，報告 `GPT-Image-2.6-探測報告.md`）
+
+**探測看到的**（flare、low 品質）：
+
+| | OpenRouter | OpenAI 直連 |
+|---|---|---|
+| 文字 → GIF | 200，960×960，4 格、每格 200 ms、會循環；不指定格數 9 格（928×928） | 我們送的 1024×1024 一律 400（「找不到放得下 4 格的拼圖表」，最長邊 3840、像素上限）；960×960、512×512、`auto` 都 200 |
+| 文字 → SVG | 400：OpenRouter 的 OpenAI 供應商只收 png、jpeg、webp、gif | 要帶 `svg: { model: <文字模型> }`，沒帶 400；`gpt-6-luna`、`gpt-5.6-luna` 可用，`gpt-image-2.6-flare` 404 |
+| 圖 + 文字 → GIF | 200 但回的是 **PNG** 分格圖（`media_type` 也是 png，兩次一樣） | `/images/edits` 200，真的 GIF，4 格 |
+| 圖 + 文字 → SVG | 400（同上） | `/images/edits` 400「Supported values are png, webp, jpeg」 |
+
+**Allen 的決定（同日）**：不要 SVG 安全清理；GIF 與 SVG 都能搭配附上的圖（ChatGPT 的 app 都能「圖生向量、GIF」）；GIF/SVG 與影格數、每格時間都能從文字偵測；影格參數不用先選 GIF 就能選，用不到就不套用；不要多一個「選 SVG 用哪個模型」的選單。
+
+**改了什麼**：
+
+- **拿掉**：`svg-sanitize.js`、它的測試、`server-shared-modules.json` 的那一筆、`makeSvgsSafe` 與 `SVG_REFUSED_MESSAGE`、顯示前的清理（`generated-image-assets.js`）、「只用文字」的錯誤訊息與格式選單的提示。**風險要記著**：SVG 是 `<img>` 顯示，不會執行腳本；但把圖的 blob 位址單獨在新分頁打開，裡面的腳本會用 app 的權限執行（app 內目前沒有這個動作，下載是 `<a download>`）。以後若加「在新分頁開啟圖片」，SVG 要另外處理（例如開成下載或放在沙盒 iframe）。
+- **請求**：有附圖時 GIF 和 SVG 都照送（OpenAI 走 `/images/edits`）。OpenAI 的 GIF 一律送 `size: auto`（探測：`auto` 給 512×512，不會被拆表限制擋）；OpenAI 的 SVG 自動帶 `svg: { model: 'gpt-6-luna' }`（`OPENAI_SVG_MODEL`，app 本來就有這個模型，不給人選）。前一張圖會自動當底圖給 png/webp/jpeg/gif；SVG 不自動帶（edits 做不了 SVG，只會 400）；前一張圖是 GIF 或 SVG 時一樣不當底圖（edits 只收 png、jpeg、webp）。
+- **類型看位元組**：`sniffImageType`（`image-formats.js`）從開頭的位元組認出 gif/png/jpeg/webp/svg，優先於「回答說的」和「要求的」，所以 OpenRouter 在圖+文字要 GIF 時回的 PNG 分格圖會被當成 png，不會被存成壞掉的 gif。
+- **文字偵測**（`decisions/image-decisions.js`、`images/image-spoken-request.js`）：判斷模型多四個是非題：要動的圖（`animated`）、要向量圖（`vector`）、有說影格數（`frames_stated`）、有說每格時間（`frame_time_stated`）。是就用，只對這一則訊息有效，設定不動；數字由 `readWrittenFrames`（「8 frames」「8 格」「六格」「12 кадров」…，「每秒 30 格」不算）和 `readWrittenFrameTime`（「200 ms」「0.5 秒」「0,5 s」…，換算成毫秒、取到 10，不在 20 到 2000 的不算，所以「整段 3 秒」不會被當成每格時間）從話裡讀。GIF 才讀影格；模型做不出該格式（不是 GPT Image 2.6）就不送並說明（`imageFormatOverLimit`，五語）。要動圖時 prompt 多一句，叫模型畫動作本身、不要畫一排格子或寫出數字（`GIF_INSTRUCTION`、`SVG_INSTRUCTION`）。判斷模型沒答（沒金鑰、太慢、暫停）就只照設定。
+- **介面**：影格數、每格時間（和品質、背景、壓縮）只要模型有就一直顯示；格式不用的設定留著、不送出（`settleImageFormatConfig`）。
+- **幫助中心**：那一句五語改成「可選或直接說」「附圖可當起點」。
+
+**還沒驗證**（沒有 OpenAI、OpenRouter 的連線）：判斷模型對這四題的實際準確度（`scripts/decisions-image-probe.mjs` 的題組已加 GIF/SVG 的句子，要 Allen 跑）；OpenAI 直連的 GIF 在 `auto` 下 9 與 16 格是否都放得下；OpenRouter 的 SVG 是 API 不收（探測 400），app 只能把 API 的錯誤原樣顯示；OpenAI 的圖 → SVG：`/images/edits` 不收 svg，app 照送、顯示 API 的錯誤，是否有別的路（例如 Responses API 的圖片工具）要查 OpenAI 文件或問 OpenAI。

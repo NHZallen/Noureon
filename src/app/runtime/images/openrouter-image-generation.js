@@ -1,4 +1,4 @@
-import { IMAGE_MEDIA_TYPES, SVG_REFUSED_MESSAGE, makeSvgsSafe, settleImageFormatConfig } from './image-formats.js';
+import { IMAGE_MEDIA_TYPES, settleImageFormatConfig, sniffImageType } from './image-formats.js';
 
 const IMAGE_API_URL = 'https://openrouter.ai/api/v1/images';
 
@@ -32,10 +32,10 @@ export function buildOpenRouterImagePayload({ model, prompt, config: asked = {},
   return payload;
 }
 
-// The type of a picture is the one the answer says; when it says none, a GIF or an SVG is what was asked for (nothing else would be) and the rest is taken for a png, as before.
+// The type of a picture is what its bytes are; when they are none we know, the one the answer says; when it says none, a GIF or an SVG is what was asked for (nothing else would be) and the rest is taken for a png, as before.
 const normalizeImage = (image = {}, config = {}) => ({
   b64Json: image.b64_json || '',
-  mediaType: image.media_type || (config.outputFormat === 'gif' || config.outputFormat === 'svg' ? IMAGE_MEDIA_TYPES[config.outputFormat] : 'image/png')
+  mediaType: sniffImageType(image.b64_json) || image.media_type || (config.outputFormat === 'gif' || config.outputFormat === 'svg' ? IMAGE_MEDIA_TYPES[config.outputFormat] : 'image/png')
 });
 
 async function readError(response) {
@@ -68,10 +68,7 @@ export function createOpenRouterImageGenerator({ fetchImpl = fetch, makeSeed = r
     });
     if (!response.ok) throw new Error(await readError(response));
     const body = await response.json();
-    // An SVG is made safe before anything of it is kept or shown (svg-sanitize.js); one that cannot be made safe is left out.
-    const { images, refused } = await makeSvgsSafe((body.data || []).map(image => normalizeImage(image, config)).filter(image => image.b64Json));
-    if (!images.length && refused) throw new Error(SVG_REFUSED_MESSAGE);
-    return images;
+    return (body.data || []).map(image => normalizeImage(image, config)).filter(image => image.b64Json);
   };
 
   return async function generateOpenRouterImage({

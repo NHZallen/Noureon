@@ -111,7 +111,7 @@ function memoryFiles({ failSaves = 0, loadable = {} } = {}) {
 const run = (spec, extra = {}) => executeImage({ spec, secrets: spec.secrets, userId: USER, signal: new AbortController().signal, wait: async () => {}, ...extra });
 
 test('the image is asked of OpenRouter as the page asks it, kept in the cloud space, and given back as the parts the app knows', async () => {
-  const router = openRouter({ images: [{ b64_json: PICTURE_B64, media_type: 'image/png' }, { b64_json: PICTURE_B64, media_type: 'image/webp' }] });
+  const router = openRouter({ images: [{ b64_json: PICTURE_B64, media_type: 'image/png' }, { b64_json: Buffer.from('RIFF\0\0\0\0WEBPVP8 ').toString('base64'), media_type: 'image/webp' }] });
   const files = memoryFiles();
   const updates = [];
   const spec = validateRunSpec(imageSpec({ image: { prompt: 'a cat in the rain', config: { aspectRatio: '7:5', resolution: '1.5K', n: 2 }, references: ['data:image/png;base64,QUJD'] } })).spec;
@@ -405,7 +405,7 @@ test('with groups the server asks once for each, each with its own pictures and 
   assert.deepEqual(result.parts.map((part) => part.generatedImage.aspectRatio), ['9:16', '16:9'], 'in the order of the groups, each in its own shape');
 });
 
-test('an image request for a GIF carries its frames and their time (whole numbers inside what the page offers), and an SVG made on the server is made safe before it is kept', async () => {
+test('an image request for a GIF carries its frames and their time (whole numbers inside what the page offers), and an SVG made on the server is kept as it came', async () => {
   const ok = validateRunSpec(imageSpec({ image: { prompt: 'a spinning cat', config: { aspectRatio: '1:1', outputFormat: 'gif', frameCount: 6, frameDuration: 150 } } }));
   assert.equal(ok.ok, true, JSON.stringify(ok.errors));
   assert.deepEqual(ok.spec.image.config, { aspectRatio: '1:1', outputFormat: 'gif', frameCount: 6, frameDuration: 150 });
@@ -417,8 +417,8 @@ test('an image request for a GIF carries its frames and their time (whole number
   assert.ok(paths(bad({ frameDuration: 10 })).includes('image.config.frameDuration'));
   assert.ok(paths(bad({ frameDuration: 5000 })).includes('image.config.frameDuration'));
 
-  // The picture maker of the server is the shared one: the SVG it gets is made safe in it, so what is kept in the cloud space holds no script.
-  const dirty = Buffer.from('<svg width="4" height="4"><script>alert(1)</script><rect width="4" height="4" onclick="x()"/></svg>').toString('base64');
+  // The picture maker of the server is the shared one: the SVG it gets is kept in the cloud space as it came.
+  const dirty = Buffer.from('<svg width="4" height="4"><rect width="4" height="4"/></svg>').toString('base64');
   const saved = [];
   const files = { save: async ({ bytes, mimeType }) => { saved.push({ text: Buffer.from(bytes).toString('utf8'), mimeType }); return { __astraCloudAsset: { path: `${USER}/x`, mimeType, encoding: 'blob' } }; }, load: async () => PICTURE };
   const fetchImpl = async () => new Response(JSON.stringify({ data: [{ b64_json: dirty, media_type: 'image/svg+xml' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
@@ -427,6 +427,6 @@ test('an image request for a GIF carries its frames and their time (whole number
   assert.equal(done.status, 'done');
   assert.equal(saved.length, 1);
   assert.equal(saved[0].mimeType, 'image/svg+xml');
-  assert.equal(saved[0].text, '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4"/></svg>');
+  assert.equal(saved[0].text, '<svg width="4" height="4"><rect width="4" height="4"/></svg>');
   assert.equal(done.parts[0].generatedImage.mediaType, 'image/svg+xml');
 });

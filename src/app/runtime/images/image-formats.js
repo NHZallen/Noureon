@@ -14,7 +14,7 @@ export const GIF_FRAME_DURATIONS_MS = [50, 100, 150, 200, 300, 500, 1000, 2000];
 
 export const IMAGE_MEDIA_TYPES = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml' };
 
-/** A picture that moves or is drawn in lines cannot be the picture another one is built on (the edit endpoints take png, jpeg and webp), and an SVG is one picture at a time. */
+/** A picture that moves or is drawn in lines cannot be the picture another one is built on (the edit endpoints take png, jpeg and webp); an SVG is one picture at a time. */
 export const isAnimatedOrVectorFormat = (format) => format === 'gif' || format === 'svg';
 export const isAnimatedOrVectorType = (mediaType) => mediaType === 'image/gif' || mediaType === 'image/svg+xml';
 
@@ -43,15 +43,21 @@ export function settleImageFormatConfig(config = {}) {
   return next;
 }
 
-/** What is said when an SVG could not be made safe (svg-sanitize.js) and nothing was kept. */
-export const SVG_REFUSED_MESSAGE = 'The SVG was not safe to show, so it was not kept. Try again.';
-
 /**
- * The pictures of a maker with every SVG made safe. The cleaning is a module of its own that is loaded only when an SVG comes (most replies have none, and the page does not carry it for them).
- * Returns { images, refused }.
+ * The type of a picture from its first bytes (the base64 of it), or '' when they are none of ours. A maker of pictures says what it was asked for, not always what it made (OpenRouter answered
+ * a PNG sheet of frames for a GIF with a picture to start from, 2026-11-06), so the bytes decide what the picture is called, and the name of its file.
  */
-export async function makeSvgsSafe(images = []) {
-  if (!images.some((image) => image?.mediaType === 'image/svg+xml')) return { images, refused: 0 };
-  const { sanitizeSvgImages } = await import('./svg-sanitize.js');
-  return sanitizeSvgImages(images);
+export function sniffImageType(b64Json) {
+  let head;
+  try {
+    head = atob(String(b64Json || '').slice(0, 96));
+  } catch {
+    return '';
+  }
+  if (head.startsWith('GIF87a') || head.startsWith('GIF89a')) return 'image/gif';
+  if (head.startsWith('\x89PNG')) return 'image/png';
+  if (head.startsWith('\xff\xd8\xff')) return 'image/jpeg';
+  if (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') return 'image/webp';
+  if (/^(\xef\xbb\xbf)?\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(head)) return 'image/svg+xml';
+  return '';
 }

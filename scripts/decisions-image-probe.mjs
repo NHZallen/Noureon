@@ -66,8 +66,8 @@ async function types() {
 }
 
 // ---- Part 2: the questions the page really asks (src/app/runtime/decisions/image-decisions.js), and what it reads from the answers
-const MODEL = { maxImageCount: 6, minImageReferences: 0, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '1:2', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'] };
-// message, and what the page should read: count (null = nothing said), collage, aspectRatio ('' = nothing said), problem ('' = none, else the code)
+const MODEL = { maxImageCount: 6, minImageReferences: 0, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '1:2', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'], supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'] };
+// message, and what the page should read: count (null = nothing said), collage, aspectRatio ('' = nothing said), problem ('' = none, else the code); a case may also name format ('gif', 'svg', '' = none), frameCount and frameDuration (null = nothing said)
 const CASES = [
   ['給我兩張9:16草原的圖片', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
   ['請給我一張9:16的拼貼圖片', { count: 1, collage: true, aspectRatio: '9:16', problem: '' }],
@@ -86,6 +86,15 @@ const CASES = [
   ['Нарисуй два вертикальных рисунка леса', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
   ['Hazme dos imágenes cuadradas de un gato', { count: 2, collage: false, aspectRatio: '1:1', problem: '' }],
   // The judgement does not take "一張貓的照片" for a count of pictures (0.28): nothing is read and the number of the settings stays. Known, mild.
+  ['Make a GIF of a bouncing ball, 6 frames, 150 ms per frame', { format: 'gif', frameCount: 6, frameDuration: 150, problem: '' }],
+  ['做一個 8 格的動圖，每格 0.5 秒', { format: 'gif', frameCount: 8, frameDuration: 500, problem: '' }],
+  ['Сделай анимацию с 12 кадрами, кот танцует', { format: 'gif', frameCount: 12, problem: '' }],
+  ['Hazme un GIF de un gato bailando', { format: 'gif', frameCount: null, frameDuration: null, problem: '' }],
+  ['a 3 second GIF of rain falling', { format: 'gif', frameDuration: null, problem: '' }],
+  ['Dessine un logo de café en SVG', { format: 'svg', frameCount: null, problem: '' }],
+  ['畫一張向量圖的貓，線條簡單', { format: 'svg', problem: '' }],
+  ['a cat that looks alive and happy', { format: '', problem: '' }],
+  ['畫一隻貓在窗邊', { format: '', frameCount: null, frameDuration: null, problem: '' }],
   ['一張貓的照片', { count: null, collage: false, aspectRatio: '', problem: '' }],
   ['Give me one picture of a meadow', { count: 1, collage: false, aspectRatio: '', problem: '' }],
   ['畫一隻貓', { count: null, collage: false, aspectRatio: '', problem: '' }],
@@ -101,12 +110,12 @@ async function battery() {
     const decision = result.json ? parseImageDecisionResponse(result.json) : null;
     if (!decision) { console.log(`FAIL  ${message}  ${result.status} ${result.text.slice(0, 200)}`); continue; }
     const spoken = readSpokenRequest({ decision, message, modelInfo: MODEL, attached: 0 });
-    const got = { count: spoken.count, collage: spoken.collage, aspectRatio: spoken.aspectRatio, problem: spoken.problem?.code || '' };
+    const got = { count: spoken.count, collage: spoken.collage, aspectRatio: spoken.aspectRatio, format: spoken.format, frameCount: spoken.frameCount, frameDuration: spoken.frameDuration, problem: spoken.problem?.code || '' };
     const misses = Object.keys(expect).filter(name => got[name] !== expect[name]);
     total += 1;
     if (!misses.length) right += 1;
     const shown = (value) => (value === null || value === undefined ? '-' : Number(value).toFixed(2));
-    console.log(`${misses.length ? 'MISS' : 'ok  '}  ${result.ms}ms  ${message}\n      read: ${JSON.stringify(got)}${misses.length ? `   expected: ${JSON.stringify(expect)}` : ''}\n      answers: collage=${shown(decision.collage)} countSaid=${shown(decision.countSaid)} count=${decision.count ?? '-'} more=${shown(decision.more)} ratioStated=${shown(decision.ratioStated)} portrait=${shown(decision.portrait)} landscape=${shown(decision.landscape)} square=${shown(decision.square)}`);
+    console.log(`${misses.length ? 'MISS' : 'ok  '}  ${result.ms}ms  ${message}\n      read: ${JSON.stringify(got)}${misses.length ? `   expected: ${JSON.stringify(expect)}` : ''}\n      answers: collage=${shown(decision.collage)} countSaid=${shown(decision.countSaid)} count=${decision.count ?? '-'} more=${shown(decision.more)} ratioStated=${shown(decision.ratioStated)} portrait=${shown(decision.portrait)} landscape=${shown(decision.landscape)} square=${shown(decision.square)} animated=${shown(decision.animated)} vector=${shown(decision.vector)} framesStated=${shown(decision.framesStated)} frameTimeStated=${shown(decision.frameTimeStated)}`);
   }
   console.log(`\nSentences read as expected: ${right} of ${total}`);
 }

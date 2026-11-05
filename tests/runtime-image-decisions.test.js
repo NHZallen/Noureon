@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildImageDecisionRequest, describeLimits, parseImageDecisionResponse, readWrittenRatio } from '../src/app/runtime/decisions/image-decisions.js';
+import { buildImageDecisionRequest, describeLimits, parseImageDecisionResponse, readWrittenFrameTime, readWrittenFrames, readWrittenRatio } from '../src/app/runtime/decisions/image-decisions.js';
 import { createDecisionService } from '../src/app/runtime/decisions/decision-client.js';
 import { readSpokenRequest } from '../src/app/runtime/images/image-spoken-request.js';
 
@@ -12,7 +12,7 @@ test('the request about a picture message holds its limits and the yes-or-no que
   assert.match(request.state[1], /1 to 6 pictures per request and takes 0 to 4 reference pictures/);
   assert.match(request.state[2], /attached to the latest message: 1/);
   const names = Object.keys(request.questions);
-  for (const name of ['collage', 'count_said', 'exactly_2', 'exactly_10', 'more_than_limit', 'ratio_stated', 'portrait', 'landscape', 'square']) assert.ok(names.includes(name), name);
+  for (const name of ['collage', 'count_said', 'exactly_2', 'exactly_10', 'more_than_limit', 'ratio_stated', 'portrait', 'landscape', 'square', 'animated', 'vector', 'frames_stated', 'frame_time_stated']) assert.ok(names.includes(name), name);
   assert.equal(names.includes('exactly_1'), false, 'one picture is "count_said": not saying a count is not a count');
   assert.ok(Object.values(request.questions).every(question => question.type === 'noul'));
   assert.match(request.questions.more_than_limit.instructions, /1 to 6 pictures/);
@@ -60,7 +60,7 @@ test('the question about a picture request has the same pause and failures as th
 test('what is read from the answers for the model in use', () => {
   const model = { maxImageCount: 6, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '3:4', '16:9'] };
   const base = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
-  assert.deepEqual(readSpokenRequest({ decision: null, message: 'x', modelInfo: model }), { count: null, aspectRatio: '', collage: false, problem: null });
+  assert.deepEqual(readSpokenRequest({ decision: null, message: 'x', modelInfo: model }), { count: null, aspectRatio: '', collage: false, format: '', frameCount: null, frameDuration: null, problem: null });
   assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.95, count: 3 }, message: 'x', modelInfo: model }).count, 3);
   assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.9 }, message: 'x', modelInfo: model }).count, 1);
   const collage = readSpokenRequest({ decision: { ...base, collage: 0.9, count: 5 }, message: 'x', modelInfo: model });
@@ -108,4 +108,33 @@ test('the probe of the third run: "three cats" is no count of pictures, "thirty 
   assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.99 }, message: 'Give me one picture of a meadow', modelInfo: model }).count, 1);
   // no answer to the question about a count: the "exactly N" is taken as it is
   assert.equal(readSpokenRequest({ decision: { ...base, countSaid: null, count: 2 }, message: 'x', modelInfo: model }).count, 2);
+});
+
+test('a GIF or an SVG asked for in words, with its frames and the time of a frame: read for this message, for the formats the model makes', () => {
+  const gpt = { maxImageCount: 10, supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'] };
+  const still = { maxImageCount: 10 };
+  const base = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05, animated: 0.04, vector: 0.03, framesStated: 0.02, frameTimeStated: 0.02 };
+  const read = (decision, message, modelInfo = gpt) => readSpokenRequest({ decision: { ...base, ...decision }, message, modelInfo });
+
+  const gif = read({ animated: 0.93, framesStated: 0.9, frameTimeStated: 0.88 }, 'make a GIF of a bouncing ball, 6 frames, 150 ms per frame');
+  assert.deepEqual([gif.format, gif.frameCount, gif.frameDuration, gif.problem], ['gif', 6, 150, null]);
+  assert.deepEqual([read({ animated: 0.93, framesStated: 0.9 }, '做一個 8 格的動圖').frameCount, read({ animated: 0.93 }, '做一個動圖').frameCount], [8, null], 'frames only when they were said');
+  assert.equal(read({ vector: 0.91 }, 'a logo as an SVG').format, 'svg');
+  assert.equal(read({ animated: 0.84, vector: 0.9 }, 'x').format, 'svg', 'the surer of the two');
+  assert.equal(read({ animated: 0.7 }, 'a cat that looks alive').format, '', 'a guess is not a format');
+  // The frames are for a GIF: with an SVG, or with nothing about a GIF, they are not read.
+  assert.deepEqual([read({ vector: 0.91, framesStated: 0.9 }, '6 frames svg').frameCount, read({ framesStated: 0.9 }, '6 frames').frameCount], [null, null]);
+  // The words said, not a time a frame cannot have: a whole animation of three seconds is no time of a frame.
+  assert.equal(read({ animated: 0.93, frameTimeStated: 0.9 }, 'a GIF that lasts 3 seconds').frameDuration, null);
+  // A model that does not make the format is a problem, as a count or a shape it lacks.
+  assert.deepEqual(read({ animated: 0.93 }, 'a GIF', still).problem, { code: 'format', format: 'GIF' });
+  assert.deepEqual(read({ vector: 0.93 }, 'an SVG', still).problem, { code: 'format', format: 'SVG' });
+  assert.equal(read({ animated: 0.2 }, 'x', still).problem, null);
+});
+
+test('the frames and the time of a frame are read from the words in the ways they are written', () => {
+  const frames = [['make a gif, 8 frames', 8], ['an 8-frame loop', 8], ['frames: 6', 6], ['做一個 12 格的動圖', 12], ['六格動圖', 6], ['十二幀', 12], ['12 кадров', 12], ['un GIF de 4 cadres', 4], ['una animación de 5 fotogramas', 5], ['30 frames per second', null], ['10 fps', null], ['no number here', null]];
+  for (const [text, expected] of frames) assert.equal(readWrittenFrames(text), expected, text);
+  const times = [['200 ms per frame', 200], ['0.5 seconds each', 500], ['每格 100 毫秒', 100], ['每格0.2秒', 200], ['0,5 s par image', 500], ['250 мс', 250], ['1 секунда', 1000], ['3 seconds long', null], ['5 ms', null], ['no time here', null]];
+  for (const [text, expected] of times) assert.equal(readWrittenFrameTime(text), expected, text);
 });
