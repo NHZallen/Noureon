@@ -15,6 +15,12 @@ export function getQuotaRow(document) {
     row.className = 'oq-row';
   }
   const place = () => {
+    // With the rail of a computer (ui/rail/) the rings stand above the avatar at its foot; without it, in the list of the left menu.
+    const dock = document.documentElement.hasAttribute('data-rail-layout') ? document.getElementById('rail-bottom') : null;
+    if (dock) {
+      if (row.parentNode !== dock) dock.prepend(row);
+      return;
+    }
     const entry = document.getElementById(EXTENSIONS_ID);
     const before = entry && entry.parentNode === list ? entry : list.firstChild;
     if (before === row || (row.parentNode === list && row.nextSibling === before)) return;
@@ -22,6 +28,7 @@ export function getQuotaRow(document) {
   };
   place();
   const win = document.defaultView;
+  if (!row.dataset.railWatched) { row.dataset.railWatched = 'true'; document.addEventListener('noureon:rail-layout', place); }
   if (!row.dataset.watched && typeof win?.MutationObserver === 'function') {
     row.dataset.watched = 'true';
     new win.MutationObserver(() => place()).observe(list, { childList: true });

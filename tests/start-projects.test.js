@@ -159,3 +159,21 @@ test('on a computer the back of the overview also brings the menu (docked, the p
   assert.equal(toggles, 1);
   await t.window.happyDOM.abort();
 });
+
+test('with the rail of a computer the page neither brings the menu nor shuts it: the back leaves the page, and a choice does not press the button that docks or frees the menu', async () => {
+  let args = null;
+  const t = setup({ phone: false, staticEntry: true, load: async () => ({ openProjectsPage: (given) => { args = given; return { go() {} }; } }) });
+  t.document.documentElement.setAttribute('data-rail-layout', 'hover');
+  let toggles = 0;
+  t.$('#menu-toggle-btn').addEventListener('click', () => { toggles += 1; });
+  t.$('#open-projects-btn').click();
+  await tick();
+  assert.equal(args.backOut(), false, 'the menu is beside the page or on hover: the back is not taken, the page closes');
+  args.openChat('c1');
+  assert.equal(toggles, 0, 'nothing presses the button of the menu');
+  t.document.documentElement.setAttribute('data-rail-layout', 'pinned');
+  assert.equal(args.backOut(), false);
+  args.openChat('c1');
+  assert.equal(toggles, 0);
+  await t.window.happyDOM.abort();
+});

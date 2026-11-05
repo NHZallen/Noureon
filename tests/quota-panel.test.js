@@ -153,3 +153,22 @@ test('the panel controller is one for the row, and the words of the tap are in t
     window.happyDOM.abort();
   }
 });
+
+test('with the rail of a computer the rings stand in the rail above the avatar, and go back to the menu when the rail goes', async () => {
+  const { window, document, oc } = await setup();
+  try {
+    document.body.insertAdjacentHTML('beforeend', '<nav id="desktop-rail"><div id="rail-bottom"><button id="avatar"></button></div></nav>');
+    const row = document.getElementById('provider-quota-row');
+    assert.equal(row.parentElement.className.includes('overflow-y-auto'), true, 'in the menu before the rail');
+    document.documentElement.setAttribute('data-rail-layout', 'pinned');
+    document.dispatchEvent(new window.CustomEvent('noureon:rail-layout', { detail: { layout: 'pinned' } }));
+    assert.equal(row.parentElement.id, 'rail-bottom');
+    assert.equal(row.nextElementSibling.id, 'avatar', 'above the avatar');
+    assert.ok(oc(), 'the ring is still there');
+    document.documentElement.removeAttribute('data-rail-layout');
+    document.dispatchEvent(new window.CustomEvent('noureon:rail-layout', { detail: { layout: 'none' } }));
+    assert.equal(row.parentElement.className.includes('overflow-y-auto'), true, 'back in the menu');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

@@ -24,6 +24,34 @@
   html[data-rail-layout="pinned"] { --rail-inset: calc(var(--rail-w) + var(--panel-w)); }
   /* The pages laid over the app leave the room of the rail (and of the panel when it is beside the rail). */
   html[data-rail-layout] #app-container > .pj:not(.pj-dialog-only) { left: var(--rail-inset); }
+  /* The Extensions page lies over the app from the rail's edge: its own list on the left is its panel, and the rail takes the way back. */
+  html[data-rail-layout] body > .cs { left: var(--rail-w); }
+  html[data-rail-layout] body > .cs .cs-back { display: none; }
+  /* What the rail has taken over leaves the left menu: the Extensions entry, and the account and settings at its foot. */
+  html[data-rail-layout] #open-cli-store-btn, html[data-rail-layout] #user-controls { display: none; }
+  html[data-rail-layout] #sidebar > :last-child:not(:has(#batch-action-bar:not(.hidden))) { display: none; }
+
+  /* The picture of the account at the foot of the rail. */
+  .rail-avatar { width: 2.5rem; height: 2.5rem; }
+  .rail-avatar .user-avatar { width: 1.75rem; height: 1.75rem; font-size: 0.8125rem; }
+  /* The usage rings stand in a column above it; the line of words opens beside the rail as a small card. */
+  #rail-bottom .oq-row { position: relative; flex-direction: column; margin: 0; padding: 0; gap: 0.1rem; }
+  #rail-bottom .oq-entry { padding: 0.2rem; }
+  #rail-bottom .oq-rings { width: 1.9rem; height: 1.9rem; }
+  #rail-bottom .oq-panel { position: absolute; left: calc(100% + 0.5rem); bottom: 0; order: 0; display: block; width: max-content; max-width: 22rem; padding: 0.45rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg); box-shadow: var(--shadow-sm); z-index: 60; transition: opacity 0.15s ease; }
+  #rail-bottom .oq-panel:not(.is-open) { visibility: hidden; }
+  #rail-bottom .oq-panel-clip { overflow: visible; }
+  #rail-bottom .oq-panel-inner { padding: 0; }
+
+  /* The menu of the account: beside the rail, above the pages. */
+  .rail-menu { position: fixed; z-index: 1220; min-width: 14rem; display: grid; gap: 0.1rem; padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg); box-shadow: var(--shadow-lg); color: var(--text-primary); font-size: 0.875rem; font-weight: 400; }
+  .rail-menu-title { padding: 0.5rem 0.65rem 0.55rem; border-bottom: 1px solid var(--border-color); margin-bottom: 0.2rem; font-size: 0.8125rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail-menu-item { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.55rem 0.65rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+  .rail-menu-item:hover, .rail-menu-item:focus-visible { background: var(--hover-bg); outline: none; }
+  .rail-menu-item svg { flex: none; width: 1.1rem; height: 1.1rem; color: inherit; }
+  .rail-menu-label { flex: 1; min-width: 0; }
+  .rail-menu-hint { flex: none; color: var(--text-secondary); font-size: 0.8125rem; }
+  .rail-menu-item.is-danger, .rail-menu-item.is-danger svg { color: var(--state-danger); }
 }
 
 @media (min-width: 1024px) {

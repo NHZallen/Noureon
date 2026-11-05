@@ -108,7 +108,9 @@ export function startProjects({
   // computer the menu is docked and the page moves over to make room, styles/projects-wide.css); with the menu already open the back leaves the page. A tap on the dim layer shuts the menu and leaves the
   // page there; a choice in the menu leaves the page for what was chosen.
   let drawerPage = null;
-  const drawerOpen = () => Boolean(document.getElementById('sidebar')?.classList.contains('open') || document.getElementById('sidebar-overlay')?.classList.contains('visible') || document.getElementById('app-container')?.classList.contains('sidebar-open'));
+  // With the rail of a computer (ui/rail/) the left menu is beside the page or comes by itself on hover: the page neither brings it nor shuts it.
+  const railDocked = () => ['pinned', 'hover'].includes(document.documentElement.getAttribute('data-rail-layout'));
+  const drawerOpen = () => railDocked() || Boolean(document.getElementById('sidebar')?.classList.contains('open') || document.getElementById('sidebar-overlay')?.classList.contains('visible') || document.getElementById('app-container')?.classList.contains('sidebar-open'));
   const drawerOverPage = () => {
     if (drawerOpen()) return false;
     const toggle = document.getElementById('menu-toggle-btn');
@@ -117,7 +119,7 @@ export function startProjects({
     return true;
   };
   // Choosing something in the menu shuts it, as choosing a chat of the history does (on a phone the drawer, on a wide computer the docked menu).
-  const closeDrawer = () => { if (drawerOpen()) document.getElementById('menu-toggle-btn')?.click(); };
+  const closeDrawer = () => { if (!railDocked() && drawerOpen()) document.getElementById('menu-toggle-btn')?.click(); };
   const watchDrawer = (page) => {
     if (drawerPage === page) return;
     drawerPage = page;

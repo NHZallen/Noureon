@@ -8,7 +8,7 @@ import railTexts from '../src/data/i18n/parts/rail.js';
 
 // The rail of icons beside the left menu: the layout it says for the width, the panel docked or on hover, the button and the key that dock or free it, and the drawer of a narrow window.
 
-const texts = railTexts.en;
+const texts = { ...railTexts.en, settings: 'Settings', logout: 'Logout' };
 const text = (key) => texts[key] ?? key;
 
 function setup({ width = 1440, stored = null, coarse = false } = {}) {
@@ -16,7 +16,7 @@ function setup({ width = 1440, stored = null, coarse = false } = {}) {
   window.innerWidth = width;
   window.matchMedia = (query) => ({ matches: query === '(pointer: coarse)' ? coarse : true, media: query, addEventListener() {}, removeEventListener() {} });
   const { document } = window;
-  document.body.innerHTML = '<div id="app-container"><nav id="desktop-rail"></nav><aside id="sidebar" class="sidebar"><button id="inside">a chat</button></aside><button id="menu-toggle-btn">menu</button></div>';
+  document.body.innerHTML = '<div id="app-container"><nav id="desktop-rail"></nav><aside id="sidebar" class="sidebar"><button id="inside">a chat</button><button id="open-cli-store-btn">Extensions</button><span id="username-display">Allen Niu</span><button id="settings-btn">settings</button><button id="user-profile-btn">profile</button><button id="logout-btn">logout</button></aside><button id="menu-toggle-btn">menu</button></div>';
   const data = new Map(stored ? [[PANEL_MODE_KEY, stored]] : []);
   const storage = { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
   const calls = [];
@@ -33,6 +33,8 @@ function setup({ width = 1440, stored = null, coarse = false } = {}) {
   const root = document.documentElement;
   return { window, document, rail, root, sidebar, data, calls, timers, flush: () => { for (const fn of timers.splice(0)) fn?.(); }, layout: () => root.getAttribute('data-rail-layout'), peek: () => root.getAttribute('data-rail-peek') };
 }
+
+const clicks = (t, ids) => { const log = []; for (const id of ids) t.document.getElementById(id).addEventListener('click', () => log.push(id)); return log; };
 
 test('without the rail in the page nothing starts', () => {
   const window = new Window({ url: 'https://noureon.test/' });
@@ -153,4 +155,78 @@ test('stopping puts the page back as it was', () => {
   const event = new t.window.Event('click', { bubbles: true, cancelable: true });
   t.document.getElementById('menu-toggle-btn').dispatchEvent(event);
   assert.equal(event.defaultPrevented, false);
+});
+
+test('the rail has the chats and the Extensions; the Extensions icon opens the page by the entry the menu has, and is lit while the page is there', async () => {
+  const t = setup();
+  const log = clicks(t, ['open-cli-store-btn']);
+  assert.deepEqual([...t.document.querySelectorAll('#desktop-rail .rail-top .rail-btn')].map((button) => button.getAttribute('aria-label')), ['Chats', 'Extensions']);
+  t.document.querySelector('[data-rail-item="extensions"]').click();
+  assert.deepEqual(log, ['open-cli-store-btn']);
+  // the page is a layer in the body, with a way back that the rail takes over
+  const page = t.document.createElement('div');
+  page.className = 'cs';
+  page.innerHTML = '<button class="cs-back">back</button>';
+  t.document.body.append(page);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(t.document.querySelector('[data-rail-item="extensions"]').getAttribute('aria-current'), 'page');
+  assert.equal(t.document.querySelector('[data-rail-item="chat"]').getAttribute('aria-current'), null);
+  let backs = 0;
+  page.querySelector('.cs-back').addEventListener('click', () => { backs += 1; page.remove(); });
+  t.document.querySelector('[data-rail-item="chat"]').click();
+  assert.equal(backs, 1, 'the chats close the page by its own way back');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(t.document.querySelector('[data-rail-item="chat"]').getAttribute('aria-current'), 'page');
+});
+
+test('the avatar opens a small menu with the name, settings, the dashboard and logout, which press the buttons the page has; Escape and a click outside close it', () => {
+  const t = setup();
+  const log = clicks(t, ['settings-btn', 'user-profile-btn', 'logout-btn']);
+  const avatar = t.document.querySelector('.rail-avatar');
+  assert.ok(avatar.querySelector('.user-avatar'), 'the place the picture is drawn in');
+  assert.equal(avatar.getAttribute('aria-label'), 'Account');
+  avatar.click();
+  const menu = t.document.querySelector('.rail-menu');
+  assert.equal(menu.querySelector('.rail-menu-title').textContent, 'Allen Niu');
+  assert.deepEqual([...menu.querySelectorAll('.rail-menu-item')].map((row) => row.dataset.item), ['settings', 'dashboard', 'logout']);
+  assert.equal(menu.querySelector('[data-item="settings"] .rail-menu-hint').textContent, 'Ctrl+,');
+  assert.equal(avatar.getAttribute('aria-expanded'), 'true');
+  menu.querySelector('[data-item="dashboard"]').click();
+  assert.deepEqual(log, ['user-profile-btn']);
+  assert.equal(t.document.querySelector('.rail-menu'), null, 'a choice closes it');
+  avatar.click();
+  t.document.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(t.document.querySelector('.rail-menu'), null);
+  avatar.click();
+  t.document.body.dispatchEvent(new t.window.Event('pointerdown', { bubbles: true }));
+  assert.equal(t.document.querySelector('.rail-menu'), null, 'a press outside closes it');
+  avatar.click();
+  t.document.querySelector('.rail-menu [data-item="logout"]').click();
+  avatar.click();
+  avatar.click();
+  assert.equal(t.document.querySelector('.rail-menu'), null, 'the avatar again closes it');
+  assert.deepEqual(log, ['user-profile-btn', 'logout-btn']);
+});
+
+test('Ctrl+, (Cmd+, on a Mac) opens the settings with the button the page has; not on a phone', () => {
+  const t = setup();
+  const log = clicks(t, ['settings-btn']);
+  const press = (init) => { const event = new t.window.KeyboardEvent('keydown', { cancelable: true, ...init }); t.document.dispatchEvent(event); return event; };
+  assert.equal(press({ key: ',', ctrlKey: true }).defaultPrevented, true);
+  press({ key: ',', metaKey: true });
+  press({ key: ',' });
+  press({ key: ',', ctrlKey: true, shiftKey: true });
+  assert.deepEqual(log, ['settings-btn', 'settings-btn']);
+  const phone = setup({ width: 390 });
+  const phoneLog = clicks(phone, ['settings-btn']);
+  phone.document.dispatchEvent(new phone.window.KeyboardEvent('keydown', { key: ',', ctrlKey: true, cancelable: true }));
+  assert.deepEqual(phoneLog, []);
+});
+
+test('a layout that changes tells the parts that live in the rail (the usage rings place themselves again)', () => {
+  const t = setup();
+  const seen = [];
+  t.document.addEventListener('noureon:rail-layout', (event) => seen.push(event.detail.layout));
+  t.document.getElementById('menu-toggle-btn').click();
+  assert.deepEqual(seen, ['hover']);
 });

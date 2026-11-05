@@ -62,7 +62,7 @@ export function startUserAvatar({
     element.replaceChildren(image);
   };
 
-  const places = () => [document.querySelector(SIDEBAR_SELECTOR), document.getElementById(SETTINGS_ID)].filter(Boolean);
+  const places = () => [...document.querySelectorAll(SIDEBAR_SELECTOR), document.getElementById(SETTINGS_ID)].filter(Boolean);
 
   const renderControls = () => {
     const edit = document.getElementById('user-avatar-edit');
