@@ -12,6 +12,8 @@ import { cliText } from '../../runtime/cli/cli-texts.js';
 import { skillText } from '../../runtime/skill/skill-texts.js';
 import { connectorText } from '../../runtime/connector/connector-texts.js';
 import { createConnectorsPart } from './connectors-part.js';
+import { connectorMark } from './connector-mark.js';
+import { CONNECTORS } from '../../../data/connector-catalog.js';
 import { formatFileSize } from '../skill/skill-file-size.js';
 import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
@@ -111,6 +113,14 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     nav.append(side);
   }
   head.append(back, title, switcher);
+  // With the rail of a computer (ui/rail/, styles/rail.css) this list is the panel, as the left menu is for the chats: its own title at the top, the parts, then what is installed (a click goes to it).
+  // Without the rail the style does not show the title or the installed things.
+  const navTitle = make(document, 'div', 'cs-nav-title');
+  navTitle.innerHTML = `${extensionsIcon(18, 'cs-nav-title-icon')}<span></span>`;
+  navTitle.querySelector('span').textContent = t('storeTitle');
+  nav.prepend(navTitle);
+  const installedBox = make(document, 'div', 'cs-installed');
+  nav.append(installedBox);
 
   const split = make(document, 'div', 'cs-split');
   const body = make(document, 'main', 'cs-body');
@@ -398,6 +408,35 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   }, 400);
 
   // The parts: which one is chosen shows on the switch (a phone) and on the list (a wide screen), and the search box follows it.
+  // What is installed, across the three parts: the skills that are on, the tools that are added, the connectors that are connected. A click opens the part at the tab "Mine" with that one's details open.
+  const drawInstalled = () => {
+    // The things of the other parts are asked for once (they come with a drawing of the page, and this list is drawn again then).
+    loadOwnSkills();
+    if (connectorsPart.state.status === 'idle') void connectorsPart.load();
+    const config = getConfig();
+    const items = [];
+    for (const skill of activeSkills(config, ownSkills())) items.push({ kind: 'skills', id: skill.name, label: skillTitle(skill, getLanguage()), mark: () => { const holder = make(document, 'span', 'cs-installed-mark'); holder.innerHTML = skillMark(skill.name, skillTitle(skill, getLanguage()), 20, '', { framed: false }); return holder; } });
+    for (const tool of OFFICIAL_CLI_CATALOG.filter((entry) => isCliEnabled(config, entry.id))) items.push({ kind: 'cli', id: tool.id, label: tool.name, mark: () => { const holder = make(document, 'span', 'cs-installed-mark'); holder.innerHTML = toolIconMarkup(tool, 20); return holder; } });
+    for (const connector of CONNECTORS.filter((entry) => { const status = connectorsPart.state.byId.get(entry.id)?.status; return status && status !== 'none'; })) items.push({ kind: 'connectors', id: connector.id, label: connector.name, mark: () => connectorMark(document, connector, { size: 20, className: 'cs-installed-mark' }) });
+    installedBox.hidden = !items.length;
+    installedBox.replaceChildren(...(items.length ? [make(document, 'div', 'cs-installed-title', t('navInstalled'))] : []), ...items.map((item) => {
+      const entry = make(document, 'button', 'cs-installed-item');
+      entry.type = 'button';
+      entry.dataset.installedKind = item.kind;
+      entry.dataset.installedId = item.id;
+      entry.append(item.mark(), make(document, 'span', 'cs-installed-name', item.label));
+      entry.addEventListener('click', () => {
+        state.kind = item.kind;
+        view().tab = 'mine';
+        view().query = '';
+        (item.kind === 'connectors' ? connectorsPart.state.expanded : state.expanded).add(item.id);
+        draw();
+        rowOf(item.id)?.scrollIntoView?.({ block: 'center' });
+      });
+      return entry;
+    }));
+  };
+
   const drawKinds = () => {
     for (const choose of root.querySelectorAll('[data-kind]')) choose.setAttribute('aria-selected', String(choose.dataset.kind === state.kind));
     const placeholder = t(state.kind === 'skills' ? 'skillsSearchPlaceholder' : state.kind === 'connectors' ? 'connectorSearchPlaceholder' : 'searchPlaceholder');
@@ -715,6 +754,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   };
   const drawNow = () => {
     drawKinds();
+    drawInstalled();
     syncNote();
     note.textContent = t(state.kind === 'connectors' ? 'connectorNeedAccount' : 'needAccount');
     drawTabs();

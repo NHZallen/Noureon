@@ -8,7 +8,7 @@ import railTexts from '../src/data/i18n/parts/rail.js';
 
 // The rail of icons beside the left menu: the layout it says for the width, the panel docked or on hover, the button and the key that dock or free it, and the drawer of a narrow window.
 
-const texts = { ...railTexts.en, settings: 'Settings', logout: 'Logout' };
+const texts = { ...railTexts.en, settings: 'Settings', logout: 'Logout', newChat: 'New Chat', search: 'Search' };
 const text = (key) => texts[key] ?? key;
 
 function setup({ width = 1440, stored = null, coarse = false } = {}) {
@@ -16,7 +16,7 @@ function setup({ width = 1440, stored = null, coarse = false } = {}) {
   window.innerWidth = width;
   window.matchMedia = (query) => ({ matches: query === '(pointer: coarse)' ? coarse : true, media: query, addEventListener() {}, removeEventListener() {} });
   const { document } = window;
-  document.body.innerHTML = '<div id="app-container"><nav id="desktop-rail"></nav><aside id="sidebar" class="sidebar"><button id="inside">a chat</button><button id="open-cli-store-btn">Extensions</button><span id="username-display">Allen Niu</span><button id="settings-btn">settings</button><button id="user-profile-btn">profile</button><button id="logout-btn">logout</button></aside><div id="settings-modal" class="modal hidden"><button id="close-settings-btn">close</button></div><button id="menu-toggle-btn">menu</button></div>';
+  document.body.innerHTML = '<div id="app-container"><nav id="desktop-rail"></nav><aside id="sidebar" class="sidebar"><div class="p-2 flex"><button id="open-search-btn">search</button><button id="selection-mode-btn">batch</button><button id="new-chat-btn">new</button></div><div class="overflow-y-auto"><div id="first-section"></div></div><button id="inside">a chat</button><button id="open-cli-store-btn">Extensions</button><span id="username-display">Allen Niu</span><button id="settings-btn">settings</button><button id="user-profile-btn">profile</button><button id="logout-btn">logout</button></aside><div id="settings-modal" class="modal hidden"><button id="close-settings-btn">close</button></div><button id="menu-toggle-btn">menu</button></div>';
   const data = new Map(stored ? [[PANEL_MODE_KEY, stored]] : []);
   const storage = { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
   const calls = [];
@@ -252,4 +252,32 @@ test('while the settings are on the screen no place of the rail is lit; going to
   t.document.querySelector('[data-rail-item="extensions"]').click();
   assert.equal(modal.classList.contains('visible'), false);
   assert.equal(opened, 1, 'and the Extensions open');
+});
+
+test('the head of the chats\' panel: the button that docks or frees the panel is where the new chat was, and the new chat is a row under the search', () => {
+  const t = setup();
+  const head = t.document.querySelector('#sidebar .p-2.flex');
+  assert.deepEqual([...head.children].map((node) => node.id), ['open-search-btn', 'selection-mode-btn', 'new-chat-btn', 'rail-panel-toggle'], 'the old new chat button stays in the page (others press it), the new button follows the batch select');
+  const toggle = t.document.getElementById('rail-panel-toggle');
+  assert.match(toggle.title, /Sidebar \(Ctrl\+Shift\+S\)/);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  toggle.click();
+  assert.equal(t.rail.mode(), 'hover', 'it frees the panel');
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  toggle.click();
+  assert.equal(t.rail.mode(), 'pinned');
+  const row = t.document.querySelector('#sidebar .overflow-y-auto').firstElementChild;
+  assert.equal(row.id, 'rail-new-chat', 'the new chat is the first row of the list');
+  assert.equal(row.querySelector('.cli-sidebar-label').textContent, 'New Chat');
+  const log = clicks(t, ['new-chat-btn']);
+  row.click();
+  assert.deepEqual(log, ['new-chat-btn'], 'it presses the button the page has');
+});
+
+test('in a narrow window the same button closes the drawer', () => {
+  const t = setup({ width: 900 });
+  t.document.querySelector('[data-rail-item="chat"]').click();
+  assert.equal(t.sidebar.classList.contains('open'), true);
+  t.document.getElementById('rail-panel-toggle').click();
+  assert.equal(t.sidebar.classList.contains('open'), false);
 });

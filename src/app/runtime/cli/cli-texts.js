@@ -6,6 +6,7 @@ export const CLI_TEXTS = Object.freeze({
   'zh-TW': {
     entry: '擴充',
     storeTitle: '擴充',
+    navInstalled: '已安裝',
     kindSkills: '技能',
     kindCli: '命令工具',
     switchLabel: '擴充的類型',
@@ -50,6 +51,7 @@ export const CLI_TEXTS = Object.freeze({
   en: {
     entry: 'Extensions',
     storeTitle: 'Extensions',
+    navInstalled: 'Installed',
     kindSkills: 'Skills',
     kindCli: 'CLI',
     switchLabel: 'Type of extension',
@@ -94,6 +96,7 @@ export const CLI_TEXTS = Object.freeze({
   fr: {
     entry: 'Extensions',
     storeTitle: 'Extensions',
+    navInstalled: 'Installés',
     kindSkills: 'Compétences',
     kindCli: 'CLI',
     switchLabel: 'Type d’extension',
@@ -138,6 +141,7 @@ export const CLI_TEXTS = Object.freeze({
   ru: {
     entry: 'Расширения',
     storeTitle: 'Расширения',
+    navInstalled: 'Установлено',
     kindSkills: 'Навыки',
     kindCli: 'CLI',
     switchLabel: 'Тип расширения',
@@ -182,6 +186,7 @@ export const CLI_TEXTS = Object.freeze({
   es: {
     entry: 'Extensiones',
     storeTitle: 'Extensiones',
+    navInstalled: 'Instaladas',
     kindSkills: 'Habilidades',
     kindCli: 'CLI',
     switchLabel: 'Tipo de extensión',

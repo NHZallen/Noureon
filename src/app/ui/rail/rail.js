@@ -8,11 +8,14 @@
 
 import { openRailMenu } from './rail-menu.js';
 import { mountPanelModeRow } from './rail-settings.js';
+import { mountSettingsHead } from './rail-panels.js';
 import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, RAIL_MIN_WIDTH, DOCKED_MIN_WIDTH } from './rail-mode.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICONS = Object.freeze({
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+  sidebar: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M9 3v18"></path>',
+  compose: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"></path>',
   extensions: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"></rect>'
 });
 
@@ -71,6 +74,31 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   const bottom = document.createElement('div');
   bottom.className = 'rail-bottom';
   bottom.id = 'rail-bottom';
+  // The head of the panel (the chats): the search, the batch select and, where the new chat used to be, the button that docks or frees the panel; the new chat is a row under the search.
+  // The old buttons stay in the page (other parts press them) and are hidden by the style while there is a rail.
+  const header = sidebar.querySelector('.p-2.flex');
+  const panelToggle = document.createElement('button');
+  panelToggle.type = 'button';
+  panelToggle.id = 'rail-panel-toggle';
+  panelToggle.className = 'sidebar-item p-2 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0';
+  panelToggle.append(icon(document, 'sidebar'));
+  if (header) header.append(panelToggle);
+  const newChat = document.createElement('button');
+  newChat.type = 'button';
+  newChat.id = 'rail-new-chat';
+  newChat.className = 'sidebar-item cli-sidebar-entry w-full text-left rounded-lg flex items-center';
+  const newChatIcon = icon(document, 'compose');
+  newChatIcon.setAttribute('class', 'cli-sidebar-icon');
+  newChatIcon.setAttribute('width', '18');
+  newChatIcon.setAttribute('height', '18');
+  const newChatLabel = document.createElement('span');
+  newChatLabel.className = 'cli-sidebar-label';
+  newChatLabel.dataset.langKey = 'newChat';
+  newChat.append(newChatIcon, newChatLabel);
+  sidebar.querySelector('.overflow-y-auto')?.prepend(newChat);
+  newChat.addEventListener('click', () => { document.getElementById('new-chat-btn')?.click(); });
+  panelToggle.addEventListener('click', () => togglePanel());
+
   const avatar = document.createElement('button');
   avatar.type = 'button';
   avatar.className = 'rail-btn rail-avatar';
@@ -107,6 +135,11 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
       if (item.id === activeId) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     }
     modeRow?.labels();
+    settingsHead?.labels();
+    const toggleLabel = `${text('railPanelToggle')} (${shortcutLabel(platform)})`;
+    panelToggle.title = toggleLabel;
+    panelToggle.setAttribute('aria-label', toggleLabel);
+    newChatLabel.textContent = text('newChat');
     const account = text('railAccount');
     avatar.title = account;
     avatar.setAttribute('aria-label', account);
@@ -120,6 +153,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
 
   const isOpen = () => sidebar.classList.contains('open');
   const modeRow = mountPanelModeRow({ document, text, onChange: (mode) => setMode(mode) });
+  const settingsHead = mountSettingsHead({ document, text });
 
   // ----- the layout
   const currentLayout = () => layoutFor(win.innerWidth, choice, { coarse: Boolean(coarse?.matches) });
@@ -142,6 +176,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     if (next === 'pinned') { if (!isOpen()) toggleSidebar(true); } else if (isOpen()) toggleSidebar(false);
     const toggle = document.getElementById('menu-toggle-btn');
     toggle?.setAttribute('aria-expanded', String(next === 'pinned'));
+    panelToggle.setAttribute('aria-expanded', String(next === 'pinned'));
   }
 
   // ----- the panel on hover

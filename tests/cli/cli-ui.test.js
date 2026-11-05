@@ -354,6 +354,25 @@ test('the page speaks all five languages', () => {
   }
 });
 
+test('the list at the left has its own title and what is installed, and a click on an installed one opens its part at Mine with its details open', () => {
+  const config = { cliEnabledIds: ['ffmpeg', 'pandoc'], cliModelUseIds: [], cliVersions: {} };
+  const t = setup({ config, language: 'en' });
+  openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => 'en', getAccountReady: () => false });
+  const root = t.document.querySelector('.cs');
+  assert.equal(root.querySelector('.cs-nav > .cs-nav-title span').textContent, 'Extensions', 'the title is the first thing of the list');
+  assert.equal(root.querySelector('.cs-installed-title').textContent, 'Installed');
+  assert.deepEqual([...root.querySelectorAll('.cs-installed-item')].map((item) => [item.dataset.installedKind, item.dataset.installedId, item.textContent.trim()]), [['cli', 'ffmpeg', 'FFmpeg'], ['cli', 'pandoc', 'Pandoc']]);
+  assert.equal(root.querySelectorAll('.cs-nav-item').length, 3, 'they are not parts: the three parts keep their list');
+  root.querySelector('.cs-installed-item[data-installed-id="pandoc"]').click();
+  assert.equal(root.querySelector('.cs-nav-item[data-kind="cli"]').getAttribute('aria-selected'), 'true');
+  assert.equal(root.querySelector('.history-tab[aria-selected="true"]').textContent, 'Mine');
+  assert.equal(root.querySelector('.cs-row[data-cli-id="pandoc"] .cs-text').getAttribute('aria-expanded'), 'true');
+  config.cliEnabledIds = [];
+  root.querySelector('.cs-nav-item[data-kind="skills"]').click();
+  assert.equal(root.querySelector('.cs-installed').hidden, true, 'nothing installed: no list');
+  closeCliStore();
+});
+
 test('the style: the list is at the left on a wide screen, the switch is in the header on a phone, equal in width, and the title keeps its row', () => {
   const css = readFileSync(new URL('../../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
   assert.match(css, /\.cs-switch \{ display: none; \}/, 'the switch is a phone thing');
