@@ -13,6 +13,8 @@ export const PANEL_MODE_KEY = 'noureon.rail.panel.v1';
 export const PANEL_DEFAULT = 'pinned';
 /** How long the panel stays after the pointer left it (a pointer going across the corner of the page is not a leaving). */
 export const PEEK_LEAVE_MS = 320;
+/** How long the list of the settings shows when they are opened on hover (there is no icon to be on). */
+export const SETTINGS_PEEK_MS = 1800;
 
 /** The layout for a width; `coarse` is a screen that is touched (it has no hover, so the panel stays docked). */
 export function layoutFor(width, choice = PANEL_DEFAULT, { coarse = false } = {}) {

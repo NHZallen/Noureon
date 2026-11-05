@@ -19,8 +19,11 @@ export const SETTINGS_GROUPS = Object.freeze([
   { key: 'railGroupData', sections: ['data-management', 'privacy', 'trash', 'about'] }
 ]);
 
-// Where the words of a part are, for the search: its labels, its small texts, its headings.
-const SEARCHED_WORDS = '.pz-label, .pz-sub, .pz-head h3, h3, h4, legend';
+// What the search lists: the names of the settings (the labels of the lines of a part), at most this many.
+const SETTING_NAMES = '.pz-label';
+// The parts whose lines are buttons (export, import, send feedback) as well: the names of those buttons are searched too.
+const ACTION_SECTIONS = new Set(['data-management', 'about']);
+const MAX_RESULTS = 10;
 
 /** The group (its index) of a part of the settings. */
 export const groupOfSection = (section) => {
@@ -78,8 +81,10 @@ export function mountSettingsHead({ document, text }) {
     if (now.length === wanted.length && now.every((node, index) => node === wanted[index])) return;
     wanted.forEach((node, index) => { if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null); });
   };
-  // The search looks into the parts (their labels, small texts and headings that are in the page now: a part that builds itself when it is first opened is searched once it has been opened) and into
-  // their names. While there are words in the box the list of the parts gives way to what was found, each with the part it is in; a click goes to the part and to the line, which shows itself for a moment.
+  // The search finds settings, not every word of the page. A setting is a label of the page (the name of a line: "Interface language", "Accent colour") and the small text under it; the name of a part is found
+  // too. What is listed is the name of the setting and the part it is in, the best matches first: the name of a part, a name that begins with the words, a name that has them, and last a setting whose small
+  // text has them. Headings of cards, buttons and long texts are not listed (they are not settings), and a name that comes twice is listed once. A part that builds itself when it is first opened is
+  // searched once it has been opened. The list is short: ten.
   const results = document.createElement('ul');
   results.className = 'rail-panel-results';
   results.hidden = true;
@@ -89,19 +94,30 @@ export function mountSettingsHead({ document, text }) {
     const found = [];
     for (const item of list ? list.querySelectorAll(':scope > .settings-nav-item[data-section]') : []) {
       const name = normalize(item.textContent);
-      if (name.toLowerCase().includes(needle)) found.push({ label: name, section: name, item, node: null });
+      const lower = name.toLowerCase();
+      if (lower.includes(needle)) found.push({ label: name, section: name, item, node: null, rank: lower.startsWith(needle) ? 0 : 1 });
       const page = document.getElementById(`${item.dataset.section}-section`);
       if (!page) continue;
-      const seen = new Set();
-      for (const node of page.querySelectorAll(SEARCHED_WORDS)) {
+      const nodes = [...page.querySelectorAll(SETTING_NAMES), ...(ACTION_SECTIONS.has(item.dataset.section) ? [...page.querySelectorAll('button')].filter((button) => normalize(button.textContent).length >= 3) : [])];
+      for (const node of nodes) {
         const label = normalize(node.textContent);
-        if (!label || label.length > 140 || seen.has(label) || !label.toLowerCase().includes(needle)) continue;
-        seen.add(label);
-        found.push({ label, section: name, item, node });
-        if (found.length >= 40) return found;
+        if (!label || label.length > 60) continue;
+        const hint = normalize(node.closest('.pz-row, .pz-key, .pz-text')?.querySelector('.pz-sub')?.textContent).toLowerCase();
+        const own = label.toLowerCase();
+        let rank = 9;
+        if (own.startsWith(needle)) rank = 2;
+        else if (own.includes(needle)) rank = 3;
+        else if (hint.includes(needle)) rank = 4;
+        if (rank < 9) found.push({ label, section: name, item, node, rank });
       }
     }
-    return found;
+    const seen = new Set();
+    return found.sort((left, right) => left.rank - right.rank).filter((result) => {
+      const key = `${result.section}\u0000${result.label}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, MAX_RESULTS);
   };
   const flash = (node) => {
     const row = node.closest('.pz-row, .pz-key, .pz-card') || node;

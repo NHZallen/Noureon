@@ -9,7 +9,7 @@
 import { openRailMenu } from './rail-menu.js';
 import { mountPanelModeRow } from './rail-settings.js';
 import { mountSettingsHead } from './rail-panels.js';
-import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, RAIL_MIN_WIDTH, DOCKED_MIN_WIDTH } from './rail-mode.js';
+import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, SETTINGS_PEEK_MS, RAIL_MIN_WIDTH, DOCKED_MIN_WIDTH } from './rail-mode.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICONS = Object.freeze({
@@ -68,8 +68,13 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   const settingsOpen = () => Boolean(settingsPage()?.classList.contains('visible'));
   // The place that is lit is the one whose page is on the screen; the settings are a page of their own (the account's menu), so while they are there no place is lit.
   const placeNow = () => (settingsOpen() ? '' : storePage() ? 'extensions' : 'home');
+  let settingsWasOpen = false;
   const syncActive = () => {
     placeInlineToggles();
+    // The settings are opened from the menu of the account, with no icon of their own to be on: on hover their list shows for a moment (and stays while the pointer comes to it).
+    const settingsNow = settingsOpen();
+    if (settingsNow && !settingsWasOpen && current === 'hover') { peek(true); leave(SETTINGS_PEEK_MS); }
+    settingsWasOpen = settingsNow;
     // The settings open over the app, under the page of the Extensions (a layer above): the page goes, as it does when another place of the rail is chosen.
     if (settingsOpen() && storePage()) document.querySelector('body > .cs .cs-back')?.click();
     const next = placeNow();
@@ -213,16 +218,22 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     if (on) root.setAttribute('data-rail-peek', 'on'); else root.removeAttribute('data-rail-peek');
   }
   const enter = () => peek(true);
-  const leave = () => {
+  const leave = (ms = PEEK_LEAVE_MS) => {
     unwait(timer);
-    timer = wait(() => { timer = null; peek(false); }, PEEK_LEAVE_MS);
+    timer = wait(() => { timer = null; peek(false); }, ms);
   };
-  // The places where the pointer (or the keyboard) brings the panel out and keeps it out: the things on the rail (its places, the usage rings, the avatar; not the empty strip between them) and the panel
-  // of whichever page is on the screen (the left menu, the list of the Extensions, the list of the settings).
-  const ZONES = '#desktop-rail .rail-btn, #desktop-rail .oq-entry, #sidebar, body > .cs .cs-nav, #settings-modal nav';
-  const inZone = (node) => Boolean(node?.closest?.(ZONES));
+  // The places where the pointer (or the keyboard) brings the panel out and keeps it out: the panel of the page that is on the screen (the left menu, the list of the Extensions, the list of the settings)
+  // and the one thing on the rail that is that page's own (the house for the home, the squares for the Extensions, the picture of the account for the settings, which are opened from it). Another
+  // place of the rail is a door, not the panel: the pointer on it brings nothing (pressing it goes there, and then it is the page's own). The empty strip of the rail brings nothing either.
+  const PANELS = '#sidebar, body > .cs .cs-nav, #settings-modal nav';
+  const ownIcon = () => (settingsOpen() ? '.rail-avatar' : storePage() ? '[data-rail-item="extensions"]' : '[data-rail-item="home"]');
+  const inPanel = (node) => Boolean(node?.closest?.(PANELS));
+  const onOwnIcon = (node) => Boolean(node?.closest?.(`#desktop-rail ${ownIcon()}`));
+  const inZone = (node) => inPanel(node) || onOwnIcon(node);
+  const onRailThing = (node) => Boolean(node?.closest?.('#desktop-rail .rail-btn, #desktop-rail .oq-entry'));
   listen(document, 'pointerover', (event) => { if (event.pointerType !== 'touch' && inZone(event.target)) enter(); });
-  listen(document, 'pointerout', (event) => { if (event.pointerType !== 'touch' && inZone(event.target) && !inZone(event.relatedTarget)) leave(); });
+  // Leaving the panel or any thing of the rail (a door that was pressed counts: the page it opened may not be there yet) lets the panel go, unless the pointer goes to another part of the zone.
+  listen(document, 'pointerout', (event) => { if (event.pointerType !== 'touch' && (inZone(event.target) || onRailThing(event.target)) && !inZone(event.relatedTarget)) leave(); });
   listen(document, 'focusin', (event) => { if (inZone(event.target)) enter(); });
   listen(document, 'focusout', (event) => { if (inZone(event.target) && !inZone(event.relatedTarget)) leave(); });
   listen(document, 'keydown', (event) => { if (event.key === 'Escape' && root.getAttribute('data-rail-peek') === 'on') peek(false); });
@@ -254,11 +265,12 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     // The settings are a page over the app: going to a place lets them go (their own way out).
     if (settingsOpen()) document.getElementById('close-settings-btn')?.click();
     // The page of a place lies over the app (the Extensions); the home (the chats) is what is under it, so going there lets the page go.
-    if (id === 'home' && storePage()) { item.go(); return; }
+    if (id === 'home' && storePage()) { item.go(); peek(true); return; }
     if (id !== 'home') {
       if (current === 'drawer' && isOpen()) toggleSidebar(false);
-      // The pointer is on the icon that was pressed, so the panel of the page that comes stays out (it is the list of that page now); it goes when the pointer leaves, as always.
       item.go();
+      // The pointer is on the icon that was pressed, and that icon is the page's own once the page is there: the panel of the page that comes is out at once, and goes when the pointer leaves.
+      peek(true);
       return;
     }
     activeId = id;

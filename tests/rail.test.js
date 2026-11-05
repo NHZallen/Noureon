@@ -366,16 +366,55 @@ test('Escape leaves the settings (they have no cross beside the rail), unless so
   assert.equal(phoneCloses, 0, 'a phone is as it was');
 });
 
-test('on hover a place that is pressed keeps the panel out: the list of the page that comes is there at once, without the pointer having to move', () => {
+test('on hover only the page\'s own icon brings the panel: another place of the rail is a door, and pressing it brings the panel of the page that comes, which stays until the pointer leaves', () => {
   const t = setup({ stored: 'hover' });
-  const button = t.document.querySelector('[data-rail-item="extensions"]');
-  move(t, t.document.getElementById('menu-toggle-btn'), button);
-  assert.equal(t.peek(), 'on');
-  button.click();
-  assert.equal(t.peek(), 'on', 'pressing it does not take the panel away');
+  const outside = t.document.getElementById('menu-toggle-btn');
+  const home = t.document.querySelector('[data-rail-item="home"]');
+  const door = t.document.querySelector('[data-rail-item="extensions"]');
+  move(t, outside, door);
+  assert.equal(t.peek(), null, 'on the home page the squares are a door: no panel');
+  move(t, door, home);
+  assert.equal(t.peek(), 'on', 'the house is the home page\'s own');
+  move(t, home, door);
   t.flush();
-  assert.equal(t.peek(), 'on', 'nor does a timer');
-  move(t, button, t.document.getElementById('menu-toggle-btn'));
+  assert.equal(t.peek(), null, 'and the panel goes when the pointer is on the door');
+  move(t, door, door);
+  door.click();
+  assert.equal(t.peek(), 'on', 'pressing the door brings the panel of the page that comes');
+  t.flush();
+  assert.equal(t.peek(), 'on', 'no timer takes it away');
+  // the page is there now, and the squares are its own icon
+  const page = t.document.createElement('div');
+  page.className = 'cs';
+  page.innerHTML = '<nav class="cs-nav"><button>a</button></nav>';
+  t.document.body.append(page);
+  move(t, door, home);
+  t.flush();
+  assert.equal(t.peek(), null, 'the house is a door now');
+  move(t, home, door);
+  assert.equal(t.peek(), 'on', 'and the squares bring the panel');
+  move(t, door, outside);
   t.flush();
   assert.equal(t.peek(), null, 'it goes when the pointer leaves');
+});
+
+test('on hover the settings, which have no icon of their own, show their list for a moment when they are opened, and keep it while the pointer is on it', () => {
+  const t = setup({ stored: 'hover' });
+  const modal = t.document.getElementById('settings-modal');
+  modal.innerHTML = '<nav><li class="settings-nav-item">x</li></nav>';
+  modal.classList.add('visible');
+  return new Promise((resolve) => setTimeout(resolve, 20)).then(() => {
+    assert.equal(t.peek(), 'on', 'the list shows');
+    t.flush();
+    assert.equal(t.peek(), null, 'and goes after a moment');
+    modal.classList.remove('visible');
+    modal.classList.add('visible');
+  }).then(() => new Promise((resolve) => setTimeout(resolve, 20))).then(() => {
+    move(t, t.document.getElementById('menu-toggle-btn'), modal.querySelector('.settings-nav-item'));
+    t.flush();
+    assert.equal(t.peek(), 'on', 'the pointer came to the list in time');
+    const avatar = t.document.querySelector('.rail-avatar');
+    move(t, modal.querySelector('.settings-nav-item'), avatar);
+    assert.equal(t.peek(), 'on', 'the picture of the account is the settings\' own icon');
+  });
 });
