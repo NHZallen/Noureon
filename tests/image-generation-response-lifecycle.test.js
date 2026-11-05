@@ -564,22 +564,30 @@ test('GPT Image 2.6: a gif asks for its frames, an svg for one picture, pictures
     conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { ...advanced }, ...earlier, ...extra }
   });
 
-  // A png and a gif build on the earlier picture; an svg does not (the endpoint that edits does not make one).
+  // A png builds on the earlier picture; an svg does not (the endpoint that edits does not make one), nor does a gif on OpenRouter (it answers a PNG sheet).
   await run(gpt, { outputFormat: 'png', n: 2 });
   assert.deepEqual(requests[0].inputReferences, ['data:image/png;base64,earlier']);
   await run(gpt, { outputFormat: 'gif', frameCount: 6, frameDuration: 150, outputCompression: 80, n: 2 });
-  assert.deepEqual(requests[1].inputReferences, ['data:image/png;base64,earlier'], 'a gif is made from the earlier picture');
+  assert.deepEqual(requests[1].inputReferences, [], 'a gif on OpenRouter is made from words');
+  await run({ ...gpt, id: 'gpt-image-2.6-flare', provider: 'openai' }, { outputFormat: 'gif' });
+  assert.deepEqual(requests.at(-1).inputReferences, ['data:image/png;base64,earlier'], 'a gif of OpenAI is made from the earlier picture');
   assert.deepEqual([requests[1].config.outputFormat, requests[1].config.frameCount, requests[1].config.frameDuration, requests[1].config.n, 'outputCompression' in requests[1].config], ['gif', 6, 150, 2, false]);
   await run(gpt, { outputFormat: 'svg', n: 4, frameCount: 6 });
-  assert.deepEqual(requests[2].inputReferences, []);
-  assert.deepEqual([requests[2].config.outputFormat, requests[2].config.n, 'frameCount' in requests[2].config], ['svg', 1, false], 'an svg is one picture and has no frames');
+  assert.deepEqual(requests.at(-1).inputReferences, []);
+  assert.deepEqual([requests.at(-1).config.outputFormat, requests.at(-1).config.n, 'frameCount' in requests.at(-1).config], ['svg', 1, false], 'an svg is one picture and has no frames');
 
   // Pictures the person attached go with a gif and an svg as with any format.
   const attached = [{ text: 'animate this' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }];
-  for (const outputFormat of ['gif', 'svg', 'webp']) {
+  for (const outputFormat of ['svg', 'webp']) {
     await run(gpt, { outputFormat }, {}, attached);
     assert.equal(requests.at(-1).inputReferences.length, 1, `a ${outputFormat} takes them`);
   }
+  await run({ ...gpt, id: 'gpt-image-2.6-flare', provider: 'openai' }, { outputFormat: 'gif' }, {}, attached);
+  assert.equal(requests.at(-1).inputReferences.length, 1, 'a gif of OpenAI takes them');
+  // OpenRouter makes no GIF from a picture: nothing is sent, and it says why.
+  const sent = requests.length;
+  await assert.rejects(run(gpt, { outputFormat: 'gif' }, {}, attached), /OpenRouter cannot make a GIF from a picture/);
+  assert.equal(requests.length, sent);
 
   // An earlier gif or svg is not a picture to build on: the new picture is made from the words.
   const gifEarlier = { messages: [{ role: 'model', parts: [{ generatedImage: { id: 'g1', mediaType: 'image/gif' } }] }] };
@@ -628,4 +636,23 @@ test('GPT Image 2.6: "make a GIF, 6 frames, 150 ms" in words sets the format and
   const before = requests.length;
   await assert.rejects(run('a GIF please', { animated: 0.95 }, { id: 'flux', provider: 'openrouter' }), /does not make GIF, so nothing was sent/);
   assert.equal(requests.length, before);
+});
+
+test('a text model that is asked for an SVG in a chat writes it: the format is SVG, the canvas is its own, and the request says so', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'PHN2Zy8+', mediaType: 'image/svg+xml' }] }; },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/svg+xml', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/png;base64,earlier',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const text = { id: 'openai/gpt-6-luna', provider: 'openrouter', supportedImageFormats: ['svg'], supportedImageOptions: [], maxImageCount: 1 };
+  const conversation = { imageConfig: { aspectRatio: '16:9', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', n: 4 }, messages: [{ role: 'model', parts: [{ generatedImage: { id: 'e1', mediaType: 'image/png' } }] }] };
+  const result = await lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'draw a fox logo as an SVG' }], modelInfo: text, conversation, svgByTextModel: true });
+  assert.equal(result.parts.length, 1);
+  const request = requests[0];
+  assert.deepEqual([request.model, request.provider, request.config.outputFormat, request.config.svgWriter, request.config.n, request.config.aspectRatio], ['openai/gpt-6-luna', 'openrouter', 'svg', true, 1, 'auto']);
+  assert.deepEqual(request.inputReferences, [], 'an earlier picture is not carried into an SVG');
 });

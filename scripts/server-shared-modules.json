@@ -104,6 +104,10 @@
       "note": "Reviewed 2026-11-06: no browser globals (the formats of a picture, the GIF frames and the one function that puts a request right for its format)."
     },
     {
+      "path": "src/app/runtime/images/svg-writer.js",
+      "note": "Reviewed 2026-11-06: no browser globals (asks OpenAI's Responses API or OpenRouter's chat for an SVG; TextEncoder and btoa are also in Node). Needs the owner's confirmation (a new module the server reaches)."
+    },
+    {
       "path": "src/app/runtime/images/openai-image-generation.js",
       "note": "Reviewed 2026-10-29: no browser globals (the calls to OpenAI's Images API; FormData, Blob and atob are also in Node)."
     },

@@ -52,3 +52,17 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 - **幫助中心**：那一句五語改成「可選或直接說」「附圖可當起點」。
 
 **還沒驗證**（沒有 OpenAI、OpenRouter 的連線）：判斷模型對這四題的實際準確度（`scripts/decisions-image-probe.mjs` 的題組已加 GIF/SVG 的句子，要 Allen 跑）；OpenAI 直連的 GIF 在 `auto` 下 9 與 16 格是否都放得下；OpenRouter 的 SVG 是 API 不收（探測 400），app 只能把 API 的錯誤原樣顯示；OpenAI 的圖 → SVG：`/images/edits` 不收 svg，app 照送、顯示 API 的錯誤，是否有別的路（例如 Responses API 的圖片工具）要查 OpenAI 文件或問 OpenAI。
+
+## 6. SVG 由文字模型寫（2026-11-06，Allen 的決定，補測之後）
+
+**補測**（OpenRouter 三種路線都不行、OpenAI 的 generations 不收圖、Responses 圖片工具帶 svg 加圖連續 500）只有一條通：把圖直接給有視覺的文字模型（OpenAI Responses，`gpt-6-luna`），請它寫 SVG，200、4.9 秒，形狀顏色文字位置幾乎原樣。
+
+**決定**：
+- OpenAI 直連的**文字 → SVG** 維持官方方式（圖片端點加 `svg.model`，固定 `gpt-6-luna`）。
+- **圖 + 文字 → SVG**（兩家）與 **OpenRouter 的任何 SVG**：由文字模型寫（`images/svg-writer.js`）。選 GPT Image 2.6 時固定用 GPT-6 Luna（OpenAI 直連 `gpt-6-luna`，OpenRouter `openai/gpt-6-luna`，不給人選）。
+- **一般文字模型**：對話裡判斷模型（新問題 `svg`，要 0.8 以上的確定）認出要向量圖，就用**當下的文字模型**寫 SVG，用圖片卡片顯示與保存（`images/svg-chat-route.js`，走圖片的生命週期，伺服器也一樣：`config.svgWriter: true`）。能這樣做的只有 OpenAI 與 OpenRouter 的模型（寫請求的程式只認這兩個）；Gemini、NVIDIA 的模型照舊在回答裡貼程式碼。判斷模型沒答就照舊。文字模型看不到圖的，本來就不能附圖。
+- **OpenRouter 的圖 + 文字 → GIF 不支援**：附了圖選 GIF 就不送出並說明（`imageGifPictureOpenRouter`，五語），前一張圖也不自動帶；maker 裡也擋一次（伺服器路徑）。OpenAI 直連的圖 → GIF 照常走 edits。
+- 分派在 `image-generators.js` 的 `svgIsWrittenByTextModel`；寫 SVG 的程式頁面與伺服器共用，已列入 `scripts/server-shared-modules.json`（需 Allen 確認）。
+- 沒有「GIF 模式」之類的切換鈕：格式只是進階設定裡的下拉，說一句「做成 GIF／SVG」就會自動切（只對那則訊息）。
+
+**還沒驗證**：OpenRouter 的 `openai/gpt-6-luna` 帶圖片的 chat/completions 請求（OpenRouter 的視覺輸入格式是標準的 `image_url`，單元測試用假的回答驗證了請求長相和讀取，沒有真實連線）；判斷模型 `svg` 題的實際準確度（`scripts/decisions-image-probe.mjs` 可以加句子驗）；文字模型寫出很大的 SVG 時的耗時（非串流，一次等回答）。

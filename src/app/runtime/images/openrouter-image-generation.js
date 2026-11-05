@@ -57,6 +57,8 @@ const randomSeed = () => Math.floor(Math.random() * 2147483646) + 1;
 
 export function createOpenRouterImageGenerator({ fetchImpl = fetch, makeSeed = randomSeed } = {}) {
   const callOnce = async ({ apiKey, model, prompt, config, inputReferences, signal }) => {
+    // OpenRouter answers a PNG sheet of the frames when a GIF is asked for from a picture (the probe of 2026-11-06, twice): it is not asked.
+    if (config?.outputFormat === 'gif' && inputReferences.length > 0) throw new Error('OpenRouter cannot make a GIF from a picture. Use a GPT Image 2.6 model of OpenAI, or ask for the GIF from words alone.');
     const response = await fetchImpl(IMAGE_API_URL, {
       method: 'POST',
       headers: {

@@ -88,6 +88,8 @@ export function createImageGenerationResponseLifecycle({
     assistantMessageId = null,
     sequence = conversation?.messages?.length ?? 0,
     resumeRun = null,
+    // A text model of the person's choice that is asked for an SVG in a chat: it writes the SVG, shown as a picture (images/svg-writer.js). The format is SVG whatever the settings say.
+    svgByTextModel = false,
     // The Decisions model's reading of what was said about the pictures ({ message, limits, attached } -> answers or null); without it the settings alone decide.
     requestImageDecisions = null
   }) => {
@@ -100,6 +102,8 @@ export function createImageGenerationResponseLifecycle({
       // '' (the model sets its own size) is dropped from the request.
       resolution: resolveSupportedResolution(savedConfig.resolution, modelInfo.supportedImageResolutions)
     };
+    // A text model that writes an SVG sets its own canvas.
+    if (svgByTextModel) normalizedConfig.aspectRatio = 'auto';
     const imageAspectRatio = resolveImageAspectRatio(normalizedConfig.aspectRatio);
     void loadImageWait();
     targetElement.innerHTML = `
@@ -168,13 +172,15 @@ export function createImageGenerationResponseLifecycle({
     const modelFormats = supportedFormatsOf(modelInfo);
     const savedFormat = conversation.imageAdvancedConfig?.outputFormat;
     // What was said ("make a GIF", "as an SVG") wins for this message; the setting is not changed.
-    const outputFormat = spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
-    // Pictures the person attached go with any format (a picture can be made into a GIF or an SVG). The earlier picture that goes along as the one to build on, when none is attached, does not go with an SVG:
-    // the endpoint that edits does not make one (the probe of 2026-11-06), so it would only fail.
+    const outputFormat = svgByTextModel ? 'svg' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
+    // Pictures the person attached go with any format (a picture can be made into a GIF or an SVG), except a GIF on OpenRouter (it answers a PNG sheet of the frames: the probe of 2026-11-06). The earlier picture that goes
+    // along as the one to build on, when none is attached, does not go with an SVG (the endpoint that edits does not make one) or with a GIF on OpenRouter, so they would only fail.
     let inputReferences = getInlineReferences(requestParts);
     const attachedByPerson = inputReferences.length > 0;
+    const gifOnOpenRouter = outputFormat === 'gif' && modelInfo.provider === 'openrouter';
+    if (attachedByPerson && gifOnOpenRouter) throw new Error(getText('imageGifPictureOpenRouter', 'OpenRouter cannot make a GIF from a picture, so nothing was sent. Use a GPT Image 2.6 model of OpenAI, or ask for the GIF from words alone.'));
     let carriedImage = null;
-    if (inputReferences.length === 0 && outputFormat !== 'svg') {
+    if (inputReferences.length === 0 && outputFormat !== 'svg' && !gifOnOpenRouter) {
       const latest = findLatestGeneratedImage(conversation);
       // An earlier GIF or SVG is not a picture the others can be built on (they take png, jpeg and webp): the new picture is made from the words.
       if (latest && !/^image\/(gif|svg)/.test(latest.mediaType)) {
@@ -260,6 +266,7 @@ export function createImageGenerationResponseLifecycle({
     // The format, put right for the model; then for the format (a GIF has its frames and no compression, an SVG is one picture).
     if (outputFormat) generationRequest.config.outputFormat = outputFormat;
     generationRequest.config = settleImageFormatConfig(generationRequest.config);
+    if (svgByTextModel) generationRequest.config.svgWriter = true;
     const reasoningConfig = getModelReasoningConfig(modelInfo);
     const reasoningEffort = reasoningConfig
       ? normalizeReasoningEffort(modelInfo, conversation.reasoningEffort)

@@ -421,10 +421,17 @@ test('an image request for a GIF carries its frames and their time (whole number
   const dirty = Buffer.from('<svg width="4" height="4"><rect width="4" height="4"/></svg>').toString('base64');
   const saved = [];
   const files = { save: async ({ bytes, mimeType }) => { saved.push({ text: Buffer.from(bytes).toString('utf8'), mimeType }); return { __astraCloudAsset: { path: `${USER}/x`, mimeType, encoding: 'blob' } }; }, load: async () => PICTURE };
-  const fetchImpl = async () => new Response(JSON.stringify({ data: [{ b64_json: dirty, media_type: 'image/svg+xml' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  // OpenRouter's images endpoint takes no SVG: a text model writes it (images/svg-writer.js), asked through the chat endpoint.
+  const asked = [];
+  const fetchImpl = async (url, init) => {
+    asked.push({ url: String(url), body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ choices: [{ message: { content: `Here it is:\n\`\`\`svg\n${Buffer.from(dirty, 'base64').toString('utf8')}\n\`\`\`` } }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
   const spec = validateRunSpec(imageSpec({ model: { provider: 'openrouter', id: 'openai/gpt-image-2.6-flare', info: { name: 'GPT Image', provider: 'openrouter' } }, image: { prompt: 'a logo', config: { aspectRatio: '1:1', outputFormat: 'svg' } } })).spec;
   const done = await executeImage({ spec, secrets: { providerKey: KEY }, signal: new AbortController().signal, userId: USER, files, fetchImpl });
   assert.equal(done.status, 'done');
+  assert.equal(asked[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(asked[0].body.model, 'openai/gpt-6-luna');
   assert.equal(saved.length, 1);
   assert.equal(saved[0].mimeType, 'image/svg+xml');
   assert.equal(saved[0].text, '<svg width="4" height="4"><rect width="4" height="4"/></svg>');

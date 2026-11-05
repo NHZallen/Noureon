@@ -391,7 +391,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
     const isEdit = Boolean(effectiveSubmitOptions.preserveComposer);
     const activeId = getActiveConversation()?.id;
     if (isEdit) {
-      // An edit cuts the conversation at the edited message: a reply being written or a visual check would add itself back, so both stop first.
+      // An edit cuts the conversation at the edited message: a reply or visual check being made would add itself back, so both stop.
       vc.cancel(activeId);
       await stopReplyAndWait({ getAbortController, wait: (ms) => new Promise((resolve) => scheduleTimeout(resolve, ms)) });
       await effectiveSubmitOptions.prepare?.();
@@ -426,7 +426,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
 
     // The reply's message id comes first: the server writes under it.
     const assistantMessageId = resumeRun?.assistantMessageId || crypto.randomUUID();
-    // The reply was cut where the server took a message of the person's: it goes on in a new message, followed below (reply-cut.js).
+    // The reply was cut where the server took a message of the person's: it goes on in a new one.
     let cut = null;
     let cutRun = null;
     let continued = false;
@@ -438,7 +438,8 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
       let generatedImageParts = null;
       let extraParts = [];
       let pictureOffsets = [];
-      // When the pictures were drawn into the page as they were made: the text the first bubble shows, and that they are there already.
+      let svg;
+      // When the pictures were drawn into the page as made: the text of the first bubble, and that they are there.
       let viewResponse = null;
       let picturesShown = false;
       const historySourceConversationIds = new Set();
@@ -475,14 +476,13 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         councilMetadata = councilResult.metadata;
       } else {
         const modelInfo = normalizeConversationModel(conv);
+        const pictureArgs = { targetElement: contentDiv, userParts, modelInfo, conversation: conv, webSearchEnabled, signal: submitAbortController.signal, uiLanguage: getLiveConfig().uiLanguage, serverReply, assistantMessageId, resumeRun };
         if (modelGeneratesImages(modelInfo)) {
           if (!imageGenerationResponseLifecycle) throw new Error(getLocalizedText('imageFeatureNotReady'));
-          const imageResult = await imageGenerationResponseLifecycle.run({
-            targetElement: contentDiv, userParts, modelInfo, conversation: conv, webSearchEnabled, signal: submitAbortController.signal,
-            uiLanguage: getLiveConfig().uiLanguage, serverReply, assistantMessageId, resumeRun,
-            requestImageDecisions: requestDecisions?.image
-          });
+          const imageResult = await imageGenerationResponseLifecycle.run({ ...pictureArgs, requestImageDecisions: requestDecisions?.image });
           generatedImageParts = imageResult.parts;
+        } else if (imageGenerationResponseLifecycle && (svg = await import('../images/svg-chat-route.js')).chatWritesSvg({ modelInfo, userParts })) {
+          generatedImageParts = (await svg.run(imageGenerationResponseLifecycle, pictureArgs)).parts;
         } else {
           const singleResult = await singleModelResponseLifecycle.run({
             targetElement: contentDiv,

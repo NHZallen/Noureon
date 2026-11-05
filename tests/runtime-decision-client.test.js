@@ -14,7 +14,7 @@ test('the request puts four questions in one call, the tool question only when t
   const tools = [{ name: 'OfficeCLI', description: 'Reads and edits Word, Excel and PowerPoint files.' }];
   const request = buildDecisionRequest({ message: '幫我把這份報告做成簡報', tools, hasAttachment: true });
   assert.equal(request.model, 'typesafe/jev-1.14');
-  assert.deepEqual(Object.keys(request.questions), ['search', 'file', 'chart', 'tool']);
+  assert.deepEqual(Object.keys(request.questions), ['search', 'file', 'chart', 'svg', 'tool']);
   for (const question of Object.values(request.questions)) {
     assert.equal(question.type, 'noul');
     assert.ok(question.instructions.length > 40);
@@ -23,7 +23,7 @@ test('the request puts four questions in one call, the tool question only when t
   assert.match(request.state[0], /^Latest message: 幫我把這份報告做成簡報$/);
   assert.ok(request.state.some((item) => /Files attached to the latest message: yes/.test(item)));
   assert.ok(request.state.some((item) => /Tools available:\n- OfficeCLI: Reads/.test(item)));
-  assert.deepEqual(Object.keys(buildDecisionRequest({ message: 'hello' }).questions), ['search', 'file', 'chart']);
+  assert.deepEqual(Object.keys(buildDecisionRequest({ message: 'hello' }).questions), ['search', 'file', 'chart', 'svg']);
   assert.equal(buildDecisionRequest({ message: '   ' }), null);
 });
 
@@ -39,7 +39,7 @@ test('what is sent is short: the message, the last two earlier messages and no i
 });
 
 test('the answers are probabilities, anything else is no answer', () => {
-  assert.deepEqual(parseDecisionResponse({ answers }), { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null });
+  assert.deepEqual(parseDecisionResponse({ answers }), { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null, svg: null });
   assert.equal(parseDecisionResponse({ answers: { search: { type: 'noul', noul: 7 }, file: { noul: 'x' } } }), null);
   assert.equal(parseDecisionResponse({}), null);
   assert.equal(parseDecisionResponse(null), null);
@@ -62,7 +62,7 @@ test('the service calls OpenRouter with the key and returns the decisions', asyn
     fetchImpl: async (url, init) => { calls.push({ url, init }); return ok(answers); }
   });
   const decisions = await service.decide({ message: '今天台北天氣' });
-  assert.deepEqual(decisions, { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null });
+  assert.deepEqual(decisions, { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null, svg: null });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, DECISION_URL);
   assert.equal(calls[0].url, 'https://openrouter.ai/api/alpha/decisions');
@@ -167,9 +167,9 @@ test('the request made when a message is sent offers only the command tools the 
 
 test('the address question is asked only when the message has an address, the two about earlier conversations only when the recall is on', () => {
   const names = (input) => Object.keys(buildDecisionRequest(input).questions);
-  assert.deepEqual(names({ message: 'explain recursion' }), ['search', 'file', 'chart']);
-  assert.deepEqual(names({ message: 'summarise https://example.com/post for me' }), ['search', 'file', 'chart', 'url']);
-  assert.deepEqual(names({ message: 'give me the recipe again', historyRecall: true }), ['search', 'file', 'chart', 'exact', 'verbatim']);
+  assert.deepEqual(names({ message: 'explain recursion' }), ['search', 'file', 'chart', 'svg']);
+  assert.deepEqual(names({ message: 'summarise https://example.com/post for me' }), ['search', 'file', 'chart', 'svg', 'url']);
+  assert.deepEqual(names({ message: 'give me the recipe again', historyRecall: true }), ['search', 'file', 'chart', 'svg', 'exact', 'verbatim']);
   const all = parseDecisionResponse({ answers: { url: { noul: 0.9 }, exact: { noul: 0.2 }, verbatim: { noul: 0.1 } } });
-  assert.deepEqual(all, { search: null, file: null, chart: null, tool: null, url: 0.9, exact: 0.2, verbatim: 0.1 });
+  assert.deepEqual(all, { search: null, file: null, chart: null, tool: null, url: 0.9, exact: 0.2, verbatim: 0.1, svg: null });
 });
