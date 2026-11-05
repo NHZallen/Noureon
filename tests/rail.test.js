@@ -87,11 +87,19 @@ const move = (t, from, to, pointerType = 'mouse') => {
   if (to) { const over = new t.window.Event('pointerover', { bubbles: true }); Object.defineProperty(over, 'relatedTarget', { value: from }); Object.defineProperty(over, 'pointerType', { value: pointerType }); to.dispatchEvent(over); }
 };
 
-test('on hover the panel shows while the pointer is on the rail or the panel and goes a moment after it left; Escape shuts it at once', () => {
+test('on hover the panel shows while the pointer is on a thing of the rail or on the panel and goes a moment after it left; Escape shuts it at once', () => {
   const t = setup({ stored: 'hover' });
-  const rail = t.document.getElementById('desktop-rail');
+  const strip = t.document.getElementById('desktop-rail');
+  const rail = t.document.querySelector('#desktop-rail .rail-btn');
   const outside = t.document.getElementById('menu-toggle-btn');
-  move(t, outside, rail);
+  move(t, outside, strip);
+  assert.equal(t.peek(), null, 'the empty strip of the rail does not bring it');
+  move(t, strip, rail);
+  assert.equal(t.peek(), 'on', 'a place of the rail does');
+  move(t, rail, strip);
+  t.flush();
+  assert.equal(t.peek(), null, 'and the empty strip does not keep it');
+  move(t, strip, rail);
   assert.equal(t.peek(), 'on');
   move(t, rail, t.document.getElementById('inside'));
   t.flush();
@@ -135,13 +143,13 @@ test('the keyboard reaches the panel on hover (focus in the rail) and a touch do
   t.document.querySelector('.rail-btn').dispatchEvent(new t.window.FocusEvent('focusin', { bubbles: true }));
   assert.equal(t.peek(), 'on');
   t.rail.peek(false);
-  move(t, t.document.getElementById('menu-toggle-btn'), t.document.getElementById('desktop-rail'), 'touch');
+  move(t, t.document.getElementById('menu-toggle-btn'), t.document.querySelector('#desktop-rail .rail-btn'), 'touch');
   assert.equal(t.peek(), null);
 });
 
 test('pinned has no hover panel: the pointer on the rail changes nothing', () => {
   const t = setup();
-  move(t, t.document.getElementById('menu-toggle-btn'), t.document.getElementById('desktop-rail'));
+  move(t, t.document.getElementById('menu-toggle-btn'), t.document.querySelector('#desktop-rail .rail-btn'));
   assert.equal(t.peek(), null);
 });
 
@@ -356,4 +364,18 @@ test('Escape leaves the settings (they have no cross beside the rail), unless so
   phone.document.getElementById('close-settings-btn').addEventListener('click', () => { phoneCloses += 1; });
   phone.document.body.dispatchEvent(new phone.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   assert.equal(phoneCloses, 0, 'a phone is as it was');
+});
+
+test('on hover a place that is pressed keeps the panel out: the list of the page that comes is there at once, without the pointer having to move', () => {
+  const t = setup({ stored: 'hover' });
+  const button = t.document.querySelector('[data-rail-item="extensions"]');
+  move(t, t.document.getElementById('menu-toggle-btn'), button);
+  assert.equal(t.peek(), 'on');
+  button.click();
+  assert.equal(t.peek(), 'on', 'pressing it does not take the panel away');
+  t.flush();
+  assert.equal(t.peek(), 'on', 'nor does a timer');
+  move(t, button, t.document.getElementById('menu-toggle-btn'));
+  t.flush();
+  assert.equal(t.peek(), null, 'it goes when the pointer leaves');
 });

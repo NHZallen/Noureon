@@ -217,8 +217,9 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     unwait(timer);
     timer = wait(() => { timer = null; peek(false); }, PEEK_LEAVE_MS);
   };
-  // The places where the pointer (or the keyboard) keeps the panel out: the rail and the panel of whichever page is on the screen (the left menu, the list of the Extensions, the list of the settings).
-  const ZONES = '#desktop-rail, #sidebar, body > .cs .cs-nav, #settings-modal nav';
+  // The places where the pointer (or the keyboard) brings the panel out and keeps it out: the things on the rail (its places, the usage rings, the avatar; not the empty strip between them) and the panel
+  // of whichever page is on the screen (the left menu, the list of the Extensions, the list of the settings).
+  const ZONES = '#desktop-rail .rail-btn, #desktop-rail .oq-entry, #sidebar, body > .cs .cs-nav, #settings-modal nav';
   const inZone = (node) => Boolean(node?.closest?.(ZONES));
   listen(document, 'pointerover', (event) => { if (event.pointerType !== 'touch' && inZone(event.target)) enter(); });
   listen(document, 'pointerout', (event) => { if (event.pointerType !== 'touch' && inZone(event.target) && !inZone(event.relatedTarget)) leave(); });
@@ -256,7 +257,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     if (id === 'home' && storePage()) { item.go(); return; }
     if (id !== 'home') {
       if (current === 'drawer' && isOpen()) toggleSidebar(false);
-      peek(false);
+      // The pointer is on the icon that was pressed, so the panel of the page that comes stays out (it is the list of that page now); it goes when the pointer leaves, as always.
       item.go();
       return;
     }

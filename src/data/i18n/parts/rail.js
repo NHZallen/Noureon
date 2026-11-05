@@ -13,7 +13,8 @@ export default {
         railPanelHover: '滑鼠移上才展開',
         railGroupPersonal: '個人',
         railGroupModels: '模型與整合',
-        railGroupData: '資料與其他'
+        railGroupData: '資料與其他',
+        railSearchEmpty: '沒有符合的設定'
     },
     en: {
         railLabel: 'Main navigation',
@@ -28,7 +29,8 @@ export default {
         railPanelHover: 'Open on hover',
         railGroupPersonal: 'Personal',
         railGroupModels: 'Models and integrations',
-        railGroupData: 'Data and more'
+        railGroupData: 'Data and more',
+        railSearchEmpty: 'No matching settings'
     },
     fr: {
         railLabel: 'Navigation principale',
@@ -43,7 +45,8 @@ export default {
         railPanelHover: 'Au survol',
         railGroupPersonal: 'Personnel',
         railGroupModels: 'Modèles et intégrations',
-        railGroupData: 'Données et autres'
+        railGroupData: 'Données et autres',
+        railSearchEmpty: 'Aucun réglage correspondant'
     },
     ru: {
         railLabel: 'Основная навигация',
@@ -58,7 +61,8 @@ export default {
         railPanelHover: 'При наведении',
         railGroupPersonal: 'Личное',
         railGroupModels: 'Модели и интеграции',
-        railGroupData: 'Данные и прочее'
+        railGroupData: 'Данные и прочее',
+        railSearchEmpty: 'Нет подходящих настроек'
     },
     es: {
         railLabel: 'Navegación principal',
@@ -73,6 +77,7 @@ export default {
         railPanelHover: 'Al pasar el ratón',
         railGroupPersonal: 'Personal',
         railGroupModels: 'Modelos e integraciones',
-        railGroupData: 'Datos y más'
+        railGroupData: 'Datos y más',
+        railSearchEmpty: 'No hay ajustes que coincidan'
     }
 };

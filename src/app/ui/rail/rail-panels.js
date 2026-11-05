@@ -19,6 +19,9 @@ export const SETTINGS_GROUPS = Object.freeze([
   { key: 'railGroupData', sections: ['data-management', 'privacy', 'trash', 'about'] }
 ]);
 
+// Where the words of a part are, for the search: its labels, its small texts, its headings.
+const SEARCHED_WORDS = '.pz-label, .pz-sub, .pz-head h3, h3, h4, legend';
+
 /** The group (its index) of a part of the settings. */
 export const groupOfSection = (section) => {
   const at = SETTINGS_GROUPS.findIndex((group) => group.sections.includes(section));
@@ -26,7 +29,7 @@ export const groupOfSection = (section) => {
 };
 
 /**
- * The title and the search above the list of the settings' parts. The search narrows the list to the parts whose name holds the words.
+ * The title, the search and the groups of the list of the settings' parts. The search looks into the parts as well as at their names.
  * deps: document, text(key). Returns { labels() } or null when the page has no list of settings parts.
  */
 export function mountSettingsHead({ document, text }) {
@@ -75,19 +78,67 @@ export function mountSettingsHead({ document, text }) {
     if (now.length === wanted.length && now.every((node, index) => node === wanted[index])) return;
     wanted.forEach((node, index) => { if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null); });
   };
-  const filter = () => {
-    const needle = input.value.trim().toLowerCase();
-    for (const item of nav.querySelectorAll('.settings-nav-item')) item.hidden = Boolean(needle) && !item.textContent.toLowerCase().includes(needle);
-    // A group whose parts are all out of the way takes its name with it.
-    for (const heading of headings.filter(Boolean)) {
-      let shown = false;
-      for (let node = heading.nextElementSibling; node && !node.classList.contains('rail-panel-group'); node = node.nextElementSibling) if (!node.hidden) shown = true;
-      heading.hidden = !shown;
+  // The search looks into the parts (their labels, small texts and headings that are in the page now: a part that builds itself when it is first opened is searched once it has been opened) and into
+  // their names. While there are words in the box the list of the parts gives way to what was found, each with the part it is in; a click goes to the part and to the line, which shows itself for a moment.
+  const results = document.createElement('ul');
+  results.className = 'rail-panel-results';
+  results.hidden = true;
+  nav.append(results);
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const find = (needle) => {
+    const found = [];
+    for (const item of list ? list.querySelectorAll(':scope > .settings-nav-item[data-section]') : []) {
+      const name = normalize(item.textContent);
+      if (name.toLowerCase().includes(needle)) found.push({ label: name, section: name, item, node: null });
+      const page = document.getElementById(`${item.dataset.section}-section`);
+      if (!page) continue;
+      const seen = new Set();
+      for (const node of page.querySelectorAll(SEARCHED_WORDS)) {
+        const label = normalize(node.textContent);
+        if (!label || label.length > 140 || seen.has(label) || !label.toLowerCase().includes(needle)) continue;
+        seen.add(label);
+        found.push({ label, section: name, item, node });
+        if (found.length >= 40) return found;
+      }
     }
+    return found;
   };
-  input.addEventListener('input', filter);
+  const flash = (node) => {
+    const row = node.closest('.pz-row, .pz-key, .pz-card') || node;
+    row.classList.add('rail-flash');
+    document.defaultView?.setTimeout(() => row.classList.remove('rail-flash'), 1500);
+  };
+  const go = (result) => {
+    result.item.click();
+    if (!result.node) return;
+    document.defaultView?.setTimeout(() => { result.node.scrollIntoView?.({ block: 'center' }); flash(result.node); }, 60);
+  };
+  const runSearch = () => {
+    const needle = normalize(input.value).toLowerCase();
+    if (list) list.hidden = Boolean(needle);
+    results.hidden = !needle;
+    if (!needle) { results.replaceChildren(); return; }
+    const found = find(needle);
+    results.replaceChildren(...(found.length ? found.map((result) => {
+      const row = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rail-panel-result';
+      const label = document.createElement('span');
+      label.className = 'rail-panel-result-label';
+      label.textContent = result.label;
+      const section = document.createElement('span');
+      section.className = 'rail-panel-result-section';
+      section.textContent = result.section;
+      button.append(label, section);
+      button.addEventListener('click', () => go(result));
+      row.append(button);
+      return row;
+    }) : (() => { const empty = document.createElement('li'); empty.className = 'rail-panel-empty'; empty.textContent = text('railSearchEmpty'); return [empty]; })()));
+  };
+  input.addEventListener('input', runSearch);
   const win = document.defaultView;
-  if (list && typeof win?.MutationObserver === 'function') new win.MutationObserver(() => { arrange(); filter(); }).observe(list, { childList: true });
+  if (list && typeof win?.MutationObserver === 'function') new win.MutationObserver(() => { arrange(); }).observe(list, { childList: true });
   arrange();
   const labels = () => {
     title.textContent = text('settings');
@@ -96,5 +147,5 @@ export function mountSettingsHead({ document, text }) {
     headings.forEach((heading, group) => { if (heading) heading.textContent = text(SETTINGS_GROUPS[group].key); });
   };
   labels();
-  return { labels, filter };
+  return { labels, search: runSearch };
 }

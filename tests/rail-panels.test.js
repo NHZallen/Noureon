@@ -28,7 +28,7 @@ test('without the list of parts there is no head', () => {
 test('the title and the search come before the list, once, in the language', () => {
   const t = setup();
   const nav = t.document.querySelector('nav.settings-sidebar');
-  assert.deepEqual([...nav.children].map((node) => node.className), ['rail-panel-head', 'rail-panel-search', '']);
+  assert.deepEqual([...nav.children].map((node) => node.className), ['rail-panel-head', 'rail-panel-search', '', 'rail-panel-results']);
   assert.equal(nav.querySelector('.rail-panel-title').textContent, 'Settings');
   assert.equal(nav.querySelector('input').placeholder, 'Search');
   assert.equal(mountSettingsHead({ document: t.document, text: (key) => key }), null, 'not made twice');
@@ -67,15 +67,38 @@ test('a part that is added later takes its place in its group, and the list is n
   assert.deepEqual([...list.children], before, 'nothing moves again');
 });
 
-test('the search narrows the list to the parts whose name holds the words, and a group with no part left loses its name', () => {
+test('the search looks into the parts, not only at their names: what it finds is listed with the part it is in, and a click goes there and shows the line', async () => {
   const t = setup();
+  const page = (id, html) => { const node = t.document.createElement('div'); node.id = `${id}-section`; node.className = 'settings-section'; node.innerHTML = html; t.document.body.append(node); return node; };
+  page('personalization', '<div class="pz-head"><h3>Language</h3></div><div class="pz-row"><label class="pz-label">Interface language</label></div><div class="pz-row"><span class="pz-label">Accent colour</span><p class="pz-sub">Pick the colour of buttons</p></div>');
+  page('data-management', '<div class="pz-row"><label class="pz-label">Export all data</label></div><div class="pz-row"><label class="pz-label">Colour of the export</label></div>');
   const input = t.document.querySelector('.rail-panel-search-input');
   const type = (value) => { input.value = value; input.dispatchEvent(new t.window.Event('input', { bubbles: true })); };
-  const visible = () => [...t.document.querySelectorAll('#settings-nav > li')].filter((node) => !node.hidden).map((node) => node.textContent);
-  type('data');
-  assert.deepEqual(visible(), ['Data and more', 'Data']);
-  type('MEM');
-  assert.deepEqual(visible(), ['Personal', 'Memory'], 'not case sensitive');
+  const results = () => [...t.document.querySelectorAll('.rail-panel-result')].map((button) => [button.querySelector('.rail-panel-result-label').textContent, button.querySelector('.rail-panel-result-section').textContent]);
+  const list = t.document.getElementById('settings-nav');
+  const results$ = t.document.querySelector('.rail-panel-results');
+  assert.equal(results$.hidden, true, 'no words: no results, the list of parts is there');
+  assert.equal(list.hidden, false);
+  type('colour');
+  assert.deepEqual(results(), [['Accent colour', 'Personalization'], ['Pick the colour of buttons', 'Personalization'], ['Colour of the export', 'Data']]);
+  assert.equal(list.hidden, true, 'the list of parts gives way to the results');
+  assert.equal(results$.hidden, false);
+  type('memory');
+  assert.deepEqual(results(), [['Memory', 'Memory']], 'the name of a part is found too');
+  type('nothing like this');
+  assert.equal(t.document.querySelector('.rail-panel-empty').textContent, 'No matching settings');
+  type('export all');
+  let clicked = '';
+  t.items().find((item) => item.dataset.section === 'data-management').addEventListener('click', () => { clicked = 'data-management'; });
+  const line = t.document.querySelector('#data-management-section .pz-row');
+  let scrolled = 0;
+  for (const node of t.document.querySelectorAll('#data-management-section .pz-label')) node.scrollIntoView = () => { scrolled += 1; };
+  t.document.querySelector('.rail-panel-result').click();
+  assert.equal(clicked, 'data-management', 'the part is opened');
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(scrolled, 1, 'the line is brought into view');
+  assert.equal(line.classList.contains('rail-flash'), true, 'and shows itself');
   type('  ');
-  assert.equal(visible().length, 10, 'an empty search brings everything back');
+  assert.equal(list.hidden, false, 'an empty search brings the list back');
+  assert.equal(results$.hidden, true);
 });
