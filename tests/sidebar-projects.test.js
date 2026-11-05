@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import { Window } from 'happy-dom';
 import { createProjectActions } from '../src/app/runtime/projects/project-actions.js';
-import { createSidebarProjects } from '../src/app/ui/projects/sidebar-projects.js';
+import { createSidebarProjects, readSort } from '../src/app/ui/projects/sidebar-projects.js';
 import i18nParts from '../src/data/i18n/parts/projects.js';
 
 // The projects in the left menu on a computer: one row for each project (pinned first), folding out to its newest chats, a menu with pin, settings and delete, and nothing on a phone.
@@ -24,7 +24,7 @@ const setup = ({ wide = true } = {}) => {
       { id: 'b', name: 'Beta', icon: 'globe', color: 'green', conversationIds: [], pinned: true }
     ],
     conversations: Array.from({ length: 7 }, (_, n) => ({ id: `c${n}`, title: `Chat ${n}`, folderId: 'b', lastUpdatedAt: `2026-10-${10 + n}T00:00:00.000Z`, messages: [] })),
-    opened: [], settings: [], deletes: [], chats: []
+    opened: [], settings: [], deletes: [], chats: [], lists: 0
   };
   const actions = createProjectActions({
     dataStore: { getFolders: () => state.folders, replaceFolders: (next) => { state.folders = next; return next; }, getConversations: () => state.conversations },
@@ -33,7 +33,7 @@ const setup = ({ wide = true } = {}) => {
   const store = new Map();
   const sidebar = createSidebarProjects({
     document, text, actions,
-    openProject: (id) => state.opened.push(id), openSettings: (id) => state.settings.push(id), askDelete: (id) => state.deletes.push(id), openChat: (id) => state.chats.push(id),
+    openProject: (id) => state.opened.push(id), openSettings: (id) => state.settings.push(id), askDelete: (id) => state.deletes.push(id), openChat: (id) => state.chats.push(id), openList: () => { state.lists += 1; },
     getCurrentConversationId: () => 'c6',
     storage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) }
   });
@@ -174,4 +174,48 @@ test('the templates have the entry and the section from the first paint, with te
   assert.match(side, /id=\\"sidebar-projects-list\\"/);
   assert.match(side, /id=\\"sidebar-projects-new-btn\\"[^>]*data-lang-key-title=\\"pjNew\\"/);
   assert.ok(side.indexOf('data-section=\\"projects\\"') < side.indexOf('data-section=\\"history\\"'), 'the section is above the history');
+});
+
+test('the ⋯ of the title: all the projects, and the order of the list (latest chat or name; the pinned stay first; the choice is kept on the device)', async () => {
+  const t = setup();
+  t.state.folders = [
+    { id: 'a', name: 'Zebra', icon: 'book', color: 'blue', conversationIds: [] },
+    { id: 'b', name: 'Mango', icon: 'globe', color: 'green', conversationIds: [], pinned: true },
+    { id: 'c', name: 'Apple', icon: 'globe', color: 'green', conversationIds: [] }
+  ];
+  t.state.conversations = [{ id: 'k1', title: 'x', folderId: 'a', lastUpdatedAt: '2026-10-20T00:00:00.000Z', messages: [] }];
+  t.sidebar.render();
+  const more = () => t.$('.sidebar-section[data-section="projects"] #sidebar-projects-more-btn');
+  assert.ok(more(), 'the ⋯ is in the title');
+  assert.equal(more().nextElementSibling.id, 'sidebar-projects-new-btn', 'before the +');
+  assert.equal(more().getAttribute('aria-label'), 'More');
+  assert.equal(t.$$('#sidebar-projects-more-btn').length, 1, 'drawn again it is not made twice');
+  t.sidebar.render();
+  assert.equal(t.$$('#sidebar-projects-more-btn').length, 1);
+  assert.deepEqual(t.$$('.folder-item').map((item) => item.dataset.id), ['b', 'a', 'c'], 'the pinned first, then the newest chat');
+  more().click();
+  await tick();
+  assert.deepEqual(t.$$('.pj-menu-item').map((entry) => entry.textContent.trim()), ['All projects', 'Sort by latest chat', 'Sort by name']);
+  assert.ok(t.$$('.pj-menu-item')[1].querySelector('svg'), 'the order in use has a mark');
+  assert.equal(t.$$('.pj-menu-item')[2].querySelector('svg'), null);
+  t.$$('.pj-menu-item')[2].click();
+  await tick();
+  assert.deepEqual(t.$$('.folder-item').map((item) => item.dataset.id), ['b', 'c', 'a'], 'by name, the pinned still first');
+  assert.equal(t.store.get('noureon.sidebarProjects.sort.v1'), 'name');
+  more().click();
+  await tick();
+  assert.ok(t.$$('.pj-menu-item')[2].querySelector('svg'), 'now the name has the mark');
+  t.$$('.pj-menu-item')[0].click();
+  await tick();
+  assert.equal(t.state.lists, 1, 'all the projects opens their page');
+  t.$$('#sidebar-projects-more-btn')[0].click();
+  await tick();
+  t.$$('.pj-menu-item')[1].click();
+  await tick();
+  assert.deepEqual(t.$$('.folder-item').map((item) => item.dataset.id), ['b', 'a', 'c'], 'back to the latest chat');
+  const again = setup();
+  again.store.set('noureon.sidebarProjects.sort.v1', 'name');
+  assert.equal(readSort({ getItem: (key) => again.store.get(key) ?? null }), 'name');
+  assert.equal(readSort(null), 'recent');
+  assert.equal(readSort({ getItem() { throw new Error('blocked'); } }), 'recent');
 });

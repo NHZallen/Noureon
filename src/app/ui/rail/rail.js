@@ -7,6 +7,7 @@
 // Names are put in with textContent; the markup that is not text is made here, not taken from a person.
 
 import { openRailMenu } from './rail-menu.js';
+import { mountPanelModeRow } from './rail-settings.js';
 import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, RAIL_MIN_WIDTH, DOCKED_MIN_WIDTH } from './rail-mode.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -105,6 +106,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
       button.classList.toggle('is-active', item.id === activeId);
       if (item.id === activeId) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     }
+    modeRow?.labels();
     const account = text('railAccount');
     avatar.title = account;
     avatar.setAttribute('aria-label', account);
@@ -117,6 +119,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   };
 
   const isOpen = () => sidebar.classList.contains('open');
+  const modeRow = mountPanelModeRow({ document, text, onChange: (mode) => setMode(mode) });
 
   // ----- the layout
   const currentLayout = () => layoutFor(win.innerWidth, choice, { coarse: Boolean(coarse?.matches) });
@@ -131,6 +134,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
       root.setAttribute('data-rail-layout', next);
       if (next !== 'hover') root.removeAttribute('data-rail-peek');
     }
+    modeRow?.sync(next, choice);
     if (!changed) return;
     // The parts that live in the rail or in the menu when there is none (the usage rings) place themselves again.
     try { document.dispatchEvent(new win.CustomEvent('noureon:rail-layout', { detail: { layout: next } })); } catch { /* nothing listens */ }

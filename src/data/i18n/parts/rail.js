@@ -6,7 +6,11 @@ export default {
         railExtensions: '擴充',
         railPanelToggle: '側欄',
         railAccount: '帳號',
-        railDashboard: '個人面板'
+        railDashboard: '個人面板',
+        railPanelMode: '側欄顯示方式',
+        railPanelModeSub: "寬度 1024 以上的電腦視窗才有作用；小一點的視窗側欄會疊在畫面上。",
+        railPanelPinned: '常駐展開',
+        railPanelHover: '滑鼠移上才展開'
     },
     en: {
         railLabel: 'Main navigation',
@@ -14,7 +18,11 @@ export default {
         railExtensions: 'Extensions',
         railPanelToggle: 'Sidebar',
         railAccount: 'Account',
-        railDashboard: 'Dashboard'
+        railDashboard: 'Dashboard',
+        railPanelMode: 'Sidebar',
+        railPanelModeSub: "Applies to computer windows 1024 px wide and more; in a narrower window the sidebar opens over the page.",
+        railPanelPinned: 'Docked',
+        railPanelHover: 'Open on hover'
     },
     fr: {
         railLabel: 'Navigation principale',
@@ -22,7 +30,11 @@ export default {
         railExtensions: 'Extensions',
         railPanelToggle: 'Panneau latéral',
         railAccount: 'Compte',
-        railDashboard: 'Tableau de bord'
+        railDashboard: 'Tableau de bord',
+        railPanelMode: 'Panneau latéral',
+        railPanelModeSub: "Pour les fenêtres d'ordinateur d'au moins 1024 px ; dans une fenêtre plus étroite le panneau s'ouvre par-dessus la page.",
+        railPanelPinned: 'Fixe',
+        railPanelHover: 'Au survol'
     },
     ru: {
         railLabel: 'Основная навигация',
@@ -30,7 +42,11 @@ export default {
         railExtensions: 'Расширения',
         railPanelToggle: 'Боковая панель',
         railAccount: 'Аккаунт',
-        railDashboard: 'Панель'
+        railDashboard: 'Панель',
+        railPanelMode: 'Боковая панель',
+        railPanelModeSub: "Для окон компьютера шириной от 1024 px; в более узком окне панель открывается поверх страницы.",
+        railPanelPinned: 'Закреплена',
+        railPanelHover: 'При наведении'
     },
     es: {
         railLabel: 'Navegación principal',
@@ -38,6 +54,10 @@ export default {
         railExtensions: 'Extensiones',
         railPanelToggle: 'Barra lateral',
         railAccount: 'Cuenta',
-        railDashboard: 'Panel'
+        railDashboard: 'Panel',
+        railPanelMode: 'Barra lateral',
+        railPanelModeSub: "Para ventanas de ordenador de 1024 px o más; en una ventana más estrecha la barra se abre sobre la página.",
+        railPanelPinned: 'Fija',
+        railPanelHover: 'Al pasar el ratón'
     }
 };

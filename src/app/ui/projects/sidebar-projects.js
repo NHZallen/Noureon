@@ -4,12 +4,24 @@
 // there. It draws itself again whenever the history is drawn again (that is when a chat or a project changed). Names and titles are put in with textContent.
 
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
-import { colorOf, make, openMenu } from './project-parts.js';
+import { ICONS, colorOf, make, openMenu } from './project-parts.js';
 
 const SHOWN = 5;
 const STORE_KEY = 'noureon.sidebarProjects.open.v1';
+const SORT_KEY = 'noureon.sidebarProjects.sort.v1';
 const arrow = '<svg class="folder-arrow flex-shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 const dots = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>';
+
+/** How the projects are ordered in the menu, kept on this device: 'recent' (the newest chat first, the way the list of the projects is) or 'name'. */
+export function readSort(storage) {
+  try { return storage?.getItem(SORT_KEY) === 'name' ? 'name' : 'recent'; } catch { return 'recent'; }
+}
+
+/** The projects in the order chosen: the pinned ones stay first in either. */
+export function sortProjects(projects, mode) {
+  if (mode !== 'name') return projects;
+  return [...projects].sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || String(left.name || '').localeCompare(String(right.name || '')));
+}
 
 function readOpen(storage) {
   try { return new Set(JSON.parse(storage?.getItem(STORE_KEY) || '[]')); } catch { return new Set(); }
@@ -28,6 +40,7 @@ export function createSidebarProjects({ document, text, actions, openProject, op
   let timer = null;
   let observer = null;
   let menu = null;
+  let sort = readSort(storage);
   const media = win.matchMedia?.('(min-width: 768px)') || null;
   const wide = () => (media ? media.matches : true);
   const save = () => { try { storage?.setItem(STORE_KEY, JSON.stringify([...open])); } catch { /* the folds are only a convenience */ } };
@@ -87,6 +100,37 @@ export function createSidebarProjects({ document, text, actions, openProject, op
     row.textContent = conversation.title || '';
     row.addEventListener('click', () => openChat(conversation.id));
     return row;
+  };
+
+  // The ⋯ of the title of the section: all the projects (their page) and the order of the list.
+  const showSectionMenu = async (anchor) => {
+    menu?.close();
+    await loadParts();
+    const choose = (mode) => () => { sort = mode; try { storage?.setItem(SORT_KEY, mode); } catch { /* the order is only a convenience */ } render(); };
+    menu = openMenu({
+      document, root: document.body, anchor,
+      items: [
+        { label: text('pjSidebarAll'), icon: 'list', action: () => openList() },
+        { label: text('pjSidebarSortRecent'), icon: sort === 'recent' ? 'check' : '', action: choose('recent') },
+        { label: text('pjSidebarSortName'), icon: sort === 'name' ? 'check' : '', action: choose('name') }
+      ],
+      onClose: () => { menu = null; }
+    });
+  };
+  const ensureMoreButton = (found) => {
+    const group = found.querySelector('.actions-group');
+    if (!group) return;
+    let more = found.querySelector('#sidebar-projects-more-btn');
+    if (!more) {
+      more = make(document, 'button', 'section-action-btn');
+      more.type = 'button';
+      more.id = 'sidebar-projects-more-btn';
+      more.innerHTML = ICONS.dots(18);
+      more.addEventListener('click', (event) => { event.stopPropagation(); void showSectionMenu(more); });
+      group.insertBefore(more, group.firstChild);
+    }
+    more.title = text('pjMore');
+    more.setAttribute('aria-label', text('pjMore'));
   };
 
   const showMenu = async (project, anchor) => {
@@ -164,8 +208,9 @@ export function createSidebarProjects({ document, text, actions, openProject, op
     if (title && title.textContent !== text('pjEntry')) title.textContent = text('pjEntry');
     const add = found.querySelector('#sidebar-projects-new-btn');
     if (add) { add.title = text('pjNew'); add.setAttribute('aria-label', text('pjNew')); }
+    ensureMoreButton(found);
     if (!wide()) return;
-    const projects = actions.list();
+    const projects = sortProjects(actions.list(), sort);
     const rows = projects.map(projectRow);
     if (projects.length) {
       const all = make(document, 'button', 'sidebar-item w-full text-left rounded-lg p-2 text-sm text-[var(--text-secondary)]');

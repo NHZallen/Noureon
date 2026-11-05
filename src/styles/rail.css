@@ -1,5 +1,6 @@
+/* important-audit: required: regression override / legacy compatibility - the settings dialog (settings.css, settings-desktop.css, settings-mobile.css) sets its size, its padding, its borders and the colours of its parts as important; beside the rail the settings are a page, so the few rules that undo the dialog (its place, its size, its list) must be important too, and more specific. */
 /* The rail of icons on the left of a computer, and the panel beside it (docs/superpowers/specs/2026-11-05-desktop-rail-sidebar-design.md). The panel is the left menu (#sidebar). The rail is in the markup of
-   the page from its first paint (`#desktop-rail`, filled by ui/rail/rail.js) and shown only where the page says so (`html[data-rail="on"]`, public/theme-init.js) from 768 px. The script then says what
+   the page from its first paint (`#desktop-rail`, filled by ui/rail/rail.js) and shown from 768 px. The script then says what
    the layout is with `html[data-rail-layout]`: drawer (768 to 1023 px, the panel is a layer that opens over the page), pinned (1024 px and more, the panel is beside the rail) or hover (1024 px and more,
    the panel lies over the page while the pointer is on the rail or on it: `html[data-rail-peek="on"]`). A phone has none of it. Colours are the names of tokens.css. */
 
@@ -8,7 +9,7 @@
 #desktop-rail { display: none; }
 
 @media (min-width: 768px) {
-  html[data-rail="on"] #desktop-rail { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex: 0 0 var(--rail-w); width: var(--rail-w); height: 100%; padding: 0.75rem 0; box-sizing: border-box; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); position: relative; z-index: 50; }
+  #desktop-rail { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex: 0 0 var(--rail-w); width: var(--rail-w); height: 100%; padding: 0.75rem 0; box-sizing: border-box; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); position: relative; z-index: 50; }
   .rail-top, .rail-bottom { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
   .rail-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; padding: 0; border: 0; border-radius: 0.7rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
   .rail-btn:hover, .rail-btn:focus-visible { background: var(--hover-bg); color: var(--text-primary); }
@@ -37,6 +38,12 @@
   /* What the rail has taken over leaves the left menu: the Extensions entry, and the account and settings at its foot. */
   html[data-rail-layout] #open-cli-store-btn, html[data-rail-layout] #user-controls { display: none; }
   html[data-rail-layout] #sidebar > :last-child:not(:has(#batch-action-bar:not(.hidden))) { display: none; }
+
+  /* The buttons at the end of the title of a section (the ⋯ and the + of the projects, those of the Nouras) are there while the pointer is on the title or the keyboard is in it; a touch has no pointer, so they stay. */
+  @media (hover: hover) {
+    html[data-rail-layout] #sidebar .sidebar-section-header .actions-group { opacity: 0; transition: opacity 0.12s ease; }
+    html[data-rail-layout] #sidebar .sidebar-section-header:hover .actions-group, html[data-rail-layout] #sidebar .sidebar-section-header:focus-within .actions-group { opacity: 1; }
+  }
 
   /* The picture of the account at the foot of the rail. */
   .rail-avatar { width: 2.5rem; height: 2.5rem; }

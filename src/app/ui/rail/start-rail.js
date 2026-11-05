@@ -1,5 +1,5 @@
-// Starts the rail of icons (rail.js) once the page has it and says it is on (`html[data-rail="on"]`, set before the first paint by public/theme-init.js). The panel is opened or shut
-// after the workspace has started (it shuts the menu on a computer when it starts), so the rail waits for the account to be known (`noureon:user-ready`) the first time.
+// Starts the rail of icons (rail.js) once the page has it. The panel is opened or shut after the workspace has started (it shuts the menu on a computer when it starts), so the rail
+// waits for the account to be known (`noureon:user-ready`) the first time. A person (or a test of the site) who does not want the rail sets localStorage "noureon.rail" to "off".
 
 import { createRail } from './rail.js';
 import { USER_READY_EVENT, getAnnouncedUser } from '../../runtime/features/user-ready.js';
@@ -11,7 +11,7 @@ const browserStorage = (win) => {
 /** deps: document, getLanguage(), i18n (the tables of the texts), toggleSidebar(show?). Returns the rail or null. */
 export function startRail({ document, getLanguage, i18n, toggleSidebar }) {
   const win = document.defaultView || globalThis;
-  if (document.documentElement.getAttribute('data-rail') !== 'on') return null;
+  if (browserStorage(win)?.getItem('noureon.rail') === 'off') return null;
   const text = (key) => String((i18n[getLanguage()] || i18n['zh-TW'] || {})[key] ?? key);
   const make = () => createRail({ document, storage: browserStorage(win), toggleSidebar, text, platform: win.navigator?.platform || '' });
   let rail = null;
