@@ -11,7 +11,8 @@ export function buildOpenRouterImagePayload({ model, prompt, config: asked = {},
   const payload = { model, prompt };
   copyIfDefined(payload, 'n', config.n);
   copyIfDefined(payload, 'resolution', config.resolution);
-  copyIfDefined(payload, 'aspect_ratio', config.aspectRatio);
+  // A GIF is automatic by default: the square the settings hold until a shape is chosen is not sent (the range probe of 2026-11-06 sent none and got 512x512 frames); any other shape is.
+  if (!(config.outputFormat === 'gif' && (config.aspectRatio === '1:1' || config.aspectRatio === 'auto'))) copyIfDefined(payload, 'aspect_ratio', config.aspectRatio);
   copyIfDefined(payload, 'size', config.size);
   copyIfDefined(payload, 'quality', config.quality);
   copyIfDefined(payload, 'output_format', config.outputFormat);

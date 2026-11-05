@@ -49,7 +49,7 @@ test('the probe asks as the app does, reads what comes back, and never lets the 
   assert.ok(sent.filter((entry) => entry.body).every((entry) => !('output_compression' in entry.body) || entry.body.output_format !== 'gif'));
 
   const openai = await runProbe({ provider: 'openai', key: KEY, model: 'gpt-image-2.6-flare', tests: ['gif'], fetchImpl });
-  assert.equal(openai.results['gif-4-frames'].request.size, '512x512', 'a GIF is a sheet of frames: 1024x1024 was refused by OpenAI, 512x512 was taken');
+  assert.equal(openai.results['gif-4-frames'].request.size, 'auto', 'a GIF is a sheet of frames: 1024x1024 was refused by OpenAI, the size is automatic by default');
   assert.ok(sent.some((entry) => entry.url === 'https://api.openai.com/v1/images/generations'));
 });
 

@@ -69,7 +69,7 @@ test('a gif and an svg come back with their own types, and pictures to start fro
   assert.deepEqual(gif.images, [{ b64Json: gifBytes, mediaType: 'image/gif' }]);
   const gifBody = JSON.parse(sent[0].init.body);
   assert.equal(gifBody.frame_count, 4);
-  assert.equal(gifBody.size, '512x512', 'a sheet of frames has to fit OpenAI limits: 1024x1024 was refused, 512x512 was taken for 2, 4 and 16 frames');
+  assert.equal(gifBody.size, 'auto', 'a GIF is automatic by default: 1024x1024 was refused by OpenAI, the model chooses a size that fits');
   assert.equal(sent[0].url, 'https://api.openai.com/v1/images/generations');
   // A picture to start from goes to the endpoint that edits, for a GIF as for any format (it made a GIF in the probe of 2026-11-06).
   await openai({ apiKey: 'k', model: 'gpt-image-2.6-flare', prompt: 'animate it', config: { outputFormat: 'gif', frameCount: 4 }, inputReferences: ['data:image/png;base64,QQ=='] });
@@ -108,16 +108,25 @@ test('the type of a picture is what its bytes are, not what was asked for or sai
   assert.equal(openaiResult.images[0].mediaType, 'image/png');
 });
 
-test('the size of a GIF on OpenAI: automatic stays automatic, a shape is drawn with its longest edge at 512', () => {
+test('the size of a GIF on OpenAI is automatic by default; a shape that is chosen is drawn with its longest edge at 512', () => {
   assert.equal(openAiGifSize('auto'), 'auto');
-  assert.equal(openAiGifSize('1:1'), '512x512');
+  assert.equal(openAiGifSize('1:1'), 'auto', 'the square is what the settings hold until a shape is chosen');
+  assert.equal(openAiGifSize('3:3'), '512x512', 'a shape that is square but was written another way is drawn');
   assert.equal(openAiGifSize('16:9'), '512x288');
   assert.equal(openAiGifSize('9:16'), '288x512');
   assert.equal(openAiGifSize('21:9'), '512x224');
   assert.equal(openAiGifSize('1:8'), '176x512', 'the shapes OpenAI takes are 1:3 to 3:1');
-  assert.equal(openAiGifSize(''), '512x512');
+  assert.equal(openAiGifSize(''), 'auto');
   const fields = (aspectRatio) => buildOpenAiImageFields({ model: 'm', prompt: 'p', config: { aspectRatio, resolution: '4K', outputFormat: 'gif' } });
   assert.equal(fields('auto').size, 'auto');
   assert.equal(fields('4:3').size, '512x384', 'the size tier of the settings does not make a GIF bigger');
   assert.equal(buildOpenAiImageFields({ model: 'm', prompt: 'p', config: { aspectRatio: '16:9', resolution: '1K', outputFormat: 'png' } }).size, openAiImageSize('16:9', '1K'));
+});
+
+test('a GIF on OpenRouter is automatic by default: the square of the settings is not sent, a chosen shape is', () => {
+  const payload = (aspectRatio, outputFormat = 'gif') => buildOpenRouterImagePayload({ model: 'm', prompt: 'p', config: { aspectRatio, outputFormat } });
+  assert.ok(!('aspect_ratio' in payload('1:1')));
+  assert.ok(!('aspect_ratio' in payload('auto')));
+  assert.equal(payload('16:9').aspect_ratio, '16:9');
+  assert.equal(payload('1:1', 'png').aspect_ratio, '1:1', 'other formats are asked as before');
 });

@@ -48,13 +48,13 @@ const MEDIA_TYPES = IMAGE_MEDIA_TYPES;
 
 /**
  * The size of a GIF. It is a sheet of its frames cut up by OpenAI, and a sheet has to fit its limits (the longest edge 3840, the pixels): 1024x1024 made 400 for 4 and for 9 frames (probe, 2026-11-06).
- * `auto` (the shape chosen as automatic) is left to the model; any other shape is drawn with its longest edge at 512, which was taken for 2, 4 and 16 frames in the range probe of the same day (the
- * square is the one verified; other shapes follow the same rule and show OpenAI's own words if it refuses them).
+ * A GIF is automatic by default: `auto` (and the square, which is what the settings hold until a shape is chosen) is left to the model; any other shape is drawn with its longest edge at 512, which
+ * was taken for 2, 4 and 16 frames in the range probe of the same day (the square is the one verified; other shapes follow the same rule and show OpenAI's own words if it refuses them).
  */
 export function openAiGifSize(aspectRatio) {
-  if (aspectRatio === 'auto') return 'auto';
+  if (aspectRatio === 'auto' || aspectRatio === '1:1' || !aspectRatio) return 'auto';
   const [wide, high] = String(aspectRatio || '1:1').split(':').map(Number);
-  if (!(wide > 0 && high > 0)) return '512x512';
+  if (!(wide > 0 && high > 0)) return 'auto';
   const ratio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, wide / high));
   return ratio >= 1 ? `512x${roundTo(512 / ratio, STEP)}` : `${roundTo(512 * ratio, STEP)}x512`;
 }
