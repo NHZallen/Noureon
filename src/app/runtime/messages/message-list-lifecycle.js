@@ -7,6 +7,7 @@ import { morphChildren } from '../../ui/motion/morph-children.js';
 import { createFileSkeleton } from '../../ui/files/file-skeleton.js';
 import { takeArrival } from './arriving-messages.js';
 import { loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
+import { greetingHtml } from '../../ui/greeting/greeting.js';
 
 // How far above the bottom of the chat the newest words are kept while a message is typed in (the message box lies over its end).
 const FOLLOW_MARGIN_PX = 160;
@@ -454,7 +455,8 @@ export function createMessageListLifecycle({
         messageList.classList.remove('chat-view-transition', 'chat-view-refresh');
         messageList.innerHTML = '';
         if (conversation.messages.length === 0) {
-            const greeting = `${getCurrentUserName()}, ${getText('howCanIHelp')}`;
+            // The line follows the clock, the day of the week and the holidays of the language (ui/greeting/); the old fixed line when the words are not there.
+            const greeting = greetingHtml({ language: getText('uiLanguage'), name: getCurrentUserName(), fallback: getText('howCanIHelp') });
             messageList.innerHTML = `<div class="text-center text-[var(--text-primary)] mt-16 chat-greeting-message"><p class="text-2xl font-semibold">${greeting}</p></div>`;
         } else {
             conversation.messages.forEach((message, index) => {

@@ -148,6 +148,10 @@
     {
       "path": "src/app/share-page/share-texts.js",
       "table": "SHARE_PAGE_TEXTS"
+    },
+    {
+      "path": "src/app/ui/greeting/greeting-texts.js",
+      "table": "GREETING_TEXTS"
     }
   ]
 }
