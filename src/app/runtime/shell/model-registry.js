@@ -43,6 +43,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'minimax/minimax-m3.1-flash': { releasedAt: 20261020, outputPricePerMillion: 0.55 },
     'moonshotai/kimi-k3.1-pro': { releasedAt: 20261024, outputPricePerMillion: 10 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
+    'stealth/crouton-alpha': { releasedAt: 20261106, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
@@ -152,6 +153,10 @@ export const MODEL_CATALOG = [
     // OpenRouter Free Models (Poolside)
     { id: 'poolside/laguna-s-2.1:free', name: 'Laguna S 2.1', provider: 'openrouter', descriptionKey: 'model_laguna_s_2_1_desc', category: 'coding' },
 
+    // OpenRouter Free Models (Stealth): an anonymous model OpenRouter lends for testing (free, 1,048,576 tokens, thinking always on). The owner's tests of 2026-11-06: tools (two calls at once), JSON by schema, a 92,000-token text
+    // (the needle was found), Chinese instructions; a picture is read but the small digits of an invoice came back cut ("4,28" for "4,286"). It can be taken down or changed at any time, so it is not a default.
+    { id: 'stealth/crouton-alpha', name: 'Crouton Alpha (test)', provider: 'openrouter', descriptionKey: 'model_crouton_alpha_desc', category: 'general', tier: ['free'] },
+
     // OpenRouter Free Models (NVIDIA)
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3.5-lightning:free', name: 'NVIDIA Nemotron 3.5 Lightning', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_lightning_desc', category: 'general' },
@@ -220,6 +225,8 @@ export const OPENROUTER_VISION_MODELS = [
     'minimax/minimax-m3.1-flash',
     'moonshotai/kimi-k3.1-pro',
     'nvidia/nemotron-3.5-super-vl:free',
+    // The tests of 2026-11-06: a picture is read (the small digits can be cut).
+    'stealth/crouton-alpha',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-6.1-terra',
@@ -267,6 +274,8 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'minimax/minimax-m3.1-flash',
     'moonshotai/kimi-k3.1-pro',
     'poolside/laguna-s-2.1:free',
+    // The tests of 2026-11-06: two calls at once with valid arguments.
+    'stealth/crouton-alpha',
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',

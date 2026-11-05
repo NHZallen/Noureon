@@ -428,3 +428,20 @@ test('Kimi K3.1 Pro (OpenRouter) is in the list with what the probe of 2026-10-2
   assert.equal(getCanonicalModelId('moonshotai/kimi-k3'), 'moonshotai/kimi-k3.1-pro');
   assert.equal(getCanonicalModelId('nvidia/nemotron-3-super-120b-a12b:free'), 'nvidia/nemotron-3.5-super-vl:free');
 });
+
+test('Crouton Alpha, the anonymous test model of OpenRouter: free, sees pictures, calls tools, is not a default and is not counted as a vendor', async () => {
+  const model = MODELS.find((entry) => entry.id === 'stealth/crouton-alpha');
+  assert.ok(model, 'it is in the list');
+  assert.equal(model.provider, 'openrouter');
+  assert.match(model.name, /test/i, 'its name says it is a test');
+  assert.deepEqual(getModelTiers(model), ['free']);
+  assert.equal(modelSupportsVision(model), true);
+  assert.ok(TOOL_CALLING_MODEL_IDS.includes('stealth/crouton-alpha'));
+  assert.notEqual(CHEAP_MODEL_ID, 'stealth/crouton-alpha');
+  const { computeAppCounts } = await import('../scripts/app-counts.mjs');
+  const counts = await computeAppCounts();
+  const { HOME_FACTS } = await import('../src/data/home-texts.js');
+  assert.equal(counts.vendors, HOME_FACTS.vendors);
+  const descriptions = (await import('../src/data/i18n/parts/model-descriptions.js')).default;
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) assert.ok(descriptions[language].model_crouton_alpha_desc_tier_free, `${language}: the line of its price`);
+});

@@ -78,3 +78,12 @@
         color-mix(in srgb, var(--sidebar-bg) 8%, transparent) 90%,
         transparent 100%);
 }
+
+/* The strip under the header of the chat (chat-edge-fade.css): a short chat rests on its end, which can leave its first message at the very top of the scroller (the message just sent, under the strip).
+   The strip is not there while that message is still whole below the top, and comes in over the distance the text goes under it. Where scroll-driven animations are not known the animation lasts
+   no time and the strip is as it was. */
+#chat-container::before {
+    animation: chatFadeIn backwards;
+    animation-timeline: scroll();
+    animation-range: var(--chat-pad) calc(var(--chat-pad) + var(--chat-fade-top));
+}

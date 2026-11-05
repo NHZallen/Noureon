@@ -6,7 +6,9 @@ export async function computeAppCounts() {
   const registry = await import('../src/app/runtime/shell/model-registry.js');
   const groups = await import('../src/app/ui/model-picker/model-picker-groups.js');
   const modelRegistry = registry.createModelRegistry({ getConfig: () => ({}) });
-  const vendors = new Set(registry.MODELS.map((model) => groups.getCompanyLabel(groups.getModelCompany(model, modelRegistry.getModelApiId(model)))));
+  // `stealth` is not a vendor: it is the group of the anonymous test models OpenRouter lends (its models count, the group does not).
+  const NOT_VENDORS = new Set(['stealth']);
+  const vendors = new Set(registry.MODELS.map((model) => groups.getModelCompany(model, modelRegistry.getModelApiId(model))).filter((company) => !NOT_VENDORS.has(String(company).toLowerCase())).map((company) => groups.getCompanyLabel(company)));
   const { DESIGN_PRESET_IDS } = await import('../src/app/ui/files/design/design-presets.js');
   const { DOCUMENT_PRESET_IDS } = await import('../src/app/ui/files/design/document-presets.js');
   const { OFFICIAL_CLI_CATALOG } = await import('../src/data/cli-catalog.js');
