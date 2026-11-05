@@ -20,6 +20,7 @@ import memoryNotes from './memory-notes.js';
 import share from './share.js';
 import projects from './projects.js';
 import rail from './rail.js';
+import shortcuts from './shortcuts.js';
 
 const parts = [
     login,
@@ -42,7 +43,8 @@ const parts = [
     memoryNotes,
     share,
     projects,
-    rail
+    rail,
+    shortcuts
 ];
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));

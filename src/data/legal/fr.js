@@ -220,7 +220,8 @@ export default {
             'Langue : l’interface existe en chinois traditionnel, anglais, français, russe et espagnol, à changer dans Réglages → Personnalisation ; la « langue de réponse par défaut de l’IA » fixe la langue de ses réponses sauf demande contraire dans une discussion.',
             'Accessibilité : les réglages offrent des options d’accessibilité.',
             'Installer comme application : Noureon est une application web progressive (PWA) ; utilisez « Ajouter à l’écran d’accueil » ou « Installer » dans votre navigateur. Hors ligne, seule l’application mise en cache fonctionne ; tout ce qui a besoin d’un modèle ou du cloud demande un réseau.',
-            'Avis de mise à jour : à chaque nouvelle version, un avis peut s’afficher (désactivable dans les réglages) ; l’historique complet est sur noureon.com/updates.'
+            'Avis de mise à jour : à chaque nouvelle version, un avis peut s’afficher (désactivable dans les réglages) ; l’historique complet est sur noureon.com/updates.',
+            'Raccourcis clavier (ordinateur) : Paramètres → Raccourcis clavier liste tous les raccourcis en trois groupes (Zone de message, Conversation, Navigation) et, à part, les touches qui ne peuvent pas être modifiées (Entrée envoie, Maj+Entrée fait un saut de ligne, Échap ferme). Chacun peut être désactivé ou modifié : cliquez sur ses touches à droite, puis appuyez sur la nouvelle combinaison ; Retour arrière l’efface et Échap annule ; si les touches sont déjà prises par un autre raccourci ou réservées par le navigateur (comme Ctrl+T), on vous dit pourquoi. Vos choix suivent votre compte sur vos autres appareils ; un téléphone ou un écran tactile n’a pas cet onglet.'
           ]
         ]
       },

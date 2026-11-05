@@ -1,3 +1,5 @@
+import { startShortcutDispatcher } from '../src/app/ui/shortcuts/shortcut-dispatcher.js';
+import { createShortcutStore } from '../src/app/ui/shortcuts/shortcut-store.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -518,6 +520,8 @@ test('the cross throws the dictation away without a word from the browser about 
 
 test('Enter finishes, Escape cancels, and the microphone or Ctrl+Shift+D finish it while it is going', async () => {
   const h = await dictationHarness();
+  // The key is the shortcut's (ui/shortcuts/): its dispatcher is what hears it.
+  const dispatcher = startShortcutDispatcher({ document: h.document, store: createShortcutStore(), platform: 'Win32' });
   try {
     h.mic.dispatch('click');
     await settle();
@@ -542,6 +546,7 @@ test('Enter finishes, Escape cancels, and the microphone or Ctrl+Shift+D finish 
     started.onend();
     assert.equal(h.input.value, 'one two');
   } finally {
+    dispatcher.stop();
     h.window.happyDOM.abort();
   }
 });

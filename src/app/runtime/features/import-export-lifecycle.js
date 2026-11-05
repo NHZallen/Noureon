@@ -216,6 +216,7 @@ export function createImportExportLifecycle({
         uiTheme: config.uiTheme,
         uiLanguage: config.uiLanguage,
         aiDefaultLanguage: config.aiDefaultLanguage,
+        keyboardShortcuts: config.keyboardShortcuts,
         isLearningMode: config.isLearningMode,
         outputMode: getOutputMode()
       });

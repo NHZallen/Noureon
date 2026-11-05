@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 import { createRail, shortcutLabel } from '../src/app/ui/rail/rail.js';
+import { runShortcutAction } from '../src/app/ui/shortcuts/shortcut-actions.js';
 import { PANEL_MODE_KEY } from '../src/app/ui/rail/rail-mode.js';
 import railTexts from '../src/data/i18n/parts/rail.js';
 
@@ -212,19 +213,17 @@ test('pinned has no hover panel: the pointer on the rail changes nothing', () =>
   assert.equal(t.peek(), null);
 });
 
-test('Ctrl+Shift+S (Cmd+Shift+S on a Mac) docks or frees the panel; other keys do nothing', () => {
+test('the shortcut of the side panel (Ctrl+Shift+S at first, its keys are the dispatcher\'s: ui/shortcuts/) docks or frees the panel; the title of the button names the keys', () => {
   const t = setup();
-  const press = (init) => { const event = new t.window.KeyboardEvent('keydown', { cancelable: true, ...init }); t.document.dispatchEvent(event); return event; };
-  assert.equal(press({ key: 's', ctrlKey: true }).defaultPrevented, false, 'Ctrl+S alone is the browser\'s');
-  assert.equal(t.rail.mode(), 'pinned');
-  assert.equal(press({ key: 'S', ctrlKey: true, shiftKey: true }).defaultPrevented, true);
+  assert.equal(runShortcutAction('togglePanel'), true);
   assert.equal(t.rail.mode(), 'hover');
-  press({ key: 's', metaKey: true, shiftKey: true });
+  assert.equal(runShortcutAction('togglePanel'), true);
   assert.equal(t.rail.mode(), 'pinned');
-  press({ key: 's', ctrlKey: true, shiftKey: true, altKey: true });
-  assert.equal(t.rail.mode(), 'pinned');
+  assert.match(t.document.getElementById('rail-panel-toggle').title, /\(Ctrl\+Shift\+S\)$/);
   assert.equal(shortcutLabel('MacIntel'), '⌘⇧S');
   assert.equal(shortcutLabel('Win32'), 'Ctrl+Shift+S');
+  t.rail.stop();
+  assert.equal(runShortcutAction('togglePanel'), false, 'taken back when the rail stops');
 });
 
 test('a narrow window (768 to 1023 px) has the drawer: the panel is shut, a rail icon opens it, the button toggles it (the menu\'s own handler)', () => {
@@ -304,19 +303,17 @@ test('the avatar opens a small menu with the name, settings, the dashboard and l
   assert.deepEqual(log, ['user-profile-btn', 'logout-btn']);
 });
 
-test('Ctrl+, (Cmd+, on a Mac) opens the settings with the button the page has; not on a phone', () => {
+test('the shortcut of the settings (Ctrl+, at first) opens them with the button the page has; not on a phone', () => {
   const t = setup();
   const log = clicks(t, ['settings-btn']);
-  const press = (init) => { const event = new t.window.KeyboardEvent('keydown', { cancelable: true, ...init }); t.document.dispatchEvent(event); return event; };
-  assert.equal(press({ key: ',', ctrlKey: true }).defaultPrevented, true);
-  press({ key: ',', metaKey: true });
-  press({ key: ',' });
-  press({ key: ',', ctrlKey: true, shiftKey: true });
-  assert.deepEqual(log, ['settings-btn', 'settings-btn']);
+  assert.equal(runShortcutAction('openSettings'), true);
+  assert.deepEqual(log, ['settings-btn']);
+  t.rail.stop();
   const phone = setup({ width: 390 });
   const phoneLog = clicks(phone, ['settings-btn']);
-  phone.document.dispatchEvent(new phone.window.KeyboardEvent('keydown', { key: ',', ctrlKey: true, cancelable: true }));
+  assert.equal(runShortcutAction('openSettings'), false);
   assert.deepEqual(phoneLog, []);
+  phone.rail?.stop();
 });
 
 test('a layout that changes tells the parts that live in the rail (the usage rings place themselves again)', () => {

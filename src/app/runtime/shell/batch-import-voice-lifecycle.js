@@ -2,6 +2,8 @@ import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { compressImage } from '../utils/image-compression.js';
 import { dictationTip } from '../../ui/voice/dictation-texts.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
+import { registerShortcutAction } from '../../ui/shortcuts/shortcut-actions.js';
+import { shortcutLabelFor } from '../../ui/shortcuts/shortcut-hints.js';
 
 // Speech recognition follows the interface language. Noureon stores bare subtags for four of
 // the five languages, so map them to the regional codes browsers expect for recognition.
@@ -340,20 +342,19 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             const mic = ALL_ELEMENTS.voiceInputBtnMessage;
             const showTip = () => {
                 void loadDictationBar().catch(() => {});
-                const tip = dictationTip(getConfig().uiLanguage);
+                const tip = dictationTip(getConfig().uiLanguage, shortcutLabelFor('dictate', window.navigator?.platform || ''));
                 mic.dataset.tip = tip;
                 mic.removeAttribute?.('title');
                 mic.setAttribute?.('aria-label', tip);
             };
             mic.addEventListener?.('pointerenter', showTip);
             mic.addEventListener?.('focus', showTip);
-            // Ctrl+Shift+D starts dictating, and finishes it while it is going.
-            document.addEventListener?.('keydown', (event) => {
-                if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey || String(event.key).toLowerCase() !== 'd' || event.repeat) return;
-                if (document.body?.classList?.contains('modal-open') || mic.offsetParent === null) return;
-                event.preventDefault();
+            // The shortcut of the voice input (Ctrl+Shift+D at first; the keys are chosen in the settings, ui/shortcuts/) starts dictating, and finishes it while it is going.
+            registerShortcutAction('dictate', () => {
+                if (mic.offsetParent === null) return false;
                 if (dictationSession) confirmDictation();
                 else toggleVoiceInput('message');
+                return true;
             });
         } else {
             ALL_ELEMENTS.voiceInputBtnMessage.style.display = 'none';

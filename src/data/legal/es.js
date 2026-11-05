@@ -220,7 +220,8 @@ export default {
             'Idioma: la interfaz está disponible en chino tradicional, inglés, francés, ruso y español, y se cambia en Ajustes → Personalización; el «idioma de respuesta predeterminado de la IA» fija el idioma en que responde la IA, salvo que pidas otro en una conversación.',
             'Accesibilidad: Ajustes tiene opciones de accesibilidad.',
             'Instalar como aplicación: Noureon es una aplicación web progresiva (PWA); usa «Añadir a la pantalla de inicio» o «Instalar» en tu navegador. Sin conexión solo funciona la propia aplicación en caché; lo que necesita un modelo o la nube sigue necesitando red.',
-            'Avisos de actualización: cuando hay una versión nueva puede aparecer un aviso (se desactiva en Ajustes); el historial completo de actualizaciones está en noureon.com/updates.'
+            'Avisos de actualización: cuando hay una versión nueva puede aparecer un aviso (se desactiva en Ajustes); el historial completo de actualizaciones está en noureon.com/updates.',
+            'Atajos de teclado (ordenador): Ajustes → Atajos de teclado enumera todos los atajos en tres grupos (cuadro de mensaje, chat, navegación) y, aparte, las teclas que no se pueden cambiar (Enter envía, Mayús+Enter hace una nueva línea, Esc cierra). Cada uno se puede desactivar o cambiar: haz clic en sus teclas a la derecha y pulsa la nueva combinación; Retroceso la borra y Esc cancela; si las teclas ya las usa otro atajo o las reserva el navegador (como Ctrl+T), se te dice por qué. Tus elecciones siguen a tu cuenta en tus otros dispositivos; un teléfono o una pantalla táctil no tiene esta pestaña.'
           ]
         ]
       },

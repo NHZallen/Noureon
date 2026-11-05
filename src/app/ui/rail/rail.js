@@ -9,6 +9,8 @@
 import { openRailMenu } from './rail-menu.js';
 import { mountPanelModeRow } from './rail-settings.js';
 import { mountSettingsHead } from './rail-panels.js';
+import { registerShortcutAction } from '../shortcuts/shortcut-actions.js';
+import { onShortcutsChanged, shortcutLabelFor } from '../shortcuts/shortcut-hints.js';
 import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, SETTINGS_PEEK_MS, RAIL_MIN_WIDTH, DOCKED_MIN_WIDTH } from './rail-mode.js';
 
 // How long the panel is held shut after it was freed, while the pointer is still on the button that freed it.
@@ -142,11 +144,12 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   // The button that docks or frees the panel shows the mode that is on (the icon, the name in its title) and says what pressing it does. A change of the mode swaps the icon with a short fade.
   const toggleIconName = () => (current === 'drawer' ? 'sidebar' : choice === 'hover' ? 'panelHover' : 'panelPinned');
   const toggleLabel = () => {
-    const shortcut = `(${shortcutLabel(platform)})`;
-    if (current === 'drawer') return `${text('railPanelToggle')} ${shortcut}`;
+    const keys = shortcutLabelFor('togglePanel', platform);
+    const shortcut = keys ? `(${keys})` : '';
+    if (current === 'drawer') return `${text('railPanelToggle')} ${shortcut}`.trim();
     const now = text(choice === 'hover' ? 'railPanelHover' : 'railPanelPinned');
     const next = text(choice === 'hover' ? 'railToggleToPinned' : 'railToggleToHover');
-    return `${now} · ${next} ${shortcut}`;
+    return `${now} · ${next} ${shortcut}`.trim();
   };
   const paintToggle = (button) => {
     const name = toggleIconName();
@@ -329,19 +332,15 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     menu = openRailMenu({
       document, anchor: avatar, title: name, onClose: () => { menu = null; },
       items: [
-        { id: 'settings', label: text('settings'), hint: shortcutHint(platform, ','), icon: 'settings', action: press('settings-btn') },
+        { id: 'settings', label: text('settings'), hint: shortcutLabelFor('openSettings', platform), icon: 'settings', action: press('settings-btn') },
         { id: 'dashboard', label: text('railDashboard'), icon: 'dashboard', action: press('user-profile-btn') },
         { id: 'logout', label: text('logout'), icon: 'logout', danger: true, action: press('logout-btn') }
       ]
     });
   }
   avatar.addEventListener('click', openMenu);
-  listen(document, 'keydown', (event) => {
-    if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey || event.key !== ',' || event.repeat) return;
-    if (current === 'none') return;
-    event.preventDefault();
-    press('settings-btn')();
-  });
+  // The settings by their shortcut (the keys are chosen in the settings, ui/shortcuts/): the button the page has.
+  stops.push(registerShortcutAction('openSettings', () => { if (current === 'none') return false; press('settings-btn')(); return true; }));
   // The button of the top bar: with a rail it docks or frees the panel (the menu's own handler would open and shut it, which is not what the rail does); in the drawer layout and on a phone it is what it was.
   listen(document, 'click', (event) => {
     if (current === 'none' || current === 'drawer') return;
@@ -351,12 +350,10 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     event.stopImmediatePropagation();
     togglePanel();
   }, true);
-  listen(document, 'keydown', (event) => {
-    if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey || String(event.key).toLowerCase() !== 's' || event.repeat) return;
-    if (current === 'none') return;
-    event.preventDefault();
-    togglePanel();
-  });
+  // Docking or freeing the panel by its shortcut.
+  stops.push(registerShortcutAction('togglePanel', () => { if (current === 'none') return false; togglePanel(); return true; }));
+  // The title of a button and the hint of a menu name the keys the person chose: they are written again when the keys change.
+  stops.push(onShortcutsChanged(() => labels()));
 
   // ----- start
   drawItems();

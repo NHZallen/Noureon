@@ -1,0 +1,42 @@
+/* important-audit: required: regression override / legacy compatibility - the settings modal forces the colour of everything inside it (`#settings-modal *:not(.toggle-label)`, settings.css, set as important) and of the icons in its buttons, so the quieter texts (the hint, the group names, the keys) and the small icon of the reset button set their own colour as important too, with a more specific selector. */
+/* Settings → Keyboard shortcuts (src/app/ui/shortcuts/shortcut-settings.js, docs/superpowers/specs/2026-11-05-keyboard-shortcuts-design.md): groups of rows, each a switch, the name and the keys. Only for a computer.
+   Colours are the names of tokens.css; two weights (400, 500) and the three sizes of docs/superpowers/specs/2026-10-31-ui-style-rules.md. */
+
+/* Not for a phone or a touched screen: there is no keyboard to use them with. */
+@media (max-width: 767px), (pointer: coarse) {
+  #shortcuts-section-nav, #shortcuts-section { display: none !important; }
+}
+
+#settings-modal .sc { max-width: 46rem; margin: 0 auto; padding: 0 0 2rem; }
+#settings-modal .sc-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.25rem; }
+#settings-modal .sc-title { font-size: 1.0625rem; font-weight: 500; }
+#settings-modal .sc-reset-all { flex: none; height: 2rem; padding: 0 0.9rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; font-size: 0.8125rem; cursor: pointer; }
+#settings-modal .sc-reset-all:hover:not(:disabled) { background: var(--hover-bg); }
+#settings-modal .sc-reset-all:disabled { opacity: 0.45; cursor: default; }
+#settings-modal .sc .sc-hint { margin: 0.5rem 0 1.5rem; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary) !important; }
+
+#settings-modal .sc-group { margin: 0 0 1.5rem; }
+#settings-modal .sc .sc-group-title { padding: 0 0.75rem 0.4rem; font-size: 0.8125rem; font-weight: 400; color: var(--text-secondary) !important; }
+#settings-modal .sc-list { margin: 0; padding: 0; list-style: none; }
+#settings-modal .sc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; min-height: 3.25rem; padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--border-color); }
+#settings-modal .sc-row:last-child { border-bottom: 0; }
+#settings-modal .sc-toggle { flex: none; }
+#settings-modal .sc-switch-gap { flex: none; width: 3rem; }
+#settings-modal .sc-label { flex: 1 1 8rem; min-width: 0; font-size: 0.9375rem; font-weight: 400; }
+#settings-modal .sc-row.is-off .sc-label { opacity: 0.5; }
+
+/* The keys: quiet text on the right; a click makes them a field that waits for the new ones. */
+#settings-modal .sc .sc-key { flex: none; min-width: 6.5rem; padding: 0.4rem 0.7rem; border: 1px solid transparent; border-radius: 0.6rem; background: transparent; text-align: right; font-size: 0.9375rem; font-weight: 400; color: var(--text-secondary) !important; cursor: pointer; }
+#settings-modal .sc .sc-key:hover:not(:disabled):not(.is-static) { background: var(--hover-bg); }
+#settings-modal .sc .sc-key:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 1px; }
+#settings-modal .sc .sc-key.is-recording { border-color: var(--text-secondary); background: var(--input-field-bg); text-align: left; color: var(--text-primary) !important; outline: none; }
+#settings-modal .sc .sc-key:disabled { opacity: 0.5; cursor: default; }
+#settings-modal .sc .sc-key.is-static { cursor: default; }
+
+#settings-modal .sc-reset { flex: none; display: inline-grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; cursor: pointer; }
+#settings-modal .sc-reset[hidden] { display: none; }
+#settings-modal .sc-reset:hover { background: var(--hover-bg); }
+#settings-modal .sc .sc-reset svg, #settings-modal .sc .sc-reset svg * { color: var(--text-secondary) !important; stroke: var(--text-secondary) !important; }
+
+#settings-modal .sc .sc-msg { flex: 0 0 100%; padding: 0 0 0.35rem 3.75rem; font-size: 0.8125rem; line-height: 1.4; color: var(--state-danger) !important; }
+#settings-modal .sc .sc-msg[hidden] { display: none; }

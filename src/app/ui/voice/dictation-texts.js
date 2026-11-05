@@ -15,4 +15,5 @@ export const DICTATION_TEXT_KEYS = Object.freeze(Object.keys(TEXTS['zh-TW']));
 export const dictationText = (language, key) => (TEXTS[language] || TEXTS.en)[key] ?? TEXTS.en[key] ?? key;
 
 /** The tooltip on the microphone: what it does and the key that starts it. */
-export const dictationTip = (language) => `${dictationText(language, 'tip')}  ${DICTATION_SHORTCUT}`;
+// `keys`: the keys of the shortcut as the person has them (ui/shortcuts/); none when it is off.
+export const dictationTip = (language, keys = DICTATION_SHORTCUT) => (keys ? `${dictationText(language, 'tip')}  ${keys}` : dictationText(language, 'tip'));

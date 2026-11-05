@@ -52,6 +52,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     netMode: 'new',
     // Whether what runs in the server's sandbox (Python and the command tools) may reach the web at all ('on': sites the person has not allowed are asked about; 'off': none).
     sandboxNetwork: 'on',
+    // The keyboard shortcuts the person turned off or gave other keys: { id: { combo?, enabled? } } (ui/shortcuts/); goes to the cloud with the other settings.
+    keyboardShortcuts: {},
     // What Send does while a reply is running: 'steer', 'queue' or 'send-now' (features/reply-steering.js).
     replyInputMode: 'steer',
     // OpenAI's own API: where its models search the web ('official': OpenAI's tool; 'provider': the search service of the settings), and whether an anonymous identifier of the user is sent with each request.

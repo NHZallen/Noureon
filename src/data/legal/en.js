@@ -220,7 +220,8 @@ export default {
             'Language: the interface is available in Traditional Chinese, English, French, Russian and Spanish, switched in Settings → Personalization; "AI default reply language" sets the language the AI answers in unless you ask otherwise in a conversation.',
             'Accessibility: Settings has accessibility options.',
             'Install as an app: Noureon is a progressive web app (PWA); use "Add to Home Screen" or "Install" in your browser. Offline, only the cached app itself works; anything that needs a model or the cloud still needs a network.',
-            'Update notices: when there is a new version an update notice can appear (switch it off in Settings); the full update history is at noureon.com/updates.'
+            'Update notices: when there is a new version an update notice can appear (switch it off in Settings); the full update history is at noureon.com/updates.',
+            'Keyboard shortcuts (desktop): Settings → Keyboard shortcuts lists every shortcut in three groups (Message box, Chat, Navigation) and, apart, the keys that cannot be changed (Enter sends, Shift+Enter makes a new line, Esc closes). Each one can be switched off, or changed: click its keys on the right, then press the new combination; Backspace clears it and Esc cancels; if the keys are already used by another shortcut, or are kept by the browser (such as Ctrl+T), you are told why. Your choices follow your account to your other devices; a phone or a touch screen does not have this tab.'
           ]
         ]
       },

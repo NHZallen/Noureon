@@ -9,6 +9,21 @@ import { normalizeSettingsStamps } from '../../../data/settings-merge.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
 
+// The keyboard shortcuts the person changed: { id: { combo?: string, enabled?: false } }. Only the shape is checked here (the server shares this file and knows no shortcut);
+// ui/shortcuts/shortcut-config.js checks the ids and the combinations when the shortcuts read them.
+function normalizeKeyboardShortcutItems(value) {
+  const clean = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return clean;
+  for (const [id, item] of Object.entries(value).slice(0, 60)) {
+    if (!/^[A-Za-z][A-Za-z0-9]{0,39}$/.test(id) || !item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const entry = {};
+    if (typeof item.combo === 'string' && item.combo.length <= 40) entry.combo = item.combo;
+    if (item.enabled === false) entry.enabled = false;
+    if (Object.keys(entry).length) clean[id] = entry;
+  }
+  return clean;
+}
+
 export function normalizeApiKeyValue(value) {
   if (typeof value === 'string') {
     return value.trim();
@@ -183,6 +198,7 @@ export function normalizeLoadedLegacyConfig({
   // The network of those tools: whether every site is asked about, and the person's rules for sites.
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.sandboxNetwork = normalizedConfig.sandboxNetwork === 'off' ? 'off' : 'on';
+  normalizedConfig.keyboardShortcuts = normalizeKeyboardShortcutItems(normalizedConfig.keyboardShortcuts);
   normalizedConfig.replyInputMode = ['steer', 'queue', 'send-now'].includes(normalizedConfig.replyInputMode) ? normalizedConfig.replyInputMode : 'steer';
   normalizedConfig.openaiWebSearch = normalizedConfig.openaiWebSearch === 'provider' ? 'provider' : 'official';
   normalizedConfig.openaiSafetyIdentifier = normalizedConfig.openaiSafetyIdentifier !== false;
