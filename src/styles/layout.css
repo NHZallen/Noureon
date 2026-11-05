@@ -48,6 +48,8 @@ button:not(.btn-primary):active:not(:disabled) {
     }
     .modal.visible > div { transform: scale(1); }
 
+/* The page is not dragged or bounced: the app is fixed to what is seen, and there is nothing to scroll behind it. */
+html, body { overscroll-behavior: none; }
 /* On a phone the app (and the screen shown while it starts) ends where what is seen ends: the keyboard and the browser's bars cover the rest
    (runtime/features/viewport-lock.js). It starts at the top of the page as before, and is not moved with the seen area. Without the script the
    value is the whole page. */
@@ -58,14 +60,12 @@ button:not(.btn-primary):active:not(:disabled) {
     }
 }
 [data-startup-skeleton] { touch-action: none; overscroll-behavior: none; }
-/* The app, the cover shown while it starts and the Extensions page are not dragged or bounced: the app is fixed to what is seen, and there is nothing to scroll behind it. The sign-in page of a visitor is a long
-   page that scrolls like any page, with the bounce and the bars of the browser (a phone browser that hides its bars as one scrolls jumped about on it when the page refused to bounce). */
 /* The page of a visitor (the sign-in page, tall) stays in the document while the workspace of someone signed in starts and while the app is on screen: it is
    covered or fading out, and its scroll bar must not show beside it (it showed while the workspace was loading). The page of a visitor scrolls as it did. */
 html:has([data-startup-skeleton]),
 html:has(#auth-container.fade-out),
 html:has(#app-container:not(.hidden)),
-html:has(#store-container:not(.hidden)) { overflow: hidden; overscroll-behavior: none; }
+html:has(#store-container:not(.hidden)) { overflow: hidden; }
 
 /* The rail of icons (ui/rail/) takes over from 768 px: the buttons of the left menu and of the top bar that it replaces (the new chat, the button of the menu, the Extensions entry, the account at the foot)
    are not shown, from the first paint (`data-rail-early`, set by public/theme-init.js) and not only after the rail has started (`data-rail-layout`). They stay in the page for the parts that press them
