@@ -7,18 +7,18 @@
   #shortcuts-section-nav, #shortcuts-section { display: none !important; }
 }
 
-#settings-modal .sc { max-width: 46rem; margin: 0 auto; padding: 0 0 2rem; }
-#settings-modal .sc-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.25rem; }
-#settings-modal .sc-title { font-size: 1.0625rem; font-weight: 500; }
+/* The width of the tab is the one of every tab (#settings-modal .settings-section, settings-desktop.css): nothing here sets another. The title at the top is the one the settings give every tab. */
+#settings-modal .sc { padding: 0 0 2rem; }
+#settings-modal .sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin: 0 0 1.25rem; }
 #settings-modal .sc-reset-all { flex: none; height: 2rem; padding: 0 0.9rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; font-size: 0.8125rem; cursor: pointer; }
 #settings-modal .sc-reset-all:hover:not(:disabled) { background: var(--hover-bg); }
 #settings-modal .sc-reset-all:disabled { opacity: 0.45; cursor: default; }
-#settings-modal .sc .sc-hint { margin: 0.5rem 0 1.5rem; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary) !important; }
+#settings-modal .sc .sc-hint { flex: 1; min-width: 0; margin: 0; padding-top: 0.35rem; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary) !important; }
 
 #settings-modal .sc-group { margin: 0 0 1.5rem; }
-#settings-modal .sc .sc-group-title { padding: 0 0.75rem 0.4rem; font-size: 0.8125rem; font-weight: 400; color: var(--text-secondary) !important; }
+#settings-modal .sc .sc-group-title { padding: 0 1.15rem 0.4rem; font-size: 0.8125rem; font-weight: 400; color: var(--text-secondary) !important; }
 #settings-modal .sc-list { margin: 0; padding: 0; list-style: none; }
-#settings-modal .sc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; min-height: 3.25rem; padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--border-color); }
+#settings-modal .sc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; min-height: 3.25rem; padding: 0.35rem 1.15rem; border-bottom: 1px solid var(--border-color); }
 #settings-modal .sc-row:last-child { border-bottom: 0; }
 #settings-modal .sc-toggle { flex: none; }
 #settings-modal .sc-switch-gap { flex: none; width: 3rem; }
@@ -38,5 +38,5 @@
 #settings-modal .sc-reset:hover { background: var(--hover-bg); }
 #settings-modal .sc .sc-reset svg, #settings-modal .sc .sc-reset svg * { color: var(--text-secondary) !important; stroke: var(--text-secondary) !important; }
 
-#settings-modal .sc .sc-msg { flex: 0 0 100%; padding: 0 0 0.35rem 3.75rem; font-size: 0.8125rem; line-height: 1.4; color: var(--state-danger) !important; }
+#settings-modal .sc .sc-msg { flex: 0 0 100%; padding: 0 0 0.35rem 4.9rem; font-size: 0.8125rem; line-height: 1.4; color: var(--state-danger) !important; }
 #settings-modal .sc .sc-msg[hidden] { display: none; }

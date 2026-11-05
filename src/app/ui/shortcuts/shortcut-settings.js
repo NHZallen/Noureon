@@ -34,6 +34,7 @@ export function mountShortcutsSection({ document, store, platform = '', text }) 
     item.className = 'settings-nav-item p-3 rounded-md sc-nav';
     item.id = NAV_ID;
     item.dataset.section = 'shortcuts';
+    item.dataset.langKey = 'scNav';
     item.textContent = text('scNav');
     anchorNav.after(item);
   }
@@ -149,16 +150,14 @@ export function mountShortcutsSection({ document, store, platform = '', text }) 
     // A change that comes while keys are being chosen waits: the list is drawn again when the choice is done.
     if (store.isRecording()) return;
     const root = el('div', 'sc');
+    // The name of the tab is the title the settings put at the top of every tab (data-section-title); this holds the hint and the button that gives every shortcut its first keys back.
     const head = el('div', 'sc-head');
-    const title = el('div', 'sc-title', text('scTitle'));
-    title.setAttribute('role', 'heading');
-    title.setAttribute('aria-level', '2');
     const resetAll = el('button', 'sc-reset-all', text('scResetAll'));
     resetAll.type = 'button';
     resetAll.disabled = !store.bindings().some((binding) => binding.changed);
     resetAll.addEventListener('click', () => store.resetAll());
-    head.append(title, resetAll);
-    root.append(head, el('p', 'sc-hint', text('scHint')));
+    head.append(el('p', 'sc-hint', text('scHint')), resetAll);
+    root.append(head);
     for (const group of SHORTCUT_GROUPS) {
       const items = group.id === 'fixed' ? FIXED_SHORTCUTS : SHORTCUTS.filter((shortcut) => shortcut.group === group.id);
       if (!items.length) continue;
@@ -172,6 +171,7 @@ export function mountShortcutsSection({ document, store, platform = '', text }) 
       root.append(block);
     }
     section.replaceChildren(root);
+    section.dataset.sectionTitle = text('scTitle');
     const navItem = document.getElementById(NAV_ID);
     if (navItem) navItem.textContent = text('scNav');
   }

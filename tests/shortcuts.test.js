@@ -300,3 +300,19 @@ test('the tab: a switch turns a shortcut off, a click on the keys waits for new 
   window.document.body.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
   assert.equal(store.isRecording(), false);
 });
+
+test('the tab has the title and the width every tab of the settings has (the settings give them; the tab sets neither)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../src/styles/shortcuts.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/max-width\s*:\s*\d/.test(css.replace(/@media[^{]*\{/g, '')), 'no width of its own');
+  assert.ok(!/sc-title/.test(css), 'no title of its own: the settings put the name of the tab at the top');
+  const desktop = readFileSync(new URL('../src/styles/settings-desktop.css', import.meta.url), 'utf8');
+  assert.match(desktop, /\.settings-section \{[^}]*max-width: 40rem !important/);
+  assert.match(desktop, /\.settings-section\.active::before \{\s*content: attr\(data-section-title\)/);
+  const window = page();
+  const { store } = settingsHolder();
+  mountShortcutsSection({ document: window.document, store, platform: 'Win32', text });
+  assert.equal(window.document.getElementById('shortcuts-section').dataset.sectionTitle, 'Keyboard shortcuts');
+  assert.equal(window.document.getElementById('shortcuts-section-nav').dataset.langKey, 'scNav', 'the language of the page changes the title with the name of the tab');
+  assert.equal(window.document.querySelector('#shortcuts-section .sc-title'), null);
+});

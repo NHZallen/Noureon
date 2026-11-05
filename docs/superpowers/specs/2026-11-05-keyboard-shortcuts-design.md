@@ -47,6 +47,11 @@ Mac 上 `Ctrl` 一律是 ⌘。新增的預設值是我選的（參考 ChatGPT�
 - 限電腦版：分頁只在 `(min-width: 768px) and (pointer: fine)` 時掛上，樣式在視窗變窄或觸控時（`@media (max-width: 767px), (pointer: coarse)`）隱藏；手機的設定清單本來就不含這一頁。
 - 樣式照 `2026-10-31-ui-style-rules.md`：粗細只用 400／500、三種字級、顏色只用 tokens；設定視窗會把所有文字色強制成 `--gpt-control-text`，所以次要文字用 `!important`（`important-audit` 上限 8，已登記）。
 
+## 4.1 標題與寬度（Allen 2026-11-05 第二則回饋）
+
+- 分頁名稱**不再自己畫**：設定頁每一頁最上面的標題是 `.settings-section.active::before { content: attr(data-section-title) }`（`settings-desktop.css`），由導覽項的 `data-lang-key` 在換語言時填。這一頁原本沒有這兩個，所以最上面是空的、我又在下面畫了一個大標題。現在導覽項有 `data-lang-key="scNav"`、區塊有 `data-section-title`，標題與其他頁一樣在最上面（有細線）；下面只留說明文字與「全部還原預設」。
+- 寬度：每一頁內容的寬度是同一條規則（`#settings-modal .settings-section { max-width: 40rem !important }`），這一頁的樣式不再設自己的寬度；我用瀏覽器量過所有靜態分頁（個人化、模型管理、資料管理、輔助功能、鍵盤快捷鍵、垃圾桶、關於）都是 640px、起點相同；動態建立的分頁（記憶、隱私、權限…）沿用同一個區塊所以同寬，沒有在真實頁面逐頁量。列的左右內距與卡片內距同為 `1.15rem`，所以開關與按鍵的左右邊與其他頁卡片裡的內容對齊。
+
 ## 5. 驗證
 
 - `tests/shortcuts.test.js`：組合解析（Mac／Windows、Alt、單獨修飾鍵、Windows 鍵）、驗證規則、清單完整（每項有群組、五語文字、可用的預設、預設不重複）、設定檢查、儲存（改、存、與預設相同就不存、另一台來的更動會被讀到並通知）、衝突、同步合併、分派器（自訂按鍵、關閉、不處理的回 false、對話框開著、選按鍵中、停止）、頁面動作、提示文字、設定頁（列表、開關、選按鍵流程、錯誤訊息、Esc／Backspace、還原）。
