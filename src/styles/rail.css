@@ -47,6 +47,9 @@
   /* The settings are a page of their own beside the rail: its list of parts at the left is the panel (it has the colour of the menu), the part is the page. The way out is the cross at the top left. */
   html[data-rail-layout] #settings-modal { left: var(--rail-w); background: var(--chat-bg) !important; }
   html[data-rail-layout] #settings-modal.visible { align-items: stretch !important; justify-content: stretch !important; padding: 0 !important; }
+  /* The settings come and go as the Extensions do (ui/cli/cli-motion.js): a fade of 200 ms, the dialog's growing from the middle is gone. */
+  html[data-rail-layout] #settings-modal > div, html[data-rail-layout] #settings-modal.visible > div { transform: none; transition: none; }
+  html[data-rail-layout] #settings-modal { transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out; }
   html[data-rail-layout] #settings-modal > div { flex: 1 1 auto !important; width: 100% !important; max-width: none !important; height: 100% !important; max-height: none !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: var(--chat-bg) !important; }
   html[data-rail-layout] #settings-modal .flex.flex-1.overflow-hidden { position: relative; }
   html[data-rail-layout] #settings-modal .flex.flex-1.overflow-hidden > div { margin-left: var(--panel-pin); transition: margin-left 0.3s var(--panel-ease); }

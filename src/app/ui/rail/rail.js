@@ -68,7 +68,13 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   const settingsOpen = () => Boolean(settingsPage()?.classList.contains('visible'));
   // The place that is lit is the one whose page is on the screen; the settings are a page of their own (the account's menu), so while they are there no place is lit.
   const placeNow = () => (settingsOpen() ? '' : storePage() ? 'extensions' : 'home');
-  const syncActive = () => { placeInlineToggles(); const next = placeNow(); if (next !== activeId) { activeId = next; labels(); } };
+  const syncActive = () => {
+    placeInlineToggles();
+    // The settings open over the app, under the page of the Extensions (a layer above): the page goes, as it does when another place of the rail is chosen.
+    if (settingsOpen() && storePage()) document.querySelector('body > .cs .cs-back')?.click();
+    const next = placeNow();
+    if (next !== activeId) { activeId = next; labels(); }
+  };
   const top = document.createElement('div');
   top.className = 'rail-top';
   const bottom = document.createElement('div');

@@ -310,3 +310,20 @@ test('in a narrow window the same button closes the drawer', () => {
   t.document.getElementById('rail-panel-toggle').click();
   assert.equal(t.sidebar.classList.contains('open'), false);
 });
+
+test('the settings open while the Extensions page is there: the page goes (it lies above them), as it does when a place of the rail is chosen', async () => {
+  const t = setup();
+  const modal = t.document.getElementById('settings-modal');
+  const page = t.document.createElement('div');
+  page.className = 'cs';
+  page.innerHTML = '<button class="cs-back">back</button>';
+  let backs = 0;
+  page.querySelector('.cs-back').addEventListener('click', () => { backs += 1; page.remove(); });
+  t.document.body.append(page);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(backs, 0, 'the page alone is left alone');
+  modal.classList.add('visible');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(backs, 1, 'the settings opened: the page closed by its own way back');
+  assert.equal(t.document.querySelector('body > .cs'), null);
+});

@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { canAnimate, enterMenu, leaveMenu, leavePage, measureRows, playRows } from '../../src/app/ui/cli/cli-motion.js';
+import { PAGE_FADE_MS, canAnimate, enterMenu, enterPage, leaveMenu, leavePage, measureRows, playRows } from '../../src/app/ui/cli/cli-motion.js';
 
 // happy-dom has no `animate`: the tests give the elements one that only writes down what it was asked to play.
 function page({ reduced = false, animate = true } = {}) {
@@ -103,6 +103,20 @@ test('the page leaves with a fade and is taken out when it is gone', () => {
   assert.equal(t.played[0].keyframes[1].opacity, 0);
   t.played[0].oncancel();
   assert.equal(removed, 1, 'a cancelled animation takes it out as well');
+});
+
+test('with the rail of a computer the page comes and goes with a plain fade of the same length (nothing moves), as the settings do; without it the page rises a little', () => {
+  const t = page();
+  t.document.documentElement.setAttribute('data-rail-layout', 'pinned');
+  enterPage(t.list);
+  assert.deepEqual(t.played[0].keyframes, [{ opacity: 0 }, { opacity: 1 }]);
+  assert.equal(t.played[0].options.duration, PAGE_FADE_MS);
+  leavePage(t.list, () => {});
+  assert.deepEqual(t.played[1].keyframes, [{ opacity: 1 }, { opacity: 0 }]);
+  assert.equal(t.played[1].options.duration, PAGE_FADE_MS);
+  const phone = page();
+  enterPage(phone.list);
+  assert.equal(phone.played[0].keyframes[0].transform, 'translateY(14px)', 'on a phone it is as it was');
 });
 
 test('the first drawing does not move; a row that stays slides from where it was, a new row fades in one after the other', () => {

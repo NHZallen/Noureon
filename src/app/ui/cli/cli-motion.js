@@ -33,8 +33,13 @@ const afterwards = (animation, done) => {
 };
 
 /** The page arrives: it rises a little as it fades in. */
+// With the rail of a computer (ui/rail/) the pages beside it (this one, the settings) come and go the same way: a fade of 200 ms, nothing moves (the settings' stylesheet does the same, styles/rail.css).
+const withRail = (root) => Boolean(root.ownerDocument?.documentElement?.hasAttribute('data-rail-layout'));
+export const PAGE_FADE_MS = 200;
+
 export const enterPage = (root) => {
   if (!canAnimate(root)) return;
+  if (withRail(root)) { play(root, [{ opacity: 0 }, { opacity: 1 }], { duration: PAGE_FADE_MS, easing: 'ease-in-out' }); return; }
   play(root, [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 280 });
 };
 
@@ -45,6 +50,7 @@ export const leavePage = (root, done) => {
     return;
   }
   root.style.pointerEvents = 'none';
+  if (withRail(root)) { afterwards(play(root, [{ opacity: 1 }, { opacity: 0 }], { duration: PAGE_FADE_MS, easing: 'ease-in-out', fill: 'forwards' }), done); return; }
   afterwards(play(root, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(14px)' }], { duration: 180, easing: EASE_IN, fill: 'forwards' }), done);
 };
 

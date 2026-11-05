@@ -2,7 +2,7 @@
    spending limit of the key, one ring, the mark of OpenRouter in the middle), only rings, in the
    shape of the usage rings of the apps that show a limit: thick rings with round ends, a grey track under each, at the left of the menu (in line with the entries),
    from the outside in: month, week, 5 hours. A full ring is a full limit left. The words are in the tip (title). The colours are the
-   names of tokens.css: green, then amber under a fifth, then red. */
+   names of tokens.css: the colour of the text (white in the dark theme, black in the light one), then amber under a fifth, then red. */
 
 .oq-row { display: flex; align-items: center; justify-content: flex-start; gap: 0.25rem; margin: 0.15rem 0 0.3rem; padding: 0 0.4rem; }
 .oq-row:not(:has(.oq-entry:not([hidden]))) { display: none; }
@@ -12,7 +12,7 @@
 .oq-entry[hidden] { display: none; }
 .oq-rings { flex: none; width: 2.25rem; height: 2.25rem; }
 .oq-track { fill: none; stroke: color-mix(in srgb, var(--text-primary) 12%, transparent); stroke-width: 5; }
-.oq-arc { fill: none; stroke: var(--state-success); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
+.oq-arc { fill: none; stroke: var(--text-primary); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
 .oq-arc.is-low { stroke: var(--state-warning); }
 .oq-arc.is-empty { stroke: var(--state-danger); }
 .oq-or-line { fill: none; stroke: var(--text-primary); stroke-width: 84; }
