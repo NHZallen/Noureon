@@ -8,7 +8,7 @@ import { Window } from 'happy-dom';
 
 const run = (window, file) => window.eval(readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8'));
 
-test('the tool is loaded only when the address asks for it', () => {
+test('the tool is loaded only when the address asks for it', async () => {
   const plain = new Window({ url: 'https://noureon.test/' });
   plain.document.body.innerHTML = '<div data-startup-skeleton></div>';
   run(plain, 'startup-language.js');
@@ -17,20 +17,32 @@ test('the tool is loaded only when the address asks for it', () => {
   asked.document.body.innerHTML = '<div data-startup-skeleton></div>';
   run(asked, 'startup-language.js');
   assert.ok(asked.document.head.querySelector('script[src="/scroll-debug.js"]'));
+  await Promise.all([plain.happyDOM.close(), asked.happyDOM.close()]);
 });
 
-test('a move of the scroll that is too big to be a finger is written down with what the page looked like; a slow one is not', () => {
+test('a move of the scroll that is too big to be a finger is written down with the frames and events around it; a slow one is not', async () => {
   const window = new Window({ url: 'https://noureon.test/?scrolldebug=1' });
   window.document.body.innerHTML = '<div class="turnstile-widget"></div>';
   let y = 0;
+  let docHeight = 3000;
+  const frames = [];
   Object.defineProperty(window, 'scrollY', { get: () => y, configurable: true });
+  Object.defineProperty(window.document.documentElement, 'scrollHeight', { get: () => docHeight, configurable: true });
+  window.requestAnimationFrame = (fn) => { frames.push(fn); return frames.length; };
   run(window, 'scroll-debug.js');
-  const scroll = (to) => { y = to; window.dispatchEvent(new window.Event('scroll')); };
-  scroll(120);
-  assert.equal((window.__scrollJumps || []).length, 0, 'a normal step');
-  scroll(900);
-  assert.equal(window.__scrollJumps.length, 1, 'a jump of 780 px between two events');
-  assert.match(window.__scrollJumps[0], /120->900 \(780\)/);
-  assert.match(window.__scrollJumps[0], /widget=/);
-  assert.match(window.document.body.querySelector('pre').textContent, /1 jump/);
+  const step = () => frames.splice(0).forEach((fn) => fn());
+  const api = window.__scrollDebug;
+  y = 120; step();
+  assert.equal(api.reports.length, 0, 'a normal step');
+  y = 900; step();
+  assert.equal(api.reports.length, 1, 'a jump of 780 px in one frame');
+  assert.match(api.text(), /scroll jump 780 px/);
+  assert.match(api.text(), /security check height/);
+  assert.match(api.text(), /frames \(ms scrollY/);
+  docHeight = 3200; step();
+  assert.equal(api.reports.length, 2, 'the page changed its height by itself');
+  assert.match(api.reports[1].kind, /page height changed 200 px/);
+  assert.match(window.document.body.textContent, /2 report\(s\)/);
+  assert.ok([...window.document.body.querySelectorAll('button')].some((b) => /Copy/.test(b.textContent)), 'a button to copy');
+  await window.happyDOM.close();
 });
