@@ -116,9 +116,12 @@ export function createAppBootstrapLifecycle({
         const config = getConfig();
         const currentUser = getCurrentUser();
         if (window.innerWidth >= 1024) {
-            setSidebarOpen(false);
-            ALL_ELEMENTS.sidebar.classList.remove('open');
-            ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
+            // The rail of a computer (ui/rail/) may be up before the workspace starts, with its panel docked: that panel is not shut here.
+            if (document.documentElement?.getAttribute?.('data-rail-layout') !== 'pinned') {
+                setSidebarOpen(false);
+                ALL_ELEMENTS.sidebar.classList.remove('open');
+                ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
+            }
         }
         const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
         ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;

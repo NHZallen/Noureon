@@ -27,3 +27,15 @@ export function waitForRail(document, { ms = RAIL_WAIT_MS, setTimeout: later } =
     (later || win.setTimeout.bind(win))(() => finish(false), ms);
   });
 }
+
+/**
+ * Starts fetching the files of the rail (its script and its styles) when the page starts, in step with the rest, so they are there by the time the workspace is: nothing is built here (rail.js does that, when
+ * the shell has started it). Nothing is fetched where the rail is turned off or the window is a phone.
+ */
+export function preloadRail(document) {
+  const root = document?.documentElement;
+  const width = document?.defaultView?.innerWidth;
+  if (!root?.hasAttribute('data-rail-early') || !(width >= 768)) return;
+  import('../../../styles/rail.css').catch(() => {});
+  import('./rail.js').catch(() => {});
+}

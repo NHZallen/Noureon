@@ -1,8 +1,8 @@
-// Starts the rail of icons (rail.js) once the page has it. The panel is opened or shut after the workspace has started (it shuts the menu on a computer when it starts), so the rail
-// waits for the account to be known (`noureon:user-ready`) the first time. A person (or a test of the site) who does not want the rail sets localStorage "noureon.rail" to "off".
+// Starts the rail of icons (rail.js) as soon as the page has it: the icons, the panel and the buttons of the page are there and work when the page appears, they do not wait for the account (the picture of the
+// account is painted when it is known: the avatar part paints every .user-avatar, and is asked again once the rail is built). A person (or a test of the site) who does not want the rail sets localStorage "noureon.rail" to "off".
 
 import { createRail } from './rail.js';
-import { USER_READY_EVENT, getAnnouncedUser } from '../../runtime/features/user-ready.js';
+import { USER_READY_EVENT, announceUser, getAnnouncedUser } from '../../runtime/features/user-ready.js';
 
 const browserStorage = (win) => {
   try { return win.localStorage || null; } catch { return null; }
@@ -15,15 +15,17 @@ export function startRail({ document, getLanguage, i18n, toggleSidebar }) {
   const text = (key) => String((i18n[getLanguage()] || i18n['zh-TW'] || {})[key] ?? key);
   const make = () => createRail({ document, storage: browserStorage(win), toggleSidebar, text, platform: win.navigator?.platform || '' });
   let rail = null;
+  // The picture of the account is painted into every .user-avatar when the account is known; the rail is built now and may be later than that, so the account is told again (nothing is asked from the database again).
+  const tellAccount = () => { const user = getAnnouncedUser(); if (user) announceUser(document, user); };
   let starting = null;
   // The styles come with the rail (a file of their own, not in the sheet the page loads at start): the rail and its layout appear together.
   const begin = () => {
-    starting ||= import('../../../styles/rail.css').catch((error) => { console.warn('The styles of the rail did not load.', error); }).then(() => { rail ||= make(); return rail; });
+    starting ||= import('../../../styles/rail.css').catch((error) => { console.warn('The styles of the rail did not load.', error); }).then(() => { if (!rail) { rail = make(); tellAccount(); } return rail; });
     return starting;
   };
-  // The account may be known already (the event came before this part loaded).
-  if (getAnnouncedUser()) begin();
-  else document.addEventListener(USER_READY_EVENT, begin, { once: true });
+  begin();
+  // The language of the page may be settled after the rail was built (the settings are read at their own time): the words are taken again when the account is known and when the language changes.
+  document.addEventListener(USER_READY_EVENT, () => rail?.refresh());
   win.addEventListener('astra:language-changed', () => rail?.refresh());
   return { get rail() { return rail; }, begin };
 }

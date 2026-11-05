@@ -1,4 +1,4 @@
-import { waitForRail } from './app/ui/rail/rail-ready.js';
+import { preloadRail, waitForRail } from './app/ui/rail/rail-ready.js';
 import 'cropperjs/dist/cropper.css';
 import 'katex/dist/katex.min.css';
 import './styles/main.css';
@@ -38,6 +38,8 @@ import { keepScrollBoxesOffTheirEdges, settleScrollBoxesOffTheirEdges } from './
 import { installPressFeedback } from './app/ui/motion/press-feedback.js';
 import { installViewportLock } from './app/runtime/features/viewport-lock.js';
 import { SERVICES, getService, provideService } from './app/runtime/services.js';
+
+preloadRail(document);
 
 // The app follows what is seen on a phone (the keyboard, the browser's bars): see viewport-lock.js.
 installViewportLock(window, document);

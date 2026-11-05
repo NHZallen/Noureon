@@ -6,7 +6,7 @@ import { startRail } from '../src/app/ui/rail/start-rail.js';
 import { announceUser, USER_READY_EVENT } from '../src/app/runtime/features/user-ready.js';
 import railTexts from '../src/data/i18n/parts/rail.js';
 
-// Starting the rail: it waits for the account to be known, takes the words of the language of the page, and a person can turn it off.
+// Starting the rail: it starts at once (it does not wait for the account), takes the words of the language of the page, and a person can turn it off.
 
 const i18n = { 'zh-TW': railTexts['zh-TW'], en: railTexts.en };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 30));
@@ -20,28 +20,30 @@ function page({ width = 1440, stored = null } = {}) {
   return window;
 }
 
-test('it starts when the account is known, in the language of the page', async () => {
+test('it starts at once, without waiting for the account, in the language of the page', async () => {
   const window = page();
   const calls = [];
   const started = startRail({ document: window.document, getLanguage: () => 'en', i18n, toggleSidebar: (show) => calls.push(show) });
-  assert.equal(started.rail, null, 'not before the account is known');
-  window.document.dispatchEvent(new window.CustomEvent(USER_READY_EVENT, { detail: { user: {} } }));
   await tick();
-  assert.ok(started.rail, 'the rail is there');
+  assert.ok(started.rail, 'the rail is there before any account is known');
   assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), 'Home');
   assert.equal(window.document.documentElement.getAttribute('data-rail-layout'), 'pinned');
   assert.deepEqual(calls, [true], 'docked, the panel is opened');
   started.rail.stop();
 });
 
-test('an account that is known already starts it at once; the event after that does not make a second rail', async () => {
+test('the account that comes later does not make a second rail, and one that was known before is told again once the rail is built (its picture is painted)', async () => {
   announceUser(page().document, { username: 'a' });
   const window = page();
+  const told = [];
+  window.document.addEventListener(USER_READY_EVENT, (event) => told.push(event.detail.user.username));
   const started = startRail({ document: window.document, getLanguage: () => 'zh-TW', i18n, toggleSidebar() {} });
   await tick();
   assert.ok(started.rail);
+  assert.deepEqual(told, ['a'], 'told again when the rail was built');
   const first = started.rail;
   await started.begin();
+  window.document.dispatchEvent(new window.CustomEvent(USER_READY_EVENT, { detail: { user: { username: 'a' } } }));
   assert.equal(started.rail, first);
   assert.equal(window.document.querySelectorAll('#desktop-rail .rail-top').length, 1);
   assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), '首頁');
