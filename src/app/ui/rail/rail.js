@@ -17,6 +17,10 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICONS = Object.freeze({
   home: '<path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9v12h5v-6h4v6h5V9"></path>',
   sidebar: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M9 3v18"></path>',
+  // The two modes of the panel are drawn differently so that the person sees which one is on: docked (the panel is a part of the page: its side is filled) and on hover (the panel comes and goes: a dashed
+  // edge and an arrow that points to where it opens).
+  panelPinned: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M9 3v18"></path><path d="M7 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h2V3z" fill="currentColor" fill-opacity="0.35" stroke="none"></path>',
+  panelHover: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M10 3v18" stroke-dasharray="1.7 2.5"></path><path d="m5.2 9.5 2.5 2.5-2.5 2.5"></path>',
   compose: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"></path>',
   extensions: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"></rect>'
 });
@@ -94,7 +98,6 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   panelToggle.type = 'button';
   panelToggle.id = 'rail-panel-toggle';
   panelToggle.className = 'sidebar-item p-2 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0';
-  panelToggle.append(icon(document, 'sidebar'));
   if (header) header.append(panelToggle);
   const newChat = document.createElement('button');
   newChat.type = 'button';
@@ -136,13 +139,42 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     }
     labels();
   };
+  // The button that docks or frees the panel shows the mode that is on (the icon, the name in its title) and says what pressing it does. A change of the mode swaps the icon with a short fade.
+  const toggleIconName = () => (current === 'drawer' ? 'sidebar' : choice === 'hover' ? 'panelHover' : 'panelPinned');
+  const toggleLabel = () => {
+    const shortcut = `(${shortcutLabel(platform)})`;
+    if (current === 'drawer') return `${text('railPanelToggle')} ${shortcut}`;
+    const now = text(choice === 'hover' ? 'railPanelHover' : 'railPanelPinned');
+    const next = text(choice === 'hover' ? 'railToggleToPinned' : 'railToggleToHover');
+    return `${now} · ${next} ${shortcut}`;
+  };
+  const paintToggle = (button) => {
+    const name = toggleIconName();
+    if (button.dataset.railIcon === name) return;
+    const first = !button.dataset.railIcon;
+    button.dataset.railIcon = name;
+    button.replaceChildren(icon(document, name));
+    if (first) return;
+    button.classList.remove('is-swapping');
+    // read a style so that the animation starts again when the class is put back
+    void button.offsetWidth;
+    button.classList.add('is-swapping');
+  };
+  const syncToggles = () => {
+    const text_ = toggleLabel();
+    for (const button of [panelToggle, ...document.querySelectorAll('.rail-inline-toggle')]) {
+      paintToggle(button);
+      button.title = text_;
+      button.setAttribute('aria-label', text_);
+      if (current === 'drawer') button.removeAttribute('aria-pressed'); else button.setAttribute('aria-pressed', String(choice === 'pinned'));
+    }
+  };
   // The button that docks or frees the panel also stands in the title of the panel of the Extensions and of the settings (the head of the left menu has its own).
   const addInlineToggle = (host) => {
     if (!host || host.querySelector('.rail-inline-toggle')) return;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'rail-inline-toggle';
-    button.append(icon(document, 'sidebar'));
     button.addEventListener('click', () => togglePanel());
     host.append(button);
     labels();
@@ -153,11 +185,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   };
   const labels = () => {
     rail.setAttribute('aria-label', text('railLabel'));
-    for (const button of document.querySelectorAll('.rail-inline-toggle')) {
-      const label = `${text('railPanelToggle')} (${shortcutLabel(platform)})`;
-      button.title = label;
-      button.setAttribute('aria-label', label);
-    }
+    syncToggles();
     for (const item of items) {
       const button = buttons.get(item.id);
       if (!button) continue;
@@ -169,16 +197,13 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     }
     modeRow?.labels();
     settingsHead?.labels();
-    const toggleLabel = `${text('railPanelToggle')} (${shortcutLabel(platform)})`;
-    panelToggle.title = toggleLabel;
-    panelToggle.setAttribute('aria-label', toggleLabel);
     newChatLabel.textContent = text('newChat');
     const account = text('railAccount');
     avatar.title = account;
     avatar.setAttribute('aria-label', account);
     const toggle = document.getElementById('menu-toggle-btn');
     if (toggle) {
-      const label = `${text('railPanelToggle')} (${shortcutLabel(platform)})`;
+      const label = toggleLabel();
       toggle.title = label;
       toggle.setAttribute('aria-label', label);
     }
@@ -202,6 +227,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
       if (next !== 'hover') root.removeAttribute('data-rail-peek');
     }
     modeRow?.sync(next, choice);
+    syncToggles();
     if (!changed) return;
     // The parts that live in the rail or in the menu when there is none (the usage rings) place themselves again.
     try { document.dispatchEvent(new win.CustomEvent('noureon:rail-layout', { detail: { layout: next } })); } catch { /* nothing listens */ }

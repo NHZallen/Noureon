@@ -50,7 +50,7 @@ test('docked by default: the layout is pinned and the panel is open; the rail ha
   assert.equal(button.getAttribute('aria-label'), 'Home');
   assert.equal(button.getAttribute('aria-current'), 'page');
   assert.equal(t.document.getElementById('desktop-rail').getAttribute('aria-label'), 'Main navigation');
-  assert.match(t.document.getElementById('menu-toggle-btn').title, /Sidebar \(Ctrl\+Shift\+S\)/);
+  assert.match(t.document.getElementById('menu-toggle-btn').title, /^Docked · click to open on hover \(Ctrl\+Shift\+S\)/);
   assert.ok(t.document.getElementById('rail-bottom'), 'the place for the rings and the avatar');
 });
 
@@ -115,6 +115,42 @@ test('on hover the panel shows while the pointer is on a thing of the rail or on
   move(t, outside, rail);
   t.document.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Escape' }));
   assert.equal(t.peek(), null);
+});
+
+test('the button that docks or frees the panel shows which mode is on (a different icon and a title that names it and says what pressing does)', () => {
+  const t = setup();
+  const toggle = t.document.getElementById('rail-panel-toggle');
+  const pinnedIcon = toggle.innerHTML;
+  assert.equal(toggle.dataset.railIcon, 'panelPinned');
+  assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+  assert.match(toggle.title, /^Docked · click to open on hover/);
+  toggle.click();
+  assert.equal(t.layout(), 'hover');
+  assert.equal(toggle.dataset.railIcon, 'panelHover');
+  assert.notEqual(toggle.innerHTML, pinnedIcon, 'the icon is another one');
+  assert.ok(toggle.innerHTML.includes('stroke-dasharray'), 'the edge of the panel is dashed when it comes on hover');
+  assert.equal(toggle.getAttribute('aria-pressed'), 'false');
+  assert.match(toggle.title, /^Open on hover · click to dock it/);
+  assert.ok(toggle.classList.contains('is-swapping'), 'the new icon fades in');
+  toggle.click();
+  assert.equal(toggle.dataset.railIcon, 'panelPinned');
+  assert.equal(toggle.innerHTML, pinnedIcon);
+});
+
+test('the toggles in the titles of the Extensions and of the settings show the mode too, and the drawer has the plain icon', () => {
+  const t = setup({ stored: 'hover' });
+  const inline = t.document.createElement('div');
+  inline.className = 'cs-nav-title';
+  const host = t.document.createElement('div');
+  host.className = 'cs';
+  host.append(inline);
+  t.document.body.append(host);
+  t.rail.refresh();
+  // the inline toggles are added when the page is seen (the observer of the body); the one of the panel head is enough here
+  assert.equal(t.document.getElementById('rail-panel-toggle').dataset.railIcon, 'panelHover');
+  const narrow = setup({ width: 900 });
+  assert.equal(narrow.document.getElementById('rail-panel-toggle').dataset.railIcon, 'sidebar');
+  assert.ok(!narrow.document.getElementById('rail-panel-toggle').hasAttribute('aria-pressed'));
 });
 
 test('freeing the panel shuts it at once and it does not come back for the pointer that is still on the button (the button may be drawn again under it)', () => {
@@ -319,7 +355,7 @@ test('the head of the chats\' panel: the button that docks or frees the panel is
   const head = t.document.querySelector('#sidebar .p-2.flex');
   assert.deepEqual([...head.children].map((node) => node.id), ['open-search-btn', 'selection-mode-btn', 'new-chat-btn', 'rail-panel-toggle'], 'the old new chat button stays in the page (others press it), the new button follows the batch select');
   const toggle = t.document.getElementById('rail-panel-toggle');
-  assert.match(toggle.title, /Sidebar \(Ctrl\+Shift\+S\)/);
+  assert.match(toggle.title, /^Docked · click to open on hover \(Ctrl\+Shift\+S\)/);
   assert.equal(toggle.getAttribute('aria-expanded'), 'true');
   toggle.click();
   assert.equal(t.rail.mode(), 'hover', 'it frees the panel');
