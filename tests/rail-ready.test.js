@@ -62,3 +62,13 @@ test('the arrow that goes back is in one place in the three views of the project
   }
   assert.match(wide, /\.pj-side-head \.pj-round \{ width: 2\.25rem; height: 2\.25rem; \}/);
 });
+
+test('on hover the panel is a floating card (a gap, rounded corners, a border, a shadow) and docked it is the flat side of the page: the whole panel looks different, not only the button', () => {
+  const rail = readFileSync(new URL('../src/styles/rail.css', import.meta.url), 'utf8');
+  const hover = rail.slice(rail.indexOf('html[data-rail-layout="hover"] #sidebar { position: relative;'));
+  assert.match(hover, /border-radius: 1rem/);
+  assert.match(hover, /var\(--panel-float\)/);
+  assert.match(rail, /data-rail-peek="on"\] #sidebar \{[^}]*box-shadow: var\(--shadow-xl\)/);
+  assert.match(rail, /html\[data-rail-layout="hover"\] body > \.cs \.cs-nav, html\[data-rail-layout="hover"\] #settings-modal nav \{ top: var\(--panel-float\)/);
+  assert.match(rail, /html\[data-rail-layout="hover"\] \{ --panel-pin: 0px; --panel-float: 0\.5rem; \}/);
+});

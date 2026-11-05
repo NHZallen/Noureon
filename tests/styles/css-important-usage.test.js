@@ -67,7 +67,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/rail.css': {
-    max: 49,
+    max: 52,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-cards.css': {

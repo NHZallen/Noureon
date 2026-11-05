@@ -4,7 +4,7 @@
    the layout is with `html[data-rail-layout]`: drawer (768 to 1023 px, the panel is a layer that opens over the page), pinned (1024 px and more, the panel is beside the rail) or hover (1024 px and more,
    the panel lies over the page while the pointer is on the rail or on it: `html[data-rail-peek="on"]`). A phone has none of it. Colours are the names of tokens.css. */
 
-:root { --rail-w: 3.5rem; --panel-w: 18rem; --rail-inset: 0px; --panel-pin: 0px; --panel-ease: cubic-bezier(0.4, 0, 0.2, 1); }
+:root { --rail-w: 3.5rem; --panel-w: 18rem; --panel-float: 0px; --rail-inset: 0px; --panel-pin: 0px; --panel-ease: cubic-bezier(0.4, 0, 0.2, 1); }
 
 #desktop-rail, #rail-panel-toggle, #rail-new-chat { display: none; }
 
@@ -23,7 +23,7 @@
   /* The panel is one thing on every page: the rail, the left menu and the lists of the Extensions and the settings are the colour of --sidebar-bg (the veil the left menu used to be is gone: the strips that fade its list use it too).
      --panel-pin is the room the panel takes beside the page: all of it when it is docked (and in the narrow window, where the Extensions and the settings keep their list), none when it comes on hover. */
   html[data-rail-layout] { --sidebar-veil: var(--sidebar-bg); --panel-pin: var(--panel-w); --rail-inset: calc(var(--rail-w) + var(--panel-pin)); }
-  html[data-rail-layout="hover"] { --panel-pin: 0px; }
+  html[data-rail-layout="hover"] { --panel-pin: 0px; --panel-float: 0.5rem; }
   html[data-rail-layout="drawer"] { --rail-inset: var(--rail-w); }
   /* The pages laid over the app leave the room of the rail (and of the panel when it is beside the rail), and move with the panel. */
   html[data-rail-layout] #app-container > .pj:not(.pj-dialog-only) { left: var(--rail-inset); transition: left 0.3s var(--panel-ease); }
@@ -60,9 +60,11 @@
   html[data-rail-layout] #settings-modal .settings-nav-item.active { background: var(--active-bg) !important; font-weight: 400 !important; }
   html[data-rail-layout] #settings-modal .settings-nav-item[hidden] { display: none !important; }
   /* On hover the list of the Extensions and the list of the settings are out of the page, beside the rail, and slide in with the pointer, as the left menu does; docked they stay (the page gives them room). */
-  html[data-rail-layout] body > .cs .cs-nav, html[data-rail-layout] #settings-modal nav { transition: transform 0.3s var(--panel-ease), box-shadow 0.3s ease, visibility 0s linear 0s; }
-  html[data-rail-layout="hover"] body > .cs .cs-nav, html[data-rail-layout="hover"] #settings-modal nav { transform: translateX(-100%); visibility: hidden; transition-delay: 0s, 0s, 0.3s; }
-  html[data-rail-layout="hover"][data-rail-peek="on"] body > .cs .cs-nav, html[data-rail-layout="hover"][data-rail-peek="on"] #settings-modal nav { transform: translateX(0); visibility: visible; box-shadow: var(--shadow-sm); transition-delay: 0s; }
+  html[data-rail-layout] body > .cs .cs-nav, html[data-rail-layout] #settings-modal nav { transition: transform 0.3s var(--panel-ease), top 0.3s var(--panel-ease), bottom 0.3s var(--panel-ease), left 0.3s var(--panel-ease), border-radius 0.3s var(--panel-ease), box-shadow 0.3s ease, visibility 0s linear 0s; }
+  html[data-rail-layout="hover"] body > .cs .cs-nav, html[data-rail-layout="hover"] #settings-modal nav { transform: translateX(calc(-100% - var(--panel-float))); visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, 0s, 0s, 0.3s; }
+  html[data-rail-layout="hover"][data-rail-peek="on"] body > .cs .cs-nav, html[data-rail-layout="hover"][data-rail-peek="on"] #settings-modal nav { transform: translateX(0); visibility: visible; box-shadow: var(--shadow-xl); transition-delay: 0s; }
+  /* On hover the panel is a card that floats over the page: a gap round it, rounded corners, a border and a shadow (docked it is the flat side of the page, edge to edge, with a hairline). The look says which mode is on. */
+  html[data-rail-layout="hover"] body > .cs .cs-nav, html[data-rail-layout="hover"] #settings-modal nav { top: var(--panel-float); bottom: var(--panel-float); left: var(--panel-float); border: 1px solid var(--border-color) !important; border-radius: 1rem !important; }
   /* The button that docks or frees the panel, in the title of those two lists. */
   .rail-inline-toggle { flex: none; margin-left: auto; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
   .rail-inline-toggle:hover, .rail-inline-toggle:focus-visible { background: var(--hover-bg); color: var(--text-primary); }
@@ -138,10 +140,10 @@
 @media (min-width: 1024px) {
   /* The left menu is in the row of the page (the page makes room for it with its margin, which moves, so a change from docked to on hover is a slide and the page grows or shrinks with it). Docked it is open;
      on hover it is shut (the margin of the page's own rule hides it beside the rail) and, while the pointer is on the rail or on it, a transform brings it over the page without moving the page. */
-  html[data-rail-layout] #sidebar { transition: margin-left 0.3s var(--panel-ease), transform 0.3s var(--panel-ease), box-shadow 0.3s ease, visibility 0s linear 0.3s; }
+  html[data-rail-layout] #sidebar { transition: margin-left 0.3s var(--panel-ease), transform 0.3s var(--panel-ease), height 0.3s var(--panel-ease), margin-top 0.3s var(--panel-ease), border-radius 0.3s var(--panel-ease), box-shadow 0.3s ease, visibility 0s linear 0.3s; }
   html[data-rail-layout] #app-container.sidebar-open #sidebar, html[data-rail-layout][data-rail-peek="on"] #sidebar { transition-delay: 0s; }
-  html[data-rail-layout="hover"] #sidebar { position: relative; z-index: 45; }
-  html[data-rail-layout="hover"][data-rail-peek="on"] #sidebar { transform: translateX(var(--panel-w)) !important; visibility: visible; pointer-events: auto; box-shadow: var(--shadow-sm); }
+  html[data-rail-layout="hover"] #sidebar { position: relative; z-index: 45; height: calc(100% - 2 * var(--panel-float)) !important; margin-top: var(--panel-float); border: 1px solid var(--border-color); border-radius: 1rem; }
+  html[data-rail-layout="hover"][data-rail-peek="on"] #sidebar { transform: translateX(calc(var(--panel-w) + var(--panel-float))) !important; visibility: visible; pointer-events: auto; box-shadow: var(--shadow-xl); }
 }
 
 /* The button that docks or frees the panel changes its icon with the mode (rail.js): the new one comes in with a short fade and a small growth. */
