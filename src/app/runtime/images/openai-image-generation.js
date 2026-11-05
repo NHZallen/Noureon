@@ -46,6 +46,19 @@ export function openAiImageSize(aspectRatio, resolution) {
 
 const MEDIA_TYPES = IMAGE_MEDIA_TYPES;
 
+/**
+ * The size of a GIF. It is a sheet of its frames cut up by OpenAI, and a sheet has to fit its limits (the longest edge 3840, the pixels): 1024x1024 made 400 for 4 and for 9 frames (probe, 2026-11-06).
+ * `auto` (the shape chosen as automatic) is left to the model; any other shape is drawn with its longest edge at 512, which was taken for 2, 4 and 16 frames in the range probe of the same day (the
+ * square is the one verified; other shapes follow the same rule and show OpenAI's own words if it refuses them).
+ */
+export function openAiGifSize(aspectRatio) {
+  if (aspectRatio === 'auto') return 'auto';
+  const [wide, high] = String(aspectRatio || '1:1').split(':').map(Number);
+  if (!(wide > 0 && high > 0)) return '512x512';
+  const ratio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, wide / high));
+  return ratio >= 1 ? `512x${roundTo(512 / ratio, STEP)}` : `${roundTo(512 * ratio, STEP)}x512`;
+}
+
 // An SVG is written by a text model that OpenAI's Images API asks for by name (`svg.model`; without it the answer is 400 "SVG generation requires 'svg.model'"). The probe of 2026-11-06 found
 // gpt-6-luna and gpt-5.6-luna take it; the person does not choose: the one the app already knows is used.
 export const OPENAI_SVG_MODEL = 'gpt-6-luna';
@@ -68,9 +81,7 @@ export function buildOpenAiImageFields({ model, prompt, config: asked = {}, safe
   // A GIF (GPT Image 2.6): the number of frames and the time of one; they are only for that format.
   copyIfDefined(fields, 'frame_count', config.frameCount);
   copyIfDefined(fields, 'frame_duration_ms', config.frameDuration);
-  // A GIF is a sheet of its frames cut up by OpenAI, and a sheet has to fit its limits (the longest edge 3840, the pixels): 1024x1024 made 400 for 4 frames and for 9 (probe, 2026-11-06). 512x512 was taken
-  // for 2, 4 and 16 frames (the range probe of the same day), and is what `auto` gave for 4, so it is the size of a GIF.
-  if (config.outputFormat === 'gif') fields.size = '512x512';
+  if (config.outputFormat === 'gif') fields.size = openAiGifSize(config.aspectRatio);
   if (config.outputFormat === 'svg') fields.svg = { model: OPENAI_SVG_MODEL };
   copyIfDefined(fields, 'safety_identifier', safetyIdentifier);
   return fields;

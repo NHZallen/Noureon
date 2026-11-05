@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { GIF_FRAME_COUNTS, GIF_FRAME_COUNT_DEFAULT, GIF_FRAME_DURATIONS_MS, GPT_IMAGE_26_FORMATS, settleImageFormatConfig, sniffImageType, supportedFormatsOf } from '../src/app/runtime/images/image-formats.js';
-import { OPENAI_SVG_MODEL, buildOpenAiImageFields, createOpenAiImageGenerator } from '../src/app/runtime/images/openai-image-generation.js';
+import { OPENAI_SVG_MODEL, buildOpenAiImageFields, createOpenAiImageGenerator, openAiGifSize, openAiImageSize } from '../src/app/runtime/images/openai-image-generation.js';
 import { buildOpenRouterImagePayload, createOpenRouterImageGenerator } from '../src/app/runtime/images/openrouter-image-generation.js';
 import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 
@@ -106,4 +106,18 @@ test('the type of a picture is what its bytes are, not what was asked for or sai
   assert.equal(result.images[0].mediaType, 'image/png');
   const openaiResult = await createOpenAiImageGenerator({ fetchImpl: async () => json({ data: [{ b64_json: png }] }) })({ apiKey: 'k', model: 'm', prompt: 'p', config: { outputFormat: 'gif' } });
   assert.equal(openaiResult.images[0].mediaType, 'image/png');
+});
+
+test('the size of a GIF on OpenAI: automatic stays automatic, a shape is drawn with its longest edge at 512', () => {
+  assert.equal(openAiGifSize('auto'), 'auto');
+  assert.equal(openAiGifSize('1:1'), '512x512');
+  assert.equal(openAiGifSize('16:9'), '512x288');
+  assert.equal(openAiGifSize('9:16'), '288x512');
+  assert.equal(openAiGifSize('21:9'), '512x224');
+  assert.equal(openAiGifSize('1:8'), '176x512', 'the shapes OpenAI takes are 1:3 to 3:1');
+  assert.equal(openAiGifSize(''), '512x512');
+  const fields = (aspectRatio) => buildOpenAiImageFields({ model: 'm', prompt: 'p', config: { aspectRatio, resolution: '4K', outputFormat: 'gif' } });
+  assert.equal(fields('auto').size, 'auto');
+  assert.equal(fields('4:3').size, '512x384', 'the size tier of the settings does not make a GIF bigger');
+  assert.equal(buildOpenAiImageFields({ model: 'm', prompt: 'p', config: { aspectRatio: '16:9', resolution: '1K', outputFormat: 'png' } }).size, openAiImageSize('16:9', '1K'));
 });
