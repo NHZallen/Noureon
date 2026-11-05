@@ -56,3 +56,12 @@ test('a person can turn it off', () => {
   assert.equal(startRail({ document: window.document, getLanguage: () => 'en', i18n, toggleSidebar() {} }), null);
   assert.equal(window.document.querySelector('.rail-btn'), null);
 });
+
+test('it starts even when the settings are not read yet (the language cannot be asked): the words are Traditional Chinese until the account is known', async () => {
+  const window = page();
+  const started = startRail({ document: window.document, getLanguage: () => { throw new TypeError('no settings yet'); }, i18n, toggleSidebar() {} });
+  await tick();
+  assert.ok(started.rail, 'the rail is there');
+  assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), '首頁');
+  started.rail.stop();
+});

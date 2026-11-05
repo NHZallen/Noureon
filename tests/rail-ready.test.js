@@ -50,3 +50,15 @@ test('the old buttons are hidden from the first paint by the sheet the page load
   assert.match(layout, /@media \(min-width: 768px\) \{\s+html\[data-rail-early\]/, 'only from 768 px: a phone has the old buttons');
   assert.ok(!/html\[data-rail-layout\] #menu-toggle-btn/.test(rail), 'one place for the rule');
 });
+
+test('the arrow that goes back is in one place in the three views of the projects on a computer', () => {
+  const wide = readFileSync(new URL('../src/styles/projects-wide.css', import.meta.url), 'utf8');
+  assert.match(wide, /\.pj\.is-wide \{ --pj-back-inset: 0\.625rem; \}/);
+  // the list, the side column and the other columns of a project take their top from the same inset
+  for (const rule of ['.pj.is-wide.is-list .pj-head {', '.pj-side {', '.pj-main {', '.pj-panel {']) {
+    const at = wide.indexOf(rule);
+    assert.ok(at >= 0, rule);
+    assert.ok(wide.slice(at, wide.indexOf('}', at)).includes('var(--pj-back-inset)'), `${rule} uses the inset`);
+  }
+  assert.match(wide, /\.pj-side-head \.pj-round \{ width: 2\.25rem; height: 2\.25rem; \}/);
+});
