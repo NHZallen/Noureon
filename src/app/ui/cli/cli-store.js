@@ -408,7 +408,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   }, 400);
 
   // The parts: which one is chosen shows on the switch (a phone) and on the list (a wide screen), and the search box follows it.
-  // What is installed, across the three parts: the skills that are on, the tools that are added, the connectors that are connected. A click opens the part at the tab "Mine" with that one's details open.
+  // What is installed in the part that is chosen: the skills that are on, the tools that are added or the connectors that are connected (it changes with the part). A click opens the part at the tab "Mine" with that one's details open.
   const drawInstalled = () => {
     // The things of the other parts are asked for once (they come with a drawing of the page, and this list is drawn again then).
     loadOwnSkills();
@@ -418,8 +418,10 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     for (const skill of activeSkills(config, ownSkills())) items.push({ kind: 'skills', id: skill.name, label: skillTitle(skill, getLanguage()), mark: () => { const holder = make(document, 'span', 'cs-installed-mark'); holder.innerHTML = skillMark(skill.name, skillTitle(skill, getLanguage()), 20, '', { framed: false }); return holder; } });
     for (const tool of OFFICIAL_CLI_CATALOG.filter((entry) => isCliEnabled(config, entry.id))) items.push({ kind: 'cli', id: tool.id, label: tool.name, mark: () => { const holder = make(document, 'span', 'cs-installed-mark'); holder.innerHTML = toolIconMarkup(tool, 20); return holder; } });
     for (const connector of CONNECTORS.filter((entry) => { const status = connectorsPart.state.byId.get(entry.id)?.status; return status && status !== 'none'; })) items.push({ kind: 'connectors', id: connector.id, label: connector.name, mark: () => connectorMark(document, connector, { size: 20, className: 'cs-installed-mark' }) });
-    installedBox.hidden = !items.length;
-    installedBox.replaceChildren(...(items.length ? [make(document, 'div', 'cs-installed-title', t('navInstalled'))] : []), ...items.map((item) => {
+    // Only the part that is chosen: the three together are too many to look at.
+    const shown = items.filter((item) => item.kind === state.kind);
+    installedBox.hidden = !shown.length;
+    installedBox.replaceChildren(...(shown.length ? [make(document, 'div', 'cs-installed-title', t('navInstalled'))] : []), ...shown.map((item) => {
       const entry = make(document, 'button', 'cs-installed-item');
       entry.type = 'button';
       entry.dataset.installedKind = item.kind;

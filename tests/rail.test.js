@@ -46,8 +46,8 @@ test('docked by default: the layout is pinned and the panel is open; the rail ha
   const t = setup();
   assert.equal(t.layout(), 'pinned');
   assert.equal(t.sidebar.classList.contains('open'), true);
-  const button = t.document.querySelector('#desktop-rail .rail-btn[data-rail-item="chat"]');
-  assert.equal(button.getAttribute('aria-label'), 'Chats');
+  const button = t.document.querySelector('#desktop-rail .rail-btn[data-rail-item="home"]');
+  assert.equal(button.getAttribute('aria-label'), 'Home');
   assert.equal(button.getAttribute('aria-current'), 'page');
   assert.equal(t.document.getElementById('desktop-rail').getAttribute('aria-label'), 'Main navigation');
   assert.match(t.document.getElementById('menu-toggle-btn').title, /Sidebar \(Ctrl\+Shift\+S\)/);
@@ -81,21 +81,52 @@ test('the choice kept on the device is the layout when the page starts', () => {
   assert.equal(t.sidebar.classList.contains('open'), false);
 });
 
+// The pointer moving from `from` to `to` (a node or null: outside), as the browser tells it: out of the one, over the other.
+const move = (t, from, to, pointerType = 'mouse') => {
+  if (from) { const out = new t.window.Event('pointerout', { bubbles: true }); Object.defineProperty(out, 'relatedTarget', { value: to }); Object.defineProperty(out, 'pointerType', { value: pointerType }); from.dispatchEvent(out); }
+  if (to) { const over = new t.window.Event('pointerover', { bubbles: true }); Object.defineProperty(over, 'relatedTarget', { value: from }); Object.defineProperty(over, 'pointerType', { value: pointerType }); to.dispatchEvent(over); }
+};
+
 test('on hover the panel shows while the pointer is on the rail or the panel and goes a moment after it left; Escape shuts it at once', () => {
   const t = setup({ stored: 'hover' });
   const rail = t.document.getElementById('desktop-rail');
-  rail.dispatchEvent(new t.window.Event('pointerenter'));
+  const outside = t.document.getElementById('menu-toggle-btn');
+  move(t, outside, rail);
   assert.equal(t.peek(), 'on');
-  rail.dispatchEvent(new t.window.Event('pointerleave'));
-  assert.equal(t.peek(), 'on', 'not at once: a pointer that crosses a corner is not a leaving');
-  t.sidebar.dispatchEvent(new t.window.Event('pointerenter'));
+  move(t, rail, t.document.getElementById('inside'));
   t.flush();
-  assert.equal(t.peek(), 'on', 'the pointer came to the panel in time');
-  t.sidebar.dispatchEvent(new t.window.Event('pointerleave'));
+  assert.equal(t.peek(), 'on', 'from the rail to the panel is not a leaving');
+  move(t, t.document.getElementById('inside'), outside);
+  assert.equal(t.peek(), 'on', 'not at once: a pointer that crosses a corner is not a leaving');
+  move(t, outside, t.sidebar);
+  t.flush();
+  assert.equal(t.peek(), 'on', 'the pointer came back in time');
+  move(t, t.sidebar, outside);
   t.flush();
   assert.equal(t.peek(), null);
-  rail.dispatchEvent(new t.window.Event('pointerenter'));
+  move(t, outside, rail);
   t.document.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert.equal(t.peek(), null);
+});
+
+test('the list of the Extensions and the list of the settings keep the panel out while the pointer is on them', () => {
+  const t = setup({ stored: 'hover' });
+  const outside = t.document.getElementById('menu-toggle-btn');
+  const page = t.document.createElement('div');
+  page.className = 'cs';
+  page.innerHTML = '<nav class="cs-nav"><button class="cs-nav-item">a</button></nav><main class="cs-body"><button id="in-body">b</button></main>';
+  t.document.body.append(page);
+  move(t, outside, page.querySelector('.cs-nav-item'));
+  assert.equal(t.peek(), 'on', 'the list of the Extensions is part of the panel');
+  move(t, page.querySelector('.cs-nav-item'), page.querySelector('#in-body'));
+  t.flush();
+  assert.equal(t.peek(), null, 'the page itself is not');
+  const settings = t.document.getElementById('settings-modal');
+  settings.innerHTML = '<nav><li class="settings-nav-item">x</li></nav><div id="in-settings"></div>';
+  move(t, outside, settings.querySelector('.settings-nav-item'));
+  assert.equal(t.peek(), 'on', 'nor is the list of the settings');
+  move(t, settings.querySelector('.settings-nav-item'), settings.querySelector('#in-settings'));
+  t.flush();
   assert.equal(t.peek(), null);
 });
 
@@ -104,15 +135,13 @@ test('the keyboard reaches the panel on hover (focus in the rail) and a touch do
   t.document.querySelector('.rail-btn').dispatchEvent(new t.window.FocusEvent('focusin', { bubbles: true }));
   assert.equal(t.peek(), 'on');
   t.rail.peek(false);
-  const touch = new t.window.Event('pointerenter');
-  Object.defineProperty(touch, 'pointerType', { value: 'touch' });
-  t.document.getElementById('desktop-rail').dispatchEvent(touch);
+  move(t, t.document.getElementById('menu-toggle-btn'), t.document.getElementById('desktop-rail'), 'touch');
   assert.equal(t.peek(), null);
 });
 
 test('pinned has no hover panel: the pointer on the rail changes nothing', () => {
   const t = setup();
-  t.document.getElementById('desktop-rail').dispatchEvent(new t.window.Event('pointerenter'));
+  move(t, t.document.getElementById('menu-toggle-btn'), t.document.getElementById('desktop-rail'));
   assert.equal(t.peek(), null);
 });
 
@@ -160,7 +189,7 @@ test('stopping puts the page back as it was', () => {
 test('the rail has the chats and the Extensions; the Extensions icon opens the page by the entry the menu has, and is lit while the page is there', async () => {
   const t = setup();
   const log = clicks(t, ['open-cli-store-btn']);
-  assert.deepEqual([...t.document.querySelectorAll('#desktop-rail .rail-top .rail-btn')].map((button) => button.getAttribute('aria-label')), ['Chats', 'Extensions']);
+  assert.deepEqual([...t.document.querySelectorAll('#desktop-rail .rail-top .rail-btn')].map((button) => button.getAttribute('aria-label')), ['Home', 'Extensions']);
   t.document.querySelector('[data-rail-item="extensions"]').click();
   assert.deepEqual(log, ['open-cli-store-btn']);
   // the page is a layer in the body, with a way back that the rail takes over
@@ -170,13 +199,13 @@ test('the rail has the chats and the Extensions; the Extensions icon opens the p
   t.document.body.append(page);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(t.document.querySelector('[data-rail-item="extensions"]').getAttribute('aria-current'), 'page');
-  assert.equal(t.document.querySelector('[data-rail-item="chat"]').getAttribute('aria-current'), null);
+  assert.equal(t.document.querySelector('[data-rail-item="home"]').getAttribute('aria-current'), null);
   let backs = 0;
   page.querySelector('.cs-back').addEventListener('click', () => { backs += 1; page.remove(); });
-  t.document.querySelector('[data-rail-item="chat"]').click();
+  t.document.querySelector('[data-rail-item="home"]').click();
   assert.equal(backs, 1, 'the chats close the page by its own way back');
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.equal(t.document.querySelector('[data-rail-item="chat"]').getAttribute('aria-current'), 'page');
+  assert.equal(t.document.querySelector('[data-rail-item="home"]').getAttribute('aria-current'), 'page');
 });
 
 test('the avatar opens a small menu with the name, settings, the dashboard and logout, which press the buttons the page has; Escape and a click outside close it', () => {
@@ -237,14 +266,14 @@ test('while the settings are on the screen no place of the rail is lit; going to
   const close = t.document.getElementById('close-settings-btn');
   close.addEventListener('click', () => modal.classList.remove('visible'));
   const lit = () => [...t.document.querySelectorAll('#desktop-rail .rail-top [aria-current="page"]')].map((button) => button.dataset.railItem);
-  assert.deepEqual(lit(), ['chat']);
+  assert.deepEqual(lit(), ['home']);
   modal.classList.add('visible');
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(lit(), [], 'the settings are a page of their own');
-  t.document.querySelector('[data-rail-item="chat"]').click();
+  t.document.querySelector('[data-rail-item="home"]').click();
   assert.equal(modal.classList.contains('visible'), false, 'the settings were let go');
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(lit(), ['chat']);
+  assert.deepEqual(lit(), ['home']);
   modal.classList.add('visible');
   const entry = t.document.getElementById('open-cli-store-btn');
   let opened = 0;
@@ -276,7 +305,7 @@ test('the head of the chats\' panel: the button that docks or frees the panel is
 
 test('in a narrow window the same button closes the drawer', () => {
   const t = setup({ width: 900 });
-  t.document.querySelector('[data-rail-item="chat"]').click();
+  t.document.querySelector('[data-rail-item="home"]').click();
   assert.equal(t.sidebar.classList.contains('open'), true);
   t.document.getElementById('rail-panel-toggle').click();
   assert.equal(t.sidebar.classList.contains('open'), false);

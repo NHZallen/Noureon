@@ -13,7 +13,7 @@ import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, RAI
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICONS = Object.freeze({
-  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+  home: '<path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9v12h5v-6h4v6h5V9"></path>',
   sidebar: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M9 3v18"></path>',
   compose: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"></path>',
   extensions: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"></rect>'
@@ -60,15 +60,15 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   // ----- the icons of the rail: the places one goes to. Each has a panel (the one of the chats for now).
   const storePage = () => document.querySelector('body > .cs');
   const items = [
-    { id: 'chat', icon: 'chat', label: () => text('railChats'), go: () => { document.querySelector('body > .cs .cs-back')?.click(); } },
+    { id: 'home', icon: 'home', label: () => text('railHome'), go: () => { document.querySelector('body > .cs .cs-back')?.click(); } },
     { id: 'extensions', icon: 'extensions', label: () => text('railExtensions'), go: () => { document.getElementById('open-cli-store-btn')?.click(); } }
   ];
-  let activeId = 'chat';
+  let activeId = 'home';
   const settingsPage = () => document.getElementById('settings-modal');
   const settingsOpen = () => Boolean(settingsPage()?.classList.contains('visible'));
   // The place that is lit is the one whose page is on the screen; the settings are a page of their own (the account's menu), so while they are there no place is lit.
-  const placeNow = () => (settingsOpen() ? '' : storePage() ? 'extensions' : 'chat');
-  const syncActive = () => { const next = placeNow(); if (next !== activeId) { activeId = next; labels(); } };
+  const placeNow = () => (settingsOpen() ? '' : storePage() ? 'extensions' : 'home');
+  const syncActive = () => { placeInlineToggles(); const next = placeNow(); if (next !== activeId) { activeId = next; labels(); } };
   const top = document.createElement('div');
   top.className = 'rail-top';
   const bottom = document.createElement('div');
@@ -123,8 +123,28 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     }
     labels();
   };
+  // The button that docks or frees the panel also stands in the title of the panel of the Extensions and of the settings (the head of the left menu has its own).
+  const addInlineToggle = (host) => {
+    if (!host || host.querySelector('.rail-inline-toggle')) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rail-inline-toggle';
+    button.append(icon(document, 'sidebar'));
+    button.addEventListener('click', () => togglePanel());
+    host.append(button);
+    labels();
+  };
+  const placeInlineToggles = () => {
+    addInlineToggle(document.querySelector('body > .cs .cs-nav-title'));
+    addInlineToggle(document.querySelector('#settings-modal .rail-panel-head'));
+  };
   const labels = () => {
     rail.setAttribute('aria-label', text('railLabel'));
+    for (const button of document.querySelectorAll('.rail-inline-toggle')) {
+      const label = `${text('railPanelToggle')} (${shortcutLabel(platform)})`;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+    }
     for (const item of items) {
       const button = buttons.get(item.id);
       if (!button) continue;
@@ -191,12 +211,13 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     unwait(timer);
     timer = wait(() => { timer = null; peek(false); }, PEEK_LEAVE_MS);
   };
-  for (const node of [rail, sidebar]) {
-    listen(node, 'pointerenter', (event) => { if (event.pointerType !== 'touch') enter(); });
-    listen(node, 'pointerleave', (event) => { if (event.pointerType !== 'touch') leave(); });
-    listen(node, 'focusin', enter);
-    listen(node, 'focusout', (event) => { if (!node.contains(event.relatedTarget) && !(node === rail ? sidebar : rail).contains(event.relatedTarget)) leave(); });
-  }
+  // The places where the pointer (or the keyboard) keeps the panel out: the rail and the panel of whichever page is on the screen (the left menu, the list of the Extensions, the list of the settings).
+  const ZONES = '#desktop-rail, #sidebar, body > .cs .cs-nav, #settings-modal nav';
+  const inZone = (node) => Boolean(node?.closest?.(ZONES));
+  listen(document, 'pointerover', (event) => { if (event.pointerType !== 'touch' && inZone(event.target)) enter(); });
+  listen(document, 'pointerout', (event) => { if (event.pointerType !== 'touch' && inZone(event.target) && !inZone(event.relatedTarget)) leave(); });
+  listen(document, 'focusin', (event) => { if (inZone(event.target)) enter(); });
+  listen(document, 'focusout', (event) => { if (inZone(event.target) && !inZone(event.relatedTarget)) leave(); });
   listen(document, 'keydown', (event) => { if (event.key === 'Escape' && root.getAttribute('data-rail-peek') === 'on') peek(false); });
 
   // ----- the choice and the places
@@ -218,9 +239,9 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     if (!item) return;
     // The settings are a page over the app: going to a place lets them go (their own way out).
     if (settingsOpen()) document.getElementById('close-settings-btn')?.click();
-    // The page of a place lies over the app (the Extensions); the chats are what is under it, so going to them lets the page go.
-    if (id === 'chat' && storePage()) { item.go(); return; }
-    if (id !== 'chat') {
+    // The page of a place lies over the app (the Extensions); the home (the chats) is what is under it, so going there lets the page go.
+    if (id === 'home' && storePage()) { item.go(); return; }
+    if (id !== 'home') {
       if (current === 'drawer' && isOpen()) toggleSidebar(false);
       peek(false);
       item.go();

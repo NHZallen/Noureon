@@ -28,7 +28,7 @@ test('it starts when the account is known, in the language of the page', async (
   window.document.dispatchEvent(new window.CustomEvent(USER_READY_EVENT, { detail: { user: {} } }));
   await tick();
   assert.ok(started.rail, 'the rail is there');
-  assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), 'Chats');
+  assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), 'Home');
   assert.equal(window.document.documentElement.getAttribute('data-rail-layout'), 'pinned');
   assert.deepEqual(calls, [true], 'docked, the panel is opened');
   started.rail.stop();
@@ -44,7 +44,7 @@ test('an account that is known already starts it at once; the event after that d
   await started.begin();
   assert.equal(started.rail, first);
   assert.equal(window.document.querySelectorAll('#desktop-rail .rail-top').length, 1);
-  assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), '對話');
+  assert.equal(window.document.querySelector('.rail-btn').getAttribute('aria-label'), '首頁');
   first.stop();
   announceUser(window.document, null);
 });

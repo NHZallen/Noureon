@@ -2,7 +2,7 @@
 export default {
     'zh-TW': {
         railLabel: '主要導覽',
-        railChats: '對話',
+        railHome: '首頁',
         railExtensions: '擴充',
         railPanelToggle: '側欄',
         railAccount: '帳號',
@@ -10,11 +10,14 @@ export default {
         railPanelMode: '側欄顯示方式',
         railPanelModeSub: "寬度 1024 以上的電腦視窗才有作用；小一點的視窗側欄會疊在畫面上。",
         railPanelPinned: '常駐展開',
-        railPanelHover: '滑鼠移上才展開'
+        railPanelHover: '滑鼠移上才展開',
+        railGroupPersonal: '個人',
+        railGroupModels: '模型與整合',
+        railGroupData: '資料與其他'
     },
     en: {
         railLabel: 'Main navigation',
-        railChats: 'Chats',
+        railHome: 'Home',
         railExtensions: 'Extensions',
         railPanelToggle: 'Sidebar',
         railAccount: 'Account',
@@ -22,11 +25,14 @@ export default {
         railPanelMode: 'Sidebar',
         railPanelModeSub: "Applies to computer windows 1024 px wide and more; in a narrower window the sidebar opens over the page.",
         railPanelPinned: 'Docked',
-        railPanelHover: 'Open on hover'
+        railPanelHover: 'Open on hover',
+        railGroupPersonal: 'Personal',
+        railGroupModels: 'Models and integrations',
+        railGroupData: 'Data and more'
     },
     fr: {
         railLabel: 'Navigation principale',
-        railChats: 'Discussions',
+        railHome: 'Accueil',
         railExtensions: 'Extensions',
         railPanelToggle: 'Panneau latéral',
         railAccount: 'Compte',
@@ -34,11 +40,14 @@ export default {
         railPanelMode: 'Panneau latéral',
         railPanelModeSub: "Pour les fenêtres d'ordinateur d'au moins 1024 px ; dans une fenêtre plus étroite le panneau s'ouvre par-dessus la page.",
         railPanelPinned: 'Fixe',
-        railPanelHover: 'Au survol'
+        railPanelHover: 'Au survol',
+        railGroupPersonal: 'Personnel',
+        railGroupModels: 'Modèles et intégrations',
+        railGroupData: 'Données et autres'
     },
     ru: {
         railLabel: 'Основная навигация',
-        railChats: 'Чаты',
+        railHome: 'Главная',
         railExtensions: 'Расширения',
         railPanelToggle: 'Боковая панель',
         railAccount: 'Аккаунт',
@@ -46,11 +55,14 @@ export default {
         railPanelMode: 'Боковая панель',
         railPanelModeSub: "Для окон компьютера шириной от 1024 px; в более узком окне панель открывается поверх страницы.",
         railPanelPinned: 'Закреплена',
-        railPanelHover: 'При наведении'
+        railPanelHover: 'При наведении',
+        railGroupPersonal: 'Личное',
+        railGroupModels: 'Модели и интеграции',
+        railGroupData: 'Данные и прочее'
     },
     es: {
         railLabel: 'Navegación principal',
-        railChats: 'Chats',
+        railHome: 'Inicio',
         railExtensions: 'Extensiones',
         railPanelToggle: 'Barra lateral',
         railAccount: 'Cuenta',
@@ -58,6 +70,9 @@ export default {
         railPanelMode: 'Barra lateral',
         railPanelModeSub: "Para ventanas de ordenador de 1024 px o más; en una ventana más estrecha la barra se abre sobre la página.",
         railPanelPinned: 'Fija',
-        railPanelHover: 'Al pasar el ratón'
+        railPanelHover: 'Al pasar el ratón',
+        railGroupPersonal: 'Personal',
+        railGroupModels: 'Modelos e integraciones',
+        railGroupData: 'Datos y más'
     }
 };

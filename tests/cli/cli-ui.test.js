@@ -354,22 +354,30 @@ test('the page speaks all five languages', () => {
   }
 });
 
-test('the list at the left has its own title and what is installed, and a click on an installed one opens its part at Mine with its details open', () => {
+test('the list at the left has its own title and what is installed in the chosen part (it changes with the part), and a click on an installed one opens it at Mine with its details open', () => {
   const config = { cliEnabledIds: ['ffmpeg', 'pandoc'], cliModelUseIds: [], cliVersions: {} };
   const t = setup({ config, language: 'en' });
-  openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => 'en', getAccountReady: () => false });
+  openCliStore({ kind: 'cli', document: t.document, getConfig: () => config, getLanguage: () => 'en', getAccountReady: () => false });
   const root = t.document.querySelector('.cs');
+  const installed = () => [...root.querySelectorAll('.cs-installed-item')].map((item) => [item.dataset.installedKind, item.dataset.installedId, item.textContent.trim()]);
   assert.equal(root.querySelector('.cs-nav > .cs-nav-title span').textContent, 'Extensions', 'the title is the first thing of the list');
   assert.equal(root.querySelector('.cs-installed-title').textContent, 'Installed');
-  assert.deepEqual([...root.querySelectorAll('.cs-installed-item')].map((item) => [item.dataset.installedKind, item.dataset.installedId, item.textContent.trim()]), [['cli', 'ffmpeg', 'FFmpeg'], ['cli', 'pandoc', 'Pandoc']]);
+  assert.deepEqual(installed(), [['cli', 'ffmpeg', 'FFmpeg'], ['cli', 'pandoc', 'Pandoc']], 'the tools of the part that is chosen');
   assert.equal(root.querySelectorAll('.cs-nav-item').length, 3, 'they are not parts: the three parts keep their list');
   root.querySelector('.cs-installed-item[data-installed-id="pandoc"]').click();
   assert.equal(root.querySelector('.cs-nav-item[data-kind="cli"]').getAttribute('aria-selected'), 'true');
   assert.equal(root.querySelector('.history-tab[aria-selected="true"]').textContent, 'Mine');
   assert.equal(root.querySelector('.cs-row[data-cli-id="pandoc"] .cs-text').getAttribute('aria-expanded'), 'true');
-  config.cliEnabledIds = [];
+  // another part: the tools are not shown with it
   root.querySelector('.cs-nav-item[data-kind="skills"]').click();
-  assert.equal(root.querySelector('.cs-installed').hidden, true, 'nothing installed: no list');
+  assert.deepEqual(installed(), [], 'no skill is on, and the tools stay out of the way');
+  assert.equal(root.querySelector('.cs-installed').hidden, true, 'nothing installed in this part: no list');
+  root.querySelector('.cs-nav-item[data-kind="cli"]').click();
+  assert.equal(installed().length, 2, 'back to the tools: they are back');
+  config.cliEnabledIds = [];
+  root.querySelector('.cs-nav-item[data-kind="connectors"]').click();
+  root.querySelector('.cs-nav-item[data-kind="cli"]').click();
+  assert.equal(root.querySelector('.cs-installed').hidden, true);
   closeCliStore();
 });
 
