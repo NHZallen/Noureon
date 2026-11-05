@@ -68,10 +68,12 @@
   .rail-inline-toggle:hover, .rail-inline-toggle:focus-visible { background: var(--hover-bg); color: var(--text-primary); }
   .rail-inline-toggle svg { width: 1.25rem; height: 1.25rem; color: inherit; }
   html[data-rail-layout] #settings-modal .rail-inline-toggle, html[data-rail-layout] #settings-modal .rail-inline-toggle svg { color: var(--text-secondary) !important; }
+  /* The settings have no cross and no logout beside the rail: the way out is a place of the rail (or Escape), and logout is in the menu of the account. Both stay in the page (the rail presses the cross). */
+  html[data-rail-layout] #settings-modal #close-settings-btn, html[data-rail-layout] #settings-modal > div > :has(> #close-settings-btn), html[data-rail-layout] #settings-modal .settings-desktop-logout-btn { display: none !important; }
   /* The title and the search of a panel that is not the chats' (the settings'; the Extensions' have their own, below): the same rows, the same height. */
-  .rail-panel-head { display: flex; align-items: center; min-height: 2.5rem; padding: 0 0.25rem 0 3rem; }
+  .rail-panel-head { display: flex; align-items: center; min-height: 2.5rem; padding: 0 0.25rem 0 0.75rem; }
   .rail-panel-title { font-size: 1.0625rem; font-weight: 500; color: var(--text-primary); }
-  .rail-panel-search { display: flex; align-items: center; gap: 0.6rem; margin: 0.35rem 0 0.6rem; padding: 0.5rem 0.9rem; border-radius: 9999px; background: var(--hover-bg); color: var(--text-secondary); }
+  .rail-panel-search { display: flex; align-items: center; gap: 0.6rem; box-sizing: border-box; height: 2.25rem; margin: 0.2rem 0 0.5rem; padding: 0 0.85rem; border-radius: 9999px; background: var(--hover-bg); color: var(--text-secondary); }
   .rail-panel-search svg { flex: none; }
   html[data-rail-layout] #settings-modal .rail-panel-group { margin: 0.9rem 0 0.25rem; padding: 0 0.75rem; list-style: none; font-size: 0.8125rem; font-weight: 400; color: var(--text-secondary) !important; }
   html[data-rail-layout] #settings-modal .rail-panel-group[hidden] { display: none !important; }
@@ -81,7 +83,10 @@
 
   /* The head of the chats' panel: the search, the batch select and, where the new chat was, the button that docks or frees the panel; the new chat is a row under the search. The buttons they take the
      place of (the new chat of the menu, the two of the top bar of the page) stay in the page for the parts that press them, and are not shown. */
-  html[data-rail-layout] #rail-panel-toggle { display: inline-flex; width: 2.75rem; height: 2.75rem; padding: 0; }
+  html[data-rail-layout] #rail-panel-toggle { display: inline-flex; width: 2.25rem; height: 2.25rem; padding: 0; }
+  /* The search of the chats' panel has the height and the colour of the search of the settings' (and the buttons beside it the height of both). */
+  html[data-rail-layout] #open-search-btn { min-height: 0 !important; height: 2.25rem; padding-top: 0; padding-bottom: 0; background: var(--hover-bg) !important; font-size: 0.875rem; }
+  html[data-rail-layout] #selection-mode-btn { width: 2.25rem !important; height: 2.25rem !important; min-width: 2.25rem; min-height: 2.25rem; }
   #rail-panel-toggle svg { width: 1.35rem; height: 1.35rem; }
   html[data-rail-layout] #rail-new-chat { display: flex; margin-top: 0.1rem; }
   html[data-rail-layout] #new-chat-btn, html[data-rail-layout] #new-chat-btn-header, html[data-rail-layout] #menu-toggle-btn { display: none; }
@@ -102,7 +107,7 @@
   /* The usage rings stand in a column above it; the line of words opens beside the rail as a small card. */
   #rail-bottom .oq-row { position: relative; flex-direction: column; margin: 0; padding: 0; gap: 0.1rem; }
   #rail-bottom .oq-entry { padding: 0.2rem; }
-  #rail-bottom .oq-rings { width: 1.9rem; height: 1.9rem; }
+  #rail-bottom .oq-rings { width: 1.9rem; height: 1.9rem; overflow: visible; }
   #rail-bottom .oq-panel { position: absolute; left: calc(100% + 0.5rem); bottom: 0; order: 0; display: block; width: max-content; max-width: 22rem; padding: 0.45rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg); box-shadow: var(--shadow-sm); z-index: 60; transition: opacity 0.15s ease; }
   #rail-bottom .oq-panel:not(.is-open) { visibility: hidden; }
   #rail-bottom .oq-panel-clip { overflow: visible; }

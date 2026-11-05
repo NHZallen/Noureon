@@ -327,3 +327,33 @@ test('the settings open while the Extensions page is there: the page goes (it li
   assert.equal(backs, 1, 'the settings opened: the page closed by its own way back');
   assert.equal(t.document.querySelector('body > .cs'), null);
 });
+
+test('Escape leaves the settings (they have no cross beside the rail), unless something else owns the key', () => {
+  const t = setup();
+  const modal = t.document.getElementById('settings-modal');
+  let closes = 0;
+  t.document.getElementById('close-settings-btn').addEventListener('click', () => { closes += 1; });
+  const escape = (target = t.document.body) => { const event = new t.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); target.dispatchEvent(event); return event; };
+  escape();
+  assert.equal(closes, 0, 'the settings are not open');
+  modal.classList.add('visible');
+  const field = t.document.createElement('input');
+  modal.append(field);
+  escape(field);
+  assert.equal(closes, 0, 'not while a field is typed in');
+  const other = t.document.createElement('div');
+  other.className = 'modal visible';
+  other.id = 'a-dialog';
+  t.document.body.append(other);
+  escape();
+  assert.equal(closes, 0, 'not while another dialog is open');
+  other.remove();
+  escape();
+  assert.equal(closes, 1, 'then the settings go');
+  const phone = setup({ width: 390 });
+  phone.document.getElementById('settings-modal').classList.add('visible');
+  let phoneCloses = 0;
+  phone.document.getElementById('close-settings-btn').addEventListener('click', () => { phoneCloses += 1; });
+  phone.document.body.dispatchEvent(new phone.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(phoneCloses, 0, 'a phone is as it was');
+});

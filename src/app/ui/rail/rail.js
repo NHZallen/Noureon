@@ -225,6 +225,13 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   listen(document, 'focusin', (event) => { if (inZone(event.target)) enter(); });
   listen(document, 'focusout', (event) => { if (inZone(event.target) && !inZone(event.relatedTarget)) leave(); });
   listen(document, 'keydown', (event) => { if (event.key === 'Escape' && root.getAttribute('data-rail-peek') === 'on') peek(false); });
+  // The settings have no cross beside the rail: Escape is their way out too (when nothing else that Escape belongs to is open: a field being typed in, another dialog, the menu of the account).
+  listen(document, 'keydown', (event) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || current === 'none' || !settingsOpen()) return;
+    if (event.target?.closest?.('input, select, textarea, [contenteditable="true"]') || document.querySelector('.rail-menu')) return;
+    if ([...document.querySelectorAll('.modal.visible')].some((modal) => modal.id !== 'settings-modal')) return;
+    document.getElementById('close-settings-btn')?.click();
+  });
 
   // ----- the choice and the places
   function setMode(mode) {
