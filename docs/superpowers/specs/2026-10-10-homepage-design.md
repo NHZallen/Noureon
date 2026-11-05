@@ -42,3 +42,13 @@
 ## 6. 尚未在真機驗證
 
 沙盒環境只有 Chromium（Playwright）。iPhone 內建瀏覽器的實際可視高度、捲動手感、暗色切換需擁有者實機確認。
+
+## 登入頁在手機上滑動會亂跳（2026-11-05，Allen 的錄影，未確認原因）
+
+Allen 在 iPhone 的 LINE 內建瀏覽器錄影：在登入卡（含 Cloudflare 驗證）與頁尾附近上下滑，畫面會突然跳到很遠的地方。沙盒只有 Chromium：用 iPhone 14 模擬、觸控滑動整頁（含來回滑）量過，頁高固定 14474px、沒有 layout shift、沒有跳動，所以**沒有重現，原因未確認**。程式裡也找不到會主動捲動這頁的地方（`scrollTo`、`scrollIntoView` 在登入頁與首頁都沒有）。
+
+放到 `staging` 測試的修正，都是針對「最可疑」的點，沒有一個被證實：
+
+1. `html, body { overscroll-behavior: none }` 原本對每一頁生效（為了 app 不被拖動、不彈回）。登入頁是很長的一般頁面，瀏覽器（尤其會隨捲動收起工具列的內建瀏覽器）需要自己的彈回與工具列，現在只在 app、啟動遮罩、擴充頁（`html:has(...)`，和原本鎖 `overflow: hidden` 的是同一條規則）才設 `none`，登入頁恢復預設。
+2. 驗證元件（`.turnstile-widget`）預留 65px 高度（載入前後登入卡不再變高），並設 `touch-action: pan-y`（手指落在它上面還是捲動頁面）；規則在 `public/home.css`（登入頁自己的樣式）。
+3. 診斷工具：網址加 `?scrolldebug=1` 會載入 `public/scroll-debug.js`，在畫面下方顯示捲動「太大步」的紀錄（超過 250px/120ms 或單次超過 600px）與當下的頁高、可視區、驗證元件高度、layout shift，點一下可複製；不寫入也不送出任何東西。若修正沒用，請在 `staging.noureon.com/?scrolldebug=1` 重現後把畫面下方的文字貼回來。

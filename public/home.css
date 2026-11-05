@@ -113,6 +113,8 @@
 .hm-field::placeholder{color:var(--text-tertiary)}
 .hm-field:focus{outline:2px solid var(--button-primary-bg);outline-offset:1px}
 .hm-login .hm-pill{margin-top:14px;font-size:16px;padding:13px 22px}
+.hm .turnstile-widget{min-height:65px}
+.hm .turnstile-widget,.hm .turnstile-widget iframe{touch-action:pan-y}
 .hm-imp{background:none;border:0;color:var(--text-secondary);font-size:13px;text-align:center;cursor:pointer;padding:8px}
 .hm-imp:disabled{color:var(--text-tertiary);cursor:default}
 

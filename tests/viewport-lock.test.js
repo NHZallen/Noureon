@@ -76,7 +76,10 @@ test('a page the person has zoomed is left as it is, and the lock lets go when i
 
 test('the app and the start-up screen lie over what is seen on a phone, and the page does not bounce', () => {
   const css = readFileSync(new URL('../src/styles/layout.css', import.meta.url), 'utf8');
-  assert.match(css, /html, body \{ overscroll-behavior: none; \}/);
+  // the app and its cover do not bounce; the long sign-in page of a visitor scrolls like any page
+  // (the root element's value is the viewport's)
+  assert.match(css, /html:has\(\[data-startup-skeleton\]\),\s*html:has\(#auth-container\.fade-out\),\s*html:has\(#app-container:not\(\.hidden\)\),\s*html:has\(#store-container:not\(\.hidden\)\) \{ overflow: hidden; overscroll-behavior: none; \}/);
+  assert.doesNotMatch(css, /^html, body \{ overscroll-behavior: none; \}/m, 'not on every page');
   assert.match(css, /@media \(pointer: coarse\) \{\s*#app-container, html \[data-startup-skeleton\] \{\s*bottom: auto;\s*height: var\(--vv-bottom, 100%\);/);
   assert.doesNotMatch(css, /--vv-top/, 'the app is not moved with the seen area');
   assert.match(css, /\[data-startup-skeleton\] \{ touch-action: none; overscroll-behavior: none; \}/);

@@ -45,9 +45,10 @@ test('the old buttons are hidden from the first paint by the sheet the page load
   const theme = readFileSync(new URL('../public/theme-init.js', import.meta.url), 'utf8');
   assert.match(theme, /noureon\.rail/);
   assert.match(theme, /data-rail-early/);
-  const block = layout.slice(layout.indexOf('html[data-rail-early] #new-chat-btn'));
-  for (const id of ['#new-chat-btn', '#new-chat-btn-header', '#menu-toggle-btn', '#open-cli-store-btn', '#user-controls']) assert.ok(block.includes(`html[data-rail-early] ${id}`), `${id} is hidden from the first paint`);
-  assert.match(layout, /@media \(min-width: 768px\) \{\s+html\[data-rail-early\]/, 'only from 768 px: a phone has the old buttons');
+  const block = layout.slice(layout.indexOf('html:is([data-rail-early], [data-rail-layout])'));
+  assert.ok(block.includes('html:is([data-rail-early], [data-rail-layout])'), 'both the early mark and the real layout');
+  for (const id of ['#new-chat-btn', '#new-chat-btn-header', '#menu-toggle-btn', '#open-cli-store-btn', '#user-controls']) assert.ok(block.includes(id), `${id} is hidden from the first paint`);
+  assert.match(layout, /@media \(min-width: 768px\) \{\s+html:is\(\[data-rail-early\]/, 'only from 768 px: a phone has the old buttons');
   assert.ok(!/html\[data-rail-layout\] #menu-toggle-btn/.test(rail), 'one place for the rule');
 });
 
