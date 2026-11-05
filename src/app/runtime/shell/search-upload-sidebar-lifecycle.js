@@ -364,6 +364,8 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
 
     function toggleSidebar(show) {
         const { sidebar, sidebarOverlay, appContainer } = ALL_ELEMENTS;
+        // With the rail of a computer (ui/rail/) a panel that is docked stays where it is when something is chosen in it; the rail itself docks and frees it.
+        if (show === false && document.documentElement?.getAttribute?.('data-rail-layout') === 'pinned') return;
         const nextSidebarOpen = typeof show === 'boolean' ? show : !getSidebarOpen();
         const sidebarOpen = setSidebarOpen(nextSidebarOpen);
         sidebar.classList.toggle('open', sidebarOpen);

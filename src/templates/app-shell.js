@@ -56,6 +56,9 @@ const composerShell = shellMarkup.replace(
   '<div id="file-options-popover" class="popover absolute bottom-full left-0 mb-2 w-56 z-20" role="menu" aria-label="附加檔案與其他功能" data-lang-key-aria="attachFileAndMore">'
 );
 
+// The rail of icons on a computer (ui/rail/): an empty element in the page from its first paint, filled by the script, shown only when the rail is on (styles/rail.css).
+const railShell = composerShell.replace('<aside id="sidebar"', '<nav id="desktop-rail" class="rail" aria-hidden="true"></nav>\n        <aside id="sidebar"');
+
 const appShell = [
   { id: 'camera-btn', labelKey: 'camera', descriptionKey: 'cameraDescription', description: '使用裝置拍攝影像', icon: 'camera' },
   { id: 'upload-image-btn', labelKey: 'image', descriptionKey: 'imageDescription', description: '上傳圖片或影片', icon: 'media' },
@@ -63,6 +66,6 @@ const appShell = [
   { id: 'upload-drive-btn', labelKey: 'googleDrive', descriptionKey: 'googleDriveDescription', description: '從 Google 雲端硬碟選檔案', icon: 'drive' },
   { id: 'web-search-popover-btn', labelKey: 'search', descriptionKey: 'webSearchDescription', description: '搜尋即時網路資訊', icon: 'webSearch' },
   { id: 'learning-mode-btn', labelKey: 'learning', descriptionKey: 'learningDescription', description: '以引導方式協助理解', icon: 'learning' }
-].reduce(decorateComposerMenuItem, composerShell);
+].reduce(decorateComposerMenuItem, railShell);
 
 export default appShell;

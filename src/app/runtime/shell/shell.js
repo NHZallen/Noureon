@@ -218,6 +218,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         import('/src/app/runtime/share/start-shares.js').then(({ startShares }) => startShares({ document, configAccess: runtimeConfigAccess, dataStore: runtimeAppDataStore, i18n, saveAppData: (...args) => saveAppData(...args), showNotification: (...args) => showNotification(...args), showCustomConfirm: (...args) => showCustomConfirm(...args), renderSidebar: () => renderSidebar(), openConversation: (id) => loadChat(id) })).catch((error) => console.warn('Sharing did not start.', error));
         // The usage rings of the providers (OpenCode Go, OpenRouter) above the Extensions entry; each only with its key; loaded after the page.
         import('/src/app/ui/provider-quota/start-quota.js').then(({ startProviderQuota }) => startProviderQuota({ document, getApiKeyForProvider, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The usage rings did not start.', error));
+        // The rail of icons on a computer, beside the left menu (docs/superpowers/specs/2026-11-05-desktop-rail-sidebar-design.md); only where the page says it is on; loaded after the page.
+        import('/src/app/ui/rail/start-rail.js').then(({ startRail }) => startRail({ document, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage, i18n, toggleSidebar: (...args) => toggleSidebar(...args) })).catch((error) => console.warn('The rail did not start.', error));
         function normalizeConversationModel(conv) {
             if (!conv) return null;
             const canonicalModelId = getCanonicalModelId(conv.model);

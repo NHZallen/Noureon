@@ -27,3 +27,13 @@
     }
   } catch (error) { /* the page stays as it is */ }
 })();
+
+// The rail of icons on the left of a computer (src/app/ui/rail/): shown from the first paint when it is on. It is off until it is finished; a person who wants to try it sets
+// localStorage "noureon.rail" to "on" (and "off" to leave it).
+(function () {
+  try {
+    var DEFAULT_ON = false;
+    var value = localStorage.getItem('noureon.rail');
+    if (value === 'on' || (value !== 'off' && DEFAULT_ON)) document.documentElement.setAttribute('data-rail', 'on');
+  } catch (error) { /* the page stays as it is */ }
+})();

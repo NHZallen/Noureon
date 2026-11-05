@@ -90,6 +90,7 @@ function createHarness(overrides = {}) {
       if (selector === '.input-wrapper') return inputWrapper;
       return null;
     },
+    documentElement: overrides.documentElement,
     addEventListener: noop,
     removeEventListener: noop
   };
@@ -306,6 +307,20 @@ test('toggleSidebar preserves desktop and mobile class behavior through injected
   mobile.lifecycle.toggleSidebar(false);
   assert.equal(mobile.elements.sidebar.style.transform, 'translateX(-100%)');
   assert.equal(mobile.elements.sidebarOverlay.classList.contains('visible'), false);
+});
+
+test('with the rail of a computer a docked panel is not shut by a choice in it; the other layouts shut it as before', () => {
+  const layoutOf = (value) => ({ getAttribute: (name) => (name === 'data-rail-layout' ? value : null) });
+  const docked = createHarness({ innerWidth: 1280, sidebarOpen: true, documentElement: layoutOf('pinned') });
+  docked.lifecycle.toggleSidebar(false);
+  assert.equal(docked.sidebarOpen, true, 'the docked panel stays');
+  docked.lifecycle.toggleSidebar(true);
+  assert.equal(docked.sidebarOpen, true);
+  for (const layout of ['hover', 'drawer', null]) {
+    const other = createHarness({ innerWidth: 1280, sidebarOpen: true, documentElement: layoutOf(layout) });
+    other.lifecycle.toggleSidebar(false);
+    assert.equal(other.sidebarOpen, false, `shut in the layout ${layout}`);
+  }
 });
 
 test('module has no fragment or virtual runtime dependency', () => {

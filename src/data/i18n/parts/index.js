@@ -19,6 +19,7 @@ import openai from './openai.js';
 import memoryNotes from './memory-notes.js';
 import share from './share.js';
 import projects from './projects.js';
+import rail from './rail.js';
 
 const parts = [
     login,
@@ -40,7 +41,8 @@ const parts = [
     openai,
     memoryNotes,
     share,
-    projects
+    projects,
+    rail
 ];
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));
