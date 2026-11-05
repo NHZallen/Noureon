@@ -62,3 +62,5 @@ UA 是 `GSA/445`（Google App），不是 LINE。檢測數據顯示：往上滑�
 另外：`quote-inquiry-lifecycle.js` 的 `hideMenu` 在每個捲動事件都寫 `hidden`（紀錄顯示約每 65ms 一次），改成已隱藏就不寫。`tests/home-scroll-height.test.js` 守住這兩點（`--hv` 的行為、`home.css` 沒有裸的 `vh`）。
 
 上一輪的三個猜測性修正（`overscroll-behavior: none` 只留在 app 頁、驗證元件預留 65px 高度、驗證元件 `touch-action: pan-y`）資料都沒有指到它們，已在同一天還原成原樣（`layout.css` 的 `html, body { overscroll-behavior: none; }` 回來、`home.css` 兩條規則刪掉）。留下的：`--hv` 的修正、`?scrolldebug=1` 檢測器（只在加參數時載入）。
+
+檢測器（`public/scroll-debug.js`、`startup-language.js` 裡載入它的那段、`tests/scroll-debug.test.js`）原因找到後已刪除（2026-11-05，Allen 要求）；需要時可從 git 歷史（提交 `7fd71668`）取回。

@@ -43,13 +43,3 @@
     // The lines stay in Traditional Chinese.
   }
 })();
-// Looking into a page that jumps while it is scrolled: with ?scrolldebug=1 in the address a small tool is loaded (public/scroll-debug.js); nothing changes without it.
-(function () {
-  try {
-    if (/[?&]scrolldebug=1(&|$)/.test(location.search)) {
-      var script = document.createElement('script');
-      script.src = '/scroll-debug.js';
-      document.head.appendChild(script);
-    }
-  } catch (error) { /* nothing is loaded */ }
-})();
