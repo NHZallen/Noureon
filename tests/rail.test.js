@@ -117,6 +117,29 @@ test('on hover the panel shows while the pointer is on a thing of the rail or on
   assert.equal(t.peek(), null);
 });
 
+test('freeing the panel shuts it at once and it does not come back for the pointer that is still on the button (the button may be drawn again under it)', () => {
+  const t = setup();
+  const outside = t.document.getElementById('menu-toggle-btn');
+  const inside = t.document.getElementById('inside');
+  t.document.getElementById('menu-toggle-btn').click();
+  assert.equal(t.layout(), 'hover');
+  assert.equal(t.peek(), null, 'shut at once, as on the home');
+  move(t, null, inside);
+  assert.equal(t.peek(), null, 'the pointer that is told as coming in on the redrawn button does not bring it back');
+  move(t, inside, outside);
+  move(t, outside, inside);
+  assert.equal(t.peek(), 'on', 'once the pointer was seen on the page, coming to the panel brings it as always');
+  move(t, inside, outside);
+  t.flush();
+  assert.equal(t.peek(), null);
+  t.rail.setMode('pinned');
+  t.document.getElementById('menu-toggle-btn').click();
+  move(t, null, inside);
+  t.flush();
+  move(t, null, inside);
+  assert.equal(t.peek(), 'on', 'a moment later the hold is over by itself');
+});
+
 test('the list of the Extensions and the list of the settings keep the panel out while the pointer is on them', () => {
   const t = setup({ stored: 'hover' });
   const outside = t.document.getElementById('menu-toggle-btn');

@@ -27,3 +27,11 @@
     }
   } catch (error) { /* the page stays as it is */ }
 })();
+
+// The workspace of a computer has the rail of icons (src/app/ui/rail/): the buttons the left menu and the top bar had before it are not shown from the first paint (src/styles/layout.css), not only
+// after the rail has started, which comes later (it waits for the account). Whoever turned the rail off (localStorage "noureon.rail" = "off") keeps the old ones. Only 768 px and more is affected: a phone is as it was.
+(function () {
+  try {
+    if (localStorage.getItem('noureon.rail') !== 'off') document.documentElement.setAttribute('data-rail-early', '');
+  } catch (error) { /* the page stays as it is */ }
+})();

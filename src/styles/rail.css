@@ -101,10 +101,9 @@
   html[data-rail-layout] #selection-mode-btn { width: 2.25rem !important; height: 2.25rem !important; min-width: 2.25rem; min-height: 2.25rem; }
   #rail-panel-toggle svg { width: 1.35rem; height: 1.35rem; }
   html[data-rail-layout] #rail-new-chat { display: flex; margin-top: 0.1rem; }
-  html[data-rail-layout] #new-chat-btn, html[data-rail-layout] #new-chat-btn-header, html[data-rail-layout] #menu-toggle-btn { display: none; }
+  /* (they are hidden by styles/layout.css, from the first paint) */
 
-  /* What the rail has taken over leaves the left menu: the Extensions entry, and the account and settings at its foot. */
-  html[data-rail-layout] #open-cli-store-btn, html[data-rail-layout] #user-controls { display: none; }
+  /* What the rail has taken over leaves the left menu: the Extensions entry and the account (hidden by styles/layout.css), and the foot of the menu. */
   html[data-rail-layout] #sidebar > :last-child:not(:has(#batch-action-bar:not(.hidden))) { display: none; }
 
   /* The buttons at the end of the title of a section (the ⋯ and the + of the projects, those of the Nouras) are there while the pointer is on the title or the keyboard is in it; a touch has no pointer, so they stay. */

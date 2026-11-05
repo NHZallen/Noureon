@@ -1,3 +1,4 @@
+import { waitForRail } from './app/ui/rail/rail-ready.js';
 import 'cropperjs/dist/cropper.css';
 import 'katex/dist/katex.min.css';
 import './styles/main.css';
@@ -136,6 +137,7 @@ async function bootstrap() {
     : null;
   const chatApp = await import('./app/chat-app.js');
   await chatApp.chatAppReady;
+  await waitForRail(document);
   dismissStartupSkeleton(document);
   keepChatOffItsEdges(document.getElementById('chat-container'));
   keepScrollBoxesOffTheirEdges(document);

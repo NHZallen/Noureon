@@ -66,3 +66,13 @@ html:has([data-startup-skeleton]),
 html:has(#auth-container.fade-out),
 html:has(#app-container:not(.hidden)),
 html:has(#store-container:not(.hidden)) { overflow: hidden; }
+
+/* The rail of icons (ui/rail/) takes over from 768 px: the buttons of the left menu and of the top bar that it replaces (the new chat, the button of the menu, the Extensions entry, the account at the foot)
+   are not shown, from the first paint (`data-rail-early`, set by public/theme-init.js) and not only after the rail has started (`data-rail-layout`). They stay in the page for the parts that press them
+   and for a phone, which has no rail. */
+@media (min-width: 768px) {
+    html[data-rail-early] #new-chat-btn, html[data-rail-early] #new-chat-btn-header, html[data-rail-early] #menu-toggle-btn,
+    html[data-rail-early] #open-cli-store-btn, html[data-rail-early] #user-controls,
+    html[data-rail-layout] #new-chat-btn, html[data-rail-layout] #new-chat-btn-header, html[data-rail-layout] #menu-toggle-btn,
+    html[data-rail-layout] #open-cli-store-btn, html[data-rail-layout] #user-controls { display: none; }
+}

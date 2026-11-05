@@ -11,6 +11,8 @@ import { mountPanelModeRow } from './rail-settings.js';
 import { mountSettingsHead } from './rail-panels.js';
 import { layoutFor, otherMode, readPanelMode, writePanelMode, PEEK_LEAVE_MS, SETTINGS_PEEK_MS, RAIL_MIN_WIDTH, DOCKED_MIN_WIDTH } from './rail-mode.js';
 
+// How long the panel is held shut after it was freed, while the pointer is still on the button that freed it.
+const HOLD_MS = 700;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICONS = Object.freeze({
   home: '<path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9v12h5v-6h4v6h5V9"></path>',
@@ -212,12 +214,23 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
 
   // ----- the panel on hover
   function peek(on) {
+    if (on) release();
     unwait(timer);
     timer = null;
     if (current !== 'hover') { root.removeAttribute('data-rail-peek'); return; }
     if (on) root.setAttribute('data-rail-peek', 'on'); else root.removeAttribute('data-rail-peek');
   }
-  const enter = () => peek(true);
+  // Right after the panel was freed (the choice went to "on hover") the pointer is still on the button that did it, and that button may be drawn again under the pointer, which the browser tells as the pointer
+  // coming in: the panel must not come back for that. It is held shut until the pointer is seen on the page (outside the zone) or a moment has passed, and then the pointer on the rail brings it as always.
+  let held = false;
+  let holdTimer = null;
+  const hold = () => {
+    held = true;
+    unwait(holdTimer);
+    holdTimer = wait(() => { holdTimer = null; held = false; }, HOLD_MS);
+  };
+  const release = () => { held = false; unwait(holdTimer); holdTimer = null; };
+  const enter = () => { if (!held) peek(true); };
   const leave = (ms = PEEK_LEAVE_MS) => {
     unwait(timer);
     timer = wait(() => { timer = null; peek(false); }, ms);
@@ -231,7 +244,10 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   const onOwnIcon = (node) => Boolean(node?.closest?.(`#desktop-rail ${ownIcon()}`));
   const inZone = (node) => inPanel(node) || onOwnIcon(node);
   const onRailThing = (node) => Boolean(node?.closest?.('#desktop-rail .rail-btn, #desktop-rail .oq-entry'));
-  listen(document, 'pointerover', (event) => { if (event.pointerType !== 'touch' && inZone(event.target)) enter(); });
+  listen(document, 'pointerover', (event) => {
+    if (event.pointerType === 'touch') return;
+    if (inZone(event.target)) enter(); else release();
+  });
   // Leaving the panel or any thing of the rail (a door that was pressed counts: the page it opened may not be there yet) lets the panel go, unless the pointer goes to another part of the zone.
   listen(document, 'pointerout', (event) => { if (event.pointerType !== 'touch' && (inZone(event.target) || onRailThing(event.target)) && !inZone(event.relatedTarget)) leave(); });
   listen(document, 'focusin', (event) => { if (inZone(event.target)) enter(); });
@@ -257,7 +273,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     if (current === 'drawer') { toggleSidebar(); return; }
     if (current === 'none') return;
     setMode(otherMode(choice));
-    if (choice === 'hover') peek(false);
+    if (choice === 'hover') { hold(); peek(false); }
   }
   function activate(id) {
     const item = items.find((entry) => entry.id === id);
