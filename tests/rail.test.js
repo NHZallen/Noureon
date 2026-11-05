@@ -16,7 +16,7 @@ function setup({ width = 1440, stored = null, coarse = false } = {}) {
   window.innerWidth = width;
   window.matchMedia = (query) => ({ matches: query === '(pointer: coarse)' ? coarse : true, media: query, addEventListener() {}, removeEventListener() {} });
   const { document } = window;
-  document.body.innerHTML = '<div id="app-container"><nav id="desktop-rail"></nav><aside id="sidebar" class="sidebar"><button id="inside">a chat</button><button id="open-cli-store-btn">Extensions</button><span id="username-display">Allen Niu</span><button id="settings-btn">settings</button><button id="user-profile-btn">profile</button><button id="logout-btn">logout</button></aside><button id="menu-toggle-btn">menu</button></div>';
+  document.body.innerHTML = '<div id="app-container"><nav id="desktop-rail"></nav><aside id="sidebar" class="sidebar"><button id="inside">a chat</button><button id="open-cli-store-btn">Extensions</button><span id="username-display">Allen Niu</span><button id="settings-btn">settings</button><button id="user-profile-btn">profile</button><button id="logout-btn">logout</button></aside><div id="settings-modal" class="modal hidden"><button id="close-settings-btn">close</button></div><button id="menu-toggle-btn">menu</button></div>';
   const data = new Map(stored ? [[PANEL_MODE_KEY, stored]] : []);
   const storage = { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
   const calls = [];
@@ -229,4 +229,27 @@ test('a layout that changes tells the parts that live in the rail (the usage rin
   t.document.addEventListener('noureon:rail-layout', (event) => seen.push(event.detail.layout));
   t.document.getElementById('menu-toggle-btn').click();
   assert.deepEqual(seen, ['hover']);
+});
+
+test('while the settings are on the screen no place of the rail is lit; going to a place lets the settings go by their own way out', async () => {
+  const t = setup();
+  const modal = t.document.getElementById('settings-modal');
+  const close = t.document.getElementById('close-settings-btn');
+  close.addEventListener('click', () => modal.classList.remove('visible'));
+  const lit = () => [...t.document.querySelectorAll('#desktop-rail .rail-top [aria-current="page"]')].map((button) => button.dataset.railItem);
+  assert.deepEqual(lit(), ['chat']);
+  modal.classList.add('visible');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(lit(), [], 'the settings are a page of their own');
+  t.document.querySelector('[data-rail-item="chat"]').click();
+  assert.equal(modal.classList.contains('visible'), false, 'the settings were let go');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(lit(), ['chat']);
+  modal.classList.add('visible');
+  const entry = t.document.getElementById('open-cli-store-btn');
+  let opened = 0;
+  entry.addEventListener('click', () => { opened += 1; });
+  t.document.querySelector('[data-rail-item="extensions"]').click();
+  assert.equal(modal.classList.contains('visible'), false);
+  assert.equal(opened, 1, 'and the Extensions open');
 });

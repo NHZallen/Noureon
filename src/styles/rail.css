@@ -27,6 +27,13 @@
   /* The Extensions page lies over the app from the rail's edge: its own list on the left is its panel, and the rail takes the way back. */
   html[data-rail-layout] body > .cs { left: var(--rail-w); }
   html[data-rail-layout] body > .cs .cs-back { display: none; }
+  /* The settings are a page of their own beside the rail: its list of parts at the left is the panel (it has the colour of the menu), the part is the page. The way out is the cross at the top left. */
+  html[data-rail-layout] #settings-modal { left: var(--rail-w); background: var(--chat-bg) !important; }
+  html[data-rail-layout] #settings-modal.visible { align-items: stretch !important; justify-content: stretch !important; padding: 0 !important; }
+  html[data-rail-layout] #settings-modal > div { flex: 1 1 auto !important; width: 100% !important; max-width: none !important; height: 100% !important; max-height: none !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: var(--chat-bg) !important; }
+  html[data-rail-layout] #settings-modal nav { align-self: stretch; margin-top: 0 !important; height: auto !important; padding-top: 4.5rem !important; background: var(--sidebar-bg) !important; }
+  html[data-rail-layout] #settings-modal nav #settings-nav { padding-top: 0.25rem !important; }
+
   /* What the rail has taken over leaves the left menu: the Extensions entry, and the account and settings at its foot. */
   html[data-rail-layout] #open-cli-store-btn, html[data-rail-layout] #user-controls { display: none; }
   html[data-rail-layout] #sidebar > :last-child:not(:has(#batch-action-bar:not(.hidden))) { display: none; }

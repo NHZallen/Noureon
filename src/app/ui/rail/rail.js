@@ -60,7 +60,11 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
     { id: 'extensions', icon: 'extensions', label: () => text('railExtensions'), go: () => { document.getElementById('open-cli-store-btn')?.click(); } }
   ];
   let activeId = 'chat';
-  const syncActive = () => { const next = storePage() ? 'extensions' : 'chat'; if (next !== activeId) { activeId = next; labels(); } };
+  const settingsPage = () => document.getElementById('settings-modal');
+  const settingsOpen = () => Boolean(settingsPage()?.classList.contains('visible'));
+  // The place that is lit is the one whose page is on the screen; the settings are a page of their own (the account's menu), so while they are there no place is lit.
+  const placeNow = () => (settingsOpen() ? '' : storePage() ? 'extensions' : 'chat');
+  const syncActive = () => { const next = placeNow(); if (next !== activeId) { activeId = next; labels(); } };
   const top = document.createElement('div');
   top.className = 'rail-top';
   const bottom = document.createElement('div');
@@ -173,6 +177,8 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   function activate(id) {
     const item = items.find((entry) => entry.id === id);
     if (!item) return;
+    // The settings are a page over the app: going to a place lets them go (their own way out).
+    if (settingsOpen()) document.getElementById('close-settings-btn')?.click();
     // The page of a place lies over the app (the Extensions); the chats are what is under it, so going to them lets the page go.
     if (id === 'chat' && storePage()) { item.go(); return; }
     if (id !== 'chat') {
@@ -237,6 +243,7 @@ export function createRail({ document, storage = null, toggleSidebar, text, plat
   if (typeof win.MutationObserver === 'function') {
     const watch = new win.MutationObserver(syncActive);
     watch.observe(document.body, { childList: true });
+    if (settingsPage()) watch.observe(settingsPage(), { attributes: true, attributeFilter: ['class'] });
     stops.push(() => watch.disconnect());
   }
   syncActive();
