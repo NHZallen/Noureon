@@ -52,3 +52,11 @@ Allen 在 iPhone 的 LINE 內建瀏覽器錄影：在登入卡（含 Cloudflare 
 1. `html, body { overscroll-behavior: none }` 原本對每一頁生效（為了 app 不被拖動、不彈回）。登入頁是很長的一般頁面，瀏覽器（尤其會隨捲動收起工具列的內建瀏覽器）需要自己的彈回與工具列，現在只在 app、啟動遮罩、擴充頁（`html:has(...)`，和原本鎖 `overflow: hidden` 的是同一條規則）才設 `none`，登入頁恢復預設。
 2. 驗證元件（`.turnstile-widget`）預留 65px 高度（載入前後登入卡不再變高），並設 `touch-action: pan-y`（手指落在它上面還是捲動頁面）；規則在 `public/home.css`（登入頁自己的樣式）。
 3. 診斷工具：網址加 `?scrolldebug=1` 會載入 `public/scroll-debug.js`，在畫面下方顯示捲動「太大步」的紀錄（超過 250px/120ms 或單次超過 600px）與當下的頁高、可視區、驗證元件高度、layout shift，點一下可複製；不寫入也不送出任何東西。若修正沒用，請在 `staging.noureon.com/?scrolldebug=1` 重現後把畫面下方的文字貼回來。
+
+### 原因找到了（2026-11-05，Allen 在 iPhone 的 Google App 內建瀏覽器跑了新的畫面檢測器）
+
+UA 是 `GSA/445`（Google App），不是 LINE。檢測數據顯示：往上滑時工具列出現，`innerHeight` 從 771 變成 633（往下滑再變回 771），**頁高同時從 15214 變成 13674（差 1540px）**。原因是首頁用 `100svh`／`vh` 排版（三個故事區各 3.6 個螢幕高、釘住的視窗、各處留白），而這個瀏覽器的 `svh`／`vh` 會隨工具列一起變，整頁伸縮約 11 個「工具列高度」；`scrollY` 不變，內容就等於被換了位置（跳很遠），靠近頁尾時則是頁面縮短、捲動位置被夾回（-1019px、-513px 那兩筆）。`home-scroll.js` 的註解早就知道內建瀏覽器的列 `svh` 不認得，但只用在進度計算，CSS 還是 `svh`。
+
+修正：`home-scroll.js` 的 `measure()`（高度取一次、只會變小）同時寫 `--hv`（那個高度的 1/100，`px`）到 `#auth-container`；`public/home.css` 的所有 `svh`／`vh` 改成 `var(--hv, 1svh|1vh) * N`（JS 還沒跑前退回 `svh`／`vh`）。工具列出現或收起時頁高不再變。副作用：工具列收起時，釘住的視窗以「工具列出現時」的高度為準，底下多一小段空白（約 138px），比整頁跳動好得多。
+
+另外：`quote-inquiry-lifecycle.js` 的 `hideMenu` 在每個捲動事件都寫 `hidden`（紀錄顯示約每 65ms 一次），改成已隱藏就不寫。`tests/home-scroll-height.test.js` 守住這兩點（`--hv` 的行為、`home.css` 沒有裸的 `vh`）。

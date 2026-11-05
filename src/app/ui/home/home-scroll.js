@@ -18,6 +18,8 @@ export function installHomeScroll({ window, document, container, onNear = () => 
     } else if (now < height) {
       height = now;
     }
+    // The page is laid out in this height (--hv is one hundredth of it), not in svh or vh: some in-app browsers (Google app on an iPhone) resize those with their bar, which stretched the page by more than a thousand pixels while it was scrolled.
+    container.style?.setProperty?.('--hv', `${height / 100}px`);
   };
   const sizeCaptions = () => {
     for (const story of stories) {

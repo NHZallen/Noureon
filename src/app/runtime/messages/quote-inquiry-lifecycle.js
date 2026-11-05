@@ -147,7 +147,7 @@ export function createQuoteInquiryLifecycle({
   let isBound = false;
 
   const isDesktop = () => desktopMediaQuery?.matches !== false;
-  const hideMenu = () => { if (menu) menu.hidden = true; };
+  const hideMenu = () => { if (menu && !menu.hidden) menu.hidden = true; };
 
   const clearBrowserSelection = () => {
     window.getSelection?.()?.removeAllRanges?.();
