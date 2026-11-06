@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "19.4.0",
+    date: "2026-11-06",
+    content: [
+      "<strong>Noureon 19.4.0 發布說明</strong>",
+      "本版本讓圖片模型換成 GPT Image 2.6 並能做 GIF 與 SVG，新增 GIF 的逐格編輯、網格編輯與播放倍率，並讓所有供應商的文字模型都能畫 SVG、也能依標記修改 SVG。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>GPT Image 2.6：</strong>OpenAI 與 OpenRouter 的圖片模型換成 GPT Image 2.6，新增 GIF（影格數 2 至 16、每格時間 20 至 2000 毫秒，尺寸預設自動）與 SVG；在話裡說「做成 GIF」「給我 SVG」「8 格」「每格 200 毫秒」也會自動套用。一次的張數：GIF 最多 10 張，圖片模型自己做的 SVG 一次 1 張。OpenRouter 不能從圖片做 GIF。</li><li><strong>GIF 編輯：</strong>編輯器逐格顯示 GIF，每一格有自己的標記與復原，只改被標記的格，其他格不動；圖片右上角的網格鈕把所有格拼成一張，直接在上面標記，模型改一次後切回各格，只把真的有變的地方貼回，所以每一格的改法一致；倍率鈕決定新 GIF 的每格時間。任何會編輯圖片的模型都能用，由伺服器執行，關掉頁面也會完成。</li><li><strong>GIF 播放倍率與下載：</strong>GIF 卡片與預覽的右上角有倍率選單（0.25×、0.5×、0.75×、1×、1.25×、1.5×、2×）；選了倍率後，下載與分享拿到的是改過每格時間的 GIF，畫面內容不變。</li><li><strong>SVG：</strong>OpenAI、OpenRouter、Gemini、NVIDIA、OpenCode Go 的文字模型被要求向量圖時，都以圖片卡片呈現，可以一次要多張（最多 10 張）；所有 SVG 的大小與圖片一致；卡片右上角可以在圖片與程式碼之間切換，並複製程式碼或下載程式碼檔案。</li><li><strong>修改 SVG：</strong>會看圖的文字模型與 GPT Image 2.6 可以在編輯器標記 SVG，模型依程式碼與標記改出新的 SVG；不會看圖的模型不顯示編輯。</li><li><strong>修正：</strong>圖片的下載與分享在正式網站沒反應；iPhone 上儲存圖片改走分享面板；圖片卡片的編號與編輯按鈕對齊；筆刷大小的預覽與實際畫出的大小一致；電腦版編輯器的尺寸控制與影格列置中。</li></ul>",
+      "<strong>相容性</strong>",
+      "<ul><li>沒有資料格式變更，已存的圖片、GIF 與 SVG 照常顯示。GIF 編輯與其他供應商文字模型的 SVG 要在伺服器端執行，需要伺服器同步更新；伺服器尚未更新時，改由頁面自己完成（頁面關閉後不會繼續）。</li></ul>"
+    ]
+  },
+  {
     version: "19.3.0",
     date: "2026-11-05",
     content: [
