@@ -117,3 +117,30 @@ test('the server does not tidy when the memory is paused or not in use, and a fa
   assert.equal((await memory.load(USER)).notes.find((note) => note.id === 'taipei').status, 'active');
   assert.equal((await memory.load(USER)).settings.consolidatedAt, NOW, 'the tidy ran (its first layer); the claim is kept');
 });
+
+test('in a shared project the reply of any of its people tidies the project notes (the owner’s rows, that scope only), a chat member’s too', async () => {
+  const OWNER = '11111111-1111-4111-8111-111111111111';
+  const PROJECT = '323e4567-e89b-12d3-a456-426614174002';
+  const table = createFakeTable({ now: () => NOW });
+  const noteIn = (id, text, keywords, at) => ({ ...make(id, text, keywords, at), projectId: PROJECT });
+  for (const note of [noteIn('taipei', 'The user lives in Taipei and works as a nurse', ['taipei', 'nurse', 'lives'], '2026-03-02T00:00:00.000Z'), noteIn('taichung', 'The user lives in Taichung and works as a nurse', ['taichung', 'nurse', 'lives'], '2026-09-02T00:00:00.000Z')]) {
+    table.write({ user_id: OWNER, record_key: `note:${note.id}`, payload: note });
+  }
+  // a note of the owner outside the project, which the tidy must not touch
+  table.write({ user_id: OWNER, record_key: 'note:own', payload: make('own', 'The user lives in Tainan', ['tainan', 'lives'], '2026-03-02T00:00:00.000Z') });
+  const base = createMemoryRecords({ db: table.service, now: () => NOW });
+  const memory = { ...base, projectAccess: async () => ({ owner_id: OWNER, role: 'chat' }) };
+  const memoryOut = {};
+  const requests = [];
+  await executeReply({
+    spec: spec({ canWrite: true, scope: PROJECT, sharedProject: PROJECT, messages: [{ id: 'm1', text: 'Please write a short poem about the sea.', at: '2026-10-30T09:00:00.000Z' }] }),
+    secrets: { providerKey: 'sk-provider-secret-value' }, userId: USER, memory, memoryOut, now: () => Date.parse(NOW),
+    fetchImpl: async (url, options) => { requests.push(JSON.parse(options.body)); return streamResponse(requests.length === 1 ? sse(content('The sea is wide.')) : sse(content(supersede))); }
+  });
+  await memoryOut.afterReply();
+  const owner = await base.load(OWNER);
+  assert.equal(owner.notes.find((note) => note.id === 'taipei').status, 'archived', 'the project notes were tidied');
+  assert.equal(owner.notes.find((note) => note.id === 'own').status, 'active', 'the owner’s other notes were not');
+  assert.equal(owner.settings.consolidatedScopes[PROJECT], NOW);
+  assert.doesNotMatch(JSON.stringify(requests.slice(1)), /Tainan/);
+});

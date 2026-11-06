@@ -254,11 +254,13 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       const sharedProject = spec.tools.memory.sharedProject || '';
       let memoryBase = memory;
       let mayWrite = spec.tools.memory.canWrite === true;
+      let sharedOwner = '';
       if (sharedProject) {
         const access = await memory.projectAccess?.(userId, sharedProject);
         if (!access) throw new Error('The person is not in that shared project.');
         memoryBase = sharedProjectMemory(memory, { ownerId: access.owner_id, projectId: sharedProject });
         mayWrite = mayWrite && access.role !== 'chat';
+        sharedOwner = access.owner_id;
       }
       const scopeId = sharedProject || spec.tools.memory.scope || '';
       const scopedStore = scopedMemory(memoryBase, scopeId, sharedProject || spec.tools.memory.project || '');
@@ -334,6 +336,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       // Once the reply is written, the notes are tidied if that is due (memory-tidy.js).
       // The notes are tidied scope by scope (memory-tidy.js), whichever chat made this reply.
       if (memoryOut && loaded.settings.use) {
+        // In a shared project any of its people may be the one whose reply tidies the notes of the project (the server does the writing, as the owner's own tidy would): the owner's rows, the project's scope only.
+        if (sharedOwner) afterSteps.push(createServerTidy({ memory, userId: sharedOwner, onlyScope: sharedProject, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
         afterSteps.push(createServerTidy({ memory, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
         memoryOut.afterReply = async () => { for (const step of afterSteps) { try { await step(); } catch (error) { onProblem('memory_after_reply_failed', error); } } };
       }

@@ -11,7 +11,7 @@ import { scopedMemory } from './memory-scope.js';
  * Returns `tidy()`. `replyModel` is the reply's model, `provider` the provider the server holds a key for, `models` all models, `makeRunner(model)` gives the function that asks a
  * model (`({ modelId, prompt, signal }) => text`), `now()` is the clock in milliseconds.
  */
-export function createServerTidy({ memory, userId, replyModel, provider, models, makeRunner, signal, now = Date.now, createId = () => globalThis.crypto.randomUUID() }) {
+export function createServerTidy({ memory, userId, onlyScope = '', replyModel, provider, models, makeRunner, signal, now = Date.now, createId = () => globalThis.crypto.randomUUID() }) {
   return async function tidy() {
     const everything = await memory.load(userId, { conversationId: '' });
     const settings = everything.settings;
@@ -22,7 +22,8 @@ export function createServerTidy({ memory, userId, replyModel, provider, models,
     let result = null;
     // One budget of model time for the whole tidy, however many scopes there are.
     const deadlineAt = now() + CONSOLIDATE.serverMs;
-    for (const scopeId of scopesOfNotes(everything.notes)) {
+    // `onlyScope`: the tidy of one shared project (its notes are the owner's; `userId` is then the owner): whoever of the project made the reply, the server tidies it when it is due.
+    for (const scopeId of onlyScope ? [onlyScope] : scopesOfNotes(everything.notes)) {
       const view = scopedMemory(memory, scopeId);
       const fresh = await view.load(userId, { conversationId: '' });
       const done = await runConsolidation({
@@ -36,7 +37,7 @@ export function createServerTidy({ memory, userId, replyModel, provider, models,
         deadlineAt,
         clock: now
       });
-      if (!scopeId || (!result?.ran && done.ran)) result = done;
+      if (!scopeId || onlyScope || (!result?.ran && done.ran)) result = done;
       if (signal?.aborted) break;
     }
     await memory.pruneEvents(userId).catch(() => 0);

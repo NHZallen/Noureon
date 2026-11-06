@@ -74,7 +74,9 @@ async function curateTurn({ conversation, getConfig, getMemory, runMemoryModel, 
 export async function curateNotesTurn(args) {
   const result = await curateTurn(args);
   try {
-    const store = await args.getMemory()?.ready();
+    // In a shared project the notes of the project are tidied from here too when the person may write them (a chat member's replies on the server do it as well, which is the server's own tidy).
+    const shared = await getSharedMemoryFor()?.(args.conversation);
+    const store = shared && !shared.readOnly ? shared : await args.getMemory()?.ready();
     await tidyNotes({ store, getConfig: args.getConfig, getRunner: () => args.runMemoryModel, models: args.models, getApiKeyForProvider: args.getApiKeyForProvider, logger: args.logger });
     // The new messages of this conversation get their vectors too, if the search by meaning is on.
     void getPageVectors()?.sync();
