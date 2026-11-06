@@ -34,7 +34,7 @@ export function openJoinDialog({ document, root, text, client, code, invite, not
         const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
         cancel.type = 'button';
         cancel.addEventListener('click', close);
-        const go = make(document, 'button', 'pj-primary psh-go', text('psJoinGo'));
+        const go = make(document, 'button', 'pj-button pj-primary psh-go', text('psJoinGo'));
         go.type = 'button';
         go.setAttribute('data-join-go', '');
         go.addEventListener('click', async () => {

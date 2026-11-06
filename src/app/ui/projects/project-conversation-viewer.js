@@ -69,7 +69,7 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
     });
     const bar = make(document, 'div', 'psh-branch-bar');
     bar.append(make(document, 'span', 'psh-branch-hint', text('psBranchHint', { name: chat.authorName || '' })));
-    go = make(document, 'button', 'pj-primary psh-branch-go', text('branchChat'));
+    go = make(document, 'button', 'pj-button pj-primary psh-branch-go', text('branchChat'));
     go.type = 'button';
     go.setAttribute('data-branch-last', '');
     go.addEventListener('click', () => { sheet.close(); onBranch({ last: true }); });

@@ -61,7 +61,7 @@ export function openShareConfirm({ document, root, text, preview }) {
         const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
         cancel.type = 'button';
         cancel.addEventListener('click', close);
-        const go = make(document, 'button', 'pj-primary psh-go', text('psConfirmStart'));
+        const go = make(document, 'button', 'pj-button pj-primary psh-go', text('psConfirmStart'));
         go.type = 'button';
         go.setAttribute('data-share-start', '');
         go.addEventListener('click', () => { answer(true); close(); });
@@ -137,7 +137,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
 
   const drawIntro = () => {
     body.append(make(document, 'p', 'psh-title', text('psIntroTitle')), make(document, 'p', 'pj-note', text('psIntro')));
-    const go = make(document, 'button', 'pj-primary psh-go', text('psConfirmStart'));
+    const go = make(document, 'button', 'pj-button pj-primary psh-go', text('psConfirmStart'));
     go.type = 'button';
     go.setAttribute('data-share-open', '');
     go.addEventListener('click', () => { void share(); });
@@ -187,7 +187,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
       row.appendChild(close);
       card.appendChild(row);
     } else {
-      const make1 = make(document, 'button', 'pj-primary psh-go', text('psMakeLink'));
+      const make1 = make(document, 'button', 'pj-button pj-primary psh-go', text('psMakeLink'));
       make1.type = 'button';
       make1.setAttribute('data-link-make', '');
       make1.addEventListener('click', () => { void act(() => client.makeLink(project.id, role, inviterName)); });
@@ -206,7 +206,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
     input.placeholder = text('psEmailPlaceholder');
     input.setAttribute('autocomplete', 'off');
     const row = make(document, 'div', 'psh-link-actions');
-    const send = make(document, 'button', 'pj-primary psh-go', text('psEmailSend'));
+    const send = make(document, 'button', 'pj-button pj-primary psh-go', text('psEmailSend'));
     send.type = 'button';
     send.setAttribute('data-email-send', '');
     send.addEventListener('click', async () => {
@@ -315,7 +315,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
         const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
         cancel.type = 'button';
         cancel.addEventListener('click', close);
-        const go = make(document, 'button', 'pj-primary psh-go', text('psRemoveGo'));
+        const go = make(document, 'button', 'pj-button pj-primary psh-go', text('psRemoveGo'));
         go.type = 'button';
         go.setAttribute('data-remove-go', '');
         go.addEventListener('click', () => { close(); void act(() => client.remove(project.id, member.user_id, deleteThem)); });

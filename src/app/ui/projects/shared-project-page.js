@@ -13,7 +13,7 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
   const project = shared.project || {};
   const sheet = openSheet({ document, root, title: project.name || '', close: text('psCancel'), className: 'psh-project', onClose });
   const info = make(document, 'p', 'pj-note', text('psSharedBy', { name: shared.owner?.name || '' }));
-  const go = make(document, 'button', 'pj-primary psh-go', text('psNewChat'));
+  const go = make(document, 'button', 'pj-button pj-primary psh-go', text('psNewChat'));
   go.type = 'button';
   go.setAttribute('data-new-chat', '');
   go.addEventListener('click', () => { sheet.close(); onNewChat(); });
@@ -78,7 +78,7 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
           const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
           cancel.type = 'button';
           cancel.addEventListener('click', close);
-          const confirm = make(document, 'button', 'pj-primary psh-go', text('psLeaveGo'));
+          const confirm = make(document, 'button', 'pj-button pj-primary psh-go', text('psLeaveGo'));
           confirm.type = 'button';
           confirm.setAttribute('data-leave-go', '');
           confirm.addEventListener('click', () => { close(); sheet.close(); onLeave({ ...choice }); });
@@ -116,7 +116,7 @@ export function openInstructionsEditor({ document, root, text, value = '', onSav
   area.id = 'psh-instructions';
   area.maxLength = 8000;
   area.value = value;
-  const save = make(document, 'button', 'pj-primary psh-go', text('psInstructionsSave'));
+  const save = make(document, 'button', 'pj-button pj-primary psh-go', text('psInstructionsSave'));
   save.type = 'button';
   save.setAttribute('data-instructions-save', '');
   save.addEventListener('click', async () => {
