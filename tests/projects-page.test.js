@@ -1092,3 +1092,34 @@ test('in a project that others share, a source says who added it', async () => {
   await env.finish();
   setSharedProjectHook(null);
 });
+
+test('"All" lists the projects of the person and then the ones shared with them, "Shared with you" only those, all drawn alike with how many chats each has; the chats of a shared project that are on their way are places, not "no chats"', async () => {
+  const hook = sharedHook('chat');
+  let loading = true;
+  setSharedProjectHook({ ...hook, list: () => [{ ...hook.folderOf('sp1'), ownerName: 'Ada', chatCount: 7 }], countOf: () => 7, chatsLoading: () => loading, chatsOf: () => (loading ? [] : hook.chatsOf('sp1')) });
+  const env = setup({ wide: false });
+  env.open();
+  await env.tick();
+  const rows = () => env.$$('.pj-row').map((row) => [row.dataset.projectId, row.querySelector('.pj-row-meta').textContent]);
+  assert.deepEqual(rows().map((row) => row[0]), ['f1', 'f2', 'sp1'], 'all: the person’s own, then the shared');
+  assert.match(rows().at(-1)[1], /7/, 'the chats of a shared project are counted');
+  assert.match(rows().at(-1)[1], /Ada/);
+  assert.ok(env.$('.pj-row[data-project-id="sp1"] .pj-more'), 'a shared row has its menu, like the others');
+  env.$$('.pj-tab').find((node) => node.textContent.trim() === text('pjTabShared')).click();
+  await env.tick();
+  assert.deepEqual(rows().map((row) => row[0]), ['sp1']);
+  env.$$('.pj-tab').find((node) => node.textContent.trim() === text('pjTabMine')).click();
+  await env.tick();
+  assert.deepEqual(rows().map((row) => row[0]), ['f1', 'f2']);
+  // opening the project at once: places for the chats, then the chats come in softly
+  env.$$('.pj-tab').find((node) => node.textContent.trim() === text('pjTabShared')).click();
+  await env.tick();
+  env.$('.pj-row[data-project-id="sp1"]').click();
+  await env.tick();
+  assert.equal(env.$$('.pj-chat.is-place').length, 3);
+  assert.equal(env.$('.pj-empty'), null, 'not "no chats" while they are on their way');
+  loading = false;
+  getProjectsPage().state.view === 'project' && env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-gone', { detail: { projectId: 'nothing' } }));
+  await env.finish();
+  setSharedProjectHook(null);
+});

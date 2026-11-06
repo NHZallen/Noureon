@@ -76,6 +76,8 @@ export function createProjectActions({
 
   const countOf = (id) => (sharedHas(id) ? sharedHook.countOf(id) : ownCountOf(id) + (sharedHook?.othersOf?.(id) || []).length);
   /** The owner of a shared project may take the chat of another member out of it (it goes back to the history of its author). */
+  /** A shared project whose chats have not come from the server yet (the page draws a place for them, not "no chats"). */
+  const chatsLoading = (id) => sharedHas(id) && sharedHook.chatsLoading?.(id) === true;
   const canModerate = (id) => sharedHook?.canModerate?.(id) === true;
   const moveChatOut = async (projectId, conversationId) => (canModerate(projectId) && sharedHook.moveOut ? sharedHook.moveOut(projectId, conversationId) : { ok: false, code: 'not_allowed' });
   const ownCountOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
@@ -308,5 +310,5 @@ export function createProjectActions({
     return { ok: true, conversationId: made.conversationId };
   }
 
-  return { list, sharedList, canModerate, moveChatOut, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
+  return { list, sharedList, chatsLoading, canModerate, moveChatOut, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
 }

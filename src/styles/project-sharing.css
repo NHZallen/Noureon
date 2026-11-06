@@ -33,9 +33,9 @@
 .psh-chat, .psh-shared-row { width: 100%; text-align: left; background: transparent; border: 0; color: inherit; }
 .psh-messages { display: grid; gap: 1rem; padding-bottom: 5rem; }
 .psh-viewer-lead { margin: 0 0 0.5rem; }
-.psh-branch-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0.5rem 0.75rem 0.75rem; padding: 0.5rem 0.5rem 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 1.5rem; background: var(--input-field-bg); }
-.psh-branch-hint { color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); min-width: 0; }
-.psh-branch-go { flex: none; }
+.psh-branch-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; padding: 0.6rem 0.6rem 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 1.5rem; background: var(--input-field-bg); }
+.psh-branch-hint { flex: 1 1 12rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); min-width: 0; }
+.psh-branch-go { flex: none; margin-left: auto; }
 .psh-input { width: 100%; height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--input-field-bg); color: var(--text-primary); font-size: var(--pj-body, 0.9375rem); }
 .psh-quota { margin: 0; }
 .psh-choice { display: grid; gap: 0.15rem; width: 100%; margin-top: 0.5rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: transparent; color: inherit; text-align: left; }
@@ -58,3 +58,22 @@
 .psh-sheet .pj-sheet-body { overflow-x: hidden; }
 .psh-sheet .pj-sheet-body > *, .psh-card > *, .psh-link-actions > * { min-width: 0; max-width: 100%; }
 .psh-seg-item { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* On a phone the people of the project are at the end of the row of the tabs, so the name stays in the middle of the head. */
+.pj-tabs-row { display: flex; align-items: center; gap: 0.5rem; }
+.pj-tabs-row .pj-tabs { flex: 1; min-width: 0; }
+.pj-tabs-row .pj-members-slot { flex: none; margin-bottom: 0.6rem; }
+
+/* The chats of a shared project are on their way: three places in the shape of a row; when they come, they come in softly. */
+.pj-chat.is-place { min-height: 3.6rem; margin: 0.35rem 0; border-radius: 0.75rem; background: var(--hover-bg); opacity: 0.6; pointer-events: none; }
+@keyframes psh-arrive { from { opacity: 0; transform: translateY(0.35rem); } to { opacity: 1; transform: none; } }
+.pj .pj-chat.is-arriving { animation: psh-arrive 0.22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .pj .pj-chat.is-arriving { animation: none; } }
+
+/* The page of someone else's chat has the arrow back at the left of its head, as the pages of the projects have. */
+.pj-sheet-head .pj-round.is-back { grid-column: 1; justify-self: start; }
+@media (min-width: 768px) {
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head.has-back { grid-template-columns: auto minmax(0, 1fr); }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head.has-back .pj-round.is-back { grid-column: 1; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head.has-back .pj-sheet-title { grid-column: 2; }
+}

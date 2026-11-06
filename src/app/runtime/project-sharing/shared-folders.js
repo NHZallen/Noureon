@@ -9,7 +9,7 @@ const INSTRUCTIONS_MAX = 8000;
 
 export const sharedFolderOf = (project = {}) => ({
   id: String(project.id || ''), name: String(project.name || '').slice(0, NAME_MAX), instructions: String(project.instructions || '').slice(0, INSTRUCTIONS_MAX),
-  icon: project.icon || 'default', color: project.color || 'gray', role: String(project.role || ''), ownerId: String(project.ownerId || ''), ownerName: String(project.ownerName || '').slice(0, 80), memoryScope: 'project', sources: Array.isArray(project.sources) ? project.sources : [], shared: true
+  icon: project.icon || 'default', color: project.color || 'gray', role: String(project.role || ''), ownerId: String(project.ownerId || ''), ownerName: String(project.ownerName || '').slice(0, 80), chatCount: Math.max(0, Number(project.chatCount) || 0), memoryScope: 'project', sources: Array.isArray(project.sources) ? project.sources : [], shared: true
 });
 
 export function createSharedFolders({ storage = null } = {}) {

@@ -19,18 +19,22 @@ const ICONS = {
 const initialOf = (name) => (Array.from(String(name || '').trim())[0] || '?').toUpperCase();
 
 /** The little round mark of a person: their picture when there is one, else the first letter of the name. */
-export function personMark(document, { name = '', avatarUrl = '' } = {}) {
+export function personMark(document, { name = '', avatarUrl = '', photoUrl = '' } = {}) {
   const mark = make(document, 'span', 'psh-avatar');
   mark.textContent = initialOf(name);
-  // The picture may still be on its way (a promise): the letter shows until it comes.
-  const show = (url) => {
-    if (!url || typeof url !== 'string') return;
+  // The picture may still be on its way (a promise): the letter shows until it comes. A person with no picture of their own shows the photo of their account (https only), else the letter.
+  const show = (url, outside = false) => {
+    if (!url || typeof url !== 'string') return false;
     const image = make(document, 'img', 'psh-avatar-img');
     image.alt = '';
+    if (outside) image.referrerPolicy = 'no-referrer';
     image.src = url;
     mark.replaceChildren(image);
+    return true;
   };
-  if (avatarUrl && typeof avatarUrl.then === 'function') avatarUrl.then(show, () => {}); else show(avatarUrl);
+  const photo = () => (typeof photoUrl === 'string' && /^https:\/\//i.test(photoUrl) ? show(photoUrl, true) : false);
+  if (avatarUrl && typeof avatarUrl.then === 'function') avatarUrl.then((url) => { if (!show(url)) photo(); }, () => photo());
+  else if (!show(avatarUrl)) photo();
   return mark;
 }
 
@@ -296,7 +300,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
     for (const member of members) {
       const row = make(document, 'div', 'psh-member');
       row.dataset.userId = member.user_id;
-      row.appendChild(personMark(document, { name: member.name, avatarUrl: avatarUrl(member.user_id, member.avatar_version) }));
+      row.appendChild(personMark(document, { name: member.name, avatarUrl: avatarUrl(member.user_id, member.avatar_version), photoUrl: member.photo_url }));
       const textBox = make(document, 'div', 'psh-member-text');
       textBox.append(make(document, 'div', 'psh-member-name', member.name), make(document, 'div', 'pj-note', text(ROLE_KEYS[member.role] || 'psRoleChat')));
       row.appendChild(textBox);

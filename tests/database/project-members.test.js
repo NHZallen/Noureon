@@ -640,3 +640,41 @@ test('the page of an invitation knows who looks at it: the owner, a member with 
   assert.equal((await rpc(B, 'get_project_invite', link.code)).viewer, 'editor');
   assert.equal((await rpc(C, 'get_project_invite', link.code)).viewer, null);
 });
+
+test('a conversation made in a shared project by a page that did not know the owner yet is linked all the same, and the owner is written into it; one of a person who is not in the project is not', async () => {
+  const projectId = await withMembers();
+  const blank = await conversationIn(B, { sharedProject: { id: projectId, ownerId: '' }, title: 'Blank owner' });
+  assert.deepEqual(await linkOf(blank), { shared_project_id: projectId, shared_project_owner: ada });
+  assert.equal((await rowOf(blank)).metadata.sharedProject.ownerId, ada);
+  const missing = await conversationIn(B, { sharedProject: { id: projectId }, title: 'No owner' });
+  assert.deepEqual(await linkOf(missing), { shared_project_id: projectId, shared_project_owner: ada });
+  const stranger = await conversationIn(database.asUser(await database.createUser(`dan-${id()}@example.test`)), { sharedProject: { id: projectId, ownerId: '' } });
+  assert.deepEqual(await linkOf(stranger), { shared_project_id: null, shared_project_owner: null });
+  assert.deepEqual((await read(cy, projectId)).conversations.map((chat) => chat.title).sort(), ['Blank owner', 'No owner']);
+  // the owner's own conversations in the folder are not linked by this
+  const own = await conversationIn(A, { folderId: projectId, sharedProject: { id: projectId, ownerId: '' } });
+  assert.deepEqual(await linkOf(own), { shared_project_id: null, shared_project_owner: null });
+});
+
+test('the people of a project show the photo of their account when they have no picture of their own', async () => {
+  const projectId = await withMembers();
+  await database.db.query("update auth.users set raw_user_meta_data = '{\"avatar_url\":\"https://lh3.googleusercontent.com/a/photo\"}'::jsonb where id = $1", [bob]);
+  await database.db.query("update auth.users set raw_user_meta_data = '{\"picture\":\"http://insecure.example/x.png\"}'::jsonb where id = $1", [cy]);
+  const members = (await rpc(A, 'list_project_members', projectId)).members;
+  const by = (userId) => members.find((member) => member.user_id === userId);
+  assert.equal(by(bob).photo_url, 'https://lh3.googleusercontent.com/a/photo');
+  assert.equal(by(cy).photo_url, null, 'only an https address');
+  assert.equal(by(ada).photo_url, null);
+  assert.match((await A.error('select public.project_person_photo($1)', [bob]))?.message || 'it worked', /permission denied/);
+});
+
+test('the list of the projects shared with a person tells how many conversations each has, not counting the ones in the trash', async () => {
+  const projectId = await withMembers();
+  await conversationIn(A, { folderId: projectId, title: 'Owner chat' });
+  const bobs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'Bob chat' });
+  const trashed = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'Gone' });
+  await database.service.query('update public.workspace_conversations set deleted_at = now() where id = $1', [trashed]);
+  const mine = (await rpc(C, 'list_shared_with_me')).find((item) => item.project_id === projectId);
+  assert.equal(Number(mine.chat_count), 2);
+  assert.ok(bobs);
+});

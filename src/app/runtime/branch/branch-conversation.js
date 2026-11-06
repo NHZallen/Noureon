@@ -47,6 +47,8 @@ export function branchConversation({ conversation, messageIndex, title, uuid = (
     reasoningEffort: conversation.reasoningEffort,
     isRenamed: true,
     folderId: conversation.folderId || null,
+    // A conversation made in a shared project of someone else stays in it (its link is not the folder's).
+    ...(conversation.sharedProject?.id ? { sharedProject: structuredClone(conversation.sharedProject) } : {}),
     astrasId: conversation.astrasId || null,
     isWebSearchEnabled: Boolean(conversation.isWebSearchEnabled),
     pinned: false,

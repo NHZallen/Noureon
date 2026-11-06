@@ -150,13 +150,25 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     if (!list.some((source) => source.id === sourceId)) return { ok: false, code: 'gone' };
     return saveSourcesOf(session, list.filter((source) => source.id !== sourceId));
   }
+  // The chats of a shared project are read in the background when the list shows it, so opening it does not wait for the server.
+  const prefetching = new Set();
+  async function prefetch(projectId) {
+    if (!projectId || chatsByProject.has(projectId) || prefetching.has(projectId) || !cloudOn()) return;
+    prefetching.add(projectId);
+    try {
+      const read = await createReader({ projectId }).load();
+      if (read.ok && !chatsByProject.has(projectId)) chatsByProject.set(projectId, read.project.conversations || []);
+    } catch { /* it is read when the project is opened */ } finally { prefetching.delete(projectId); }
+  }
   const sessionFor = (id) => sessions.get(id) || null;
   setSharedProjectHook({
     has: (id) => sharedFolders.has(id),
     list: () => sharedFolders.list().map((folder) => sharedFolders.folderOf(folder.id)),
     folderOf: (id) => sharedFolders.folderOf(id),
     chatsOf,
-    countOf: (id) => chatsOf(id).length,
+    // (The number comes from the list until the chats are read.)
+    countOf: (id) => (chatsByProject.has(id) ? chatsOf(id).length : sharedFolders.folderOf(id)?.chatCount || 0),
+    chatsLoading: (id) => sharedFolders.has(id) && !chatsByProject.has(id),
     update: async (id, patch = {}) => {
       const session = sessionFor(id);
       if (!session) return { ok: false, code: 'gone' };
@@ -185,7 +197,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     },
     addSource: async (id, input) => { const session = sessionFor(id); return session ? addSourceTo(session, input) : { ok: false, code: 'gone' }; },
     removeSource: async (id, sourceId) => { const session = sessionFor(id); return session ? removeSourceFrom(session, sourceId) : { ok: false, code: 'gone' }; },
-    link: (id) => ({ id, ownerId: sharedFolders.ownerOf(id) }),
+    // (The owner is known from the list, from the read, or from the open session; a chat is never linked with none.)
+    link: (id) => ({ id, ownerId: sharedFolders.ownerOf(id) || sessions.get(id)?.info?.owner?.id || '' }),
     sent: () => { void Promise.resolve(saveAppData({ immediateCloudSync: true })).catch(() => {}); }
   });
 
@@ -272,7 +285,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     if (sessions.has(projectId)) { const held = sessions.get(projectId); if (refresh) held.refresh = refresh; return held; }
     const session = { projectId, owned, reader: createReader({ projectId }), info: null, readAt: null, refresh, live: false, lastRead: 0, reading: false, again: false, timer: null, channel: null, viewer: null, off: null };
     const read = await session.reader.load();
-    if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); return null; }
+    if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); if (!chatsByProject.has(projectId)) chatsByProject.set(projectId, []); return null; }
     if (sessions.has(projectId)) return sessions.get(projectId);
     sessions.set(projectId, session);
     applyInfo(session, read.project);
@@ -282,8 +295,16 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   }
   // The page of the projects says which project it shows: the shared one is read and kept live while it is shown, and left when the page goes elsewhere. A project of the person's own that is shared is only
   // listened to: when the people of it change something (an editor adds a file), the person's own cloud is asked for the change, and the page draws it.
+  // The project the page shows now: when the page learns later (it asks when it starts) that this one is shared, its session is started then.
+  let viewing = null;
+  const startViewed = () => {
+    if (!viewing?.projectId || !cloudOn() || sessions.has(viewing.projectId)) return;
+    if (sharedFolders.has(viewing.projectId)) void startSession(viewing.projectId, viewing.refresh);
+    else if (sharedFolders.isOwned(viewing.projectId)) void startSession(viewing.projectId, viewing.refresh, { owned: true, quiet: true });
+  };
   document.addEventListener('noureon:project-view', (event) => {
     const { projectId, refresh } = event.detail || {};
+    viewing = projectId ? { projectId, refresh } : null;
     for (const session of [...sessions.values()]) if (session.projectId !== projectId) stopSession(session);
     if (!projectId || !cloudOn()) return;
     if (sharedFolders.has(projectId)) { void startSession(projectId, refresh); return; }
@@ -397,14 +418,26 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   }
 
   /** Fills the list "Shared with you" of the projects page; a row opens the project in the page itself. */
-  async function drawSharedList({ box, root = null, go = null }) {
+  // `box`: where to draw the list (none: only the page is told, by `done`, that the projects shared with the person are known).
+  let sharedAskedAt = 0;
+  async function drawSharedList({ box = null, root = null, go = null, done = null }) {
     if (!cloudOn()) return;
+    // The page asks each time its list is drawn (a letter typed in the search): not more than every few seconds.
+    if (!box && Date.now() - sharedAskedAt < 8000) { try { done?.(); } catch { /* the page may be gone */ } return; }
+    sharedAskedAt = Date.now();
     const result = await shareClient.sharedWithMe();
     if (!result.ok || !Array.isArray(result.data) || !result.data.length) return;
-    await ensureStyles();
-    const { drawSharedProjects } = await import('../../ui/projects/shared-project-page.js');
-    for (const item of result.data) if (!sharedFolders.has(item.project_id)) sharedFolders.set({ id: item.project_id, name: item.name, icon: item.icon, color: item.color, role: item.role, ownerId: item.owner_id, ownerName: item.owner_name });
-    drawSharedProjects({ document, box, text, items: result.data, onOpen: (item) => { if (go) go(item.project_id); else void openShared({ ...item, root }); } });
+    for (const item of result.data) {
+      const known = sharedFolders.folderOf(item.project_id);
+      sharedFolders.set({ ...(known || {}), id: item.project_id, name: item.name, icon: item.icon, color: item.color, role: item.role, ownerId: item.owner_id, ownerName: item.owner_name, chatCount: item.chat_count });
+    }
+    result.data.slice(0, 6).forEach((item) => { void prefetch(item.project_id); });
+    if (box) {
+      await ensureStyles();
+      const { drawSharedProjects } = await import('../../ui/projects/shared-project-page.js');
+      drawSharedProjects({ document, box, text, items: result.data, onOpen: (item) => { if (go) go(item.project_id); else void openShared({ ...item, root }); } });
+    }
+    try { done?.(); } catch { /* the page may be gone */ }
   }
 
   // What the replies need of the shared projects is read again when the page starts (and the account is ready): which of the person's own projects are shared, and the instructions and sources of the others.
@@ -419,8 +452,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       const exits = await shareClient.exits?.();
       if (exits?.ok) { const gone = new Set((exits.data || []).map((item) => item.conversation_id)); if (gone.size) releaseConversations((conversation) => gone.has(conversation.id)); }
       const others = await shareClient.sharedWithMe();
-      if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id, role: info.project.role }); }
-    } catch { /* the next start tries again */ } finally { refreshing = false; }
+      if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id, role: info.project.role, ownerId: info.project.owner?.id || item.owner_id, ownerName: info.project.owner?.name, chatCount: item.chat_count }); }
+    } catch { /* the next start tries again */ } finally { refreshing = false; startViewed(); }
   }
   const later = (run, wait) => { const timer = setTimeout(run, wait); timer?.unref?.(); };
   const lookToRefresh = () => { for (const wait of [3000, 20000]) later(() => { void refreshShared(); }, wait); };
@@ -478,7 +511,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     showNotification(text((await copy(chatLinkUrl(window.location?.origin || '', projectId, id))) ? 'psChatLinkCopied' : 'psCopyFailed'), 'success');
   };
   window.addEventListener(SHARE_CONVERSATION_EVENT, (event) => { void shareHere(event); }, true);
-  document.addEventListener(SHARED_EVENT, (event) => { if (event.detail?.box) void drawSharedList({ box: event.detail.box, root: event.detail.root || null, go: event.detail.go || null }); });
+  document.addEventListener(SHARED_EVENT, (event) => { if (event.detail) void drawSharedList({ box: event.detail.box || null, root: event.detail.root || null, go: event.detail.go || null, done: event.detail.done || null }); });
   // The head of a shared project shows its people (the box comes from the page of the project); the pictures are read from the bucket once for each version.
   const MEMBERS_SLOT_EVENT = 'noureon:project-members-slot';
   document.addEventListener(MEMBERS_SLOT_EVENT, (event) => {

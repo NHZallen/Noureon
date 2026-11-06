@@ -156,16 +156,19 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   const drawListBody = () => {
     if (!listBody) return;
     listBody.replaceChildren();
-    if (state.listTab === 'shared') {
-      listBody.appendChild(emptyState(text('pjSharedEmpty'), text('pjSharedEmptyHint')));
-      // The projects shared with the person are put here by runtime/project-sharing (the empty state stays when there are none).
-      document.dispatchEvent(new document.defaultView.CustomEvent('noureon:shared-projects', { detail: { box: listBody, root, go: (id) => go({ id }, true) } }));
-      return;
-    }
-    const all = actions.list();
+    // "All" has the projects of the person and, after them, the ones shared with them; "Made by you" only the first, "Shared with you" only the second. They are drawn alike.
+    const own = state.listTab === 'shared' ? [] : actions.list();
+    const shared = state.listTab === 'mine' ? [] : (actions.sharedList?.() || []);
     const query = state.query.trim().toLowerCase();
-    const shown = query ? all.filter((folder) => String(folder.name || '').toLowerCase().includes(query)) : all;
-    if (!all.length) { listBody.appendChild(emptyState(text('pjEmpty'), text('pjEmptyHint'))); return; }
+    const keep = (list) => (query ? list.filter((folder) => String(folder.name || '').toLowerCase().includes(query)) : list);
+    const shown = [...keep(own), ...keep(shared)];
+    if (state.listTab !== 'mine') {
+      // The page may not know yet which projects are shared with the person (it asks when it starts): ask now, and draw again if it learns of some.
+      const known = shared.map((folder) => `${folder.id}:${folder.chatCount || 0}`).join();
+      document.dispatchEvent(new document.defaultView.CustomEvent('noureon:shared-projects', { detail: { box: null, root, done: () => { if (!closed && state.view === 'list' && state.listTab !== 'mine' && (actions.sharedList?.() || []).map((folder) => `${folder.id}:${folder.chatCount || 0}`).join() !== known) drawListBody(); } } }));
+    }
+    if (state.listTab === 'shared' && !shared.length) { listBody.appendChild(emptyState(text('pjSharedEmpty'), text('pjSharedEmptyHint'))); return; }
+    if (!own.length && !shared.length) { listBody.appendChild(emptyState(text('pjEmpty'), text('pjEmptyHint'))); return; }
     if (!shown.length) { listBody.appendChild(make(document, 'p', 'pj-none', text('pjNoMatch'))); return; }
     for (const folder of shown) {
       const row = make(document, 'div', 'pj-row');
@@ -180,7 +183,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         name.appendChild(pin);
       }
       name.appendChild(make(document, 'span', 'pj-row-title', folder.name || ''));
-      words.append(name, make(document, 'span', 'pj-row-meta', text('pjCount', { n: actions.countOf(folder.id) })));
+      words.append(name, make(document, 'span', 'pj-row-meta', [text('pjCount', { n: actions.countOf(folder.id) }), folder.shared ? folder.ownerName : ''].filter(Boolean).join(' · ')));
       const more = make(document, 'button', 'pj-more');
       more.type = 'button';
       more.setAttribute('aria-label', text('pjMore'));
@@ -273,6 +276,14 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const project = projectOrNull(state.projectId);
     if (!project) return;
     const list = actions.chatsOf(project.id);
+    // A shared project's chats come from the server: until they do, places for them are drawn, not "no chats".
+    if (!list.length && actions.chatsLoading?.(project.id)) {
+      for (let place = 0; place < 3; place += 1) chatsBody.appendChild(make(document, 'div', 'pj-chat is-place'));
+      state.chatsWaited = project.id;
+      return;
+    }
+    const arriving = state.chatsWaited === project.id;
+    state.chatsWaited = null;
     if (!list.length) { chatsBody.appendChild(emptyState(text('pjChatsEmpty'), '', 'folder')); return; }
     for (const conversation of list) {
       const row = make(document, 'div', 'pj-chat');
@@ -314,6 +325,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       });
       for (const name of ['pointerup', 'pointercancel', 'pointermove', 'pointerleave']) row.addEventListener(name, stop);
       row.addEventListener('click', (event) => { if (held) { event.stopImmediatePropagation(); held = false; } }, true);
+      if (arriving) row.classList.add('is-arriving');
       chatsBody.appendChild(row);
     }
   };
@@ -728,10 +740,14 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       drawChats();
       return;
     }
+    // On a phone the name is in the middle of the head with only the ⋯ beside it; the people of the project are at the end of the row of the tabs.
     const head = header({ left: round('back', text('pjBack'), () => back()), title, right: headActions });
     const body = make(document, 'main', 'pj-body');
     const choose = (key) => { state.tab = key; drawProject(); };
-    if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));
+    const tabsRow = make(document, 'div', 'pj-tabs-row');
+    if (sourcesEnabled) tabsRow.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));
+    tabsRow.appendChild(slot);
+    body.appendChild(tabsRow);
     if (sourcesEnabled && state.tab === 'sources') {
       composer?.park();
       body.appendChild(sourcesView(project));

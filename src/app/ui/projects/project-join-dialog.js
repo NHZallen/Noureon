@@ -1,8 +1,7 @@
 // What a person sees when they open an invitation to a project (docs/superpowers/specs/2026-11-06-project-sharing-design.md, §8): the project, who invited them, the role and what the role can do.
 // Resolves 'joined' | 'opened' | 'cancelled'. `client` is the one of runtime/project-sharing.
 
-import { make, openSheet } from './project-parts.js';
-import { personMark } from './project-members-panel.js';
+import { make, openSheet, projectMark } from './project-parts.js';
 
 const CHECK = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
 const CROSS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>';
@@ -22,7 +21,7 @@ export function openJoinDialog({ document, root, text, client, code, invite, not
         document, root, title: text(owner ? 'psJoinOwnTitle' : 'psJoinInTitle'), dialog: true, close: text('psCancel'), onClose: () => resolve(result),
         body: (content, { close }) => {
           const who = make(document, 'div', 'psh-join-who');
-          who.append(personMark(document, { name: invite.project_name }), make(document, 'div', 'psh-join-project', invite.project_name || ''));
+          who.append(projectMark(document, { icon: invite.icon || 'default', color: invite.color || 'gray' }), make(document, 'div', 'psh-join-project', invite.project_name || ''));
           content.append(who, make(document, 'p', 'pj-note', text(owner ? 'psJoinOwnBody' : 'psJoinInBody', { name: invite.project_name || '', role: text(invite.viewer === 'editor' ? 'psRoleEditor' : 'psRoleChat') })));
           const buttons = make(document, 'div', 'psh-buttons');
           const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
@@ -42,7 +41,7 @@ export function openJoinDialog({ document, root, text, client, code, invite, not
       document, root, title, dialog: true, close: text('psCancel'), onClose: () => resolve(result),
       body: (content, { close }) => {
         const who = make(document, 'div', 'psh-join-who');
-        who.append(personMark(document, { name: invite.inviter_name || invite.project_name }), make(document, 'div', 'psh-join-project', invite.project_name || ''));
+        who.append(projectMark(document, { icon: invite.icon || 'default', color: invite.color || 'gray' }), make(document, 'div', 'psh-join-project', invite.project_name || ''));
         const role = make(document, 'span', 'psh-chip', roleName);
         const can = make(document, 'ul', 'psh-lines');
         const lines = [[true, 'psCanSee'], [true, 'psCanUse'], [true, 'psCanBranch'], [invite.role === 'editor', invite.role === 'editor' ? 'psCanEdit' : 'psCannotEdit']];

@@ -124,7 +124,7 @@ export function openMenu({ document, root, anchor, point = null, items, align = 
  * { label, onClick }, a pill at the right of the head that takes its place - a body and, when given, a button at the foot.
  * `onClose` is told when it is gone. Returns { close, element, body, setError }.
  */
-export function openSheet({ document, root, title, label, body, footer = null, action = null, close: closeLabel = '', onClose = () => {}, className = '', dialog = false }) {
+export function openSheet({ document, root, title, label, body, footer = null, action = null, close: closeLabel = '', onClose = () => {}, className = '', dialog = false, back = false }) {
   const win = document.defaultView;
   const backdrop = make(document, 'div', `pj-backdrop${dialog ? ' is-dialog' : ''}`);
   const sheet = make(document, 'div', `pj-sheet${className ? ` ${className}` : ''}`);
@@ -141,9 +141,11 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   closeButton.type = 'button';
   if (!action) {
     closeButton.setAttribute('aria-label', closeLabel);
-    closeButton.innerHTML = ICONS.close(18);
+    // A page that is only read (someone else's chat) has the arrow back at the left, as the pages of the projects do; the others have the cross at the right.
+    closeButton.innerHTML = back ? ICONS.back(20) : ICONS.close(18);
+    if (back) { closeButton.classList.add('is-back'); head.classList.add('has-back'); }
   }
-  head.appendChild(closeButton);
+  if (back && !action) head.insertBefore(closeButton, heading); else head.appendChild(closeButton);
   const content = make(document, 'div', 'pj-sheet-body');
   const error = make(document, 'p', 'pj-error');
   error.setAttribute('role', 'alert');
@@ -187,7 +189,8 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   viewport?.addEventListener('scroll', fit);
   fit();
   if (body) body(content, { close });
-  const first = sheet.querySelector('input, textarea, button.pj-primary');
+  // (Only a field takes the focus when a sheet opens: a button that did would be drawn with the ring of the keyboard.)
+  const first = sheet.querySelector('input, textarea');
   first?.focus?.();
   return { close, element: sheet, body: content, setError: (message) => { error.textContent = message || ''; error.hidden = !message; } };
 }

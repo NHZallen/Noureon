@@ -17,7 +17,7 @@ export function drawMemberButton({ document, slot, text, members, avatarOf = () 
   button.type = 'button';
   button.setAttribute('aria-label', text('psMembersButton', { count: members.length }));
   button.title = text('psMembersButton', { count: members.length });
-  for (const member of members.slice(0, 3)) button.appendChild(personMark(document, { name: member.name, avatarUrl: avatarOf(member.user_id, member.avatar_version) }));
+  for (const member of members.slice(0, 3)) button.appendChild(personMark(document, { name: member.name, avatarUrl: avatarOf(member.user_id, member.avatar_version), photoUrl: member.photo_url }));
   button.appendChild(make(document, 'span', 'psh-stack-count', String(members.length)));
   button.addEventListener('click', onOpen);
   slot.appendChild(button);

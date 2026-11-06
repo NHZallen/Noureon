@@ -382,3 +382,42 @@ test('the own project of a person that is shared hears its people: when somethin
   assert.deepEqual(env.state.refreshes.at(-1), { full: true });
   void setSharedProjectHook; void PENDING_CHAT_KEY;
 });
+
+test('a project that the page reads again when it starts keeps its owner, so a chat made at once is linked to it with the owner in the link', async () => {
+  const env = setup({ items: [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'editor' }] });
+  await env.api.refreshShared();
+  assert.equal(env.api.sharedFolders.ownerOf(PROJECT), 'o');
+  const made = await env.actions.prepareChat(PROJECT);
+  assert.equal(made.ok, true);
+  assert.deepEqual(env.state.conversations.find((conversation) => conversation.id === made.conversationId).sharedProject, { id: PROJECT, ownerId: 'o' });
+});
+
+test('an owner who opens the project before the page has learned that it is shared still gets the chats of the others once it knows', async () => {
+  const env = setup({ info: infoOf({ role: 'owner', conversations: [chat('theirs', 'bob', 'By Bob', '2026-11-05T00:00:00Z')] }) });
+  env.state.owned = [{ project_id: PROJECT }];
+  env.view(PROJECT);
+  await tick();
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), [], 'not known to be shared yet');
+  await env.api.refreshShared();
+  await tick(); await tick();
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), ['theirs']);
+});
+
+test('a project of the list "Shared with you" is counted from the list, and its chats are read in the background so that opening it does not wait', async () => {
+  let open = () => {};
+  const gate = new Promise((resolve) => { open = resolve; });
+  const env = setup({ items: [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'chat', owner_name: 'Ada', chat_count: 4 }], readerOver: { load: async () => { await gate; return { ok: true, project: infoOf({ role: 'chat' }) }; } } });
+  let told = 0;
+  await env.api.drawSharedList({ box: null, done: () => { told += 1; } });
+  assert.equal(told, 1);
+  assert.equal(env.actions.countOf(PROJECT), 4, 'from the list');
+  assert.equal(env.actions.chatsLoading(PROJECT), true, 'the chats are on their way');
+  open();
+  await tick(); await tick();
+  assert.equal(env.actions.chatsLoading(PROJECT), false);
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), ['c-ada']);
+  assert.equal(env.actions.countOf(PROJECT), 1, 'the real count once the chats are here');
+  // asked again at once (a letter typed in the search): the server is not asked again, the page is only told
+  await env.api.drawSharedList({ box: null, done: () => { told += 1; } });
+  assert.equal(told, 2);
+});

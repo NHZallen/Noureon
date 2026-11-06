@@ -300,14 +300,14 @@ test('the owner of the project, or a person already in it, who opens an invitati
   }
 });
 
-test('the style keeps the pages of sharing inside the screen: the people page shrinks its boxes, the head leaves no room for an empty box, and a question keeps room under its buttons', () => {
+test('the style keeps the pages of sharing inside the screen: the people page shrinks its boxes, the head leaves no room for an empty box, the people sit in the row of the tabs, and a question keeps room under its buttons', () => {
   const css = readFileSync(new URL('../src/styles/project-sharing.css', import.meta.url), 'utf8');
   assert.match(css, /\.psh-card \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.psh-sheet \.pj-sheet-body > \*[^{]*\{[^}]*min-width: 0/);
   assert.match(css, /\.pj-members-slot:empty \{ display: none; \}/);
   assert.match(css, /\.pj-backdrop\.is-dialog \.psh-buttons \{ padding-bottom: 1\.25rem; \}/);
-  const projects = readFileSync(new URL('../src/styles/projects.css', import.meta.url), 'utf8');
-  assert.match(projects, /\.pj-head \{[^}]*grid-template-columns: 2\.25rem minmax\(0, 1fr\) minmax\(2\.25rem, auto\)/);
+  assert.match(css, /\.pj-tabs-row \{ display: flex;/);
+  assert.match(css, /\.pj-sheet-head \.pj-round\.is-back \{ grid-column: 1;/);
 });
 
 test('the head of a shared project shows a few pictures and the number of people; a project with nobody else shows nothing; a picture that is still coming shows the letter first', async () => {
@@ -329,4 +329,27 @@ test('the head of a shared project shows a few pictures and the number of people
   assert.ok(button.querySelector('.psh-avatar img'));
   button.click();
   assert.deepEqual(opened, [1]);
+});
+
+test('a person is drawn with their own picture, else the photo of their account (https only), else the first letter; the invitation shows the project’s own mark, not a letter', async () => {
+  const { personMark } = await import('../src/app/ui/projects/project-members-panel.js');
+  const { document, root } = page();
+  const own = personMark(document, { name: 'Ada', avatarUrl: 'data:image/webp;base64,AAAA', photoUrl: 'https://photo.example/a.png' });
+  assert.equal(own.querySelector('img').getAttribute('src'), 'data:image/webp;base64,AAAA');
+  const photo = personMark(document, { name: 'Bob', photoUrl: 'https://photo.example/b.png' });
+  assert.equal(photo.querySelector('img').getAttribute('src'), 'https://photo.example/b.png');
+  assert.equal(photo.querySelector('img').referrerPolicy, 'no-referrer');
+  assert.equal(personMark(document, { name: 'Cy', photoUrl: 'http://insecure.example/c.png' }).textContent, 'C');
+  assert.equal(personMark(document, { name: 'Dan' }).textContent, 'D');
+  const late = personMark(document, { name: 'Eve', avatarUrl: Promise.resolve(''), photoUrl: 'https://photo.example/e.png' });
+  assert.equal(late.textContent, 'E');
+  await tick();
+  assert.equal(late.querySelector('img').getAttribute('src'), 'https://photo.example/e.png', 'no picture of their own comes: the photo of the account');
+  // the invitation
+  const client = { accept: async () => ({ ok: true, data: {} }) };
+  openJoinDialog({ document, root, text, client, code: CODE, invite: { project_name: 'City plan', icon: 'book', color: 'blue', role: 'chat', inviter_name: 'Ada', kind: 'link' } });
+  await tick();
+  assert.equal(root.querySelector('.psh-join-who .psh-avatar'), null, 'not a letter of the person who invited');
+  assert.ok(root.querySelector('.psh-join-who .pj-mark, .psh-join-who svg'), 'the mark of the project');
+  assert.equal(root.querySelector('.pj-sheet :focus'), null, 'no button takes the focus when the question opens');
 });

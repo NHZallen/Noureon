@@ -141,3 +141,14 @@ test('a branch remembers how many messages were copied; the copies are dimmed an
   assert.equal(list.querySelector('.branch-divider'), null);
   assert.equal(list.querySelector('.branch-copied'), null);
 });
+
+test('a branch of a conversation made in a shared project of someone else stays in that project (a copy of its link, not the same object)', () => {
+  const link = { id: 'p1', ownerId: 'owner' };
+  const source = { ...conversation(), folderId: null, sharedProject: link };
+  const branch = branchConversation({ conversation: source, messageIndex: 3, title: 'T', uuid, now: () => 'now' });
+  assert.deepEqual(branch.sharedProject, { id: 'p1', ownerId: 'owner' });
+  assert.notEqual(branch.sharedProject, link);
+  assert.equal(branch.folderId, null);
+  // one outside any shared project has no link
+  assert.equal(branchConversation({ conversation: conversation(), messageIndex: 3, title: 'T', uuid, now: () => 'now' }).sharedProject, undefined);
+});

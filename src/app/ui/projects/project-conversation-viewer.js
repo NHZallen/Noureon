@@ -20,7 +20,7 @@ import { make, openSheet } from './project-parts.js';
  */
 export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, onClose = () => {} }) {
   const win = document.defaultView;
-  const sheet = openSheet({ document, root, title: chat.title || '', close: text('psCancel'), className: 'psh-viewer', onClose });
+  const sheet = openSheet({ document, root, title: chat.title || '', close: text('pjBack'), className: 'psh-viewer', back: true, onClose });
   const lead = make(document, 'p', 'pj-note psh-viewer-lead', text('psReadOnly', { name: chat.authorName || '' }));
   const list = make(document, 'section', 'psh-messages');
   sheet.body.append(lead, list);
