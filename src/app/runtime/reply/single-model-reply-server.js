@@ -6,7 +6,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { cliIdsForReply } from '../cli/cli-state.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
-import { recordEvent, recordHistory, recordUsed } from '../memory-store/memory-trace.js';
+import { recordEvent, recordFiles, recordHistory, recordUsed } from '../memory-store/memory-trace.js';
 
 // What the server says it is doing with the message's files and addresses, as the stage the wait row draws (the page's own names for them).
 const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating: 'documentTranslation', links: 'linkedPages' };
@@ -135,6 +135,7 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
       recordUsed(conversationId, outcome.memory.used);
       (outcome.memory.events || []).forEach((id) => recordEvent(conversationId, id));
       recordHistory(conversationId, outcome.memory.history);
+      recordFiles(conversationId, outcome.memory.files);
     }
     reply.cut = outcome.segment || null;
     if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';

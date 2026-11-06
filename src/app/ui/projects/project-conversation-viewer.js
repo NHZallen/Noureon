@@ -33,7 +33,7 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
     const top = make(document, 'span', 'psh-crumb-top');
     const icon = make(document, 'span', 'psh-crumb-icon');
     icon.style.setProperty('color', colorOf(project.color));
-    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">${FOLDER_SVGS[project.icon] || FOLDER_SVGS.default}</svg>`;
+    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="folder-icon-svg" aria-hidden="true">${FOLDER_SVGS[project.icon] || FOLDER_SVGS.default}</svg>`;
     top.append(icon, make(document, 'span', 'psh-crumb-name', project.name || ''));
     heading.classList.add('psh-crumb');
     heading.replaceChildren(top, make(document, 'span', 'psh-crumb-sub', text('pjHeadSub')));

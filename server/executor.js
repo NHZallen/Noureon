@@ -369,6 +369,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       entries, linkEntries, readLink: createLinkReader({ getFetchPages: () => pageReader?.fetchPageContents, signal }), mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })), canView,
       // A small copy of a picture, frames of a video or a page of a scan, made from the file read from the person's cloud storage like the text of a file (nothing is kept).
       viewMedia: canView ? createServerMediaViewer({ files, userId: filesUser, signal }) : null,
+      // The files the model looked into stay with the reply (their names), for its sources.
+      onUsed: ({ files: names }) => { if (memoryOut) { const seen = memoryOut.files || (memoryOut.files = []); for (const name of names) if (seen.length < 20 && !seen.includes(name)) seen.push(String(name).slice(0, 200)); } },
       language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).

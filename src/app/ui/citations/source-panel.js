@@ -1,4 +1,4 @@
-// The sources of a reply as one panel with tabs (All | Web | Memory | Chats), in the sheet that rises from the bottom and in the right-hand panel: the pages its web search found
+// The sources of a reply as one panel with tabs (All | Web | Memory | Chats | Files), in the sheet that rises from the bottom and in the right-hand panel: the pages its web search found
 // (source-list.js), the notes of the memory it was given or looked up, and the past conversations it looked into. Memory and conversation rows only say which note or which chat, never
 // the words of a chat. A note can be marked "not relevant here"; a chat that is still there can be opened. Drawn with textContent; the icons are fixed markup (icons/memory-icons.js).
 
@@ -14,7 +14,7 @@ const make = (document, tag, className, text) => {
 };
 
 /**
- * `groups`: { web: [sources], notes: [{ id, text, kind, standing, gone }], conversations: [{ id, title, at, available }] }.
+ * `groups`: { web: [sources], notes: [{ id, text, kind, standing, gone }], conversations: [{ id, title, at, available }], files: [{ name }] } (the files of the project that the model looked into).
  * `options`: { language, kindLabel(kind), onNotRelevant(id) (async), onOpenChat(id), tab ('all' by default) }. Returns the element.
  */
 export function createSourcePanel(document, groups, { language = 'zh-TW', kindLabel = () => '', onNotRelevant = null, onOpenChat = null, tab = 'all' } = {}) {
@@ -22,11 +22,13 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
   const web = groups.web || [];
   const notes = groups.notes || [];
   const chats = groups.conversations || [];
+  const files = groups.files || [];
   const tabs = [
-    { id: 'all', label: text('sourceTabAll'), count: web.length + notes.length + chats.length },
+    { id: 'all', label: text('sourceTabAll'), count: web.length + notes.length + chats.length + files.length },
     ...(web.length ? [{ id: 'web', icon: 'globe', label: text('sourceTabWeb'), count: web.length }] : []),
     ...(notes.length ? [{ id: 'memory', icon: 'brain', label: text('sourceTabMemory'), count: notes.length }] : []),
-    ...(chats.length ? [{ id: 'chats', icon: 'messages', label: text('sourceTabChats'), count: chats.length }] : [])
+    ...(chats.length ? [{ id: 'chats', icon: 'messages', label: text('sourceTabChats'), count: chats.length }] : []),
+    ...(files.length ? [{ id: 'files', icon: 'file', label: text('sourceTabFiles'), count: files.length }] : [])
   ];
   const root = make(document, 'div', 'source-panel');
   const strip = make(document, 'div', 'history-tabs source-panel-tabs');
@@ -96,12 +98,23 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
     return row;
   };
 
+  const fileRow = (file) => {
+    const row = make(document, 'div', 'source-item source-row is-file');
+    row.dataset.fileName = file.name;
+    row.append(rowIcon('file'));
+    const main = make(document, 'div', 'source-row-main');
+    main.append(make(document, 'p', 'source-row-title', file.name));
+    row.append(main);
+    return row;
+  };
+
   const show = (id) => {
     for (const [key, button] of buttons) button.setAttribute('aria-selected', String(key === id));
     const rows = [];
-    // Memory and chats first: they are the few, the pages are often twenty.
+    // Memory, chats and files first: they are the few, the pages are often twenty.
     if (id === 'all' || id === 'memory') rows.push(...notes.map(noteRow));
     if (id === 'all' || id === 'chats') rows.push(...chats.map(chatRow));
+    if (id === 'all' || id === 'files') rows.push(...files.map(fileRow));
     if (id === 'all' || id === 'web') rows.push(...web.map((source) => createSourceItem(document, source, { language, detailed: false })));
     body.replaceChildren(...(rows.length ? rows : [make(document, 'p', 'history-sources-empty', text('sourceEmptyTab'))]));
     body.scrollTop = 0;

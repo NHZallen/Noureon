@@ -6,7 +6,7 @@ const traces = new Map();
 const offered = new Map();
 const entry = (conversationId) => {
   const key = String(conversationId || '');
-  if (!traces.has(key)) traces.set(key, { used: new Set(), events: [], history: new Map() });
+  if (!traces.has(key)) traces.set(key, { used: new Set(), events: [], history: new Map(), files: new Set() });
   return traces.get(key);
 };
 
@@ -18,6 +18,8 @@ export const resetTrace = (conversationId, { toolsOffered = false } = {}) => {
 /** Whether the model of the reply being made has the memory tools (the first page says it can look notes up only then). */
 export const toolsOffered = (conversationId) => offered.get(String(conversationId || '')) === true;
 export const recordUsed = (conversationId, ids) => { for (const id of ids || []) entry(conversationId).used.add(String(id)); };
+/** The files of the project that the model looked into (their names), kept for the sources of the reply. */
+export const recordFiles = (conversationId, items) => { const files = entry(conversationId).files; for (const name of items || []) if (name && files.size < 20) files.add(name); };
 export const recordEvent = (conversationId, eventId) => { if (eventId && !entry(conversationId).events.includes(eventId)) entry(conversationId).events.push(String(eventId)); };
 
 // The conversations the model looked into, kept as { id, title, at } (the title is read when they are looked into, so that the source still has a name once the conversation is deleted).
@@ -33,10 +35,13 @@ export const recordHistory = (conversationId, entries) => {
   }
 };
 
-/** Takes what was kept for the conversation: { used: [note ids], events: [event ids], history: [{ id, title, at }] }; it is empty afterwards. */
+/** Takes what was kept for the conversation: { used: [note ids], events: [event ids], history: [{ id, title, at }], files: [names] }; it is empty afterwards. */
 export function takeTrace(conversationId) {
   const key = String(conversationId || '');
   const found = traces.get(key);
   traces.delete(key);
-  return { used: found ? [...found.used].slice(0, 20) : [], events: found ? found.events.slice(0, 20) : [], history: found ? [...found.history.values()] : [] };
+  return { used: found ? [...found.used].slice(0, 20) : [], events: found ? found.events.slice(0, 20) : [], history: found ? [...found.history.values()] : [], files: found ? [...found.files] : [] };
 }
+
+/** What of a taken trace stays with the message (the notes given, the changes made, the conversations looked into and the files of the project looked into, as their names): only what is not empty. */
+export const traceMetadata = (trace) => Object.fromEntries([['memoryUsed', trace.used], ['memoryUpdated', trace.events], ['memoryHistory', trace.history], ['projectFilesUsed', trace.files]].filter(([, value]) => value.length));

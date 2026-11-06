@@ -348,3 +348,9 @@ Allen 的要求：別人對話頁右上角的側邊欄要像淺色那張，就�
 
 - **側邊欄**：18.11 我做了自己樣式的面板（`.psh-side`），已拿掉。現在 `project-conversation-viewer.js` 用與 `#history-sidebar` 一樣的標記與 class：標頭有「時間線／來源」分頁（來源有數量）、右邊關閉叉叉；時間線每一則訊息一個點（你／Noureon、內容開頭，用 `timelineSnippet`）；來源用同一個 `latestSources` 與 `fillSourceList`。樣式不重寫：`styles/citations.css` 裡時間線的規則（原本只認 `#history-sidebar #history-sidebar-list`）多認 `.psh-history .psh-history-list`，標頭、分頁、關閉鈕本來就是 class。`project-sharing.css` 只管位置（從右邊滑入、淡出的遮罩、寬度與一般側邊欄相同）。點時間線的一項會捲到那則並短暫標亮，然後收起。
 - **頂列**：專案頂列（`project-crumb.js`）原本只看 `conversation.folderId`，所以「別人分享給你的專案」裡自己的對話（沒有 `folderId`，只有 `sharedProject` 標記）還是一般頂列（左側選單鈕、新對話鈕）。現在也看 `sharedProject.id`（輸入框的「傳訊息給 <專案>」也是）。
+
+### 18.15 圖示填黑、返回動畫方向、專案檔案算進來源（2026-11-07，已在 `staging`，不需要新的 migration）
+
+- **地球圖示變黑色填充**：別人對話頁頂列的專案圖示 `<svg>` 少了 `folder-icon-svg` 這個 class（`project-crumb.js` 有），圖示的線條樣式（無填色、細線）靠它，沒有就變成黑色填滿。補上。
+- **返回動畫方向**：從專案裡的對話按返回箭頭打開專案頁，原本當成「進入專案」從右邊滑入；返回應該從左邊滑入。`openProject` 現在帶 `back: true`（`start-projects.js`），`projects-page.js` 的 `go()` 遇到 `back` 用 `is-coming-back`。從清單進專案仍然從右邊滑入。
+- **模型讀到的專案檔案算進來源**：`createProjectFilesLoader` 本來就會用 `onUsed({ files })` 回報搜尋或讀取過哪些檔案，但沒有人接。現在頁面這條（`single-model-reply-prepare.js` → `memory-trace.js` 的 `recordFiles`）與伺服器那條（`executor.js` → `memoryOut.files` → `runs.js`）都把名稱記下來，存進回覆的 `metadata.projectFilesUsed`（檔名的陣列）（最多 20，同名一次；`cloud-sync-v2-codecs.js` 的保留清單加上它，才會跟著同步）。右側欄「來源」面板多一個「檔案」分頁（與網頁、記憶、對話並列，列出檔名與「專案的檔案」），回覆下方的來源鈕多一個檔案圖示。只記名稱，不記內容。理事會成員（`council-members-page.js`）讀的檔案這次還沒接。

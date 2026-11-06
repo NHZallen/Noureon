@@ -300,6 +300,7 @@ test('what the memory did in a reply stays with its message, and the curator run
     execute: async ({ memoryOut }) => {
       memoryOut.used = ['n1', 'n2'];
       memoryOut.events = ['e1'];
+      memoryOut.files = ['plan.pdf', 'budget.xlsx'];
       memoryOut.afterReply = async () => { order.push(`curate after ${messageWrites(db).at(-1).status}`); };
       return { parts: [{ text: 'answer' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
     }
@@ -308,7 +309,7 @@ test('what the memory did in a reply stays with its message, and the curator run
   await settle();
   const last = messageWrites(db).at(-1);
   assert.equal(last.status, 'complete');
-  assert.deepEqual(last.metadata, { model: 'M', memoryUsed: ['n1', 'n2'], memoryUpdated: ['e1'] });
+  assert.deepEqual(last.metadata, { model: 'M', memoryUsed: ['n1', 'n2'], memoryUpdated: ['e1'], projectFilesUsed: ['plan.pdf', 'budget.xlsx'] });
   assert.deepEqual(order, ['curate after complete'], 'the reply was written before the curator ran');
 });
 

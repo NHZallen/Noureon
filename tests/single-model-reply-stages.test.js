@@ -170,6 +170,6 @@ test('what the memory did on the server (notes looked up, changes made, conversa
   setHistoryTitle((id) => ({ c1: 'Scooter commute' }[id] || ''));
   resetTrace('conv-x');
   await followServerReply(lifecycle, { serverRun, reply, view, progress() {}, uiLanguage: 'en', conversationId: 'conv-x', advanced: false, runHere: async () => '' }, () => {});
-  assert.deepEqual(takeTrace('conv-x'), { used: ['n1'], events: ['e1'], history: [{ id: 'c1', title: 'Scooter commute', at: '2026-10-21T00:00:00.000Z' }, { id: 'c2', title: '' }] });
+  assert.deepEqual(takeTrace('conv-x'), { used: ['n1'], events: ['e1'], history: [{ id: 'c1', title: 'Scooter commute', at: '2026-10-21T00:00:00.000Z' }, { id: 'c2', title: '' }], files: [] });
   setHistoryTitle(null);
 });

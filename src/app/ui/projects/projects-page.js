@@ -44,7 +44,7 @@ const previewOf = (conversation) => {
 };
 
 /**
- * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id }.
+ * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id } (with `back` when it is the way back from a chat of the project).
  * deps: document, text(key, vars), actions (runtime/projects/project-actions.js), chats { archive(id), remove(id) } (the app's own, which ask what has to be asked), openChat(id),
  * vectors ({ status(sourceId), subscribe(listener) }: where the vectors of a source are, runtime/memory-store/page-vectors.js; none: no line about it), notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
  * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
@@ -786,7 +786,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   function go(next, push = false) {
     if (closed) return;
     if (next?.id && projectOrNull(next.id)) {
-      if (state.view !== 'project' || state.projectId !== next.id) comes('is-coming-in');
+      // (Back from a chat of the project it comes in from the left, as every way back does; into the project from the list it comes in from the right.)
+      if (state.view !== 'project' || state.projectId !== next.id) comes(next.back ? 'is-coming-back' : 'is-coming-in');
       state.fromList = state.listDrawn;
       state.projectId = next.id;
       state.tab = 'chats';

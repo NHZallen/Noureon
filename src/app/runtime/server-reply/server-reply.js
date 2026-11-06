@@ -657,7 +657,7 @@ export function createServerReply({
           segment: cutOf(row.metadata?.segment),
           steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean),
           // What the memory did on the server for this reply (the notes looked up, the changes it made, the conversations looked into): the message the page saves keeps it.
-          memory: { used: Array.isArray(row.metadata?.memoryUsed) ? row.metadata.memoryUsed : [], events: Array.isArray(row.metadata?.memoryUpdated) ? row.metadata.memoryUpdated : [], history: Array.isArray(row.metadata?.memoryHistory) ? row.metadata.memoryHistory : [] } };
+          memory: Object.fromEntries([['used', 'memoryUsed'], ['events', 'memoryUpdated'], ['history', 'memoryHistory'], ['files', 'projectFilesUsed']].map(([key, name]) => [key, Array.isArray(row.metadata?.[name]) ? row.metadata[name] : []])) };
       }
     }
   });

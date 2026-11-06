@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { collectReplySources, hasMemorySources, historyEntriesOf } from '../../src/app/runtime/memory-store/reply-sources.js';
+import { collectReplySources, hasMemorySources, historyEntriesOf, projectFilesOf } from '../../src/app/runtime/memory-store/reply-sources.js';
 
 const note = (id, extra = {}) => ({ id, text: `text of ${id}`, kind: 'fact', status: 'active', standing: false, lastUsedAt: '2026-10-30T00:00:00.000Z', ...extra });
 
@@ -29,4 +29,12 @@ test('the notes are read as they are now (a deleted one says so), the conversati
   const deleted = collectReplySources({ message: { metadata: { memoryHistory: [{ id: 'c1', title: 'Kept name', at: '2026-10-21' }] } }, conversations: [{ id: 'c1', title: 'x', deletedAt: '2026-10-25' }] });
   assert.equal(deleted.conversations[0].available, false);
   assert.equal(deleted.conversations[0].title, 'Kept name');
+});
+
+test('the files of the project that the model looked into are among the sources: once each by name, at most twenty', () => {
+  const names = Array.from({ length: 25 }, (_, index) => `file-${index}.pdf`);
+  assert.deepEqual(projectFilesOf({ projectFilesUsed: ['plan.pdf', 'plan.pdf', '  ', { id: 'x' }, 'notes.xlsx'] }), [{ name: 'plan.pdf' }, { name: 'notes.xlsx' }]);
+  assert.equal(projectFilesOf({ projectFilesUsed: names }).length, 20);
+  assert.deepEqual(projectFilesOf({}), []);
+  assert.deepEqual(collectReplySources({ message: { metadata: { projectFilesUsed: ['plan.pdf'] } } }).files, [{ name: 'plan.pdf' }]);
 });

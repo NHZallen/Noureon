@@ -1170,3 +1170,16 @@ test('the list is not drawn again when what it shows is the same (a letter typed
   assert.equal(env.$('.pj-row'), same, 'the same list is kept');
   await env.finish();
 });
+
+test('a project opened from the list comes in from the right, and one opened as the way back from a chat of it comes in from the left', async () => {
+  const forward = setup();
+  forward.open({ id: 'f1' });
+  assert.ok(forward.$('.pj').classList.contains('is-coming-in'));
+  assert.ok(!forward.$('.pj').classList.contains('is-coming-back'));
+  await forward.finish();
+  const back = setup();
+  back.open({ id: 'f1', back: true });
+  assert.ok(back.$('.pj').classList.contains('is-coming-back'));
+  assert.ok(!back.$('.pj').classList.contains('is-coming-in'));
+  await back.finish();
+});

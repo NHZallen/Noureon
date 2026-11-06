@@ -310,7 +310,7 @@ test('the page of someone else’s chat has the head of a chat of the project: t
   assert.deepEqual([...head.children].map((node) => node.className.split(' ')[0]), ['pj-round', 'pj-sheet-title', 'pj-round'], 'back, the name, the menu');
   assert.ok(head.children[0].classList.contains('is-back'));
   assert.equal(head.querySelector('.psh-crumb-name').textContent, 'City plan');
-  assert.ok(head.querySelector('.psh-crumb-icon svg'));
+  assert.ok(head.querySelector('.psh-crumb-icon svg.folder-icon-svg'), 'the icon has the class that draws it as lines (without it the globe is filled black)');
   assert.equal(head.querySelector('.psh-crumb-sub').textContent, text('pjHeadSub'));
   // the button at the right opens the side panel of the app (Timeline | Sources, the same markup as the chat's own): every message, one of them goes to it
   const panel = root.querySelector('.psh-history');

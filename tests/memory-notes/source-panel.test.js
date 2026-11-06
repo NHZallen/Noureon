@@ -81,3 +81,19 @@ test('a chat shows its name and day and can be opened; one that was deleted keep
   assert.equal(gone.querySelector('.source-row-action'), null);
   window.happyDOM.abort();
 });
+
+test('the files of the project that the model looked into have a tab of their own, listed with the memory and the chats before the pages', () => {
+  const window = new Window();
+  const { document } = window;
+  const panel = createSourcePanel(document, { ...groups, files: [{ name: 'plan.pdf' }, { name: 'budget.xlsx' }] }, { language: 'en' });
+  document.body.append(panel);
+  assert.deepEqual([...panel.querySelectorAll('.source-panel-tab')].map((tab) => tab.textContent), ['All9', 'Web2', 'Memory3', 'Chats2', 'Files2']);
+  panel.querySelector('[data-tab="files"]').click();
+  const rows = [...panel.querySelectorAll('.source-panel-body > .is-file')];
+  assert.deepEqual(rows.map((row) => row.dataset.fileName), ['plan.pdf', 'budget.xlsx']);
+  assert.equal(rows[0].querySelector('.source-row-title').textContent, 'plan.pdf');
+  // alone, the files are a panel by themselves
+  const alone = createSourcePanel(document, { web: [], notes: [], conversations: [], files: [{ name: 'plan.pdf' }] }, { language: 'zh-TW' });
+  assert.deepEqual([...alone.querySelectorAll('.source-panel-tab')].map((tab) => tab.textContent), ['全部1', '檔案1']);
+  window.happyDOM.abort();
+});

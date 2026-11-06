@@ -13,12 +13,12 @@ import { formatSourceDate } from '../../ui/citations/source-list.js';
 
 const KIND_KEY = { preference: 'mnKindPreference', fact: 'mnKindFact', project: 'mnKindProject', relationship: 'mnKindRelationship', routine: 'mnKindRoutine' };
 
-/** The parts of the sources of `message`: { web, notes, conversations }. The notes are left out when the memory is not loaded (they could not be told from deleted ones). */
+/** The parts of the sources of `message`: { web, notes, conversations, files } (the files are the ones of the project that the model looked into). The notes are left out when the memory is not loaded (they could not be told from deleted ones). */
 export function sourcesOfReply(message) {
   const { run } = liftSandboxRunBlock((message?.parts || []).map((part) => part.text || '').join('\n'));
   const store = getNotesMemory()?.getStore?.();
   const found = collectReplySources({ message, notes: store?.isLoaded?.() ? store.getNotes() : [], conversations: getPageHistory()?.conversations?.() || [] });
-  return { web: listableSources(run?.sources), notes: store?.isLoaded?.() ? found.notes : [], conversations: found.conversations };
+  return { web: listableSources(run?.sources), notes: store?.isLoaded?.() ? found.notes : [], conversations: found.conversations, files: found.files };
 }
 
 /** What the panel's rows do: mark a note as not relevant, open a conversation that is still there. */
@@ -41,14 +41,14 @@ export function latestReplySources(conversation) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     if (messages[index]?.role !== 'model') continue;
     const groups = sourcesOfReply(messages[index]);
-    if (groups.web.length || groups.notes.length || groups.conversations.length) return groups;
+    if (groups.web.length || groups.notes.length || groups.conversations.length || groups.files.length) return groups;
   }
   return null;
 }
 
 export function openReplySources({ window, document, message, language, i18n = {} }) {
   const groups = sourcesOfReply(message);
-  const extra = groups.notes.length > 0 || groups.conversations.length > 0;
+  const extra = groups.notes.length > 0 || groups.conversations.length > 0 || groups.files.length > 0;
   if (!groups.web.length && !extra) return;
   if (!extra) {
     if (window.innerWidth >= 768) document.dispatchEvent(new window.CustomEvent('noureon:open-sources', { detail: { sources: groups.web } }));

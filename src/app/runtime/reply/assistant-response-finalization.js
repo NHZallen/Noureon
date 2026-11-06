@@ -3,7 +3,7 @@ import { normalizeHistorySourceConversationIds } from '../memory-notes/history-s
 import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../../../pwa/stale-chunk-recovery.js';
 import { placePictures } from '../../../data/picture-interleave.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
-import { takeTrace } from '../memory-store/memory-trace.js';
+import { takeTrace, traceMetadata } from '../memory-store/memory-trace.js';
 import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
@@ -114,17 +114,9 @@ export async function finalizeAssistantResponse({
     };
   }
   // What the memory did for this reply (notes given to the model, changes it made): shown under the reply, kept with the message.
-  const memoryTrace = takeTrace(conversation?.id);
-  let memoryLineAfterDraw = false;
-  if (memoryTrace.used.length || memoryTrace.events.length || memoryTrace.history.length) {
-    memoryLineAfterDraw = true;
-    finalAiMessage.metadata = {
-      ...(finalAiMessage.metadata || {}),
-      ...(memoryTrace.used.length ? { memoryUsed: memoryTrace.used } : {}),
-      ...(memoryTrace.events.length ? { memoryUpdated: memoryTrace.events } : {}),
-      ...(memoryTrace.history.length ? { memoryHistory: memoryTrace.history } : {})
-    };
-  }
+  const kept = traceMetadata(takeTrace(conversation?.id));
+  const memoryLineAfterDraw = Object.keys(kept).length > 0;
+  if (memoryLineAfterDraw) finalAiMessage.metadata = { ...(finalAiMessage.metadata || {}), ...kept };
   if (includeCouncilMetadata) {
     finalAiMessage.council = councilMetadata;
   }

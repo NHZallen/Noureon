@@ -71,13 +71,13 @@ export function createHistorySidebarHelpers({
     // A reply that drew on the memory or on past conversations opens its sources as one panel with tabs.
     // Opened without a reply asking for its own, the tab shows the newest reply that has sources, the memory and the conversations among them.
     const latest = pinned ? null : latestReplySources(getActiveConversation());
-    const extra = pinned?.groups && ((pinned.groups.notes?.length || 0) + (pinned.groups.conversations?.length || 0) > 0)
+    const extra = pinned?.groups && ((pinned.groups.notes?.length || 0) + (pinned.groups.conversations?.length || 0) + (pinned.groups.files?.length || 0) > 0)
       ? pinned
-      : latest && latest.notes.length + latest.conversations.length > 0 ? { groups: latest, panel: replySourcePanelOptions({ window: win, document, language: language(), i18n }) } : null;
+      : latest && latest.notes.length + latest.conversations.length + (latest.files?.length || 0) > 0 ? { groups: latest, panel: replySourcePanelOptions({ window: win, document, language: language(), i18n }) } : null;
     const timelineList = historySidebar.querySelector('#history-sidebar-list');
     const sourcesList = historySidebar.querySelector('#history-sources-list');
     const shown = sources ? listableSources(sources) : latest ? latest.web : [];
-    const shownCount = extra ? shown.length + extra.groups.notes.length + extra.groups.conversations.length : shown.length;
+    const shownCount = extra ? shown.length + extra.groups.notes.length + extra.groups.conversations.length + (extra.groups.files?.length || 0) : shown.length;
     historySidebar.querySelectorAll('[data-history-tab]').forEach((button) => {
       button.setAttribute('aria-selected', String(button.dataset.historyTab === activeTab));
       if (button.dataset.historyTab === 'sources') {

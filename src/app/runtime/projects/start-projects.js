@@ -229,7 +229,7 @@ export function startProjects({
     return id ? actions.folderOf(id) : null;
   };
   void import('../../../styles/project-crumb.css').catch(() => {});
-  createProjectCrumb({ document, text, getProject: projectOfActiveChat, openProject: (id) => { void open({ id }); } });
+  createProjectCrumb({ document, text, getProject: projectOfActiveChat, openProject: (id) => { void open({ id, back: true }); } });
   setProjectPlaceholder((conversation) => {
     const projectId = conversation?.folderId || conversation?.sharedProject?.id || '';
     const project = projectId ? actions.folderOf(projectId) : null;

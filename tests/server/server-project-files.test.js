@@ -119,3 +119,25 @@ test('a reply in a shared project reads the files from the owner’s folder, aft
   assert.equal(ok.spec.tools.projectFiles.sharedProject, SHARED);
   assert.equal(validateRunSpec(goodSpec({ ...ENTRIES, sharedProject: 'nope' })).ok, false);
 });
+
+test('the files the model of a reply looked into are told, by name and once each, so that they stay with the reply as its sources', async () => {
+  clearProjectFileTextCache();
+  const files = { load: async () => new TextEncoder().encode('The plan: open the Hsinchu office in March.') };
+  const memoryOut = { used: [], events: [] };
+  let round = 0;
+  const result = await executeReply({
+    spec: goodSpec(ENTRIES),
+    secrets: { providerKey: 'sk-provider-secret-value' },
+    userId: USER,
+    files,
+    memoryOut,
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('c1', 'search_project_files', { query: 'Taipei budget' })));
+      if (round === 2) return streamResponse(sse(toolCall('c2', 'read_project_file', { file: 'notes.md' })));
+      return streamResponse(sse(content('480,000 dollars.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(memoryOut.files, ['notes.md']);
+});

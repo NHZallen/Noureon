@@ -60,7 +60,7 @@ test('a write the model makes is saved in the store and noted for the message un
   const trace = takeTrace('conv-1');
   assert.deepEqual(trace.used, ['dog']);
   assert.equal(trace.events.length, 1);
-  assert.deepEqual(takeTrace('conv-1'), { used: [], events: [], history: [] }, 'taken once');
+  assert.deepEqual(takeTrace('conv-1'), { used: [], events: [], history: [], files: [] }, 'taken once');
 });
 
 test('with learning off nothing is written, and the model has no write tool', async () => {
@@ -89,11 +89,11 @@ test('the trace starts afresh with each reply, and says whether the model has th
   recordEvent('c9', 'e1');
   resetTrace('c9', { toolsOffered: true });
   assert.equal(toolsOffered('c9'), true);
-  assert.deepEqual(takeTrace('c9'), { used: [], events: [], history: [] });
+  assert.deepEqual(takeTrace('c9'), { used: [], events: [], history: [], files: [] });
   recordUsed('c9', ['a', 'b', 'a']);
   recordEvent('c9', 'e1');
   recordEvent('c9', 'e1');
-  assert.deepEqual(takeTrace('c9'), { used: ['a', 'b'], events: ['e1'], history: [] });
+  assert.deepEqual(takeTrace('c9'), { used: ['a', 'b'], events: ['e1'], history: [], files: [] });
   resetTrace('c9');
   assert.equal(toolsOffered('c9'), false);
 });
