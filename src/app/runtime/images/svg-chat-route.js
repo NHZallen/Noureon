@@ -15,8 +15,8 @@ export function chatWritesSvg({ modelInfo, userParts }) {
   return verdictOf(decisionsFor(textOf(userParts)), 'svg', SVG_CHAT_THRESHOLD) === true;
 }
 
-/** The model as the picture lifecycle needs it: one SVG, nothing of a picture maker's options. */
-export const svgWriterModelInfo = (modelInfo) => ({ ...modelInfo, supportedImageFormats: ['svg'], supportedImageOptions: [], supportedImageAspectRatios: undefined, supportedImageResolutions: undefined, maxImageCount: 1, minImageReferences: 0, maxImageReferences: 16 });
+/** The model as the picture lifecycle needs it: SVGs (as many as the Count asks, up to 10), nothing of a picture maker's options. */
+export const svgWriterModelInfo = (modelInfo) => ({ ...modelInfo, supportedImageFormats: ['svg'], supportedImageOptions: [], supportedImageAspectRatios: undefined, supportedImageResolutions: undefined, maxImageCount: 10, minImageReferences: 0, maxImageReferences: 16 });
 
 /** Runs the picture lifecycle with the model of the chat as the one that writes the SVG; `options` are those of lifecycle.run (without the model). */
 export const run = (lifecycle, { modelInfo, ...options }) => lifecycle.run({ ...options, modelInfo: svgWriterModelInfo(modelInfo), svgByTextModel: true });

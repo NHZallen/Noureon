@@ -267,8 +267,8 @@ export function createImageGenerationResponseLifecycle({
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     // The format, put right for the model; then for the format (a GIF has its frames and no compression, an SVG is one picture).
     if (outputFormat) generationRequest.config.outputFormat = outputFormat;
-    generationRequest.config = settleImageFormatConfig(generationRequest.config);
     if (svgByTextModel) generationRequest.config.svgWriter = true;
+    generationRequest.config = settleImageFormatConfig(generationRequest.config);
     const reasoningConfig = getModelReasoningConfig(modelInfo);
     const reasoningEffort = reasoningConfig
       ? normalizeReasoningEffort(modelInfo, conversation.reasoningEffort)

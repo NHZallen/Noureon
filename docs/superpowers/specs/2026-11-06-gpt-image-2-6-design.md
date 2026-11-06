@@ -150,3 +150,11 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 - **GIF**: both OpenAI and OpenRouter take `n` from 1 to 10 (the same as the other formats), so the Count of the settings goes to the request as it is (`settleImageFormatConfig` leaves `n` alone for a GIF: checked, 10 stays 10).
 - **SVG**: always one picture (`n` is made 1 and the Count menu shows only 1): unchanged.
 - Nothing to change in the code; this is the result of `scripts/gpt-image-26-probe.mjs --tests gifcount,svgcount`, told by Allen without the JSON (the numbers are his).
+
+## 17. A text model can write several SVGs (2026-11-06, Allen: "it only outputs code, so why not as many as asked")
+
+- Allen is right: an SVG written by a text model is only text shown as a picture, so the number is only how many times it is asked. §6 had fixed it to one (`maxImageCount: 1` of `svgWriterModelInfo`, and `n` made 1 for every SVG), so "three SVG logos" was refused as "more than the model makes".
+- **Now**: `svgWriterModelInfo` has `maxImageCount: 10` (the same limit as the Count of the settings and of the words "three pictures"); `settleImageFormatConfig` makes `n` 1 for an SVG **only when no text model writes it** (OpenAI's own Images API: one, as measured); `createSvgWriter` (`svg-writer.js`) makes `n` requests together, each told "version k of n: make it differ from the others in composition and style" (a text model given the same words would otherwise often write the same drawing), and keeps those that were written (some are better than none; with none the first problem is the answer). Page and server share the file, so the server does it too.
+- Cost: each SVG is a whole request of the text model (n SVGs cost n times), and they are made together, so the time is about that of one.
+- Tests: `tests/svg-writer.test.js` (n requests with their numbers, one for no count, partial success, all failing), the lifecycle test (the Count 4 and the "three" said in words reach the request), the Count of the settings.
+- Not changed: GPT Image 2.6's own SVG (OpenAI direct from words alone) stays one; an SVG made by Luna for OpenRouter's GPT Image 2.6 goes through the same settings, whose Count menu shows 1 for a picture maker's SVG.

@@ -124,5 +124,30 @@ test('the Decisions model is asked whether a vector picture is wanted, and a cha
     forgetDecisions();
   }
   const info = svgWriterModelInfo({ id: 'm', provider: 'openrouter', supportedImageAspectRatios: ['1:1'], maxImageCount: 4 });
-  assert.deepEqual([info.supportedImageFormats, info.maxImageCount, info.supportedImageOptions, info.supportedImageAspectRatios], [['svg'], 1, [], undefined]);
+  assert.deepEqual([info.supportedImageFormats, info.maxImageCount, info.supportedImageOptions, info.supportedImageAspectRatios], [['svg'], 10, [], undefined]);
+});
+
+test('a text model writes as many SVGs as the Count asks, one request each, each told its number', async () => {
+  const prompts = [];
+  const fetchImpl = async (_url, init) => { prompts.push(JSON.parse(init.body).messages[1].content[0].text); return json({ choices: [{ message: { content: SVG } }] }); };
+  const writer = createSvgWriter({ fetchImpl });
+  const result = await writer({ provider: 'openrouter', apiKey: 'k', model: 'm', prompt: 'a red circle', config: { svgWriter: true, n: 3 } });
+  assert.equal(result.images.length, 3);
+  assert.equal(prompts.length, 3);
+  assert.deepEqual(prompts.map((text) => /version (\d) of 3/.exec(text)?.[1]).sort(), ['1', '2', '3']);
+  prompts.length = 0;
+  assert.equal((await writer({ provider: 'openrouter', apiKey: 'k', model: 'm', prompt: 'a red circle', config: { svgWriter: true } })).images.length, 1);
+  assert.doesNotMatch(prompts[0], /version/);
+  // some are better than none; with none, the first problem is the answer
+  let calls = 0;
+  const flaky = createSvgWriter({ fetchImpl: async () => (++calls === 2 ? json({ choices: [{ message: { content: SVG } }] }) : json({ error: { message: 'down' } }, 500)) });
+  assert.equal((await flaky({ provider: 'openrouter', apiKey: 'k', model: 'm', prompt: 'p', config: { n: 3 } })).images.length, 1);
+  const dead = createSvgWriter({ fetchImpl: async () => json({ error: { message: 'down' } }, 500) });
+  await assert.rejects(() => dead({ provider: 'openrouter', apiKey: 'k', model: 'm', prompt: 'p', config: { n: 2 } }), /down/);
+});
+
+test('the Count is kept for an SVG a text model writes, and is 1 for the Images API\'s own', async () => {
+  const { settleImageFormatConfig } = await import('../src/app/runtime/images/image-formats.js');
+  assert.equal(settleImageFormatConfig({ outputFormat: 'svg', n: 5, svgWriter: true }).n, 5);
+  assert.equal(settleImageFormatConfig({ outputFormat: 'svg', n: 5 }).n, 1);
 });

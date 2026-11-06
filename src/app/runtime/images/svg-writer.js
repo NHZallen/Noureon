@@ -67,7 +67,7 @@ const chatText = (body) => {
 };
 
 export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...args), getSafetyIdentifier = async () => '' } = {}) {
-  return async function writeSvg({ provider, apiKey, model, prompt, config = {}, inputReferences = [], signal }) {
+  const writeOne = async ({ provider, apiKey, model, prompt, config = {}, inputReferences = [], signal }) => {
     const text = userText(prompt, config);
     let response;
     if (provider === 'openai') {
@@ -105,5 +105,14 @@ export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...a
     const svg = extractSvg(provider === 'openai' ? responsesText(body) : chatText(body));
     if (!svg) throw new Error('The model did not write an SVG.');
     return { images: [{ b64Json: toBase64(svg), mediaType: 'image/svg+xml' }] };
+  };
+  // As many SVGs as asked (a text model writes text: one request each, made together, each told which of how many it is so that they are not the same).
+  return async function writeSvg(request) {
+    const count = Math.min(10, Math.max(1, Math.floor(Number(request.config?.n)) || 1));
+    if (count === 1) return writeOne(request);
+    const settled = await Promise.allSettled(Array.from({ length: count }, (_, index) => writeOne({ ...request, prompt: `${request.prompt}\n\nThis is version ${index + 1} of ${count}: make it differ from the others in composition and style.` })));
+    const images = settled.flatMap((outcome) => (outcome.status === 'fulfilled' ? outcome.value.images : []));
+    if (!images.length) throw settled.find((outcome) => outcome.status === 'rejected').reason;
+    return { images };
   };
 }

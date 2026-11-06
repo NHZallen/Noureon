@@ -39,7 +39,8 @@ export function settleImageFormatConfig(config = {}) {
     next.frameDuration = whole(frameDuration, 20, 2000, GIF_FRAME_DURATION_DEFAULT_MS);
   }
   if (gif || svg) delete next.outputCompression;
-  if (svg) next.n = 1;
+  // OpenAI's own SVG is one picture; a text model that writes it can write as many as asked (svg-writer.js).
+  if (svg && !next.svgWriter) next.n = 1;
   return next;
 }
 

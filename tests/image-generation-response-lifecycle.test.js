@@ -657,6 +657,24 @@ test('a text model that is asked for an SVG in a chat writes it: the format is S
   assert.deepEqual(request.inputReferences, [], 'an earlier picture is not carried into an SVG');
 });
 
+test('a text model asked for several SVGs in a chat is asked for that many (the Count, or the number said in words)', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'PHN2Zy8+', mediaType: 'image/svg+xml' }] }; },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/svg+xml', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const text = { id: 'openai/gpt-6-luna', provider: 'openrouter', supportedImageFormats: ['svg'], supportedImageOptions: [], maxImageCount: 10 };
+  const conversation = (n) => ({ imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', n }, messages: [] });
+  await lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'draw fox logos as SVG' }], modelInfo: text, conversation: conversation(4), svgByTextModel: true });
+  assert.equal(requests.at(-1).config.n, 4);
+  await lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'draw three fox logos as SVG' }], modelInfo: text, conversation: conversation(1), svgByTextModel: true, requestImageDecisions: async () => ({ countSaid: 0.98, count: 3 }) });
+  assert.equal(requests.at(-1).config.n, 3);
+});
+
 test('the frames of a GIF marked in the editor are edited one by one and put back in that GIF, here in the page, with any model', async () => {
   const calls = [];
   const generated = [];
