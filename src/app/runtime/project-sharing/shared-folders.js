@@ -39,6 +39,8 @@ export function createSharedFolders({ storage = null } = {}) {
     forget(id) { if (folders.delete(id)) save(); },
     /** The notes of a project of the person's own that is shared (set when the page starts and when they change). */
     setOwnNotes(id, notes) { ownNotes.set(id, (Array.isArray(notes) ? notes : []).map((note) => ({ id: note.id, text: String(note.text || '').slice(0, 500) })).slice(0, NOTES_MAX)); save(); },
+    /** Whether the folder is a project of the person's own that is shared (known once the page has read the list of them). */
+    isOwned: (id) => ownNotes.has(id),
     /** A folder of the person's own as the replies see it: with the notes of its project when it is shared. */
     decorate: (folder) => (ownNotes.get(folder?.id)?.length ? { ...folder, instructions: instructionsWithNotes(folder.instructions, ownNotes.get(folder.id)) } : folder)
   };

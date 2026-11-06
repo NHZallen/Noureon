@@ -37,3 +37,30 @@ export const clearPendingJoin = (storage) => { try { storage.removeItem(PENDING_
 
 /** The address a person gives to someone to join. */
 export const joinUrl = (origin, code) => `${String(origin).replace(/\/+$/, '')}/join/${code}`;
+
+// The address of a conversation of a shared project, for the people of the project: noureon.com/c/<project>/<conversation>. It opens the conversation for a signed-in member; anyone else is told
+// they are not a member. Kept for the app the same way an invitation is.
+
+const CHAT_ROUTE = /^\/c\/([0-9a-f-]{36})\/([0-9a-f-]{36})\/?$/i;
+export const PENDING_CHAT_KEY = 'noureon:pending-chat-link';
+
+export const isChatLinkRoute = (pathname) => CHAT_ROUTE.test(String(pathname || ''));
+export const chatLinkOf = (pathname) => { const match = CHAT_ROUTE.exec(String(pathname || '')); return match ? { projectId: match[1].toLowerCase(), conversationId: match[2].toLowerCase() } : null; };
+export const chatLinkUrl = (origin, projectId, conversationId) => `${String(origin).replace(/\/+$/, '')}/c/${projectId}/${conversationId}`;
+
+export function rememberChatLink(window, now = Date.now()) {
+  const link = chatLinkOf(window.location.pathname);
+  if (link) { try { window.localStorage.setItem(PENDING_CHAT_KEY, JSON.stringify({ ...link, at: now })); } catch { /* the person opens the link again */ } }
+  try { window.history.replaceState(null, '', '/'); } catch { /* the address stays */ }
+  return link;
+}
+
+export function readPendingChatLink(storage, now = Date.now()) {
+  try {
+    const value = JSON.parse(storage.getItem(PENDING_CHAT_KEY) || 'null');
+    if (value?.projectId && value?.conversationId && now - Number(value.at || 0) < PENDING_MAX_MS) return { projectId: value.projectId, conversationId: value.conversationId };
+  } catch { /* nothing waits */ }
+  return null;
+}
+
+export const clearPendingChatLink = (storage) => { try { storage.removeItem(PENDING_CHAT_KEY); } catch { /* nothing */ } };

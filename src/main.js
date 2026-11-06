@@ -28,7 +28,7 @@ import { ensureLanguage, setStartupLanguage } from './app/i18n/language-packs.js
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './app/runtime/features/login-language.js';
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
 import { isAdminSharesRoute, isShareRoute } from './app/share-page/share-route.js';
-import { isJoinRoute, rememberJoinCode } from './app/runtime/project-sharing/join-route.js';
+import { isChatLinkRoute, isJoinRoute, rememberChatLink, rememberJoinCode } from './app/runtime/project-sharing/join-route.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
@@ -89,6 +89,7 @@ async function bootstrap() {
 
   // An invitation to a project (noureon.com/join/<code>): the code waits for the app, which asks about it once there is a signed-in cloud account.
   if (isJoinRoute(window.location.pathname)) rememberJoinCode(window);
+  if (isChatLinkRoute(window.location.pathname)) rememberChatLink(window);
 
   mountAppShell(appShell);
   recordBootstrapMilestone(

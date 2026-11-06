@@ -6,7 +6,7 @@ import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
 import { createProjectShareClient } from './project-share-client.js';
-import { clearPendingJoin, readPendingJoin } from './join-route.js';
+import { PENDING_CHAT_KEY, chatLinkUrl, clearPendingChatLink, clearPendingJoin, readPendingChatLink, readPendingJoin } from './join-route.js';
 import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
 import { createSharedFolders } from './shared-folders.js';
@@ -15,6 +15,7 @@ import { setProjectFoldersReader } from '../projects/project-instructions.js';
 
 export const MEMBERS_EVENT = 'noureon:project-members';
 export const SHARED_EVENT = 'noureon:shared-projects';
+const SHARE_CONVERSATION_EVENT = 'astra:share-conversation';
 
 const nameOf = (user) => {
   const candidate = String(user?.displayName || user?.username || '').trim();
@@ -68,11 +69,11 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   };
 
   /** Opens a shared project of the person (one of the list "Shared with you"). The page keeps reading it while it is open, so what others write shows at once. */
-  async function openShared({ project_id: projectId, root = null }) {
+  async function openShared({ project_id: projectId, root = null, openChatId = '', notMemberText = 'psSharedGone' }) {
     const me = getAnnouncedUser()?.supabaseUserId || '';
     const reader = createReader({ projectId });
     const read = await reader.load();
-    if (!read.ok) { showNotification(text(read.code === 'gone' ? 'psSharedGone' : 'psSharedLoadFailed'), 'error'); return null; }
+    if (!read.ok) { showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); return null; }
     sharedFolders.set({ ...read.project.project, id: projectId });
     await ensureStyles();
     const language = configAccess.getUiLanguage();
@@ -156,6 +157,10 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       onEditInstructions: () => editInstructions(),
       onNewChat: async () => { try { await put(newSharedConversation({ shared, defaults: await defaults() })); } catch { showNotification(text('psFailed'), 'error'); } }
     });
+    // A link to one conversation opens it at once: one's own in the chat, someone else's as the page that is read.
+    const wanted = openChatId ? read.project.conversations.find((entry) => entry.id === openChatId) : null;
+    if (wanted) { if (wanted.authorId === me && (dataStore.getConversations() || []).some((entry) => entry.id === wanted.id)) { page.close(); openConversation(wanted.id); } else openChat(wanted); }
+    else if (openChatId) showNotification(text('psSharedGone'), 'error');
     timer = setInterval(() => { void tick(); }, pollMs);
     timer?.unref?.(); // (a page keeps the process of a test alive otherwise; in a browser the timer is a number)
     document.addEventListener('visibilitychange', onVisible);
@@ -213,8 +218,36 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   const lookForPending = () => { for (const wait of [0, 2000, 6000, 15000, 30000]) later(() => { void takePending(); }, wait); };
   lookForPending();
 
+  // A link to a conversation of a shared project (noureon.com/c/<project>/<conversation>) waits like an invitation does; someone who is not in the project is told so.
+  let opening = false;
+  async function takePendingChat() {
+    const area = pendingStorage();
+    const link = area ? readPendingChatLink(area) : null;
+    if (!link || opening || joining) return;
+    const user = getAnnouncedUser();
+    if (!user) return;
+    if (!user.supabaseUserId) { clearPendingChatLink(area); showNotification(text('psJoinNeedCloud'), 'error'); return; }
+    if (!cloudOn()) return;
+    opening = true;
+    try { clearPendingChatLink(area); await openShared({ project_id: link.projectId, openChatId: link.conversationId, notMemberText: 'psChatLinkNotMember' }); } finally { opening = false; }
+  }
+  const lookForChat = () => { for (const wait of [0, 2000, 6000, 15000, 30000]) later(() => { void takePendingChat(); }, wait); };
+  lookForChat();
+
+  // "Share conversation" in a shared project gives a link that only its members can open (the conversation is first put in the cloud, where the others read it).
+  const shareHere = async (event) => {
+    const id = String(event.detail?.id || '');
+    const conversation = (dataStore.getConversations() || []).find((entry) => entry.id === id);
+    const projectId = conversation?.sharedProject?.id || (conversation?.folderId && sharedFolders.isOwned(conversation.folderId) ? conversation.folderId : '');
+    if (!projectId) return;
+    event.stopImmediatePropagation();
+    try { await saveAppData({ immediateCloudSync: true }); } catch { /* the server says if the conversation is not there */ }
+    showNotification(text((await copy(chatLinkUrl(window.location?.origin || '', projectId, id))) ? 'psChatLinkCopied' : 'psCopyFailed'), 'success');
+  };
+  window.addEventListener(SHARE_CONVERSATION_EVENT, (event) => { void shareHere(event); }, true);
   document.addEventListener(SHARED_EVENT, (event) => { if (event.detail?.box) void drawSharedList({ box: event.detail.box, root: event.detail.root || null }); });
   document.addEventListener(MEMBERS_EVENT, (event) => { void openMembers({ projectId: String(event.detail?.projectId || ''), root: event.detail?.root || null }); });
-  document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); lookToRefresh(); });
-  return { openMembers, openShared, takePending, drawSharedList, refreshShared, sharedFolders };
+  document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); if (area && readPendingChatLink(area)) lookForChat(); lookToRefresh(); });
+  void PENDING_CHAT_KEY;
+  return { openMembers, openShared, takePending, takePendingChat, drawSharedList, refreshShared, sharedFolders };
 }

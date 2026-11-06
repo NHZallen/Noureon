@@ -10,6 +10,7 @@ import { provideService, SERVICES } from '../src/app/runtime/services.js';
 import { drawSharedProjects, openSharedProjectPage } from '../src/app/ui/projects/shared-project-page.js';
 import { openProjectConversation } from '../src/app/ui/projects/project-conversation-viewer.js';
 import { memoryScopeOf, projectIdOf, projectInstructionTextFor } from '../src/app/runtime/projects/project-instructions.js';
+import { PENDING_CHAT_KEY, chatLinkOf, chatLinkUrl, isChatLinkRoute, readPendingChatLink } from '../src/app/runtime/project-sharing/join-route.js';
 import { createSharedFolders } from '../src/app/runtime/project-sharing/shared-folders.js';
 import sharing from '../src/data/i18n/parts/project-sharing.js';
 
@@ -119,7 +120,7 @@ const readerOf = (read, live = {}) => ({
   conversation: async (id) => (live.conversation ? live.conversation(id) : { ok: false, code: 'gone' })
 });
 
-const started = ({ read, conversations = [], items = [], live = {} } = {}) => {
+const started = ({ read, conversations = [], items = [], live = {}, copyText = null } = {}) => {
   const { window, document, root } = page();
   announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
   provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
@@ -127,7 +128,7 @@ const started = ({ read, conversations = [], items = [], live = {} } = {}) => {
   const api = startProjectSharing({
     document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => conversations, getFolders: () => [] },
     saveAppData: async () => { events.saved += 1; }, showNotification: (message, kind) => events.notes.push([message, kind]), renderSidebar: () => {}, openConversation: (id) => events.opened.push(id),
-    client: { sharedWithMe: async () => ({ ok: true, data: items }), invite: async () => ({ ok: false }), leave: async (id) => { events.left.push(id); return { ok: true }; } }, storage: window.localStorage, createReader: () => readerOf(read, live), pollMs: 40, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
+    client: { sharedWithMe: async () => ({ ok: true, data: items }), invite: async () => ({ ok: false }), leave: async (id) => { events.left.push(id); return { ok: true }; } }, storage: window.localStorage, createReader: () => readerOf(read, live), pollMs: 40, copyText, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
   });
   return { api, document, root, events, conversations };
 };
@@ -423,4 +424,50 @@ test('leaving with the option puts the copies in a new project of the person and
   assert.equal(conversations[0].folderId, folders[0].id);
   assert.deepEqual(notes.at(-1), [text('psLeaveOwnDone', { name: 'City plan (my copy)' }), 'success']);
   assert.equal(conversations[1].id, 'a1');
+});
+
+const CHAT = '323e4567-e89b-12d3-a456-426614174002';
+
+test('the address of a conversation of a shared project is told apart, kept for the app and read back', () => {
+  const path = `/c/${PROJECT}/${CHAT}`;
+  assert.equal(isChatLinkRoute(path), true);
+  assert.equal(isChatLinkRoute('/join/abc'), false);
+  assert.deepEqual(chatLinkOf(path), { projectId: PROJECT, conversationId: CHAT });
+  assert.equal(chatLinkUrl('https://noureon.com/', PROJECT, CHAT), `https://noureon.com${path}`);
+  const area = new Window().localStorage;
+  area.setItem(PENDING_CHAT_KEY, JSON.stringify({ projectId: PROJECT, conversationId: CHAT, at: Date.now() }));
+  assert.deepEqual(readPendingChatLink(area), { projectId: PROJECT, conversationId: CHAT });
+  area.setItem(PENDING_CHAT_KEY, JSON.stringify({ projectId: PROJECT, conversationId: CHAT, at: 1 }));
+  assert.equal(readPendingChatLink(area), null);
+});
+
+test('a link to a conversation opens it for a member: someone else’s as a page, one’s own in the chat; a person who is not in the project is told so', async () => {
+  const project = { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat(CHAT, 'o', 'Traffic', 'x', MESSAGES), chat('mine', ME, 'Mine', 'x')] };
+  const env = started({ read: async () => ({ ok: true, project }), conversations: [{ id: 'mine', title: 'Mine', messages: [] }] });
+  await env.api.openShared({ project_id: PROJECT, root: env.root, openChatId: CHAT });
+  assert.match(env.root.textContent, /answer two/);
+  await env.api.openShared({ project_id: PROJECT, root: env.root, openChatId: 'mine' });
+  assert.deepEqual(env.events.opened, ['mine']);
+  const out = started({ read: async () => ({ ok: false, code: 'gone' }) });
+  await out.api.openShared({ project_id: PROJECT, root: out.root, openChatId: CHAT, notMemberText: 'psChatLinkNotMember' });
+  assert.deepEqual(out.events.notes.at(-1), [texts.psChatLinkNotMember, 'error']);
+});
+
+test('"Share conversation" in a shared project copies a link for members only and does not open the public sharing', async () => {
+  const copied = [];
+  const mine = { id: CHAT, title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: [] };
+  const env = started({ conversations: [mine], read: async () => ({ ok: true, project: { role: 'chat', project: { name: 'x' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } }), copyText: async (value) => { copied.push(value); return true; } });
+  const publicOpened = [];
+  env.document.defaultView.addEventListener('astra:share-conversation', () => publicOpened.push(1));
+  env.document.defaultView.dispatchEvent(new env.document.defaultView.CustomEvent('astra:share-conversation', { detail: { id: CHAT } }));
+  await tick(); await tick();
+  assert.deepEqual(copied, [`${env.document.defaultView.location.origin}/c/${PROJECT}/${CHAT}`]);
+  assert.deepEqual(env.events.notes.at(-1), [texts.psChatLinkCopied, 'success']);
+  assert.equal(publicOpened.length, 0);
+  assert.ok(env.events.saved >= 1);
+  const plain = { id: 'p', title: 'Plain', messages: [] };
+  const other = started({ conversations: [plain], read: async () => ({ ok: false }) });
+  other.document.defaultView.addEventListener('astra:share-conversation', () => publicOpened.push(2));
+  other.document.defaultView.dispatchEvent(new other.document.defaultView.CustomEvent('astra:share-conversation', { detail: { id: 'p' } }));
+  assert.deepEqual(publicOpened, [2]);
 });
