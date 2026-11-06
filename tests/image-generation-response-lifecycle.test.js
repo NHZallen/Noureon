@@ -690,3 +690,43 @@ test('the frames of a GIF marked in the editor are edited one by one and put bac
   await run({ id: 'm', provider: 'openai' }, { messages: [] });
   assert.equal(calls.at(-1).gifDataUrl, '');
 });
+
+test('frames of a GIF marked in the editor go to the server when it can make them, with the GIF they came from', async () => {
+  const started = [];
+  const edited = [];
+  const marker = { __astraCloudAsset: { path: 'u/x', mimeType: 'image/gif', encoding: 'blob' } };
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async () => ({ images: [] }),
+    saveImageAsset: async () => ({ id: 'new', storageKey: 'k', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/gif;base64,R0lGODlh',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback,
+    editGifFrames: async (input) => { edited.push(input); return { images: [{ b64Json: 'R0lGODlh', mediaType: 'image/gif' }] }; }
+  });
+  const frame = (index) => ({ inlineData: { mimeType: 'image/png', data: `F${index}`, targetedEdit: { index, count: 9, source: 'gif-1' } } });
+  const serverReply = {
+    planImage: () => ({ ok: true }),
+    startImage: async (args) => { started.push(args); return { ok: true, run: { followImage: async () => ({ parts: [{ generatedImage: { id: 'made', mediaType: 'image/gif' } }] }) } }; },
+    notify: () => {}
+  };
+  const run = (gifDescriptor, reply = serverReply) => lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts: [{ text: 'remove the waves' }, frame(2), frame(5)], modelInfo: { id: 'gpt-image-2.6-flare', provider: 'openai', maxImageReferences: 16 },
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: {}, messages: [{ role: 'model', parts: [{ generatedImage: gifDescriptor }] }] },
+    serverReply: reply, assistantMessageId: 'message-1', sequence: 4, uiLanguage: 'en'
+  });
+  // the GIF is a file of the cloud space: the server reads it there
+  const result = await run({ id: 'gif-1', mediaType: 'image/gif', storageKey: 'k', aspectRatio: '3:2', cloudAsset: marker });
+  assert.equal(edited.length, 0, 'the page did not make it');
+  assert.equal(result.parts[0].generatedImage.id, 'made');
+  assert.deepEqual(started[0].gifEdit, { source: marker, edits: [{ index: 2, count: 9 }, { index: 5, count: 9 }] });
+  assert.deepEqual(started[0].references, ['data:image/png;base64,F2', 'data:image/png;base64,F5']);
+  assert.equal(started[0].config.aspectRatio, '3:2');
+  assert.match(started[0].prompt, /^remove the waves\n\nThe colored hand-drawn marks/);
+  // a GIF that is only in this page goes with the request
+  await run({ id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' });
+  assert.equal(started[1].gifEdit.source, 'data:image/gif;base64,R0lGODlh');
+  // the server cannot take it (too large, busy): the page makes it, as before
+  await run({ id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' }, { ...serverReply, startImage: async () => ({ ok: false, reason: 'busy', notify: false }) });
+  assert.equal(edited.length, 1);
+});

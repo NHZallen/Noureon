@@ -8,6 +8,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { createImageGenerator } from '../src/app/runtime/images/image-generators.js';
+import { editGifFrames } from '../src/app/runtime/images/gif-frame-edit.js';
+import { pictureToFrame } from './picture-frame.js';
 import { openAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { ReplyError, scrubMessage } from './executor.js';
 import { ERROR_CODES } from './protocol.js';
@@ -21,21 +23,14 @@ const toDataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(by
  * Asks the picture model for pictures and keeps each one in the person's cloud space: resolves { parts } (the `generatedImage` parts of a message) or
  * { stopped: true } when the reply was stopped; throws a ReplyError (provider_error, or image_not_saved when the pictures were made but could not be
  * kept). `keepPrompt` writes the prompt into each part, `title` a few words for the file name. `apiKey` is the picture model's key, `inputReferences` the pictures to start from as data addresses, `secrets` what the message of a failure must not show.
- * The same for an image of its own (executeImage) and for a picture a text model draws by itself (image-tool.js).
+ * The same for an image of its own (executeImage) and for a picture a text model draws by itself (image-tool.js). `generate(request, makePictures)` stands in for the picture maker when it is given.
  */
-export async function drawPictures({ apiKey, model, provider = 'openrouter', safetyIdentifier = '', prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
+export async function drawPictures({ apiKey, model, provider = 'openrouter', safetyIdentifier = '', prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, generate = null, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
   let result;
   try {
-    result = await createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier })({
-      apiKey,
-      model,
-      provider,
-      prompt,
-      config,
-      inputReferences,
-      groups,
-      signal
-    });
+    // `generate` makes the pictures some other way (the frames of a GIF edited and put back, below); it is given what the picture maker gets.
+    const request = { apiKey, model, provider, prompt, config, inputReferences, groups, signal };
+    result = generate ? await generate(request, createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier })) : await createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier })(request);
   } catch (error) {
     if (signal?.aborted) return { stopped: true };
     throw new ReplyError(scrubMessage(error?.message, secrets), ERROR_CODES.providerError);
@@ -140,7 +135,29 @@ export async function executeImage({
   if (signal?.aborted) return stopped();
 
   const safetyIdentifier = spec.model.provider === 'openai' && image.safetyId !== false ? await openAiSafetyIdentifier(userId) : '';
-  const drawn = await drawPictures({ apiKey: secrets.providerKey, model: spec.model.id, provider: spec.model.provider, safetyIdentifier, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
+  // Frames of a GIF that were edited in the editor of a picture: each is asked of the model on its own and the answers are put back in the GIF they came from (src/app/runtime/images/gif-frame-edit.js).
+  let generate = null;
+  if (image.gifEdit) {
+    let gifDataUrl = '';
+    try {
+      gifDataUrl = typeof image.gifEdit.source === 'string' ? image.gifEdit.source : toDataUrl(await files.load({ userId, marker: image.gifEdit.source }), image.gifEdit.source.__astraCloudAsset.mimeType);
+    } catch (error) {
+      if (signal?.aborted) return stopped();
+      onProblem('image_reference_unreadable', error);
+      throw new ReplyError('The GIF these frames came from could not be read from your cloud space.', ERROR_CODES.providerError);
+    }
+    generate = (request, makePictures) => editGifFrames({
+      edits: image.gifEdit.edits.map((edit, at) => ({ ...edit, dataUrl: request.inputReferences[at] })),
+      gifDataUrl,
+      prompt: request.prompt,
+      modelInfo: { id: request.model, provider: request.provider, supportedImageAspectRatios: spec.model.info?.supportedImageAspectRatios },
+      apiKey: request.apiKey,
+      generateImage: makePictures,
+      signal: request.signal,
+      toFrame: pictureToFrame
+    });
+  }
+  const drawn = await drawPictures({ generate, apiKey: secrets.providerKey, model: spec.model.id, provider: spec.model.provider, safetyIdentifier, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
   if (drawn.stopped) return stopped();
   const parts = drawn.parts;
   return { parts, status: 'done', run: { elapsedMs: now() - startedAt }, toolCalls: 0 };

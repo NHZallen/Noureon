@@ -8,7 +8,7 @@ import { openAiSafetyIdentifierEnabled } from '../reply/openai-request.js';
  * size and the pictures to start from (data addresses), with the key of OpenRouter. Resolves like `begin`: { ok: true, run } or
  * { ok: false, reason, notify } (the image is then made here).
  */
-export async function startImageRun({ getApiKeyForProvider, getModelApiId, flushSync, request, warn, clientVersion, createRun, reasons, protocol, maxChars }, { conversation, modelInfo, prompt, config = {}, references = [], groups = null, assistantMessageId, sequence = 0, uiLanguage = 'en' }) {
+export async function startImageRun({ getApiKeyForProvider, getModelApiId, flushSync, request, warn, clientVersion, createRun, reasons, protocol, maxChars }, { conversation, modelInfo, prompt, config = {}, references = [], groups = null, gifEdit = null, assistantMessageId, sequence = 0, uiLanguage = 'en' }) {
   const providerKey = getApiKeyForProvider(modelInfo?.provider);
   if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
   // Only what has a value goes (the server refuses an empty text); the pictures go as they are, and a request too large is made here.
@@ -23,7 +23,7 @@ export async function startImageRun({ getApiKeyForProvider, getModelApiId, flush
     model: { provider: modelInfo.provider, id: getModelApiId(modelInfo), info: modelInfo },
     request: { language: uiLanguage },
     // Whether the account's anonymous identifier goes to OpenAI (the setting; the default is yes, so only a no is said).
-    image: { prompt, config: imageConfig, references, ...(Array.isArray(groups) && groups.length > 1 ? { groups } : {}), ...(modelInfo.provider === 'openai' && !openAiSafetyIdentifierEnabled() ? { safetyId: false } : {}) },
+    image: { prompt, config: imageConfig, references, ...(Array.isArray(groups) && groups.length > 1 ? { groups } : {}), ...(gifEdit ? { gifEdit } : {}), ...(modelInfo.provider === 'openai' && !openAiSafetyIdentifierEnabled() ? { safetyId: false } : {}) },
     secrets: { providerKey }
   };
   const body = JSON.stringify(spec);

@@ -282,7 +282,16 @@ export function createImageGenerationResponseLifecycle({
     if (frameEdits.length) {
       const source = (conversation.messages || []).flatMap(message => message.parts || []).map(part => part.generatedImage).find(picture => picture?.id === frameEdits[0].source);
       const gifDataUrl = source ? await getStoredImageDataUrl(source) : '';
-      const edit = editGifFrames || (await import('./gif-frame-edit.js')).editGifFrames;
+      // The server does it when it can (the page may be closed meanwhile): it is given the frames, which GIF they came from (its file in the cloud, or the GIF itself) and the words.
+      if (source && gifDataUrl && serverReply && assistantMessageId && serverReply.planImage({ conversation }).ok) {
+        const started = await serverReply.startImage({
+          conversation, modelInfo, prompt: editedPrompt, config: { aspectRatio: source.aspectRatio || normalizedConfig.aspectRatio, n: 1 },
+          references: frameEdits.map(edit => edit.dataUrl), gifEdit: { source: source.cloudAsset || gifDataUrl, edits: frameEdits.map(({ index, count }) => ({ index, count })) }, assistantMessageId, sequence, uiLanguage
+        });
+        if (started.ok) return followServerImage(started.run, { signal, serverReply, uiLanguage });
+        if (started.notify) serverReply.notify(started.notify, uiLanguage);
+      }
+      const edit = editGifFrames || ((input) => Promise.all([import('./gif-frame-edit.js'), import('./gif-frame-edit-page.js')]).then(([module, page]) => module.editGifFrames({ ...input, toFrame: page.pictureToFrame })));
       const edited = await edit({ edits: frameEdits, gifDataUrl, prompt: editedPrompt, modelInfo, apiKey: generationRequest.apiKey, generateImage, signal, getText });
       const savedFrames = await Promise.all(edited.images.map(image => saveImageAsset({ ...image, title: spokenMessage })));
       return { parts: savedFrames.map(generatedImage => ({ generatedImage })), descriptors: savedFrames };

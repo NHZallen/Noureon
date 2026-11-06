@@ -178,9 +178,10 @@ function validateImageSpec(input) {
   let config = {};
   let references = [];
   let groups = null;
+  let gifEdit = null;
   if (!isObject(image)) fail('image', 'must be an object');
   else {
-    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups', 'safetyId'].includes(name)) fail(`image.${name}`, 'is not a known field');
+    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups', 'safetyId', 'gifEdit'].includes(name)) fail(`image.${name}`, 'is not a known field');
     if (!text(image.prompt, LIMITS.maxImagePromptChars)) fail('image.prompt', `must be a text of at most ${LIMITS.maxImagePromptChars} characters`);
     if (!isObject(image.config)) fail('image.config', 'must be an object');
     else {
@@ -210,6 +211,24 @@ function validateImageSpec(input) {
           if (!isDataImage(reference) && !isImageMarker(reference)) fail(`image.references[${index}]`, 'must be a picture (a data address or a file of the cloud space)');
         });
         references = image.references;
+      }
+    }
+    // Frames of a GIF edited in the editor of a picture (src/app/runtime/images/gif-frame-edit.js): the GIF they came from (a data address or a file of the cloud space), and which frame of how many each of the
+    // `references` is, in the same order. The server asks the model for each frame on its own and puts the answers back in the GIF.
+    if (image.gifEdit !== undefined) {
+      const edit = image.gifEdit;
+      if (!isObject(edit)) fail('image.gifEdit', 'must be an object');
+      else {
+        for (const name of Object.keys(edit)) if (!['source', 'edits'].includes(name)) fail(`image.gifEdit.${name}`, 'is not a known field');
+        if (!isDataImage(edit.source) && !isImageMarker(edit.source)) fail('image.gifEdit.source', 'must be a picture (a data address or a file of the cloud space)');
+        if (!Array.isArray(edit.edits) || edit.edits.length < 1 || edit.edits.length > 16) fail('image.gifEdit.edits', 'must be a list of 1 to 16 frames');
+        else {
+          edit.edits.forEach((frame, index) => {
+            if (!isObject(frame) || !isInteger(frame.count, 2, 16) || !isInteger(frame.index, 0, 15) || frame.index >= frame.count) fail(`image.gifEdit.edits[${index}]`, 'must say which frame (0 to 15) of how many (2 to 16)');
+          });
+          if (references.length !== edit.edits.length) fail('image.gifEdit.edits', 'must have one frame for each of the references');
+        }
+        if (!errors.length) gifEdit = { source: edit.source, edits: edit.edits.map((frame) => ({ index: frame.index, count: frame.count })) };
       }
     }
     // The pictures of an earlier reply, each built on by the picture at its place: one request for each group (server/image-run.js).
@@ -252,7 +271,7 @@ function validateImageSpec(input) {
       // What the rest of the server reads of any reply (the language of its error, the metadata of its message); an image has no history.
       request: { history: [], currentMessage: { parts: [] }, systemInstruction: '', language: request.language, ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}) },
       tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false },
-      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}), ...(image.safetyId === false ? { safetyId: false } : {}) },
+      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}), ...(gifEdit ? { gifEdit } : {}), ...(image.safetyId === false ? { safetyId: false } : {}) },
       secrets: { providerKey: secrets.providerKey }
     }
   };
