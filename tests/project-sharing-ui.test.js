@@ -88,7 +88,14 @@ const fakeClient = (state) => ({
   refreshLink: async (_p, role) => { state.calls.push(`refresh:${role}`); state.links = [{ code: 'fresh'.padEnd(30, 'y'), role, generation: 2 }]; return { ok: true, data: {} }; },
   closeLink: async (_p, role) => { state.calls.push(`close:${role}`); state.links = state.links.filter((link) => link.role !== role); return { ok: true, data: null }; },
   setRole: async (_p, member, role) => { state.calls.push(`role:${member}:${role}`); return { ok: true, data: null }; },
-  remove: async (_p, member) => { state.calls.push(`remove:${member}`); return { ok: true, data: null }; }
+  remove: async (_p, member, deleteThem) => { state.calls.push(`remove:${member}:${deleteThem}`); return { ok: true, data: null }; },
+  notes: async () => ({ ok: true, data: state.notes || [] }),
+  addNote: async (_p, noteText) => { state.calls.push(`note:${noteText}`); state.notes = [...(state.notes || []), { id: `n${(state.notes || []).length}`, text: noteText }]; return { ok: true, data: {} }; },
+  deleteNote: async (_p, noteId) => { state.calls.push(`delnote:${noteId}`); state.notes = (state.notes || []).filter((note) => note.id !== noteId); return { ok: true, data: null }; },
+  invites: async () => ({ ok: true, data: state.pending || [] }),
+  revokeInvite: async (_p, inviteId) => { state.calls.push(`revoke:${inviteId}`); state.pending = (state.pending || []).filter((entry) => entry.id !== inviteId); return { ok: true, data: null }; },
+  inviteQuota: async () => ({ ok: true, data: { remaining: state.left ?? 17, limit: 20 } }),
+  inviteByMail: async (_p, { email, role }) => { state.calls.push(`mail:${email}:${role}`); if (state.mailError) return { ok: false, code: state.mailError }; state.left = (state.left ?? 17) - 1; state.pending = [...(state.pending || []), { id: 'i1', email, role }]; return { ok: true, data: { remaining: state.left, limit: 20 } }; }
 });
 
 test('a project that is not shared offers to be shared, and sharing tells the page and shows the members', async () => {
@@ -161,7 +168,7 @@ test('the owner changes a role and removes a member after being asked', async ()
   assert.match(root.textContent, /Remove Bob\?/);
   root.querySelector('[data-remove-go]').click();
   await tick(); await tick();
-  assert.deepEqual(state.calls, ['role:u2:editor', 'remove:u2']);
+  assert.deepEqual(state.calls, ['role:u2:editor', 'remove:u2:false']);
 });
 
 test('the invitation shows the project, the role and what it can do, and joining tells the page; a bad invitation says why', async () => {
@@ -191,4 +198,76 @@ test('the invitation shows the project, the role and what it can do, and joining
   assert.match(notes.at(-1), /ask the owner of the project to make a new link for you/);
   assert.equal(joinFailureKey('invite_full'), 'psJoinFull');
   assert.equal(joinFailureKey('whatever'), 'psJoinInvalid');
+});
+
+test('the owner and the editors invite by mail and see how many are left this hour and who is waiting; a chat member does not see this part', async () => {
+  const { document, root } = page();
+  const state = { role: 'owner', shared: true, links: [], calls: [], left: 17 };
+  const notes = [];
+  await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: (message, kind) => notes.push([message, kind]) });
+  assert.match(root.textContent, /You can send 17 more this hour \(limit 20\)/);
+  const input = root.querySelector('#psh-email');
+  input.value = 'bob@example.test';
+  root.querySelector('[data-email-send]').click();
+  await tick(); await tick();
+  assert.deepEqual(state.calls, ['mail:bob@example.test:chat']);
+  assert.match(root.textContent, /You can send 16 more/);
+  assert.match(root.textContent, /bob@example\.test/);
+  assert.match(root.textContent, /Waiting to join/);
+  assert.deepEqual(notes.at(-1), [text('psEmailSent'), 'success']);
+  root.querySelector('[data-invite-id="i1"] .pj-chip').click();
+  await tick(); await tick();
+  assert.equal(state.calls.at(-1), 'revoke:i1');
+  assert.equal(root.querySelector('[data-invite-id]'), null);
+  state.mailError = 'rate_limited';
+  root.querySelector('#psh-email').value = 'cy@example.test';
+  root.querySelector('[data-email-send]').click();
+  await tick(); await tick();
+  assert.deepEqual(notes.at(-1), [text('psEmailLimit'), 'error']);
+  state.mailError = 'invalid_email';
+  root.querySelector('#psh-email').value = 'nope';
+  root.querySelector('[data-email-send]').click();
+  await tick(); await tick();
+  assert.deepEqual(notes.at(-1), [text('psEmailInvalid'), 'error']);
+  const chat = page();
+  await openMembersPanel({ document: chat.document, root: chat.root, text, client: fakeClient({ role: 'chat', shared: true, links: [], calls: [] }), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {} });
+  assert.equal(chat.root.querySelector('#psh-email'), null);
+});
+
+test('the notes of the project are one list: everyone reads, the owner and the editors add and delete, and the page is told when they are read', async () => {
+  const { document, root } = page();
+  const state = { role: 'editor', shared: true, links: [], calls: [], notes: [{ id: 'n0', text: 'The client likes red.' }] };
+  const told = [];
+  await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {}, onNotes: (list) => told.push(list.length) });
+  assert.match(root.textContent, /The client likes red\./);
+  assert.deepEqual(told, [1]);
+  root.querySelector('#psh-note').value = 'Deadline is Friday.';
+  root.querySelector('[data-note-add]').click();
+  await tick(); await tick();
+  assert.deepEqual([...root.querySelectorAll('.psh-note-text')].map((node) => node.textContent), ['The client likes red.', 'Deadline is Friday.']);
+  root.querySelector('[data-note-id="n0"] .pj-round').click();
+  await tick(); await tick();
+  assert.deepEqual(state.calls, ['note:Deadline is Friday.', 'delnote:n0']);
+  assert.equal(told.at(-1), 1);
+  const chat = page();
+  await openMembersPanel({ document: chat.document, root: chat.root, text, client: fakeClient({ role: 'chat', shared: true, links: [], calls: [], notes: [{ id: 'n0', text: 'Seen by all.' }] }), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {} });
+  assert.match(chat.root.textContent, /Seen by all\./);
+  assert.equal(chat.root.querySelector('#psh-note'), null);
+  assert.equal(chat.root.querySelector('[data-note-id] .pj-round'), null);
+});
+
+test('taking a person out asks whether to keep their conversations (kept by default) or delete them too', async () => {
+  const { document, root } = page();
+  const state = { role: 'owner', shared: true, links: [], calls: [] };
+  await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {} });
+  root.querySelector('[data-user-id="u2"] .pj-round').click();
+  await tick();
+  [...document.querySelectorAll('.pj-menu button, [role="menuitem"]')].find((node) => node.textContent.includes('Remove member')).click();
+  await tick();
+  assert.equal(root.querySelector('.psh-choice[data-delete="false"]').getAttribute('aria-pressed'), 'true');
+  root.querySelector('.psh-choice[data-delete="true"]').click();
+  assert.equal(root.querySelector('.psh-choice[data-delete="true"]').getAttribute('aria-pressed'), 'true');
+  root.querySelector('[data-remove-go]').click();
+  await tick(); await tick();
+  assert.deepEqual(state.calls, ['remove:u2:true']);
 });

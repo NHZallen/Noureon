@@ -172,6 +172,24 @@ begin
 end;
 $$;
 
+-- The shared projects of the person that they own, with their notes: the page puts the notes in the replies of the owner too (one call when the page starts).
+create or replace function public.list_my_shared_projects()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare v_user uuid := (select auth.uid());
+begin
+  if v_user is null then raise exception 'Authentication required'; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object('project_id', f.id, 'notes', coalesce((select jsonb_agg(jsonb_build_object('id', n.id, 'text', n.note_text) order by n.created_at) from public.project_notes n where n.project_id = f.id), '[]'::jsonb)) order by f.shared_at)
+    from public.workspace_folders f where f.user_id = v_user and f.shared_at is not null and f.deleted_at is null
+  ), '[]'::jsonb);
+end;
+$$;
+
 create or replace function public.server_revoke_project_invite(p_user_id uuid, p_project_id uuid, p_invite_id uuid)
 returns void
 language plpgsql
@@ -186,11 +204,11 @@ end;
 $$;
 
 revoke all on function
-  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid),
+  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid), public.list_my_shared_projects(),
   public.server_create_project_email_invite(uuid, uuid, text, text, text), public.server_revoke_project_invite(uuid, uuid, uuid), public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function
-  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid),
+  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid), public.list_my_shared_projects(),
   public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
   to authenticated, service_role;
 grant execute on function public.server_create_project_email_invite(uuid, uuid, text, text, text), public.server_revoke_project_invite(uuid, uuid, uuid) to service_role;

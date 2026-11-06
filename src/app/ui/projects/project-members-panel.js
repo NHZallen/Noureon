@@ -75,10 +75,13 @@ export function openShareConfirm({ document, root, text, preview }) {
  * Opens the page. `project` is { id, name }; `me` the id of the signed-in person; `ownerName` and `inviterName` are the name shown on a link. `onShared(projectId)` is told when the project has
  * just been shared (the page makes the memory of its own copy of the folder `project`). `avatarUrl(userId, version)` may give the picture of a person.
  */
-export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, avatarUrl = () => '', confirm = null }) {
+export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, onNotes = () => {}, avatarUrl = () => '', confirm = null }) {
   let role = 'chat';
   let data = null;
   let links = [];
+  let notes = [];
+  let pending = [];
+  let mailLeft = null;
   let busy = false;
   const sheet = openSheet({ document, root, title: text('psTitle'), action: { label: text('psDone'), onClick: () => {} }, body: () => {}, className: 'psh-sheet' });
   const body = sheet.body;
@@ -89,9 +92,19 @@ export async function openMembersPanel({ document, root, text, client, project, 
     if (!members.ok) { fail(members.code); sheet.close(); return false; }
     data = members.data;
     links = [];
+    notes = [];
+    pending = [];
+    if (data.shared_at) {
+      const noteList = await client.notes(project.id);
+      if (noteList.ok) { notes = noteList.data || []; onNotes(notes); }
+    }
     if (data.shared_at && data.role !== 'chat') {
       const result = await client.links(project.id);
       if (result.ok) links = result.data || [];
+      const invites = await client.invites(project.id);
+      if (invites.ok) pending = invites.data || [];
+      const quota = await client.inviteQuota?.();
+      if (quota?.ok) mailLeft = { remaining: Number(quota.data?.remaining) || 0, limit: Number(quota.data?.limit) || 20 };
     }
     return true;
   }
@@ -182,6 +195,94 @@ export async function openMembersPanel({ document, root, text, client, project, 
     body.appendChild(card);
   };
 
+  const drawEmail = () => {
+    body.appendChild(make(document, 'div', 'pj-section-title', text('psEmailSection')));
+    const card = make(document, 'div', 'psh-card');
+    const input = make(document, 'input', 'psh-input');
+    input.type = 'email';
+    input.id = 'psh-email';
+    input.placeholder = text('psEmailPlaceholder');
+    input.setAttribute('autocomplete', 'off');
+    const row = make(document, 'div', 'psh-link-actions');
+    const send = make(document, 'button', 'pj-primary psh-go', text('psEmailSend'));
+    send.type = 'button';
+    send.setAttribute('data-email-send', '');
+    send.addEventListener('click', async () => {
+      if (busy || !input.value.trim()) return;
+      busy = true;
+      send.disabled = true;
+      try {
+        const result = await client.inviteByMail(project.id, { email: input.value.trim(), role, inviterName });
+        if (!result.ok) { notify(text(result.code === 'invalid_email' ? 'psEmailInvalid' : result.code === 'rate_limited' ? 'psEmailLimit' : result.code === 'mail' || result.code === 'failed' ? 'psEmailFailed' : result.code === 'not_allowed' ? 'psNotAllowed' : 'psFailed'), 'error'); if (result.code === 'rate_limited') mailLeft = { ...(mailLeft || { limit: 20 }), remaining: 0 }; } else { notify(text('psEmailSent'), 'success'); mailLeft = { remaining: Number(result.data.remaining) || 0, limit: Number(result.data.limit) || 20 }; input.value = ''; }
+      } finally { busy = false; }
+      if (await load()) draw();
+    });
+    row.append(send);
+    card.append(input);
+    if (mailLeft) card.appendChild(make(document, 'p', 'pj-note psh-quota', text('psEmailQuota', { remaining: mailLeft.remaining, limit: mailLeft.limit })));
+    card.append(row);
+    for (const invite of pending) {
+      const line = make(document, 'div', 'psh-member');
+      line.dataset.inviteId = invite.id;
+      const mark = make(document, 'span', 'psh-avatar', '@');
+      const label = make(document, 'div', 'psh-member-text');
+      label.append(make(document, 'div', 'psh-member-name', invite.email), make(document, 'div', 'pj-note', `${text('psPending')} · ${text(ROLE_KEYS[invite.role] || 'psRoleChat')}`));
+      const cancel = make(document, 'button', 'pj-chip', text('psRevokeInvite'));
+      cancel.type = 'button';
+      cancel.addEventListener('click', () => { void act(() => client.revokeInvite(project.id, invite.id)); });
+      line.append(mark, label, cancel);
+      card.appendChild(line);
+    }
+    body.appendChild(card);
+  };
+
+  const drawNotes = () => {
+    body.appendChild(make(document, 'div', 'pj-section-title', text('psNotesSection')));
+    const card = make(document, 'div', 'psh-card');
+    card.appendChild(make(document, 'p', 'pj-note', text('psNotesHint')));
+    if (!notes.length) card.appendChild(make(document, 'p', 'pj-note', text('psNotesNone')));
+    for (const note of notes) {
+      const line = make(document, 'div', 'psh-note');
+      line.dataset.noteId = note.id;
+      line.appendChild(make(document, 'span', 'psh-note-text', note.text));
+      if (data.role !== 'chat') {
+        const del = make(document, 'button', 'pj-round');
+        del.type = 'button';
+        del.setAttribute('aria-label', text('psNoteDelete'));
+        del.innerHTML = ICONS.trash;
+        del.addEventListener('click', () => { void act(() => client.deleteNote(project.id, note.id)); });
+        line.appendChild(del);
+      }
+      card.appendChild(line);
+    }
+    if (data.role !== 'chat') {
+      const input = make(document, 'input', 'psh-input');
+      input.type = 'text';
+      input.id = 'psh-note';
+      input.maxLength = 500;
+      input.placeholder = text('psNotePlaceholder');
+      const add = make(document, 'button', 'pj-chip', text('psNoteAdd'));
+      add.type = 'button';
+      add.setAttribute('data-note-add', '');
+      const submit = async () => {
+        if (!input.value.trim() || busy) return;
+        busy = true;
+        try {
+          const result = await client.addNote(project.id, input.value.trim());
+          if (!result.ok) { notify(text(result.code === 'notes_full' ? 'psNotesFull' : errorKey(result.code)), 'error'); return; }
+        } finally { busy = false; }
+        if (await load()) draw();
+      };
+      add.addEventListener('click', () => { void submit(); });
+      input.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); void submit(); } });
+      const row = make(document, 'div', 'psh-note-add');
+      row.append(input, add);
+      card.appendChild(row);
+    }
+    body.appendChild(card);
+  };
+  const errorKey = (code) => (code === 'no_cloud' ? 'psNeedCloud' : code === 'not_allowed' ? 'psNotAllowed' : 'psFailed');
+
   const memberMenu = (member, anchor) => {
     const items = [];
     if (member.role !== 'editor') items.push({ label: text('psMakeEditor'), icon: 'users', action: () => act(() => client.setRole(project.id, member.user_id, 'editor')) });
@@ -191,10 +292,23 @@ export async function openMembersPanel({ document, root, text, client, project, 
   };
 
   async function removeMember(member) {
+    let deleteThem = false;
     const dialog = openSheet({
       document, root, title: text('psRemoveTitle', { name: member.name }), dialog: true, close: text('psCancel'),
       body: (content, { close }) => {
         content.appendChild(make(document, 'p', 'pj-note', text('psRemoveBody')));
+        const choices = [[false, 'psRemoveKeep', 'psRemoveKeepHint'], [true, 'psRemoveDelete', 'psRemoveDeleteHint']];
+        const boxes = [];
+        for (const [value, label, hint] of choices) {
+          const option = make(document, 'button', 'psh-choice');
+          option.type = 'button';
+          option.dataset.delete = String(value);
+          option.setAttribute('aria-pressed', String(value === deleteThem));
+          option.append(make(document, 'span', 'psh-choice-label', text(label)), make(document, 'span', 'pj-note', text(hint)));
+          option.addEventListener('click', () => { deleteThem = value; boxes.forEach((box) => box.setAttribute('aria-pressed', String(box.dataset.delete === String(deleteThem)))); });
+          boxes.push(option);
+          content.appendChild(option);
+        }
         const buttons = make(document, 'div', 'psh-buttons');
         const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
         cancel.type = 'button';
@@ -202,7 +316,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
         const go = make(document, 'button', 'pj-primary psh-go', text('psRemoveGo'));
         go.type = 'button';
         go.setAttribute('data-remove-go', '');
-        go.addEventListener('click', () => { close(); void act(() => client.remove(project.id, member.user_id)); });
+        go.addEventListener('click', () => { close(); void act(() => client.remove(project.id, member.user_id, deleteThem)); });
         buttons.append(cancel, go);
         content.appendChild(buttons);
       }
@@ -242,8 +356,9 @@ export async function openMembersPanel({ document, root, text, client, project, 
       if (data.role === 'owner') drawIntro();
       return;
     }
-    if (data.role !== 'chat') drawLinks();
+    if (data.role !== 'chat') { drawLinks(); drawEmail(); }
     drawMembers();
+    drawNotes();
   }
 
   if (await load()) draw();

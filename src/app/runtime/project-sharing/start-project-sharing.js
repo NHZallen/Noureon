@@ -29,7 +29,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   };
   // The replies of a conversation made in a shared project carry its instructions and use its memory only: the folders the replies look at are the person's own and the shared ones.
   const sharedFolders = createSharedFolders({ storage: (() => { try { return storage || window.localStorage; } catch { return null; } })() });
-  setProjectFoldersReader(() => [...(dataStore.getFolders() || []), ...sharedFolders.list()]);
+  setProjectFoldersReader(() => [...(dataStore.getFolders() || []).map(sharedFolders.decorate), ...sharedFolders.list()]);
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
   const pendingStorage = () => { try { return storage || window.localStorage; } catch { return null; } };
   const copy = copyText || (async (value) => { try { await window.navigator.clipboard.writeText(value); return true; } catch { return false; } });
@@ -134,6 +134,22 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     drawSharedProjects({ document, box, text, items: result.data, onOpen: (item) => { void openShared({ ...item, root }); } });
   }
 
+  // What the replies need of the shared projects is read again when the page starts (and the account is ready): the notes of the person's own shared projects, and the instructions, notes and sources of the others.
+  let refreshing = false;
+  async function refreshShared() {
+    if (refreshing || !cloudOn() || !getAnnouncedUser()?.supabaseUserId) return;
+    refreshing = true;
+    try {
+      const mine = await shareClient.mine();
+      if (mine.ok) for (const item of mine.data || []) sharedFolders.setOwnNotes(item.project_id, item.notes);
+      const others = await shareClient.sharedWithMe();
+      if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id }); }
+    } catch { /* the next start tries again */ } finally { refreshing = false; }
+  }
+  const later = (run, wait) => { const timer = setTimeout(run, wait); timer?.unref?.(); };
+  const lookToRefresh = () => { for (const wait of [3000, 20000]) later(() => { void refreshShared(); }, wait); };
+  lookToRefresh();
+
   let joining = false;
   async function takePending() {
     const storageArea = pendingStorage();
@@ -156,11 +172,11 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     } finally { joining = false; }
   }
   // The account may take a moment to be ready after the page opens or after the login: look a few times.
-  const lookForPending = () => { for (const wait of [0, 2000, 6000, 15000, 30000]) setTimeout(() => { void takePending(); }, wait); };
+  const lookForPending = () => { for (const wait of [0, 2000, 6000, 15000, 30000]) later(() => { void takePending(); }, wait); };
   lookForPending();
 
   document.addEventListener(SHARED_EVENT, (event) => { if (event.detail?.box) void drawSharedList({ box: event.detail.box, root: event.detail.root || null }); });
   document.addEventListener(MEMBERS_EVENT, (event) => { void openMembers({ projectId: String(event.detail?.projectId || ''), root: event.detail?.root || null }); });
-  document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); });
-  return { openMembers, openShared, takePending, drawSharedList };
+  document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); lookToRefresh(); });
+  return { openMembers, openShared, takePending, drawSharedList, refreshShared, sharedFolders };
 }

@@ -320,6 +320,8 @@ test('the notes of a shared project are one list: everyone reads, the owner and 
   await rpc(A, 'delete_project_note', projectId, (await rpc(A, 'list_project_notes', projectId)).at(-1).id);
   await rpc(B, 'delete_project_note', projectId, note.id);
   assert.equal((await rpc(A, 'list_project_notes', projectId)).length, 1);
+  assert.deepEqual((await rpc(A, 'list_my_shared_projects')).filter((entry) => entry.project_id === projectId).map((entry) => entry.notes.map((n) => n.text)), [['Deadline is Friday.']]);
+  assert.deepEqual((await rpc(B, 'list_my_shared_projects')).filter((entry) => entry.project_id === projectId), []);
   assert.match((await database.service.query('select 1').then(() => A.error('select public.list_project_notes($1)', [id()])))?.message || 'it worked', /not_a_member/);
   for (let index = 0; index < 299; index += 1) await database.service.query("insert into public.project_notes (project_id, owner_id, note_text) values ($1, $2, 'n')", [projectId, ada]);
   assert.match((await A.error("select public.add_project_note($1, 'one too many')", [projectId]))?.message || 'it worked', /notes_full/);
