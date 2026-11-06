@@ -150,7 +150,7 @@ export function startProjects({
   const sourceOpenerOf = () => (sourceOpener ||= createSourceOpener({
     document, language: () => configAccess.getUiLanguage(), text, notify: (message, type = 'success') => showNotification(message, type),
     loadFile: ({ project, source }) => actions.sourceFile(project.id, source),
-    openMedia: (media, trigger) => { void import('./project-media-viewer.js').then(({ openProjectMedia }) => openProjectMedia({ document, language: configAccess.getUiLanguage(), media, trigger })); }
+    openMedia: (media, trigger) => { void import('./project-media-viewer.js').then(({ openProjectMedia }) => openProjectMedia({ document, language: configAccess.getUiLanguage(), media, trigger, getText: (key, fallback) => i18n[configAccess.getUiLanguage()]?.[key] || fallback })); }
   }));
   const open = async (route = { list: true }) => {
     // A second tap while the page is being loaded does not load it again.

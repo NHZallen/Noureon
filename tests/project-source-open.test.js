@@ -22,6 +22,11 @@ test('a text source is a file of its words, a research is a markdown file, a fil
   assert.deepEqual([file.name, file.type, file.base64, asked], ['plan.pdf', 'application/pdf', 'data:application/pdf;base64,QUJD', ['s-file']]);
   assert.equal(await sourceAsFile({ project: PROJECT, source: { id: 'u', kind: 'url', url: 'https://example.com' }, loadFile: async () => ({ data: 'x' }) }), null);
   assert.equal(await sourceAsFile({ project: PROJECT, source: FILE, loadFile: async () => null }), null, 'a file that cannot be read');
+  // a file whose original cannot be had but whose text was read: its text is what there is
+  const legacy = await sourceAsFile({ project: PROJECT, source: { ...FILE, title: 'report.docx', text: 'The words.', file: undefined }, loadFile: async () => null });
+  assert.deepEqual([legacy.name, legacy.type, Buffer.from(legacy.base64.split(',')[1], 'base64').toString()], ['report.txt', 'text/plain', 'The words.']);
+  const fallback = await sourceAsFile({ project: PROJECT, source: { ...FILE, text: 'The words.' }, loadFile: async () => null });
+  assert.equal(fallback.name, 'plan.txt');
 });
 
 function setup({ loaded = { mimeType: 'text/plain', data: Buffer.from('hello').toString('base64') } } = {}) {
@@ -73,4 +78,16 @@ test('a text source is had as a .txt file', async () => {
   assert.equal(t.delivered[0][0], 'Brief blue.txt');
   t.restore();
   await t.window.happyDOM.abort();
+});
+
+test('the viewer of pictures that a source opens in is in the language of the page: its words come from the page’s table, not from English', async () => {
+  const { openProjectMedia } = await import('../src/app/runtime/projects/project-media-viewer.js');
+  const window = new Window();
+  const table = { save: '儲存', share: '分享', closePreview: '關閉預覽' };
+  openProjectMedia({ document: window.document, language: 'zh-TW', media: { mimeType: 'image/png', data: 'AAAA', name: 'photo.png' }, getText: (key, fallback) => table[key] || fallback });
+  const box = window.document.querySelector('.media-lightbox');
+  assert.match(box.textContent, /儲存/);
+  assert.equal(box.querySelector('.media-lightbox-close').getAttribute('aria-label'), '關閉預覽');
+  assert.doesNotMatch(box.textContent, /Save/);
+  await window.happyDOM.abort();
 });

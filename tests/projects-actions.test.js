@@ -5,6 +5,7 @@ import { PROJECT_NAME_MAX, createProjectActions, setSharedProjectHook } from '..
 import { PROJECT_INSTRUCTIONS_MAX } from '../src/app/runtime/projects/project-instructions.js';
 import { setShares } from '../src/app/runtime/share/share-ref.js';
 import { setProjectFileDeps } from '../src/app/runtime/projects/project-source-files.js';
+import { announceUser } from '../src/app/runtime/features/user-ready.js';
 
 // What the page of the projects does to the workspace: make, change and delete a project (the choice of what happens to its chats), take a chat out of it, start a chat in it.
 
@@ -237,5 +238,18 @@ test('the bytes of the file of a source come from the person’s own files, or, 
   assert.deepEqual(await actions.sourceFile('shared', { id: 'x', file }), { mimeType: 'text/plain', data: 'eA==' });
   assert.deepEqual(asked, [['shared', 'x']]);
   setSharedProjectHook(null);
+  setProjectFileDeps({ store: null });
+});
+
+test('a file that is not on this device and has no path kept with its source is had from where the files of the person are kept, `<person>/<hash>`', async () => {
+  const { actions } = setup({ folders: [{ id: 'f1', name: 'Own', conversationIds: [], sources: [] }] });
+  const file = { name: 'plan.pdf', mimeType: 'application/pdf', hash: 'c'.repeat(64) };
+  const loads = [];
+  setProjectFileDeps({ store: { load: async (description) => { loads.push(description.asset?.__astraCloudAsset?.path || null); return description.asset ? { mimeType: 'application/pdf', data: 'QUJD' } : null; } } });
+  announceUser(null, { supabaseUserId: 'person-1' });
+  assert.deepEqual(await actions.sourceFile('f1', { id: 's', file }), { mimeType: 'application/pdf', data: 'QUJD' });
+  assert.deepEqual(loads, [null, `person-1/${'c'.repeat(64)}`], 'first here, then where the files are kept');
+  announceUser(null, null);
+  assert.equal(await actions.sourceFile('f1', { id: 's', file }), null, 'nobody is signed in: nowhere to look');
   setProjectFileDeps({ store: null });
 });

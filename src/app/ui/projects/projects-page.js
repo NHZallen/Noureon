@@ -533,15 +533,17 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       if (result.ok) notify(text('pjSourceRemoved'), 'success');
       after();
     });
-    // A source is looked at by tapping it and can be had as a file by its button (a phone too); a web address opens as a link. Not in the list of a project that is being made (its files are not kept yet).
+    // Three things that do not touch each other: the name (looked at when it is tapped), the button that has the file, and the button that removes it. Only what is tapped answers (the row does not light up as a whole).
+    const open = make(document, 'div', 'pj-source-open');
+    open.append(tile, meta);
     const buttons = [];
     if (sourceOpener && !project.staging) {
-      row.classList.add('is-openable');
-      row.setAttribute('role', 'button');
-      row.tabIndex = 0;
-      const look = () => { void sourceOpener.preview(project, source, row); };
-      row.addEventListener('click', look);
-      row.addEventListener('keydown', (event) => { if (event.target === row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); look(); } });
+      open.classList.add('is-openable');
+      open.setAttribute('role', 'button');
+      open.tabIndex = 0;
+      const look = () => { void sourceOpener.preview(project, source, open); };
+      open.addEventListener('click', look);
+      open.addEventListener('keydown', (event) => { if (event.target === open && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); look(); } });
       if (source.kind !== 'url') {
         const save = make(document, 'button', 'pj-more');
         save.type = 'button';
@@ -549,12 +551,12 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         save.setAttribute('aria-label', text('pjSourceDownload'));
         save.title = text('pjSourceDownload');
         save.innerHTML = ICONS.download(18);
-        save.addEventListener('click', (event) => { event.stopPropagation(); void sourceOpener.download(project, source); });
+        save.addEventListener('click', () => { void sourceOpener.download(project, source); });
         buttons.push(save);
       }
     }
-    if (canEdit(project)) { remove.addEventListener('click', (event) => event.stopPropagation()); buttons.push(remove); }
-    row.append(tile, meta, ...buttons);
+    if (canEdit(project)) buttons.push(remove);
+    row.append(open, ...buttons);
     return row;
   };
   const sourcesView = (project) => {

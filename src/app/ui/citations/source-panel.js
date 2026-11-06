@@ -100,19 +100,20 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
   };
 
   const fileRow = (file) => {
+    // The name and the button are two things: tapping the name looks at the file, tapping the button has it; the row does not answer as a whole.
     const row = make(document, 'div', 'source-item source-row is-file');
     row.dataset.fileName = file.name;
-    row.append(rowIcon('file'));
+    const open = make(document, 'div', 'source-row-open');
     const main = make(document, 'div', 'source-row-main');
     main.append(make(document, 'p', 'source-row-title', file.name));
-    row.append(main);
-    // Tapping the row looks at the file; its button has it (a phone too).
+    open.append(rowIcon('file'), main);
+    row.append(open);
     if (onOpenFile) {
-      row.classList.add('is-openable');
-      row.tabIndex = 0;
-      row.setAttribute('role', 'button');
-      row.addEventListener('click', () => onOpenFile(file.name, row));
-      row.addEventListener('keydown', (event) => { if (event.target === row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpenFile(file.name, row); } });
+      open.classList.add('is-openable');
+      open.tabIndex = 0;
+      open.setAttribute('role', 'button');
+      open.addEventListener('click', () => onOpenFile(file.name, open));
+      open.addEventListener('keydown', (event) => { if (event.target === open && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpenFile(file.name, open); } });
     }
     if (onDownloadFile) {
       const save = make(document, 'button', 'source-row-action is-download');
@@ -120,7 +121,7 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
       save.setAttribute('aria-label', getFileText(language, 'download'));
       save.title = getFileText(language, 'download');
       save.append(memoryIcon(document, 'download', { size: 16 }));
-      save.addEventListener('click', (event) => { event.stopPropagation(); onDownloadFile(file.name); });
+      save.addEventListener('click', () => onDownloadFile(file.name));
       row.append(save);
     }
     return row;

@@ -1216,12 +1216,13 @@ test('a source is tapped to be looked at and has a button to be had as a file; a
     const rows = t.$$('.pj-source');
     assert.equal(rows.length, 3);
     assert.deepEqual(rows.map((row) => Boolean(row.querySelector('[data-source-download]'))), [true, true, false], 'a web address has nothing to download');
+    rows[0].querySelector('.pj-source-open').click();
+    rows[2].querySelector('.pj-source-open').click();
     rows[0].click();
-    rows[2].click();
     rows[0].querySelector('[data-source-download]').click();
     rows[1].querySelector('[data-source-download]').click();
     await t.tick();
-    assert.deepEqual(calls, [['preview', 'f9', 's1'], ['preview', 'f9', 's3'], ['download', 'f9', 's1'], ['download', 'f9', 's2']], 'the button does not also look at the file');
+    assert.deepEqual(calls, [['preview', 'f9', 's1'], ['preview', 'f9', 's3'], ['download', 'f9', 's1'], ['download', 'f9', 's2']], 'the name, the download button and the remove button each answer on their own; the row does not');
     assert.equal(rows[0].querySelector('[data-source-download]').getAttribute('aria-label'), 'Download');
     // the button that removes a source does not look at it
     rows[1].querySelector('.pj-more[aria-label="Remove source"]').click();

@@ -363,7 +363,7 @@ test('the "Sources" button under a reply of someone else’s chat opens the pane
   assert.equal(panel.classList.contains('visible'), true);
   assert.equal(panel.querySelector('.history-tab[aria-selected="true"]').dataset.historyTab, 'sources');
   assert.deepEqual([...panel.querySelectorAll('.is-file')].map((row) => row.dataset.fileName), ['plan.pdf', 'budget.xlsx']);
-  panel.querySelector('.is-file').click();
+  panel.querySelector('.is-file .source-row-open').click();
   panel.querySelector('.is-file .is-download').click();
   assert.deepEqual(calls, [['open', 'plan.pdf'], ['download', 'plan.pdf']]);
   // opened by the button at the right it shows the newest reply that has sources

@@ -560,3 +560,17 @@ test('the button of the people in the head of a project is kept: a new head has 
   await tick(); await tick();
   assert.equal(next.querySelector('.psh-stack-count').textContent, '3');
 });
+
+test('a file of a shared project that has no path kept with its source is asked for by the owner and its hash, as the server names the files of a person', async () => {
+  const asked = [];
+  const env = setup({ readerOver: { asset: async (path) => { asked.push(path); return 'QUJD'; } } });
+  env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'editor', ownerId: 'o', ownerName: 'Ada' });
+  env.view(PROJECT);
+  await tick();
+  const hash = 'd'.repeat(64);
+  const file = { name: 'plan.pdf', mimeType: 'application/pdf', hash };
+  assert.deepEqual(await env.actions.sourceFile(PROJECT, { id: 's1', file }), { mimeType: 'application/pdf', data: 'QUJD' });
+  assert.deepEqual(await env.actions.sourceFile(PROJECT, { id: 's2', file: { ...file, asset: { __astraCloudAsset: { path: `o/${'e'.repeat(64)}` } } } }), { mimeType: 'application/pdf', data: 'QUJD' });
+  assert.deepEqual(asked, [`o/${hash}`, `o/${'e'.repeat(64)}`], 'the path of the source when it has one');
+  assert.equal(await env.actions.sourceFile(PROJECT, { id: 's3' }), null, 'a source with no file');
+});

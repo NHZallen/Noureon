@@ -6,6 +6,7 @@ import { FOLDER_COLORS } from '../shell/runtime-ui-colors.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
 import { PROJECT_INSTRUCTIONS_MAX } from './project-instructions.js';
 import { getProjectFileStore } from './project-source-files.js';
+import { getAnnouncedUser } from '../features/user-ready.js';
 import { normalizeSource, normalizeSources, normalizeTranscript, PROJECT_SOURCE_FILE_BYTES_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourceFilesBytesOf, sourcesCharsOf } from './project-source-model.js';
 
 export const PROJECT_NAME_MAX = 80;
@@ -315,7 +316,14 @@ export function createProjectActions({
   const sourceFile = async (id, source) => {
     if (!source?.file) return null;
     if (sharedHas(id) && sharedHook.fileOf) return sharedHook.fileOf(id, source);
-    const loaded = await getProjectFileStore()?.load(source.file).catch(() => null);
+    const store = getProjectFileStore();
+    const here = await store?.load(source.file).catch(() => null);
+    if (here?.data) return here;
+    // Not on this device and no path kept with the source: the file is where the files of the person are kept (`<person>/<hash>`), as the server reads it for a reply.
+    const person = getAnnouncedUser()?.supabaseUserId;
+    if (!person || !source.file.hash) return null;
+    const marker = { __astraCloudAsset: { path: `${person}/${source.file.hash}`, mimeType: source.file.mimeType || '', encoding: 'base64' } };
+    const loaded = await store?.load({ ...source.file, asset: marker }).catch(() => null);
     return loaded?.data ? loaded : null;
   };
 

@@ -15,17 +15,20 @@ const toBase64 = (value) => {
   return btoa(binary);
 };
 
+const textFile = (source) => {
+  const research = source.origin === 'research';
+  const base = safeName(source.title || 'text').replace(/\.(txt|md|csv|pdf|docx?|xlsx?|pptx?|rtf|odt|json|html?)$/i, '').slice(0, 80) || 'text';
+  return { name: `${base}${research ? '.md' : '.txt'}`, type: research ? 'text/markdown' : 'text/plain', base64: `data:text/plain;base64,${toBase64(source.text || '')}` };
+};
+
 /** The file a source is: { name, type, base64 } ('base64' as the attachments keep it: the data, with no prefix, is what the viewer of pictures takes), or null when it has none (a web address) or cannot be read. */
 export async function sourceAsFile({ project, source, loadFile }) {
   if (!source) return null;
   if (source.kind === 'url') return null;
-  if (source.kind === 'text') {
-    const research = source.origin === 'research';
-    const base = safeName(source.title || 'text').slice(0, 80) || 'text';
-    return { name: `${base}${research ? '.md' : '.txt'}`, type: research ? 'text/markdown' : 'text/plain', base64: `data:text/plain;base64,${toBase64(source.text || '')}` };
-  }
+  if (source.kind === 'text') return textFile(source);
   const loaded = source.file ? await loadFile({ project, source }) : null;
-  if (!loaded?.data) return null;
+  // A source whose original was not kept (or cannot be had now) but whose text was read: its text is what there is to look at and to have.
+  if (!loaded?.data) return String(source.text || '').trim() ? textFile(source) : null;
   const type = String(loaded.mimeType || source.file?.mimeType || 'application/octet-stream');
   return { name: safeName(source.file?.name || source.title || 'file') || 'file', type, base64: `data:${type};base64,${loaded.data}` };
 }

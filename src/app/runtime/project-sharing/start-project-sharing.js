@@ -178,7 +178,9 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   const sessionFor = (id) => sessions.get(id) || null;
   // A file of a shared project as a member gets it: the server gives it from the owner's folder (a file that the project holds).
   const sharedFile = async (id, source) => {
-    const path = source?.file?.asset?.__astraCloudAsset?.path;
+    // The file is named by its path when the source has it, else by where the files of a person are kept: `<person>/<hash>` (as the server reads them for a reply). Most sources have no path: the page keeps the original here first.
+    const owner = sharedFolders.ownerOf(id) || sessionFor(id)?.info?.owner?.id || '';
+    const path = source?.file?.asset?.__astraCloudAsset?.path || (owner && source?.file?.hash ? `${owner}/${source.file.hash}` : '');
     const data = path ? await (sessionFor(id)?.reader || createReader({ projectId: id })).asset(path) : '';
     return data ? { mimeType: source.file.mimeType, data } : null;
   };
@@ -383,7 +385,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const opener = createSourceOpener({
       document, language: () => configAccess.getUiLanguage(), text, notify: (message, type = 'success') => showNotification(message, type),
       loadFile: ({ source }) => sharedFile(session.projectId, source),
-      openMedia: (media, trigger) => { void import('../projects/project-media-viewer.js').then(({ openProjectMedia }) => openProjectMedia({ document, language: configAccess.getUiLanguage(), media, trigger })); }
+      openMedia: (media, trigger) => { void import('../projects/project-media-viewer.js').then(({ openProjectMedia }) => openProjectMedia({ document, language: configAccess.getUiLanguage(), media, trigger, getText: (key, fallback) => (i18n[configAccess.getUiLanguage()] || i18n['zh-TW'] || {})[key] || fallback })); }
     });
     const named = (name) => { const wanted = String(name || '').trim().toLowerCase(); return (session.info?.project?.sources || []).find((item) => [item.title, item.file?.name].some((value) => String(value || '').trim().toLowerCase() === wanted)) || null; };
     const withSource = (name, run) => { const source = named(name); if (!source) { showNotification(text('pjSourceOpenFailed'), 'error'); return false; } return run({ id: session.projectId }, source); };

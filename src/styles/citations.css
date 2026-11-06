@@ -265,10 +265,11 @@ main.flex-1 > header { z-index: 11; }
 .source-row-title.is-faint, .source-row-meta { color: var(--text-secondary); }
 .source-row-meta { margin: 0.1rem 0 0; font-size: 0.75rem; }
 .source-row-actions { margin-top: 0.3rem; }
-/* A file of the project that the model looked into: tapped to be looked at, with its button to have it (a round button at the end of the row, big enough for a thumb). */
-.source-row.is-file { grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: center; }
-.source-row.is-openable { cursor: pointer; }
-.source-row.is-openable:hover { background: var(--hover-bg); }
+/* A file of the project that the model looked into: its name is tapped to be looked at and its round button has it (big enough for a thumb); the two answer on their own, the row does not. */
+.source-row.is-file { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 0.2rem 0.3rem; }
+.source-row-open { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.55rem; align-items: start; min-width: 0; padding: 0.25rem 0.3rem; border-radius: 0.6rem; }
+.source-row-open.is-openable { cursor: pointer; }
+.source-row-open.is-openable:hover { background: var(--hover-bg); }
 .source-row-action.is-download { width: 2.25rem; height: 2.25rem; padding: 0; justify-content: center; border-color: transparent; }
 .source-row-action { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.1rem 0.6rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.75rem; cursor: pointer; }
 .source-row-action:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
