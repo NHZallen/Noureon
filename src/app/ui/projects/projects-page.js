@@ -587,10 +587,16 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     title.textContent = text('pjTitle');
     top.append(round('back', text('pjBack'), () => back()), title, round('plus', text('pjNew'), () => newProject()));
     const list = make(document, 'div', 'pj-side-list');
+    // Which projects the column lists: all of them, the ones the person made, or the ones shared with them (the shared ones are not in the person's own folders).
+    if (!state.sideTab) state.sideTab = project.shared ? 'shared' : 'all';
+    const makeKinds = () => tabs([['all', text('pjTabAll')], ['mine', text('pjTabMine')], ['shared', text('pjTabShared')]], state.sideTab, (key) => { state.sideTab = key; kinds.replaceWith(kinds = makeKinds()); draw(); }, text('pjTitle'));
+    let kinds = makeKinds();
     const draw = () => {
       const query = state.query.trim().toLowerCase();
       list.replaceChildren();
-      for (const folder of actions.list()) {
+      const shown = [...(state.sideTab === 'shared' ? [] : actions.list()), ...(state.sideTab === 'mine' ? [] : actions.sharedList?.() || [])];
+      if (!shown.length) list.appendChild(make(document, 'p', 'pj-none', text(state.sideTab === 'shared' ? 'pjSharedEmpty' : 'pjEmpty')));
+      for (const folder of shown) {
         if (query && !String(folder.name || '').toLowerCase().includes(query)) continue;
         const row = make(document, 'button', `pj-side-row${folder.id === project.id ? ' is-current' : ''}`);
         row.type = 'button';
@@ -600,7 +606,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         const name = make(document, 'span', 'pj-row-name');
         if (folder.pinned) { const pin = make(document, 'span', 'pj-row-pin'); pin.innerHTML = ICONS.pin(13); name.appendChild(pin); }
         name.appendChild(make(document, 'span', 'pj-row-title', folder.name || ''));
-        words.append(name, make(document, 'span', 'pj-row-meta', text('pjCount', { n: actions.countOf(folder.id) })));
+        words.append(name, make(document, 'span', 'pj-row-meta', folder.shared ? String(folder.ownerName || '') : text('pjCount', { n: actions.countOf(folder.id) })));
         row.append(projectMark(document, folder, 'is-small'), words);
         row.addEventListener('click', () => { if (folder.id !== project.id) go({ id: folder.id }, true); });
         list.appendChild(row);
@@ -608,7 +614,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     };
     const search = makeSearch();
     search.querySelector('input').addEventListener('input', draw);
-    side.append(top, search, list);
+    side.append(top, search, kinds, list);
     draw();
     return side;
   };

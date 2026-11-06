@@ -731,7 +731,8 @@ test('one project on a computer is three columns: the projects (to go to another
     assert.deepEqual(t.$$('.pj-main .pj-chat').map((row) => row.dataset.conversationId), ['c1']);
     assert.equal(t.$('.pj-panel .pj-card-text').textContent, 'Be brief.');
     assert.deepEqual(t.$$('.pj-panel .pj-sources .pj-row-title').map((node) => node.textContent), ['Brief']);
-    assert.equal(t.$('.pj-tabs'), null, 'no pills: nothing is hidden behind a tab');
+    assert.equal(t.$('.pj-main .pj-tabs'), null, 'no pills in the middle: nothing of the project is hidden behind a tab');
+    assert.equal(t.$$('.pj-side .pj-tab').length, 3, 'the column of projects has the kinds: all, made by the person, shared with them');
     // The list at the left goes to another project; its search narrows the list.
     t.type(t.$('.pj-side .pj-search-input'), 'Pla');
     assert.deepEqual(t.$$('.pj-side-row').map((row) => row.dataset.projectId), ['f2']);
@@ -1016,6 +1017,28 @@ test('leaving is asked from the menu with the page’s own words, and the page g
   env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-gone', { detail: { projectId: 'sp1' } }));
   await env.tick();
   assert.equal(getProjectsPage().state.view, 'list');
+  await env.finish();
+  setSharedProjectHook(null);
+});
+
+test('on a computer the column of projects has a button for the kind: all, the ones the person made, the ones shared with them; a shared project is opened from it', async () => {
+  const hook = sharedHook('chat');
+  setSharedProjectHook({ ...hook, list: () => [{ ...hook.folderOf('sp1'), ownerName: 'Ada' }] });
+  const env = setup({ wide: true });
+  env.open({ id: 'f1' });
+  await env.tick();
+  const rows = () => env.$$('.pj-side-row').map((node) => node.dataset.projectId);
+  assert.deepEqual(rows(), ['f1', 'f2', 'sp1'], 'all: the person’s own first, then the shared ones');
+  assert.equal(env.$('.pj-side-row[data-project-id="sp1"] .pj-row-meta').textContent, 'Ada');
+  const kind = (label) => env.$$('.pj-side .pj-tab').find((node) => node.textContent.trim() === label);
+  kind(text('pjTabMine')).click();
+  assert.deepEqual(rows(), ['f1', 'f2']);
+  kind(text('pjTabShared')).click();
+  assert.deepEqual(rows(), ['sp1']);
+  env.$('.pj-side-row[data-project-id="sp1"]').click();
+  await env.tick();
+  assert.equal(env.$('.pj-title-text').textContent, 'City plan');
+  assert.equal(env.$('.pj-side .pj-tab[aria-selected="true"]').textContent.trim(), text('pjTabShared'), 'a shared project opens with the kind it is in selected');
   await env.finish();
   setSharedProjectHook(null);
 });

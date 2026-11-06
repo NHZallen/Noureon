@@ -263,4 +263,5 @@
 - **接法**：`project-actions.js` 的 `setSharedProjectHook`：對共享專案，`folderOf`／`chatsOf`／`countOf`／`update`（只有指示）／`addSource`／`removeSource`／`prepareChat`（用 `sharedProject` 連結，不用資料夾）都走 `runtime/project-sharing/start-project-sharing.js` 給的鉤子。專案頁在顯示專案時發 `noureon:project-view`，共享專案此時被讀取並保持即時（離開就停）；別人的對話發 `noureon:shared-chat`，用唯讀頁開；選單的「離開專案」發 `noureon:project-leave`；被移出發 `noureon:project-gone`，專案頁回到清單。權限：只有編輯者看得到指示與資料來源的編輯按鈕，聊天成員看不到；選單只有新對話、（編輯者的）指示、離開，沒有改名、釘選、刪除。
 - **資料來源的新增**走原本的檔案流程（讀檔、保存、Google 雲端硬碟、網址、文字都一樣）；檔案另外上傳到擁有者的空間（`/upload`），來源寫進專案時帶讀取時間做過期檢查。
 - **即時**：已打開的成員管理視窗收到專案層級的通知會重畫（輸入中不重畫）；擁有者自己的共享專案頁收到通知（例如編輯者加了檔案）會請自己的雲端同步拉一次再重畫；成員的專案頁讀取最新內容並重畫聊天清單或整頁。
-- **已知限制**：寬版左側的專案欄只列自己的專案；共享專案不在裡面。擁有者上傳的檔案若還沒同步到雲端原檔，成員短時間內讀不到檔案內容。
+- **寬版左側的專案欄**：搜尋框下多一排「全部／自己建立／與你共享」三個按鈕（`projectSide` 的 `state.sideTab`）。「全部」先列自己的、再列共享的；共享專案的列副標是擁有者名字；打開共享專案時預設選「與你共享」。資料來自 `actions.sharedList()`（`setSharedProjectHook` 的 `list`，每次重畫都現讀，所以加入或被移出會跟著變）。
+- **已知限制**：擁有者上傳的檔案若還沒同步到雲端原檔，成員短時間內讀不到檔案內容。

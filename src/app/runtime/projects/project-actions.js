@@ -17,6 +17,8 @@ export const PROJECT_NAME_MAX = 80;
 let sharedHook = null;
 export const setSharedProjectHook = (hook) => { sharedHook = hook || null; };
 const sharedHas = (id) => Boolean(sharedHook?.has?.(id));
+/** The shared projects of someone else that the person has joined, as folders ('shared', with the role). */
+const sharedList = () => (sharedHook?.list?.() || []);
 
 const cleanName = (value) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, PROJECT_NAME_MAX);
 const stamp = (conversation) => Date.parse(conversation?.lastUpdatedAt || conversation?.stateUpdatedAt || conversation?.createdAt || '') || 0;
@@ -302,5 +304,5 @@ export function createProjectActions({
     return { ok: true, conversationId: made.conversationId };
   }
 
-  return { list, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
+  return { list, sharedList, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
 }

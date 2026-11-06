@@ -22,7 +22,7 @@
 .pj.is-wide.is-list .pj-round.has-label { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
 .pj.is-wide.is-list .pj-round.has-label:hover { background: var(--gpt-primary-action-bg); opacity: 0.88; }
 .pj-bar { flex: none; padding: 0.8rem 1.75rem; border-bottom: 1px solid var(--border-color); }
-.pj-bar .pj-tabs { margin: 0; }
+.pj-bar .pj-tabs, .pj-side .pj-tabs { margin: 0; }
 .pj-bar .pj-tab { border: 1px solid var(--border-color); }
 .pj-bar .pj-tab:hover { border-color: var(--text-secondary); }
 .pj-bar .pj-tab[aria-selected="true"] { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }

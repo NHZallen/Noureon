@@ -153,6 +153,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   const sessionFor = (id) => sessions.get(id) || null;
   setSharedProjectHook({
     has: (id) => sharedFolders.has(id),
+    list: () => sharedFolders.list().map((folder) => sharedFolders.folderOf(folder.id)),
     folderOf: (id) => sharedFolders.folderOf(id),
     chatsOf,
     countOf: (id) => chatsOf(id).length,
