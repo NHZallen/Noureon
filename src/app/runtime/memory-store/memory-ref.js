@@ -7,6 +7,11 @@ let history = null;
 export const getNotesMemory = () => shared;
 export const setNotesMemory = (memory) => { shared = memory; return shared; };
 
+/** For a chat made in a shared project of someone else: (conversation) => the store of the project's notes, or null (project-sharing/start-project-sharing.js). */
+let sharedMemory = null;
+export const getSharedMemoryFor = () => sharedMemory;
+export const setSharedMemoryFor = (fn) => { sharedMemory = typeof fn === 'function' ? fn : null; return sharedMemory; };
+
 /** The search over the past conversations of this page (page-history.js), or null until the page has started it. */
 export const getPageHistory = () => history;
 export const setPageHistory = (value) => { history = value; return history; };

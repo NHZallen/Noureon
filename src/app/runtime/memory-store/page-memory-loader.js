@@ -7,6 +7,7 @@ import { scopedView } from '../memory-notes/scope.js';
 import { categoriesOf } from '../memory-notes/categories.js';
 import { memoryScopeOf, projectIdOf } from '../projects/project-instructions.js';
 import { recordEvent, recordHistory, recordUsed } from './memory-trace.js';
+import { getSharedMemoryFor } from './memory-ref.js';
 
 // The messages of the person that go with a reply made by the server (server/protocol.js: maxMemoryMessages, maxMemoryMessageChars).
 const MAX_SNAPSHOT_MESSAGES = 12;
@@ -28,7 +29,8 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
   if (conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false) return null;
   const memory = getMemory();
   if (!memory) return null;
-  const held = await memory.ready();
+  // A chat made in a shared project of someone else uses the notes of that project (project-sharing/shared-memory-store.js); a chat member only reads them.
+  const held = (await getSharedMemoryFor()?.(conversation)) || (await memory.ready());
   if (!held?.isLoaded()) return null;
   // A chat of a project that keeps its notes for itself reads and writes those only; every other chat leaves them out (memory-notes/scope.js).
   const scopeId = memoryScopeOf(conversation);
@@ -36,7 +38,7 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
   const store = scopedView(held, scopeId);
   const settings = store.getSettings();
   if (!settings.use) return null;
-  const canWrite = settings.learn && !settings.paused && conversation?.retentionMode !== 'ephemeral';
+  const canWrite = settings.learn && !settings.paused && conversation?.retentionMode !== 'ephemeral' && !held.readOnly;
   const conversationId = conversation?.id || '';
   const appliedOps = [...store.getCursor(conversationId).appliedOps];
   return {
@@ -46,6 +48,7 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
       canWrite,
       ...(scopeId ? { scope: scopeId } : {}),
       ...(projectId ? { project: projectId } : {}),
+      ...(held.readOnly !== undefined ? { sharedProject: held.projectId } : {}),
       ...(curator ? { curator: true } : {}),
       // A person on a cloud account has their conversations there, so the server can look back through them too; with the vectors synced it can also search by meaning (with a key for this run only).
       ...(getVectors()?.canSync?.() ? { history: true } : {}),

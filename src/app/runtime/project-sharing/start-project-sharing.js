@@ -8,6 +8,8 @@ import { SERVICES, getService } from '../services.js';
 import { createProjectShareClient } from './project-share-client.js';
 import { createAvatarLoader } from './avatar-loader.js';
 import { subscribeProjectLive } from './project-live.js';
+import { createSharedMemoryStore } from './shared-memory-store.js';
+import { getNotesMemory, setSharedMemoryFor } from '../memory-store/memory-ref.js';
 import { PENDING_CHAT_KEY, chatLinkUrl, clearPendingChatLink, clearPendingJoin, readPendingChatLink, readPendingJoin } from './join-route.js';
 import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
@@ -36,6 +38,19 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   // The replies of a conversation made in a shared project carry its instructions and use its memory only: the folders the replies look at are the person's own and the shared ones.
   const sharedFolders = createSharedFolders({ storage: (() => { try { return storage || window.localStorage; } catch { return null; } })() });
   setProjectFoldersReader(() => [...(dataStore.getFolders() || []), ...sharedFolders.list()]);
+  // A chat made in a shared project uses the notes of that project, which are the owner's: one store for each project, made when a reply first needs it (only an editor writes in it).
+  const memoryStores = new Map();
+  setSharedMemoryFor(async (conversation) => {
+    const projectId = conversation?.sharedProject?.id;
+    if (!projectId || !getService(SERVICES.cloudSync)?.getStatus?.()?.enabled) return null;
+    const personal = await getNotesMemory()?.ready();
+    if (!personal?.isLoaded()) return null;
+    const role = sharedFolders.roleOf(projectId) || 'chat';
+    let held = memoryStores.get(projectId);
+    if (!held || held.role !== role) { held?.stop(); held = createSharedMemoryStore({ personal, getSupabase, projectId, role }); memoryStores.set(projectId, held); }
+    if (!held.isLoaded()) { try { await held.load(); } catch { memoryStores.delete(projectId); return null; } }
+    return held;
+  });
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
   const pendingStorage = () => { try { return storage || window.localStorage; } catch { return null; } };
   const copy = copyText || (async (value) => { try { await window.navigator.clipboard.writeText(value); return true; } catch { return false; } });
@@ -78,7 +93,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const reader = createReader({ projectId });
     const read = await reader.load();
     if (!read.ok) { showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); return null; }
-    sharedFolders.set({ ...read.project.project, id: projectId });
+    sharedFolders.set({ ...read.project.project, id: projectId, role: read.project.role });
     await ensureStyles();
     const language = configAccess.getUiLanguage();
     const texts = i18n[language] || i18n['zh-TW'] || {};
@@ -107,7 +122,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       viewer = { chatId: chat.id, sheet: openProjectConversation({ document, root: host, text, texts, language, chat, renderMarkdown, loadAsset: (path) => reader.asset?.(path), onClose: () => { viewer = null; }, onBranch: (pick) => { void branch(chat, pick); } }) };
     };
     const apply = (project) => {
-      sharedFolders.set({ ...project.project, id: projectId });
+      sharedFolders.set({ ...project.project, id: projectId, role: project.role });
       if (project.project?.updated_at) readAt = project.project.updated_at;
       read.project.project = project.project;
       page?.update(project);
@@ -141,7 +156,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
         document, root: host, text, value: String(read.project.project?.instructions || ''),
         onSave: async (value) => {
           const saved = await shareClient.updateProject(projectId, { instructions: value, expected: readAt });
-          if (saved.ok) { readAt = saved.data?.updated_at || readAt; read.project.project.instructions = value; sharedFolders.set({ ...read.project.project, id: projectId }); showNotification(text('psInstructionsSaved'), 'success'); return true; }
+          if (saved.ok) { readAt = saved.data?.updated_at || readAt; read.project.project.instructions = value; sharedFolders.set({ ...read.project.project, id: projectId, role: read.project.role }); showNotification(text('psInstructionsSaved'), 'success'); return true; }
           if (saved.code === 'stale') { const fresh = await reader.load(); if (fresh.ok) { read.project.project = fresh.project.project; readAt = fresh.project.project?.updated_at || readAt; apply(fresh.project); } showNotification(text('psStale'), 'error'); return false; }
           showNotification(text(saved.code === 'not_allowed' ? 'psNotAllowed' : 'psFailed'), 'error');
           return false;
@@ -203,7 +218,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       const mine = await shareClient.mine();
       if (mine.ok) sharedFolders.setOwned((mine.data || []).map((item) => item.project_id));
       const others = await shareClient.sharedWithMe();
-      if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id }); }
+      if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id, role: info.project.role }); }
     } catch { /* the next start tries again */ } finally { refreshing = false; }
   }
   const later = (run, wait) => { const timer = setTimeout(run, wait); timer?.unref?.(); };
