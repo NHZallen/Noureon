@@ -141,6 +141,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     listBody.replaceChildren();
     if (state.listTab === 'shared') {
       listBody.appendChild(emptyState(text('pjSharedEmpty'), text('pjSharedEmptyHint')));
+      // The projects shared with the person are put here by runtime/project-sharing (the empty state stays when there are none).
+      document.dispatchEvent(new document.defaultView.CustomEvent('noureon:shared-projects', { detail: { box: listBody, root } }));
       return;
     }
     const all = actions.list();

@@ -29,3 +29,10 @@
 .psh-join-who { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
 .psh-join-project { font-size: var(--pj-title, 1.0625rem); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .psh-chip { display: inline-flex; align-items: center; height: 1.5rem; padding: 0 0.5rem; margin-bottom: 0.75rem; border-radius: 9999px; background: color-mix(in srgb, var(--button-primary-bg) 14%, var(--chat-bg)); color: var(--button-primary-bg); font-size: var(--pj-small, 0.8125rem); }
+.psh-chats, .psh-shared-list { display: grid; }
+.psh-chat, .psh-shared-row { width: 100%; text-align: left; background: transparent; border: 0; color: inherit; }
+.psh-messages { display: grid; gap: 1rem; padding-bottom: 5rem; }
+.psh-viewer-lead { margin: 0 0 0.5rem; }
+.psh-branch-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0.5rem 0.75rem 0.75rem; padding: 0.5rem 0.5rem 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 1.5rem; background: var(--input-field-bg); }
+.psh-branch-hint { color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); min-width: 0; }
+.psh-branch-go { flex: none; }

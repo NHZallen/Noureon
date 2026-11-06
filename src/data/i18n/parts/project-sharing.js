@@ -55,7 +55,17 @@ export default {
         psJoinRemoved: '這個邀請連結對你已失效。你已經不在「{name}」裡。想回來的話，請專案擁有者重新產生連結給你。',
         psJoinFull: '這個專案的成員已滿 100 位。',
         psJoinOwner: '你就是這個專案的擁有者。',
-        psJoinNeedCloud: '加入專案需要雲端帳號，請先登入。'
+        psJoinNeedCloud: '加入專案需要雲端帳號，請先登入。',
+        psReadOnly: '這是{name}的對話，只有建立者能繼續。想接著討論，請分支成自己的對話。',
+        psBranchHint: '想接著討論，請分支成自己的對話。',
+        psSharedBy: '{name}分享的專案',
+        psNewChat: '新對話',
+        psNoChats: '專案裡還沒有對話。',
+        psMine: '你',
+        psSharedLoadFailed: '無法讀取這個專案，請稍後再試。',
+        psSharedGone: '你已不在這個專案裡，或專案已不存在。',
+        psBranched: '已分支成你的對話，放在這個專案裡。',
+        psFilesNotCarried: '對方的檔案沒有一起帶過來，只有文字。'
     },
     en: {
         branchChat: 'Branch in new chat',
@@ -112,7 +122,17 @@ export default {
         psJoinRemoved: 'This invitation link no longer works for you. You are not in “{name}” any more. To come back, ask the owner of the project to make a new link for you.',
         psJoinFull: 'This project already has 100 members.',
         psJoinOwner: 'You are the owner of this project.',
-        psJoinNeedCloud: 'Joining a project needs a cloud account. Sign in first.'
+        psJoinNeedCloud: 'Joining a project needs a cloud account. Sign in first.',
+        psReadOnly: 'This is {name}’s conversation. Only its author can continue it. To go on, branch it into your own conversation.',
+        psBranchHint: 'To go on, branch it into your own conversation.',
+        psSharedBy: 'Project shared by {name}',
+        psNewChat: 'New chat',
+        psNoChats: 'There are no conversations in the project yet.',
+        psMine: 'You',
+        psSharedLoadFailed: 'Could not read this project. Try again later.',
+        psSharedGone: 'You are not in this project any more, or the project is gone.',
+        psBranched: 'Branched into your own conversation, in this project.',
+        psFilesNotCarried: 'The files of the other person did not come along, only the words.'
     },
     fr: {
         branchChat: 'Créer une branche dans une nouvelle discussion',
@@ -169,7 +189,17 @@ export default {
         psJoinRemoved: 'Ce lien d’invitation ne fonctionne plus pour vous. Vous n’êtes plus dans « {name} ». Pour revenir, demandez au propriétaire du projet de créer un nouveau lien pour vous.',
         psJoinFull: 'Ce projet compte déjà 100 membres.',
         psJoinOwner: 'Vous êtes le propriétaire de ce projet.',
-        psJoinNeedCloud: 'Rejoindre un projet demande un compte cloud. Connectez-vous d’abord.'
+        psJoinNeedCloud: 'Rejoindre un projet demande un compte cloud. Connectez-vous d’abord.',
+        psReadOnly: 'Ceci est la conversation de {name}. Seul son auteur peut la poursuivre. Pour continuer, créez-en une branche à vous.',
+        psBranchHint: 'Pour continuer, créez-en une branche à vous.',
+        psSharedBy: 'Projet partagé par {name}',
+        psNewChat: 'Nouvelle discussion',
+        psNoChats: 'Il n’y a pas encore de conversation dans le projet.',
+        psMine: 'Vous',
+        psSharedLoadFailed: 'Impossible de lire ce projet. Réessayez plus tard.',
+        psSharedGone: 'Vous n’êtes plus dans ce projet, ou le projet n’existe plus.',
+        psBranched: 'Branche créée dans votre propre conversation, dans ce projet.',
+        psFilesNotCarried: 'Les fichiers de l’autre personne n’ont pas suivi, seulement le texte.'
     },
     ru: {
         branchChat: 'Ответвить в новом чате',
@@ -226,7 +256,17 @@ export default {
         psJoinRemoved: 'Эта ссылка-приглашение для вас больше не работает. Вас нет в «{name}». Чтобы вернуться, попросите владельца проекта создать для вас новую ссылку.',
         psJoinFull: 'В этом проекте уже 100 участников.',
         psJoinOwner: 'Вы владелец этого проекта.',
-        psJoinNeedCloud: 'Чтобы присоединиться к проекту, нужен облачный аккаунт. Сначала войдите.'
+        psJoinNeedCloud: 'Чтобы присоединиться к проекту, нужен облачный аккаунт. Сначала войдите.',
+        psReadOnly: 'Это беседа участника {name}. Продолжить её может только автор. Чтобы идти дальше, ответвите её в свою беседу.',
+        psBranchHint: 'Чтобы идти дальше, ответвите её в свою беседу.',
+        psSharedBy: 'Проект, которым поделился {name}',
+        psNewChat: 'Новый чат',
+        psNoChats: 'В проекте пока нет бесед.',
+        psMine: 'Вы',
+        psSharedLoadFailed: 'Не удалось прочитать проект. Попробуйте позже.',
+        psSharedGone: 'Вас больше нет в этом проекте, или проекта не существует.',
+        psBranched: 'Создана ваша собственная ветка в этом проекте.',
+        psFilesNotCarried: 'Файлы другого участника не перенесены, только текст.'
     },
     es: {
         branchChat: 'Crear una rama en un chat nuevo',
@@ -283,6 +323,16 @@ export default {
         psJoinRemoved: 'Este enlace de invitación ya no funciona para ti. Ya no estás en «{name}». Para volver, pide al propietario del proyecto que cree un enlace nuevo para ti.',
         psJoinFull: 'Este proyecto ya tiene 100 miembros.',
         psJoinOwner: 'Eres el propietario de este proyecto.',
-        psJoinNeedCloud: 'Unirse a un proyecto requiere una cuenta en la nube. Inicia sesión primero.'
+        psJoinNeedCloud: 'Unirse a un proyecto requiere una cuenta en la nube. Inicia sesión primero.',
+        psReadOnly: 'Esta es la conversación de {name}. Solo su autor puede continuarla. Para seguir, créale una rama propia.',
+        psBranchHint: 'Para seguir, créale una rama propia.',
+        psSharedBy: 'Proyecto compartido por {name}',
+        psNewChat: 'Chat nuevo',
+        psNoChats: 'Aún no hay conversaciones en el proyecto.',
+        psMine: 'Tú',
+        psSharedLoadFailed: 'No se pudo leer este proyecto. Inténtalo más tarde.',
+        psSharedGone: 'Ya no estás en este proyecto, o el proyecto ya no existe.',
+        psBranched: 'Rama creada como conversación tuya, en este proyecto.',
+        psFilesNotCarried: 'Los archivos de la otra persona no vinieron, solo el texto.'
     }
 };

@@ -7,15 +7,18 @@ import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
 import { createProjectShareClient } from './project-share-client.js';
 import { clearPendingJoin, readPendingJoin } from './join-route.js';
+import { readSharedProject } from './project-reader-client.js';
+import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
 
 export const MEMBERS_EVENT = 'noureon:project-members';
+export const SHARED_EVENT = 'noureon:shared-projects';
 
 const nameOf = (user) => {
   const candidate = String(user?.displayName || user?.username || '').trim();
   return candidate && !candidate.includes('@') ? candidate : '';
 };
 
-export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, supabase = null, client = null, storage = null, copyText = null }) {
+export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar = () => {}, openConversation = () => {}, supabase = null, client = null, storage = null, copyText = null, readProject = readSharedProject, defaultsOf = null, renderMarkdown = null }) {
   const getSupabase = () => { if (supabase) return supabase; try { return getSupabaseClient(); } catch { return null; } };
   const shareClient = client || createProjectShareClient({ getSupabase });
   const text = (key, values = {}) => {
@@ -40,6 +43,57 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       // The folder the page keeps has the memory the database has now (a stale copy written back could not undo it: the database keeps it, but the page should show it too).
       onShared: async () => { folder.memoryScope = 'project'; try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ } }
     });
+  }
+
+  // The model and the settings a conversation of the person starts with (the ones they used last), as when a conversation is copied from a share.
+  async function defaults() {
+    if (defaultsOf) return defaultsOf();
+    const [{ MODELS }, { getDefaultGenConfig }, { createDisabledCouncilConfig }] = await Promise.all([import('../shell/model-registry.js'), import('../shell/conversation-actions.js'), import('../shell/conversation-council-state.js')]);
+    const config = configAccess.getConfig();
+    const model = MODELS.find((entry) => entry.id === config.lastUsedModel) || MODELS.find((entry) => entry.id === config.defaultModel) || MODELS[0];
+    return { model: model.id, provider: model.provider, genConfig: getDefaultGenConfig(), council: createDisabledCouncilConfig(config.lastCouncilConfig) };
+  }
+  const put = async (conversation) => {
+    dataStore.getConversations().unshift(conversation);
+    await saveAppData({ immediateCloudSync: true });
+    renderSidebar();
+    openConversation(conversation.id);
+  };
+
+  /** Opens a shared project of the person (one of the list "Shared with you"). */
+  async function openShared({ project_id: projectId, root = null }) {
+    const me = getAnnouncedUser()?.supabaseUserId || '';
+    const read = await readProject({ projectId });
+    if (!read.ok) { showNotification(text(read.code === 'gone' ? 'psSharedGone' : 'psSharedLoadFailed'), 'error'); return null; }
+    await ensureStyles();
+    const language = configAccess.getUiLanguage();
+    const texts = i18n[language] || i18n['zh-TW'] || {};
+    const shared = { id: projectId, ownerId: read.project.owner.id };
+    const [{ openSharedProjectPage }, { openProjectConversation }] = await Promise.all([import('../../ui/projects/shared-project-page.js'), import('../../ui/projects/project-conversation-viewer.js')]);
+    const branch = async (chat, index) => {
+      try {
+        const made = branchFromMirror({ chat, messageIndex: index, shared, title: text('branchTitle', { title: chat.title || '' }), defaults: await defaults() });
+        if (!made) { showNotification(text('branchNothing'), 'error'); return; }
+        await put(made);
+        showNotification(text('psBranched'), 'success');
+      } catch { showNotification(text('branchFailed'), 'error'); }
+    };
+    return openSharedProjectPage({
+      document, root: root || document.body, text, language, shared: read.project, meId: me,
+      onOpenChat: (chat) => openProjectConversation({ document, root: root || document.body, text, texts, language, chat, renderMarkdown, onBranch: (index) => { void branch(chat, index); } }),
+      onOpenOwn: (chat) => { if ((dataStore.getConversations() || []).some((entry) => entry.id === chat.id)) openConversation(chat.id); else openProjectConversation({ document, root: root || document.body, text, texts, language, chat, renderMarkdown, onBranch: (index) => { void branch(chat, index); } }); },
+      onNewChat: async () => { try { await put(newSharedConversation({ shared, defaults: await defaults() })); } catch { showNotification(text('psFailed'), 'error'); } }
+    });
+  }
+
+  /** Fills the list "Shared with you" of the projects page. */
+  async function drawSharedList({ box, root = null }) {
+    if (!cloudOn()) return;
+    const result = await shareClient.sharedWithMe();
+    if (!result.ok || !Array.isArray(result.data) || !result.data.length) return;
+    await ensureStyles();
+    const { drawSharedProjects } = await import('../../ui/projects/shared-project-page.js');
+    drawSharedProjects({ document, box, text, items: result.data, onOpen: (item) => { void openShared({ ...item, root }); } });
   }
 
   let joining = false;
@@ -67,7 +121,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   const lookForPending = () => { for (const wait of [0, 2000, 6000, 15000, 30000]) setTimeout(() => { void takePending(); }, wait); };
   lookForPending();
 
+  document.addEventListener(SHARED_EVENT, (event) => { if (event.detail?.box) void drawSharedList({ box: event.detail.box, root: event.detail.root || null }); });
   document.addEventListener(MEMBERS_EVENT, (event) => { void openMembers({ projectId: String(event.detail?.projectId || ''), root: event.detail?.root || null }); });
   document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); });
-  return { openMembers, takePending };
+  return { openMembers, openShared, takePending, drawSharedList };
 }
