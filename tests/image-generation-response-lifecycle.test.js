@@ -780,3 +780,31 @@ test('"in every frame" said in words, with frames marked in the editor, makes th
   });
   assert.equal(started.at(-1).gifEdit.all, true);
 });
+
+test('the grid marked in the editor goes to the server as the sheet, with the speed', async () => {
+  const started = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async () => ({ images: [] }),
+    saveImageAsset: async () => ({ id: 'new', storageKey: 'k', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/gif;base64,R0lGODlh',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const serverReply = {
+    planImage: () => ({ ok: true }),
+    startImage: async (args) => { started.push(args); return { ok: true, run: { followImage: async () => ({ parts: [{ generatedImage: { id: 'made', mediaType: 'image/gif' } }] }) } }; },
+    notify: () => {}
+  };
+  await lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts: [{ text: 'make the nose blue' }, { inlineData: { mimeType: 'image/png', data: 'SHEET', targetedEdit: { index: 0, count: 9, source: 'gif-1', sheet: true, speed: 2 } } }], modelInfo: { id: 'gpt-image-2.6-flare', provider: 'openai', maxImageReferences: 16 },
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: {}, messages: [{ role: 'model', parts: [{ generatedImage: { id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' } }] }] },
+    serverReply, assistantMessageId: 'message-1', sequence: 1, uiLanguage: 'en'
+  });
+  const sent = started.at(-1);
+  assert.deepEqual(sent.gifEdit.edits, [{ index: 0, count: 9 }]);
+  assert.equal(sent.gifEdit.all, true);
+  assert.equal(sent.gifEdit.sheet, true);
+  assert.equal(sent.gifEdit.speed, 2);
+  assert.deepEqual(sent.references, ['data:image/png;base64,SHEET']);
+});

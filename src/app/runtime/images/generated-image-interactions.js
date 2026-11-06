@@ -20,7 +20,7 @@ const getEditorTexts = (language) => {
     eraser: text.eraser, size: text.size, confirm: text.confirmSelection,
     drawingArea: text.drawableArea, undo: text.undo, redo: text.redo, clear: text.clearAll,
     colors: { red: text.red, blue: text.blue, green: text.green, yellow: text.yellow, white: text.white },
-    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames, all: text.gifAll
+    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames, all: text.gifAll, grid: text.gifGrid, speed: text.gifSpeed
   };
 };
 
@@ -145,6 +145,7 @@ export function createGeneratedImageInteractions({
           <img class="generated-image-editor-photo" alt="${texts.title}" draggable="false">
           <canvas class="generated-image-editor-canvas"></canvas>
           ${gif ? '<img class="generated-image-editor-playback" alt="" draggable="false">' : ''}
+          ${gif ? `<button type="button" class="generated-image-editor-grid" aria-pressed="false" aria-label="${texts.grid}" title="${texts.grid}"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M12 3.5v17M3.5 12h17"/></svg></button>` : ''}
           <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
         </div>
       </div>
@@ -154,6 +155,7 @@ export function createGeneratedImageInteractions({
           <svg class="pause-icon" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
         </button>
         <div class="generated-image-editor-frame-list">${gif.frames.map((frame, index) => `<button type="button" class="generated-image-editor-frame" data-editor-frame="${index}" aria-label="${texts.frame.replace('{n}', index + 1)}"><img src="${frame.dataUrl}" alt="" draggable="false"><span>${index + 1}</span></button>`).join('')}</div>
+        <button type="button" class="generated-image-editor-speed" aria-label="${texts.speed}" title="${texts.speed}">1×</button>
         <button type="button" class="generated-image-editor-all" aria-pressed="false">${texts.all}</button>
       </div>` : ''}
       <footer class="generated-image-editor-toolbar">
@@ -196,7 +198,11 @@ export function createGeneratedImageInteractions({
     let history = [null];
     let historyIndex = 0;
     // A GIF: the marks and the history of each frame are its own, kept here while another frame is shown.
-    const frameStates = gif ? gif.frames.map(() => ({ history: [null], historyIndex: 0 })) : [];
+    // The last one is the sheet of all the frames (the grid), marked as one picture.
+    const frameStates = gif ? [...gif.frames, null].map(() => ({ history: [null], historyIndex: 0 })) : [];
+    const sheetAt = gif ? gif.frames.length : -1;
+    let beforeSheet = 0;
+    let speed = 1;
     let currentFrame = 0;
     let playing = false;
     let playbackTimer = null;
@@ -206,6 +212,8 @@ export function createGeneratedImageInteractions({
     const allButton = overlay.querySelector('.generated-image-editor-all');
     allButton?.addEventListener('click', () => allButton.setAttribute('aria-pressed', String(allButton.getAttribute('aria-pressed') !== 'true')));
     const frameButtons = [...overlay.querySelectorAll('.generated-image-editor-frame')];
+    const gridButton = overlay.querySelector('.generated-image-editor-grid');
+    const speedButton = overlay.querySelector('.generated-image-editor-speed');
 
     const updateBrushCursorStyle = () => {
       if (!brushCursor) return;
@@ -251,6 +259,9 @@ export function createGeneratedImageInteractions({
         button.classList.toggle('active', index === currentFrame);
         button.classList.toggle('has-marks', Boolean(marked[index]));
       });
+      gridButton?.setAttribute('aria-pressed', String(currentFrame === sheetAt));
+      gridButton?.classList.toggle('has-marks', Boolean(marked[sheetAt]));
+      if (allButton) allButton.hidden = currentFrame === sheetAt;
       if (undoButton) undoButton.disabled = historyIndex <= 0;
       if (redoButton) redoButton.disabled = historyIndex >= history.length - 1;
       if (clearButton) clearButton.disabled = !annotated;
@@ -306,10 +317,11 @@ export function createGeneratedImageInteractions({
     // A frame as it is with its marks on it (the live canvas for the frame on the screen, the last snapshot of its history for the others).
     const frameComposite = async (index) => {
       const output = document.createElement('canvas');
-      output.width = canvas.width;
-      output.height = canvas.height;
+      const base = await loadImage(index === sheetAt ? gif.sheet.dataUrl : gif.frames[index].dataUrl);
+      output.width = base.naturalWidth;
+      output.height = base.naturalHeight;
       const outputContext = output.getContext('2d');
-      outputContext.drawImage(await loadImage(gif.frames[index].dataUrl), 0, 0, output.width, output.height);
+      outputContext.drawImage(base, 0, 0, output.width, output.height);
       const marks = index === currentFrame ? (hasCanvasMarks() ? canvas : null) : frameStates[index].history[frameStates[index].historyIndex];
       if (marks) outputContext.drawImage(typeof marks === 'string' ? await loadImage(marks) : marks, 0, 0, output.width, output.height);
       return output.toDataURL('image/png');
@@ -323,7 +335,7 @@ export function createGeneratedImageInteractions({
       playButton?.setAttribute('aria-label', texts.play);
     };
     const startPlayback = async () => {
-      if (!gif || playing || !ready) return;
+      if (!gif || playing || !ready || currentFrame === sheetAt) return;
       playing = true;
       playButton.classList.add('is-playing');
       playButton.setAttribute('aria-label', texts.pause);
@@ -335,7 +347,7 @@ export function createGeneratedImageInteractions({
         const step = () => {
           if (!playing) return;
           playbackImage.src = pictures[at];
-          const wait = Math.max(40, gif.frames[at].delayMs || 100);
+          const wait = Math.max(20, (gif.frames[at].delayMs || 100) / speed);
           at = (at + 1) % pictures.length;
           playbackTimer = setTimeout(step, wait);
         };
@@ -347,13 +359,27 @@ export function createGeneratedImageInteractions({
     };
     const selectFrame = (next) => {
       stopPlayback();
-      if (!gif || !ready || next === currentFrame || next < 0 || next >= gif.frames.length) return;
+      if (!gif || !ready || next === currentFrame || next < 0 || next > sheetAt) return;
       frameStates[currentFrame] = { history, historyIndex };
+      if (next === sheetAt) beforeSheet = currentFrame;
+      const resize = (next === sheetAt) !== (currentFrame === sheetAt);
       currentFrame = next;
       ({ history, historyIndex } = frameStates[next]);
-      image.src = gif.frames[next].dataUrl;
       hideBrushCursor();
-      void restoreSnapshot(history[historyIndex]);
+      if (resize) {
+        // The sheet is not the size of a frame: the canvas takes the size of the picture shown before the marks come back.
+        ready = false;
+        image.addEventListener('load', () => {
+          canvas.width = getSafeImageDimension(image.naturalWidth);
+          canvas.height = getSafeImageDimension(image.naturalHeight);
+          ready = true;
+          void restoreSnapshot(history[historyIndex]);
+        }, { once: true });
+        image.src = next === sheetAt ? gif.sheet.dataUrl : gif.frames[next].dataUrl;
+      } else {
+        image.src = gif.frames[next].dataUrl;
+        void restoreSnapshot(history[historyIndex]);
+      }
       frameButtons[next]?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
     };
     const close = () => {
@@ -364,7 +390,7 @@ export function createGeneratedImageInteractions({
     };
     const onKeyDown = (event) => {
       if (event.key === 'Escape') close();
-      if (gif && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) selectFrame(currentFrame + (event.key === 'ArrowRight' ? 1 : -1));
+      if (gif && currentFrame !== sheetAt && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) selectFrame(currentFrame + (event.key === 'ArrowRight' ? 1 : -1));
     };
     const selectBrush = (button) => {
       currentColor = button.dataset.editorColor;
@@ -447,6 +473,11 @@ export function createGeneratedImageInteractions({
       captureHistory();
     });
     frameButtons.forEach((button, index) => button.addEventListener('click', () => selectFrame(index)));
+    gridButton?.addEventListener('click', () => selectFrame(currentFrame === sheetAt ? beforeSheet : sheetAt));
+    speedButton?.addEventListener('click', () => {
+      speed = speed === 1 ? 0.5 : speed === 0.5 ? 2 : 1;
+      speedButton.textContent = `${speed}×`;
+    });
     playButton?.addEventListener('click', () => (playing ? stopPlayback() : startPlayback()));
     playbackImage?.addEventListener('pointerdown', stopPlayback);
     overlay.querySelector('.generated-image-editor-close')?.addEventListener('click', close);
@@ -461,9 +492,11 @@ export function createGeneratedImageInteractions({
       try {
         if (gif) {
           // The frames that have marks, in their order, each with its marks on it; which GIF they came from, which frame of how many each is, goes with them (the edited frames are put back there).
+          // Marks on the grid (all the frames in one picture) are sent as that one picture; the model changes the grid and it is cut up again. `speed` (the 1×, 0.5× or 2× of the editor) is the time of the new GIF.
+          const common = { count: gif.frames.length, source: descriptor.id, ...(speed !== 1 ? { speed } : {}) };
           const frames = [];
           for (const [index, marked] of markedFrames().entries()) {
-            if (marked) frames.push({ dataUrl: await frameComposite(index), index, count: gif.frames.length, source: descriptor.id, ...(allButton.getAttribute('aria-pressed') === 'true' ? { all: true } : {}) });
+            if (marked && (index === sheetAt || !markedFrames()[sheetAt])) frames.push({ dataUrl: await frameComposite(index), index: index === sheetAt ? 0 : index, ...common, ...(index === sheetAt ? { sheet: true } : allButton.getAttribute('aria-pressed') === 'true' ? { all: true } : {}) });
           }
           await attachAnnotatedImage({ dataUrl: frames[0].dataUrl, frames, descriptor });
           close();
@@ -508,6 +541,14 @@ export function createGeneratedImageInteractions({
           }, sourceElement);
         });
       });
+      // A GIF has the speed button (1×, 0.5×, 2×) on its card.
+      if (descriptor.mediaType === 'image/gif') {
+        root.querySelectorAll(`[data-generated-image-card="${descriptor.id}"]`).forEach(card => {
+          const picture = card.querySelector('[data-generated-image-id]');
+          if (!picture || card.querySelector('.gif-speed-btn')) return;
+          void import('./gif-speed.js').then(({ attachGifSpeed }) => attachGifSpeed({ document, host: card, image: picture, getSource: () => getImageDataUrl(descriptor), label: getRuntimeTexts(getUiLanguage()).gifSpeed }));
+        });
+      }
       root.querySelectorAll(`[data-generated-image-edit="${descriptor.id}"]`).forEach(button => {
         button.addEventListener('click', event => {
           event.stopPropagation();

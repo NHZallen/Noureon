@@ -138,3 +138,25 @@ test('every frame gets the change, the rest of each frame stays as it was, and t
 test('a GIF that is not in the conversation any more says so', async () => {
   await assert.rejects(() => editGifSheet({ edits: [{ index: 0, count: 4, dataUrl: 'data:image/png;base64,AA==' }], gifDataUrl: 'data:image/gif;base64,AAAA', prompt: 'x', modelInfo: {}, generateImage: async () => ({}), toFrame: pictureToFrame, toPng: rgbaToPng }), /no longer in this conversation/);
 });
+
+test('marks drawn on the grid in the editor go as that one picture, and the time of the new GIF follows the speed', async () => {
+  const asked = [];
+  const gifDataUrl = gifOf();
+  const original = decodeGif(Uint8Array.from(Buffer.from(gifDataUrl.split(',')[1], 'base64')));
+  const layout = sheetLayout(COUNT, W, H);
+  const marked = buildSheet(original.frames.map((frame) => frame.rgba), layout, W, H);
+  paint(marked, layout.width, layout.cellWidth + 30, 20, 10, 2, [255, 0, 0]);
+  const dataUrl = `data:image/png;base64,${(await rgbaToPng(marked, layout.width, layout.height)).b64Json}`;
+  const result = await editGifSheet({
+    edits: [{ index: 0, count: COUNT, dataUrl, sheet: true, speed: 2 }], gifDataUrl, prompt: 'make the nose blue', modelInfo: { id: 'm', provider: 'openrouter' }, apiKey: 'k',
+    generateImage: makeModel(asked), toFrame: pictureToFrame, toPng: rgbaToPng
+  });
+  assert.equal(asked[0].inputReferences.length, 1, 'only the marked grid');
+  assert.equal(asked[0].inputReferences[0], dataUrl);
+  assert.match(asked[0].prompt, /Marks were drawn on it/);
+  const gif = decodeGif(Uint8Array.from(Buffer.from(result.images[0].b64Json, 'base64')));
+  assert.equal(gif.frames.length, COUNT);
+  gif.frames.forEach((frame, index) => assert.equal(frame.delayMs, Math.round(original.frames[index].delayMs / 2), 'twice as fast'));
+  const at = (x, y) => (y * W + x) * 4;
+  assert.ok(gif.frames[0].rgba[at(34 - 2, 24) + 2] > 200, 'the nose of the first frame is blue');
+});

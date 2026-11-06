@@ -7,7 +7,7 @@ export async function loadGifFrames({ document, dataUrl }) {
   try {
     const blob = dataUrlToBlob(dataUrl);
     if (!blob || blob.type !== 'image/gif') return null;
-    const { decodeGif } = await import('./gif-frames.js');
+    const [{ decodeGif }, { buildSheet, sheetLayout }] = await Promise.all([import('./gif-frames.js'), import('./gif-sheet.js')]);
     const gif = decodeGif(new Uint8Array(await blob.arrayBuffer()));
     if (!gif || gif.frames.length < 2) return null;
     const canvas = document.createElement('canvas');
@@ -18,7 +18,12 @@ export async function loadGifFrames({ document, dataUrl }) {
       context.putImageData(new ImageData(frame.rgba, gif.width, gif.height), 0, 0);
       return { dataUrl: canvas.toDataURL('image/png'), delayMs: frame.delayMs };
     });
-    return { width: gif.width, height: gif.height, frames };
+    // All the frames in one picture, as the picture model is given them (gif-sheet.js): the person may mark on it, as on one frame.
+    const layout = sheetLayout(gif.frames.length, gif.width, gif.height);
+    canvas.width = layout.width;
+    canvas.height = layout.height;
+    context.putImageData(new ImageData(buildSheet(gif.frames.map((frame) => frame.rgba), layout, gif.width, gif.height), layout.width, layout.height), 0, 0);
+    return { width: gif.width, height: gif.height, frames, sheet: { dataUrl: canvas.toDataURL('image/png') } };
   } catch {
     return null;
   }

@@ -501,6 +501,51 @@
     background: #fff;
 }
 
+.generated-image-editor-speed {
+    flex: none;
+    min-width: 3rem;
+    padding: .45rem .6rem;
+    border: 1px solid rgba(255, 255, 255, .35);
+    border-radius: 999px;
+    color: #fff;
+    background: transparent;
+    font-size: .85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.generated-image-editor-grid {
+    position: absolute;
+    top: .6rem;
+    right: .6rem;
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(0, 0, 0, .45);
+}
+
+.generated-image-editor-grid[aria-pressed="true"] {
+    color: #000;
+    background: #fff;
+}
+
+.generated-image-editor-grid.has-marks:not([aria-pressed="true"]) {
+    box-shadow: 0 0 0 2px #ff5a5a;
+}
+
+.generated-image-editor-grid svg,
+.generated-image-editor-grid svg * {
+    color: currentColor;
+    stroke: currentColor;
+    fill: none;
+}
+
 .generated-image-editor-frame-list::-webkit-scrollbar {
     display: none;
 }

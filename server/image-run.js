@@ -147,7 +147,7 @@ export async function executeImage({
       throw new ReplyError('The GIF these frames came from could not be read from your cloud space.', ERROR_CODES.providerError);
     }
     generate = (request, makePictures) => (image.gifEdit.all ? editGifSheet : editGifFrames)({
-      edits: image.gifEdit.edits.map((edit, at) => ({ ...edit, dataUrl: request.inputReferences[at] })),
+      edits: image.gifEdit.edits.map((edit, at) => ({ ...edit, dataUrl: request.inputReferences[at], ...(image.gifEdit.sheet ? { sheet: true } : {}), ...(image.gifEdit.speed ? { speed: image.gifEdit.speed } : {}) })),
       gifDataUrl,
       prompt: request.prompt,
       modelInfo: { id: request.model, provider: request.provider, supportedImageAspectRatios: spec.model.info?.supportedImageAspectRatios },

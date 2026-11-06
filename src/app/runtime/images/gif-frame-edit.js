@@ -36,7 +36,11 @@ const toDataUrl = (bytes, mediaType) => {
   return { b64Json: btoa(binary), mediaType };
 };
 
-export const sheetInstruction = (layout, marked) => `The first picture is a contact sheet of the ${layout.count} frames of one animation, ${layout.columns} across and ${layout.rows} down, read from left to right and from top to bottom. `
+// The time of the new GIF: each frame shows for its own time divided by the speed the person chose in the editor (1 is as it was); at least 20 ms.
+const withSpeed = (frames, speed) => (speed > 0 && speed !== 1 ? frames.map((frame) => ({ ...frame, delayMs: Math.max(20, Math.round(frame.delayMs / speed)) })) : frames);
+
+export const sheetInstruction = (layout, marked, drawn = false) => `The first picture is a contact sheet of the ${layout.count} frames of one animation, ${layout.columns} across and ${layout.rows} down, read from left to right and from top to bottom. `
+  + `${drawn ? 'Marks were drawn on it to point at what to change: use them to find it, and draw no marks in the answer. ' : ''}`
   + `Apply the change that was asked to EVERY frame of the sheet, in the same way in all of them, so that the frames stay consistent with each other. Keep everything else exactly as it is: the grid, the size and place of every frame, the poses, the lighting and the style. `
   + `${marked.length ? `The other pictures show frame ${marked.map((index) => index + 1).join(', ')} with marks that point at what to change; use them to find it, and draw no marks. ` : ''}Answer with the whole sheet as one picture, in the same layout.`;
 
@@ -52,16 +56,18 @@ export async function editGifSheet({ edits, gifDataUrl, prompt, modelInfo, apiKe
   const { width, height } = gif;
   const layout = sheetLayout(gif.frames.length, width, height);
   const sent = buildSheet(gif.frames.map((frame) => frame.rgba), layout, width, height);
-  const sheet = await toPng(sent, layout.width, layout.height);
+  // The sheet the person marked in the editor goes as it is (`sheet`); otherwise the sheet is made here, clean, and the marked frames go after it.
+  const drawn = Boolean(edits[0].sheet);
+  const sheet = drawn ? pictureOf(edits[0].dataUrl) : await toPng(sent, layout.width, layout.height);
   const aspectRatio = closestAspectRatio(layout.width, layout.height, modelInfo.supportedImageAspectRatios);
-  const marked = edits.map((edit) => edit.index);
+  const marked = drawn ? [] : edits.map((edit) => edit.index);
   const answer = await generateImage({
     apiKey,
     model: modelInfo.apiId || modelInfo.id,
     provider: modelInfo.provider,
-    prompt: `${prompt}\n\n${sheetInstruction(layout, marked)}`,
+    prompt: `${prompt}\n\n${sheetInstruction(layout, marked, drawn)}`,
     config: { aspectRatio, n: 1 },
-    inputReferences: [`data:${sheet.mediaType};base64,${sheet.b64Json}`, ...edits.map((edit) => edit.dataUrl)],
+    inputReferences: [`data:${sheet.mediaType};base64,${sheet.b64Json}`, ...(drawn ? [] : edits.map((edit) => edit.dataUrl))],
     signal
   });
   const picture = answer?.images?.[0];
@@ -71,13 +77,18 @@ export async function editGifSheet({ edits, gifDataUrl, prompt, modelInfo, apiKe
   const before = sliceSheet(sent, layout, width, height);
   const maps = before.map((cell, index) => changeMap(cell, back[index], width, height));
   const marks = [];
-  for (const edit of edits) {
-    const annotated = pictureOf(edit.dataUrl);
-    marks[edit.index] = annotated ? markMask(before[edit.index], flattenRgba(await toFrame(annotated, width, height)), width, height) : null;
+  if (drawn) {
+    const cells = sliceSheet(flattenRgba(await toFrame(pictureOf(edits[0].dataUrl), layout.width, layout.height, true)), layout, width, height);
+    cells.forEach((cell, index) => { marks[index] = markMask(before[index], cell, width, height); });
+  } else {
+    for (const edit of edits) {
+      const annotated = pictureOf(edit.dataUrl);
+      marks[edit.index] = annotated ? markMask(before[edit.index], flattenRgba(await toFrame(annotated, width, height)), width, height) : null;
+    }
   }
   const threshold = calibrateThreshold(maps, maps.map((_, index) => marks[index] || null));
   const frames = gif.frames.map((frame, index) => ({ ...frame, rgba: compositeChanges(frame.rgba, back[index], maps[index], width, height, { threshold }) }));
-  const bytes = encode({ width, height, frames, loops: gif.loops });
+  const bytes = encode({ width, height, frames: withSpeed(frames, edits[0].speed), loops: gif.loops });
   return { images: [{ ...toDataUrl(bytes, 'image/gif'), aspectRatio: closestAspectRatio(width, height) }] };
 }
 
@@ -107,7 +118,7 @@ export async function editGifFrames({ edits, gifDataUrl, prompt, modelInfo, apiK
     if (!picture?.b64Json) throw new Error(getText('imageNoResult', 'The image was made, but no picture came back to show.'));
     frames[edits[at].index] = { ...frames[edits[at].index], rgba: await toFrame(picture, gif.width, gif.height) };
   }
-  const bytes = encode({ width: gif.width, height: gif.height, frames, loops: gif.loops });
+  const bytes = encode({ width: gif.width, height: gif.height, frames: withSpeed(frames, edits[0].speed), loops: gif.loops });
   let binary = '';
   for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
   return { images: [{ b64Json: btoa(binary), mediaType: 'image/gif', aspectRatio }] };

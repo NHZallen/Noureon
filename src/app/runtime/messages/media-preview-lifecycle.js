@@ -1,3 +1,4 @@
+import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 import { prepareVideoThumbnails } from '../features/video-thumbnail-lifecycle.js';
 import { dataUrlToBlob, saveWithShareSheet } from '../images/picture-blob.js';
 
@@ -104,6 +105,8 @@ export function createMediaPreviewLifecycle({
         applyPreviewMotionOrigin(overlay, sourceElement);
         document.body.appendChild(overlay);
         overlay.querySelector('video')?.play?.().catch(() => {});
+        // A GIF has the speed button (1×, 0.5×, 2×) under the picture.
+        if (mimeType === 'image/gif') void import('../images/gif-speed.js').then(({ attachGifSpeed }) => attachGifSpeed({ document, host: overlay.querySelector('.media-lightbox-stage'), image: overlay.querySelector('.media-lightbox-stage img'), getSource: async () => src, label: getRuntimeTexts(getUiLanguage()).gifSpeed }));
     };
 
     const bindMediaPreviewButtons = (root, mediaParts = []) => {

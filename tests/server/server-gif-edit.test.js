@@ -97,3 +97,14 @@ test('"every frame" is asked of the model once, with the sheet of the frames, an
   assert.match(asked[0].prompt, /contact sheet of the 16 frames/);
   assert.equal(decodeGif(saved[0].bytes).frames.length, 16);
 });
+
+test('the sheet marked in the editor and the speed are accepted only in the right shape', () => {
+  const edits = [{ index: 0, count: 16 }];
+  const ok = specFor({ gifEdit: { source: GIF_URL, edits, all: true, sheet: true, speed: 0.5 } });
+  assert.equal(ok.ok, true, JSON.stringify(ok.errors));
+  assert.deepEqual(ok.spec.image.gifEdit, { source: GIF_URL, edits, all: true, sheet: true, speed: 0.5 });
+  const paths = (result) => result.errors.map((error) => error.path);
+  assert.ok(paths(specFor({ gifEdit: { source: GIF_URL, edits, sheet: true } })).includes('image.gifEdit.sheet'), 'a sheet is for every frame');
+  assert.ok(paths(specFor({ gifEdit: { source: GIF_URL, edits, all: true, speed: 9 } })).includes('image.gifEdit.speed'));
+  assert.ok(paths(specFor({ gifEdit: { source: GIF_URL, edits, all: true, speed: '2' } })).includes('image.gifEdit.speed'));
+});

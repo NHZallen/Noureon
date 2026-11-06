@@ -287,12 +287,12 @@ export function createImageGenerationResponseLifecycle({
       if (source && gifDataUrl && serverReply && assistantMessageId && serverReply.planImage({ conversation }).ok) {
         const started = await serverReply.startImage({
           conversation, modelInfo, prompt: editedPrompt, config: { aspectRatio: source.aspectRatio || normalizedConfig.aspectRatio, n: 1 },
-          references: frameEdits.map(edit => edit.dataUrl), gifEdit: { source: source.cloudAsset || gifDataUrl, edits: frameEdits.map(({ index, count }) => ({ index, count })), ...(frameEdits[0].all ? { all: true } : {}) }, assistantMessageId, sequence, uiLanguage
+          references: frameEdits.map(edit => edit.dataUrl), gifEdit: { source: source.cloudAsset || gifDataUrl, edits: frameEdits.map(({ index, count }) => ({ index, count })), ...(frameEdits[0].all || frameEdits[0].sheet ? { all: true } : {}), ...(frameEdits[0].sheet ? { sheet: true } : {}), ...(frameEdits[0].speed ? { speed: frameEdits[0].speed } : {}) }, assistantMessageId, sequence, uiLanguage
         });
         if (started.ok) return followServerImage(started.run, { signal, serverReply, uiLanguage });
         if (started.notify) serverReply.notify(started.notify, uiLanguage);
       }
-      const edit = editGifFrames || ((input) => Promise.all([import('./gif-frame-edit.js'), import('./gif-frame-edit-page.js')]).then(([module, page]) => (frameEdits[0].all ? module.editGifSheet : module.editGifFrames)({ ...input, toFrame: page.pictureToFrame, toPng: page.rgbaToPng })));
+      const edit = editGifFrames || ((input) => Promise.all([import('./gif-frame-edit.js'), import('./gif-frame-edit-page.js')]).then(([module, page]) => (frameEdits[0].all || frameEdits[0].sheet ? module.editGifSheet : module.editGifFrames)({ ...input, toFrame: page.pictureToFrame, toPng: page.rgbaToPng })));
       const edited = await edit({ edits: frameEdits, gifDataUrl, prompt: editedPrompt, modelInfo, apiKey: generationRequest.apiKey, generateImage, signal, getText });
       const savedFrames = await Promise.all(edited.images.map(image => saveImageAsset({ ...image, title: spokenMessage })));
       return { parts: savedFrames.map(generatedImage => ({ generatedImage })), descriptors: savedFrames };
