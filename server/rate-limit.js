@@ -16,6 +16,13 @@ export function createRateLimiter({ limit, windowMs, now = Date.now }) {
       hits.set(key, recent);
       if (hits.size > 5000) for (const [name, list] of hits) if (!list.some((at) => time - at < windowMs)) hits.delete(name);
       return true;
-    }
+    },
+    /** How many more this key may take now. */
+    remaining(key) {
+      const time = now();
+      return Math.max(0, limit - (hits.get(key) || []).filter((at) => time - at < windowMs).length);
+    },
+    /** Gives one back (a mail that could not be sent does not count). */
+    release(key) { const list = hits.get(key) || []; list.pop(); hits.set(key, list); }
   };
 }

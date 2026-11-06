@@ -172,12 +172,25 @@ begin
 end;
 $$;
 
+create or replace function public.server_revoke_project_invite(p_user_id uuid, p_project_id uuid, p_invite_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  if public.project_role(p_project_id, p_user_id) is null then return; end if;
+  update public.project_invites set status = 'revoked' where id = p_invite_id and project_id = p_project_id and kind = 'email' and status = 'active' and created_by = p_user_id;
+end;
+$$;
+
 revoke all on function
   public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid),
-  public.server_create_project_email_invite(uuid, uuid, text, text, text), public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
+  public.server_create_project_email_invite(uuid, uuid, text, text, text), public.server_revoke_project_invite(uuid, uuid, uuid), public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function
   public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid),
   public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
   to authenticated, service_role;
-grant execute on function public.server_create_project_email_invite(uuid, uuid, text, text, text) to service_role;
+grant execute on function public.server_create_project_email_invite(uuid, uuid, text, text, text), public.server_revoke_project_invite(uuid, uuid, uuid) to service_role;

@@ -10,6 +10,7 @@ import { ConnectorError } from './mcp/connections.js';
 import { TOOL_STATES } from '../src/data/connector-catalog.js';
 import { ShareError } from './shares.js';
 import { ProjectReadError } from './project-reader.js';
+import { InviteError } from './project-invites.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -74,7 +75,7 @@ export function clientAddress(request) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null, projectInvites = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -471,6 +472,31 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         } catch (error) {
           if (!(error instanceof ProjectReadError)) throw error;
           if (error.code === 'not_found') throw new RequestError(ERROR_CODES.conversationNotFound, error.message);
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
+      }
+      // An invitation to a shared project by mail (server/project-invites.js): the mail is sent here, 20 an hour for each person; the quota says how many are left.
+      if (route === 'GET /v1/project-invite-quota') {
+        const user = await authenticate(request);
+        if (!projectInvites) throw new RequestError(ERROR_CODES.runsUnavailable, 'Invitations are not set up on the server.');
+        send(response, 200, { remaining: projectInvites.remaining(user.id), limit: projectInvites.limit }, origin);
+        status = 200;
+        return;
+      }
+      const inviteMail = /^\/v1\/projects\/([0-9a-f-]{36})\/invite-email$/i.exec(url.pathname);
+      if (request.method === 'POST' && inviteMail) {
+        const user = await authenticate(request);
+        if (!projectInvites) throw new RequestError(ERROR_CODES.runsUnavailable, 'Invitations are not set up on the server.');
+        const body = await readJson(request, 2048);
+        try {
+          send(response, 201, { invite: await projectInvites.send({ userId: user.id, projectId: inviteMail[1].toLowerCase(), email: String(body?.email || ''), role: String(body?.role || ''), inviterName: String(body?.inviterName || '') }) }, origin);
+          status = 201;
+          return;
+        } catch (error) {
+          if (!(error instanceof InviteError)) throw error;
+          if (error.code === 'rate_limited') throw new RequestError(ERROR_CODES.rateLimited, error.message, { reason: error.code, remaining: 0, limit: error.extra.limit });
+          if (error.code === 'invalid_email' || error.code === 'invalid_role') throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
+          if (error.code === 'not_allowed' || error.code === 'not_shared' || error.code === 'invite_full') throw new RequestError(ERROR_CODES.wrongPhase, error.message, { reason: error.code });
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
       }
