@@ -2,7 +2,7 @@
 // `project:<id>` when anything in the project changes. The page that has the project open hears it and reads what changed through the server; the ping holds no words. While the channel is joined
 // the page reads on its own timer only now and then (a ping can be lost: a sleeping tab, a dropped connection); while it is not, the page reads every few seconds as before.
 
-/** `onPing()` is called for each ping, `onState(joined)` when the channel is joined or lost. Returns { stop() }. */
+/** `onPing({ c })` is called for each ping (`c` is the conversation it is about, or null for the project itself), `onState(joined)` when the channel is joined or lost. Returns { stop() }. */
 export function subscribeProjectLive({ getSupabase, projectId, onPing = () => {}, onState = () => {} }) {
   let channel = null;
   let stopped = false;
@@ -13,7 +13,7 @@ export function subscribeProjectLive({ getSupabase, projectId, onPing = () => {}
       try { await client.realtime?.setAuth?.(); } catch { /* the client uses the session it has */ }
       if (stopped) return;
       channel = client.channel(`project:${projectId}`, { config: { private: true } });
-      channel.on('broadcast', { event: 'changed' }, () => { if (!stopped) onPing(); });
+      channel.on('broadcast', { event: 'changed' }, (message) => { if (!stopped) onPing(message?.payload || {}); });
       channel.subscribe((status) => { if (!stopped) onState(status === 'SUBSCRIBED'); });
     } catch {
       onState(false);

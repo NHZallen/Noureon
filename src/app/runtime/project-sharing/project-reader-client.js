@@ -68,6 +68,17 @@ export function createSharedProjectReader({ projectId, request = serverRequest }
         return result?.ok && typeof result.data?.data === 'string' ? result.data.data : '';
       } catch { return ''; }
     },
+    /** An editor adds a file: the server keeps it in the owner's space. Resolves { ok: true, data: { hash, mimeType, size, asset } } or { ok: false, code: 'too_big' | 'forbidden' | 'generic' }. */
+    async upload(file) {
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = '';
+        for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+        const result = await request('POST', `/v1/projects/${projectId}/upload`, { body: JSON.stringify({ mimeType: file.type || 'application/octet-stream', data: btoa(binary) }) });
+        if (result?.ok && result.data?.hash) return { ok: true, data: result.data };
+        return { ok: false, code: result?.status === 413 ? 'too_big' : result?.status === 404 ? 'forbidden' : 'generic' };
+      } catch { return { ok: false, code: 'generic' }; }
+    },
     /** The conversation as it is now, put in the reader too ({ ok: true, chat } or { ok: false }). */
     async conversation(id) {
       const result = await pages({ conversationId: id });

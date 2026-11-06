@@ -9,7 +9,7 @@ const dateText = (value, language) => { const date = new Date(value); return Num
  * The page of one project. `shared` is what the server read ({ role, project, owner, conversations }); `meId` is the signed-in person (their own conversations open in the chat: `onOpenOwn(chat)`,
  * the others' are read: `onOpenChat(chat)`); `onNewChat()` makes a conversation of the person in this project.
  */
-export function openSharedProjectPage({ document, root, text, language = 'zh-TW', shared, meId, onOpenChat, onOpenOwn = onOpenChat, onNewChat, onLeave = null, onEditInstructions = null, onClose = () => {} }) {
+export function openSharedProjectPage({ document, root, text, language = 'zh-TW', shared, meId, onOpenChat, onOpenOwn = onOpenChat, onNewChat, onLeave = null, onEditInstructions = null, onOpenSource = null, onAddSource = null, onRemoveSource = null, onClose = () => {} }) {
   const project = shared.project || {};
   const sheet = openSheet({ document, root, title: project.name || '', close: text('psCancel'), className: 'psh-project', onClose });
   const info = make(document, 'p', 'pj-note', text('psSharedBy', { name: shared.owner?.name || '' }));
@@ -34,7 +34,49 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
     }
   };
   draw(shared.conversations);
-  sheet.body.append(info, go, list);
+  // The sources of the project (its files and texts): everyone sees the list and may take a file; the owner and the editors add and remove.
+  const sourcesBox = make(document, 'section', 'psh-sources');
+  const sizeText = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+  const drawSources = (sources) => {
+    sourcesBox.replaceChildren();
+    const head = make(document, 'div', 'pj-section-title', text('psSources'));
+    sourcesBox.appendChild(head);
+    const list = Array.isArray(sources) ? sources : [];
+    if (!list.length) sourcesBox.appendChild(make(document, 'p', 'pj-note', text('psSourcesNone')));
+    for (const source of list) {
+      const row = make(document, 'div', 'psh-source');
+      row.dataset.sourceId = source.id;
+      const open = make(document, 'button', 'pj-row psh-source-open');
+      open.type = 'button';
+      const label = make(document, 'span', 'pj-row-text');
+      label.append(make(document, 'span', 'pj-row-title', source.file?.name || source.title || ''), make(document, 'span', 'pj-row-meta', source.kind === 'url' ? String(source.url || '') : sizeText(Number(source.size) || 0)));
+      open.appendChild(label);
+      if (onOpenSource) open.addEventListener('click', () => onOpenSource(source));
+      row.appendChild(open);
+      if (shared.role !== 'chat' && onRemoveSource) {
+        const remove = make(document, 'button', 'pj-text-button psh-source-remove', text('psSourceRemove'));
+        remove.type = 'button';
+        remove.setAttribute('data-source-remove', source.id);
+        remove.addEventListener('click', () => onRemoveSource(source));
+        row.appendChild(remove);
+      }
+      sourcesBox.appendChild(row);
+    }
+    if (shared.role !== 'chat' && onAddSource) {
+      const input = make(document, 'input', 'psh-file-input');
+      input.type = 'file';
+      input.hidden = true;
+      input.setAttribute('data-source-file', '');
+      const add = make(document, 'button', 'pj-chip psh-source-add', text('psSourceAdd'));
+      add.type = 'button';
+      add.setAttribute('data-source-add', '');
+      add.addEventListener('click', () => input.click());
+      input.addEventListener('change', () => { const file = input.files?.[0]; input.value = ''; if (file) void onAddSource(file); });
+      sourcesBox.append(input, add);
+    }
+  };
+  drawSources(shared.project?.sources);
+  sheet.body.append(info, go, list, sourcesBox);
   if (shared.role === 'editor' && onEditInstructions) {
     const edit = make(document, 'button', 'pj-chip psh-edit', text('psEditInstructions'));
     edit.type = 'button';
@@ -90,7 +132,7 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
     sheet.body.appendChild(leave);
   }
   // The list is drawn again when the project changed under the page (the page of the project keeps reading it).
-  return { ...sheet, update: (next) => draw(next.conversations) };
+  return { ...sheet, update: (next) => { draw(next.conversations); if (next.project) drawSources(next.project.sources); }, updateSources: (sources) => drawSources(sources) };
 }
 
 /** Fills `box` with the projects of the person that were shared with them ([{ project_id, owner_id, name, icon, color, owner_name, role }]); `onOpen(item)` opens one. */

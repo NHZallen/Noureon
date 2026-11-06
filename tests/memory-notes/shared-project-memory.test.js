@@ -116,3 +116,12 @@ test('the loader of a reply in a shared project uses the project store; the page
   const plain = await createPageMemoryTools({ getConfig: () => ({}), getMemory: () => memory, conversation: { id: 'p', messages: [] } });
   assert.equal(plain.snapshot().sharedProject, undefined);
 });
+
+test('the notes that others changed are read again before a reply', async () => {
+  const { store, database } = await sharedStore();
+  database.table.set('note:blue', row('note:blue', { ...createNote({ id: 'blue', text: 'The logo is blue', keywords: ['logo', 'blue'] }), projectId: PROJECT }, 1));
+  assert.deepEqual(store.getNotes().map((note) => note.id), ['red']);
+  await store.refresh();
+  assert.deepEqual(store.getNotes().map((note) => note.id).sort(), ['blue', 'red']);
+  store.stop();
+});

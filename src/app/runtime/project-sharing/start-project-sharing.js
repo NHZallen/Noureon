@@ -48,7 +48,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const role = sharedFolders.roleOf(projectId) || 'chat';
     let held = memoryStores.get(projectId);
     if (!held || held.role !== role) { held?.stop(); held = createSharedMemoryStore({ personal, getSupabase, projectId, role }); memoryStores.set(projectId, held); }
-    if (!held.isLoaded()) { try { await held.load(); } catch { memoryStores.delete(projectId); return null; } }
+    if (!held.isLoaded()) { try { await held.load(); } catch { memoryStores.delete(projectId); return null; } } else { try { await held.refresh(); } catch { /* the notes as they were are used */ } }
     return held;
   });
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
@@ -143,6 +143,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
         lastRead = Date.now();
         const result = await reader.refresh();
         if (result.ok && result.changed) apply(result.project);
+        else if (!result.ok && result.code === 'gone') removed();
       } finally { reading = false; }
       if (again) { again = false; later(() => { void tick(); }, 300); }
     };
@@ -163,8 +164,81 @@ export function startProjectSharing({ document, window = globalThis.window, conf
         }
       });
     };
+    // The person was taken out of the project (or it was deleted) while the page was open: say so, forget it and close the page.
+    const removed = () => {
+      if (!page) return;
+      showNotification(text('psSharedGone'), 'error');
+      sharedFolders.forget(projectId);
+      memoryStores.get(projectId)?.stop();
+      memoryStores.delete(projectId);
+      const closing = page;
+      page = null;
+      stop();
+      closing.close();
+    };
+    // The sources of the project: everyone may take a file; the owner and the editors add and remove (written like the instructions: with the time the project was read at).
+    const sourcesOf = () => (Array.isArray(read.project.project?.sources) ? read.project.project.sources : []);
+    const saveSources = async (list) => {
+      const saved = await shareClient.updateProject(projectId, { sources: list, expected: readAt });
+      if (saved.ok) {
+        readAt = saved.data?.updated_at || readAt;
+        read.project.project.sources = list;
+        sharedFolders.set({ ...read.project.project, id: projectId, role: read.project.role });
+        page?.updateSources(list);
+        return true;
+      }
+      if (saved.code === 'stale') { const fresh = await reader.load(); if (fresh.ok) { read.project.project = fresh.project.project; readAt = fresh.project.project?.updated_at || readAt; apply(fresh.project); } showNotification(text('psStale'), 'error'); return false; }
+      showNotification(text(saved.code === 'not_allowed' ? 'psNotAllowed' : 'psFailed'), 'error');
+      return false;
+    };
+    const addSource = async (file) => {
+      const model = await import('../projects/project-source-model.js');
+      const list = sourcesOf();
+      if (list.length >= model.PROJECT_SOURCES_MAX) { showNotification(text('psSourceFull'), 'error'); return; }
+      if (file.size > model.PROJECT_SOURCE_FILE_BYTES_MAX || model.sourceFilesBytesOf(list) + file.size > model.PROJECT_SOURCE_FILES_BYTES_MAX) { showNotification(text('psSourceTooBig'), 'error'); return; }
+      let entry = null;
+      if (/^text\//.test(file.type) || /\.(txt|md|csv|json)$/i.test(file.name)) {
+        const body = (await file.text()).slice(0, model.PROJECT_SOURCE_CHARS_MAX);
+        entry = model.normalizeSource({ id: crypto.randomUUID(), kind: 'text', title: file.name, mime: file.type || 'text/plain', size: file.size, text: body, addedAt: new Date().toISOString() });
+      } else {
+        const up = await reader.upload(file);
+        if (!up.ok) { showNotification(text(up.code === 'too_big' ? 'psSourceTooBig' : up.code === 'forbidden' ? 'psNotAllowed' : 'psFailed'), 'error'); return; }
+        entry = model.normalizeSource({ id: crypto.randomUUID(), kind: /^image\//.test(file.type) ? 'image' : 'file', title: file.name, mime: up.data.mimeType, size: up.data.size, file: { name: file.name, mimeType: up.data.mimeType, size: up.data.size, hash: up.data.hash, asset: up.data.asset }, addedAt: new Date().toISOString() });
+      }
+      if (!entry) { showNotification(text('psFailed'), 'error'); return; }
+      if (await saveSources([...list, entry])) showNotification(text('psSourceAdded'), 'success');
+    };
+    const removeSource = async (source) => { if (await saveSources(sourcesOf().filter((entry) => entry.id !== source.id))) showNotification(text('psSourceRemoved'), 'success'); };
+    // Taking a source: a text is made into a file here; a file is asked of the server (it gives it only for a file the project holds) and saved by the browser.
+    const openSource = async (source) => {
+      try {
+        let blob = null;
+        let name = source.file?.name || source.title || 'source';
+        if (source.file?.hash) {
+          const path = source.file.asset?.__astraCloudAsset?.path || `${read.project.owner.id}/${source.file.hash}`;
+          const data = await reader.asset(path);
+          if (!data) throw new Error('not given');
+          const binary = atob(data);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+          blob = new window.Blob([bytes], { type: source.file.mimeType || 'application/octet-stream' });
+        } else if (typeof source.text === 'string' && source.text) {
+          blob = new window.Blob([source.text], { type: 'text/plain;charset=utf-8' });
+          if (!/\.[A-Za-z0-9]{1,5}$/.test(name)) name += '.txt';
+        } else if (source.kind === 'url' && source.url) { window.open(source.url, '_blank', 'noopener'); return; }
+        if (!blob) return;
+        const link = document.createElement('a');
+        const href = window.URL.createObjectURL(blob);
+        link.href = href;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => window.URL.revokeObjectURL(href), 10_000);
+      } catch { showNotification(text('psSourceOpenFailed'), 'error'); }
+    };
     page = openSharedProjectPage({
-      document, root: host, text, language, shared: read.project, meId: me, onClose: stop,
+      document, root: host, text, language, shared: read.project, meId: me, onClose: stop, onOpenSource: openSource, onAddSource: addSource, onRemoveSource: removeSource,
       onOpenChat: openChat,
       onOpenOwn: (chat) => { if ((dataStore.getConversations() || []).some((entry) => entry.id === chat.id)) openConversation(chat.id); else openChat(chat); },
       onLeave: async (choice = {}) => {
@@ -283,13 +357,17 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   document.addEventListener(MEMBERS_SLOT_EVENT, (event) => {
     const { projectId, slot, root } = event.detail || {};
     if (!projectId || !slot || !cloudOn()) return;
-    void (async () => {
+    // The button is drawn when the page of the project opens and again whenever the people of the project change (a person joins or leaves: the database pings the channel of the project).
+    const draw = async () => {
       const answer = await shareClient.members(projectId);
       if (!answer.ok || !slot.isConnected) return;
       await ensureStyles();
       const { drawMemberButton } = await import('../../ui/projects/project-head-members.js');
       drawMemberButton({ document, slot, text, members: answer.data?.members || answer.data, avatarOf, onOpen: () => { void openMembers({ projectId, root }); } });
-    })();
+    };
+    void draw();
+    let heard = null;
+    heard = subscribeProjectLive({ getSupabase, projectId, onPing: (ping) => { if (!slot.isConnected) heard?.stop(); else if (!ping?.c) void draw(); } });
   });
   document.addEventListener(MEMBERS_EVENT, (event) => { void openMembers({ projectId: String(event.detail?.projectId || ''), root: event.detail?.root || null }); });
   document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); if (area && readPendingChatLink(area)) lookForChat(); lookToRefresh(); });

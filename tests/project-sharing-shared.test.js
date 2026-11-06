@@ -487,13 +487,13 @@ test('the page joins the private channel of the project, hears the pings and say
   const rt = fakeRealtime();
   const pings = [];
   const states = [];
-  const live = subscribeProjectLive({ getSupabase: () => rt.client, projectId: PROJECT, onPing: () => pings.push(1), onState: (joined) => states.push(joined) });
+  const live = subscribeProjectLive({ getSupabase: () => rt.client, projectId: PROJECT, onPing: (ping) => pings.push(ping.c), onState: (joined) => states.push(joined) });
   await tick();
   assert.deepEqual(rt.calls.channel, [[`project:${PROJECT}`, { config: { private: true } }]]);
   assert.deepEqual(rt.calls.on, ['broadcast', { event: 'changed' }]);
   assert.equal(rt.calls.auth, 1);
   rt.status('SUBSCRIBED'); rt.ping(); rt.ping(); rt.status('CHANNEL_ERROR');
-  assert.deepEqual(pings, [1, 1]);
+  assert.deepEqual(pings, ['x', 'x']);
   assert.deepEqual(states, [true, false]);
   live.stop();
   assert.equal(rt.calls.removed, 1);
@@ -532,4 +532,120 @@ test('with the channel joined a ping reads the project at once and the timer onl
   assert.equal(reads, joined + 1, 'a ping reads at once');
   page1?.close?.();
   assert.equal(rt.calls.removed, 1, 'closing the page leaves the channel');
+});
+
+const SOURCE_FILE = { id: 's-file', kind: 'file', title: 'plan.pdf', mime: 'application/pdf', size: 3000, file: { name: 'plan.pdf', mimeType: 'application/pdf', size: 3000, hash: 'a'.repeat(64) }, addedAt: 'x' };
+const SOURCE_TEXT = { id: 's-text', kind: 'text', title: 'Brief', mime: 'text/plain', size: 20, text: 'The brief says blue.', addedAt: 'x' };
+
+function withSources({ role = 'editor', sources = [SOURCE_FILE, SOURCE_TEXT], reader = {}, client = {} } = {}) {
+  const info = { role, project: { name: 'City plan', sources, updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
+  const saved = [];
+  const env = started({ read: async () => ({ ok: true, project: info }) });
+  const { window } = env.document.defaultView ? { window: env.document.defaultView } : {};
+  void window;
+  return { env, info, saved, reader, client };
+}
+
+test('the page of a shared project lists its sources; the owner and the editors can add and remove, a chat member can only take', async () => {
+  for (const role of ['editor', 'chat']) {
+    const { env } = withSources({ role });
+    await env.api.openShared({ project_id: PROJECT, root: env.root });
+    assert.equal(env.root.querySelectorAll('.psh-source').length, 2, role);
+    assert.match(env.root.textContent, /plan\.pdf/);
+    assert.equal(env.root.querySelectorAll('[data-source-remove]').length, role === 'editor' ? 2 : 0, role);
+    assert.equal(Boolean(env.root.querySelector('[data-source-add]')), role === 'editor', role);
+  }
+});
+
+test('an editor adds a text file as a text source and removes a source; the project is written with the time it was read at, and a stale write reads it again', async () => {
+  const written = [];
+  const info = { role: 'editor', project: { name: 'City plan', sources: [SOURCE_TEXT], updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
+  const { window, document, root } = page();
+  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
+  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
+  const notes = [];
+  let stale = false;
+  const api = startProjectSharing({
+    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
+    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {},
+    client: { sharedWithMe: async () => ({ ok: true, data: [] }), updateProject: async (id, args) => { written.push(args); return stale ? { ok: false, code: 'stale' } : { ok: true, data: { updated_at: `t${written.length + 1}` } }; } },
+    storage: window.localStorage, createReader: () => ({ ...readerOf(async () => ({ ok: true, project: info })), refresh: async () => ({ ok: true, changed: false, project: info }) }), pollMs: 1e9
+  });
+  await api.openShared({ project_id: PROJECT, root });
+  const input = root.querySelector('[data-source-file]');
+  const file = new window.File(['Deadline is Friday.'], 'deadline.md', { type: 'text/markdown' });
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  input.dispatchEvent(new window.Event('change'));
+  await tick(); await tick();
+  assert.equal(written.length, 1);
+  assert.equal(written[0].expected, 't1');
+  assert.deepEqual(written[0].sources.map((source) => [source.title, source.kind, source.text]), [['Brief', 'text', 'The brief says blue.'], ['deadline.md', 'text', 'Deadline is Friday.']]);
+  assert.deepEqual(notes.at(-1), [texts.psSourceAdded, 'success']);
+  assert.equal(root.querySelectorAll('.psh-source').length, 2);
+  root.querySelector('[data-source-remove="s-text"]').click();
+  await tick(); await tick();
+  assert.equal(written[1].expected, 't2', 'the next write carries the time the last one gave');
+  assert.deepEqual(written[1].sources.map((source) => source.title), ['deadline.md']);
+  stale = true;
+  root.querySelector('[data-source-remove]').click();
+  await tick(); await tick();
+  assert.deepEqual(notes.at(-1), [texts.psStale, 'error']);
+});
+
+test('a file that is not text is uploaded to the server first, then written as a source; a refusal says why and writes nothing', async () => {
+  const written = [];
+  const uploads = [];
+  const info = { role: 'editor', project: { name: 'City plan', sources: [], updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
+  const { window, document, root } = page();
+  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
+  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
+  const notes = [];
+  let answer = { ok: true, data: { hash: 'b'.repeat(64), mimeType: 'application/pdf', size: 4, asset: { __astraCloudAsset: { path: `o/${'b'.repeat(64)}` } } } };
+  const api = startProjectSharing({
+    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
+    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {},
+    client: { sharedWithMe: async () => ({ ok: true, data: [] }), updateProject: async (id, args) => { written.push(args); return { ok: true, data: { updated_at: 't2' } }; } },
+    storage: window.localStorage, createReader: () => ({ ...readerOf(async () => ({ ok: true, project: info })), upload: async (file) => { uploads.push(file.name); return answer; } }), pollMs: 1e9
+  });
+  await api.openShared({ project_id: PROJECT, root });
+  const send = async (name) => { const input = root.querySelector('[data-source-file]'); Object.defineProperty(input, 'files', { value: [new window.File(['%PDF'], name, { type: 'application/pdf' })], configurable: true }); input.dispatchEvent(new window.Event('change')); await tick(); await tick(); };
+  await send('plan.pdf');
+  assert.deepEqual(uploads, ['plan.pdf']);
+  assert.equal(written[0].sources[0].kind, 'file');
+  assert.equal(written[0].sources[0].file.hash, 'b'.repeat(64));
+  assert.equal(written[0].sources[0].file.asset.__astraCloudAsset.path, `o/${'b'.repeat(64)}`);
+  answer = { ok: false, code: 'too_big' };
+  await send('big.pdf');
+  assert.equal(written.length, 1);
+  assert.deepEqual(notes.at(-1), [texts.psSourceTooBig, 'error']);
+  answer = { ok: false, code: 'forbidden' };
+  await send('x.pdf');
+  assert.deepEqual(notes.at(-1), [texts.psNotAllowed, 'error']);
+});
+
+test('a person who was taken out of the project is told on the next read, and the page closes and forgets the project', async () => {
+  const info = { role: 'chat', project: { name: 'City plan', sources: [] }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
+  const { window, document, root } = page();
+  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
+  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
+  const notes = [];
+  let gone = false;
+  const rt = fakeRealtime();
+  const api = startProjectSharing({
+    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
+    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {}, supabase: rt.client,
+    client: { sharedWithMe: async () => ({ ok: true, data: [] }) }, storage: window.localStorage,
+    createReader: () => ({ ...readerOf(async () => ({ ok: true, project: info })), refresh: async () => (gone ? { ok: false, code: 'gone' } : { ok: true, changed: false, project: info }) }), pollMs: 1e9
+  });
+  await api.openShared({ project_id: PROJECT, root });
+  assert.ok(root.querySelector('.psh-project'));
+  assert.equal(api.sharedFolders.list().length, 1);
+  gone = true;
+  rt.status('SUBSCRIBED');
+  rt.ping();
+  await tick(); await tick();
+  assert.deepEqual(notes.at(-1), [texts.psSharedGone, 'error']);
+  assert.equal(api.sharedFolders.list().length, 0);
+  assert.equal(root.querySelector('.psh-project'), null);
+  assert.equal(rt.calls.removed, 1, 'the channel is left');
 });

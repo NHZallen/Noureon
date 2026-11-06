@@ -72,6 +72,8 @@ export function createSharedMemoryStore({ personal, getSupabase, projectId, role
       return this;
     },
     isLoaded: () => loaded,
+    /** Reads the project notes again (a reply does this first, so it never works from notes that others have changed since). */
+    refresh,
     getNotes: notes,
     commitNotes: (next) => enqueue(async () => {
       const changes = readOnly ? [] : noteChanges(next);
