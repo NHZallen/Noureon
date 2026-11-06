@@ -146,7 +146,7 @@ export function createGeneratedImageAssetStore({
           // On an iPhone the link does nothing, so the file goes to the share sheet instead (picture-blob.js).
           element.addEventListener?.('click', (event) => {
             element.download = downloadNameOf(descriptor, element);
-            if (saveWithShareSheet({ blob, name: element.download })) event.preventDefault();
+            if (saveWithShareSheet({ blob: element.retimedBlob || blob, name: element.download })) event.preventDefault();
           });
         });
     }));

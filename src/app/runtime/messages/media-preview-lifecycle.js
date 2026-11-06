@@ -83,7 +83,8 @@ export function createMediaPreviewLifecycle({
         // A place that cannot share a file has no Share button (it did nothing when pressed).
         if (typeof navigator.share !== 'function') overlay.querySelector('.media-lightbox-share')?.remove();
         // The picture is held as a data address: it is decoded, not fetched (the page's policy refuses fetching data addresses, picture-blob.js).
-        const pictureBlob = () => dataUrlToBlob(src);
+        let retimed = null;
+        const pictureBlob = () => retimed || dataUrlToBlob(src);
         overlay.querySelector('.media-lightbox-download')?.addEventListener('click', (event) => {
             const blob = pictureBlob();
             if (blob && saveWithShareSheet({ blob, name, navigator, FileCtor: File })) event.preventDefault();
@@ -106,7 +107,9 @@ export function createMediaPreviewLifecycle({
         document.body.appendChild(overlay);
         overlay.querySelector('video')?.play?.().catch(() => {});
         // A GIF has the speed button (1×, 0.5×, 2×) under the picture.
-        if (mimeType === 'image/gif') void import('../images/gif-speed.js').then(({ attachGifSpeed }) => attachGifSpeed({ document, host: overlay.querySelector('.media-lightbox-stage'), image: overlay.querySelector('.media-lightbox-stage img'), getSource: async () => src, label: getRuntimeTexts(getUiLanguage()).gifSpeed }));
+        if (mimeType === 'image/gif') void import('../images/gif-speed.js').then(({ attachGifSpeed }) => attachGifSpeed({ document, host: overlay.querySelector('.media-lightbox-stage'), image: overlay.querySelector('.media-lightbox-stage img'), getSource: async () => src, label: getRuntimeTexts(getUiLanguage()).gifSpeed,
+            // Saving and sharing give the GIF at the speed chosen.
+            onRetimed: (blob) => { retimed = blob; const link = overlay.querySelector('.media-lightbox-download'); if (link) link.href = blob ? URL.createObjectURL(blob) : src; } }));
     };
 
     const bindMediaPreviewButtons = (root, mediaParts = []) => {

@@ -475,8 +475,7 @@ export function createGeneratedImageInteractions({
     frameButtons.forEach((button, index) => button.addEventListener('click', () => selectFrame(index)));
     gridButton?.addEventListener('click', () => selectFrame(currentFrame === sheetAt ? beforeSheet : sheetAt));
     speedButton?.addEventListener('click', () => {
-      speed = speed === 1 ? 0.5 : speed === 0.5 ? 2 : 1;
-      speedButton.textContent = `${speed}×`;
+      void import('./gif-speed.js').then(({ openSpeedMenu, speedLabel }) => openSpeedMenu({ document, anchor: speedButton, current: speed, label: texts.speed, onPick: (next) => { speed = next; speedButton.textContent = speedLabel(next); } }));
     });
     playButton?.addEventListener('click', () => (playing ? stopPlayback() : startPlayback()));
     playbackImage?.addEventListener('pointerdown', stopPlayback);
@@ -546,7 +545,17 @@ export function createGeneratedImageInteractions({
         root.querySelectorAll(`[data-generated-image-card="${descriptor.id}"]`).forEach(card => {
           const picture = card.querySelector('[data-generated-image-id]');
           if (!picture || card.querySelector('.gif-speed-btn')) return;
-          void import('./gif-speed.js').then(({ attachGifSpeed }) => attachGifSpeed({ document, host: card, image: picture, getSource: () => getImageDataUrl(descriptor), label: getRuntimeTexts(getUiLanguage()).gifSpeed }));
+          void import('./gif-speed.js').then(({ attachGifSpeed }) => attachGifSpeed({
+            document, host: card, image: picture, getSource: () => getImageDataUrl(descriptor), label: getRuntimeTexts(getUiLanguage()).gifSpeed,
+            // The download button of the card gives the GIF at the speed chosen (its link and its share sheet read these).
+            onRetimed: (blob) => card.querySelectorAll(`[data-generated-image-download="${descriptor.id}"]`).forEach((link) => {
+              link.dataset.originalHref ||= link.href;
+              if (link.retimedUrl) URL.revokeObjectURL(link.retimedUrl);
+              link.retimedBlob = blob || null;
+              link.retimedUrl = blob ? URL.createObjectURL(blob) : '';
+              link.href = link.retimedUrl || link.dataset.originalHref;
+            })
+          }));
         });
       }
       root.querySelectorAll(`[data-generated-image-edit="${descriptor.id}"]`).forEach(button => {

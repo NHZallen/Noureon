@@ -160,3 +160,16 @@ test('marks drawn on the grid in the editor go as that one picture, and the time
   const at = (x, y) => (y * W + x) * 4;
   assert.ok(gif.frames[0].rgba[at(34 - 2, 24) + 2] > 200, 'the nose of the first frame is blue');
 });
+
+test('the time of a GIF can be changed without touching its pictures', async () => {
+  const { retimeGif } = await import('../src/app/runtime/images/gif-retime.js');
+  const bytes = Uint8Array.from(Buffer.from(gifOf().split(',')[1], 'base64'));
+  const before = decodeGif(bytes);
+  const slower = decodeGif(retimeGif(bytes, 0.25));
+  assert.deepEqual(slower.frames.map((frame) => frame.delayMs), before.frames.map((frame) => Math.round(frame.delayMs / 10 * 4) * 10));
+  slower.frames.forEach((frame, index) => assert.deepEqual([...frame.rgba], [...before.frames[index].rgba]));
+  assert.deepEqual(decodeGif(retimeGif(bytes, 4)).frames.map((frame) => frame.delayMs), before.frames.map((frame) => Math.max(2, Math.round(frame.delayMs / 10 / 4)) * 10));
+  assert.equal(decodeGif(retimeGif(bytes, 1)).frames[0].delayMs, before.frames[0].delayMs);
+  assert.equal(retimeGif(Uint8Array.from([1, 2, 3]), 2).length, 3, 'not a GIF: as it was');
+  assert.equal(retimeGif(bytes.slice(0, 40), 2).length, 40, 'a cut file does not make it throw');
+});
