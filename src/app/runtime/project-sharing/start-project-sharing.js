@@ -332,7 +332,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const language = configAccess.getUiLanguage();
     const { openProjectConversation } = await import('../../ui/projects/project-conversation-viewer.js');
     const sheet = openProjectConversation({
-      document, root: host || document.body, text, texts: i18n[language] || i18n['zh-TW'] || {}, language, chat, renderMarkdown, loadAsset: (path) => session.reader.asset?.(path),
+      document, root: host || document.body, text, texts: i18n[language] || i18n['zh-TW'] || {}, language, chat, renderMarkdown, loadAsset: (path) => session.reader.asset?.(path), project: session.info?.project,
+      onSidebar: () => { sheet.close(); document.getElementById('menu-toggle-btn')?.click(); },
       onClose: () => { if (session.viewer?.sheet === sheet) session.viewer = null; }, onBranch: (pick) => { void branchOf(session, chat, pick); }
     });
     session.viewer = { chatId: chat.id, sheet };

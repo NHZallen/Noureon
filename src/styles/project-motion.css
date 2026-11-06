@@ -1,0 +1,6 @@
+/* The pages of the projects come in, as the pages of the app do: into a project from the right, back to the list from the left. They are softer than they are long, and none for a person who asked for less motion. */
+@keyframes pj-come-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
+@keyframes pj-come-back { from { opacity: 0; transform: translateX(-1.5rem); } to { opacity: 1; transform: none; } }
+.pj.is-coming-in { animation: pj-come-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.pj.is-coming-back { animation: pj-come-back 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) { .pj.is-coming-in, .pj.is-coming-back { animation: none; } }

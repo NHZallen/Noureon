@@ -763,9 +763,20 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
 
   // ----- going from one page to the other
+  // The page comes in from the right into a project, from the left back to the list (styles/project-motion.css).
+  let comingTimer = null;
+  const comes = (kind) => {
+    root.classList.remove('is-coming-in', 'is-coming-back');
+    if (root.getBoundingClientRect) root.getBoundingClientRect();
+    root.classList.add(kind);
+    win.clearTimeout(comingTimer);
+    comingTimer = win.setTimeout(() => root.classList.remove(kind), 320);
+    comingTimer?.unref?.();
+  };
   function go(next, push = false) {
     if (closed) return;
     if (next?.id && projectOrNull(next.id)) {
+      if (state.view !== 'project' || state.projectId !== next.id) comes('is-coming-in');
       state.fromList = state.listDrawn;
       state.projectId = next.id;
       state.tab = 'chats';
@@ -774,6 +785,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       // Asked from the left menu: the settings of the project are open at once.
       if (next.edit) openEdit(projectOrNull(next.id), drawProject);
     } else {
+      if (state.view === 'project') comes('is-coming-back');
       state.projectId = null;
       setAddress(PROJECTS_PATH, push);
       drawList();

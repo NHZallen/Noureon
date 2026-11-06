@@ -12,15 +12,37 @@ import { escapeHTML, renderUserText } from '../../runtime/shell/shell-utilities.
 import { renderSharedMessages } from '../../share-page/share-messages.js';
 import { installCodeHighlighting } from '../code/code-highlighting.js';
 import { branchButtonHTML } from '../../runtime/branch/branch-button.js';
-import { make, openSheet } from './project-parts.js';
+import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
+import { colorOf, make, openSheet } from './project-parts.js';
+
+const SIDEBAR_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><line x1="15.5" y1="9.5" x2="15.5" y2="14.5"></line></svg>';
 
 /**
  * `chat` is { id, title, authorName, messages }; `texts` the interface texts of the language (for the markup of the messages); `onBranch({ id, index })` is told which reply the reader chose
  * (`{ last: true }` for the button at the foot); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
  */
-export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, onClose = () => {} }) {
+export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, project = null, onSidebar = null, onClose = () => {} }) {
   const win = document.defaultView;
   const sheet = openSheet({ document, root, title: chat.title || '', close: text('pjBack'), className: 'psh-viewer', back: true, onClose });
+  // The head is the one of a chat of the project (project-crumb.js): the arrow back at the left, the project's icon and name with "Chat" under it in the middle, the button of the menu at the right.
+  const heading = sheet.element.querySelector('.pj-sheet-title');
+  if (project && heading) {
+    const top = make(document, 'span', 'psh-crumb-top');
+    const icon = make(document, 'span', 'psh-crumb-icon');
+    icon.style.setProperty('color', colorOf(project.color));
+    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">${FOLDER_SVGS[project.icon] || FOLDER_SVGS.default}</svg>`;
+    top.append(icon, make(document, 'span', 'psh-crumb-name', project.name || ''));
+    heading.classList.add('psh-crumb');
+    heading.replaceChildren(top, make(document, 'span', 'psh-crumb-sub', text('pjHeadSub')));
+  }
+  if (onSidebar) {
+    const side = make(document, 'button', 'pj-round');
+    side.type = 'button';
+    side.setAttribute('aria-label', text('psViewerMenu'));
+    side.innerHTML = SIDEBAR_ICON;
+    side.addEventListener('click', () => onSidebar());
+    sheet.element.querySelector('.pj-sheet-head')?.appendChild(side);
+  }
   const lead = make(document, 'p', 'pj-note psh-viewer-lead', text('psReadOnly', { name: chat.authorName || '' }));
   const list = make(document, 'section', 'psh-messages');
   sheet.body.append(lead, list);

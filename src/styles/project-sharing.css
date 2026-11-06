@@ -77,3 +77,11 @@
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head.has-back .pj-round.is-back { grid-column: 1; }
   .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head.has-back .pj-sheet-title { grid-column: 2; }
 }
+
+/* The head of someone else's chat is the head of a chat of the project: the icon and the name, "Chat" under it. */
+.psh-crumb { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
+.psh-crumb-top { max-width: 100%; display: inline-flex; align-items: center; gap: 0.4rem; }
+.psh-crumb-icon { flex: none; width: 1.15rem; height: 1.15rem; display: inline-flex; }
+.psh-crumb-icon svg { width: 100%; height: 100%; }
+.psh-crumb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; line-height: 1.5rem; }
+.psh-crumb-sub { font-size: 0.75rem; line-height: 1rem; color: var(--text-secondary); }
