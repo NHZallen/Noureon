@@ -108,3 +108,16 @@ test('binds an object URL and original download name to generated image elements
   assert.equal(link.href, 'blob:asset-1');
   assert.match(link.download, /^noureon-\d{8}-\d{4}-1\.png$/, 'noureon-<day>-<minute>-<number> when the picture has no words');
 });
+
+test('a drawing kept without a size is read at the size every picture has, and the file kept is not touched', async () => {
+  const kept = new Map();
+  const raw = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60"/></svg>';
+  const store = createGeneratedImageAssetStore({ getItem: async (key) => kept.get(key), setItem: async (key, value) => kept.set(key, value), getUserName: () => 'u' });
+  kept.set('k', new Blob([raw], { type: 'image/svg+xml' }));
+  const text = await (await store.getBlob({ id: 'd', mediaType: 'image/svg+xml', storageKey: 'k' })).text();
+  assert.match(text, /^<svg width="1024" height="614" xmlns=/);
+  assert.equal(await kept.get('k').text(), raw, 'what is kept stays as it was');
+  const png = new Blob(['x'], { type: 'image/png' });
+  kept.set('p', png);
+  assert.equal(await store.getBlob({ id: 'p', mediaType: 'image/png', storageKey: 'p' }), png, 'a picture is given as it is');
+});

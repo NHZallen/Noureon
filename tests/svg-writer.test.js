@@ -217,6 +217,7 @@ test('only a text model that looks at pictures has Edit on a drawing', async () 
   assert.ok(root.attrs.has('data-model-vision'));
   assert.equal(syncSvgEditGate(root, { provider: 'openrouter', id: 'nvidia/nemotron-3.5-lightning' }), false);
   assert.ok(!root.attrs.has('data-model-vision'));
-  assert.equal(syncSvgEditGate(root, { provider: 'openai', id: 'gpt-image-2.6-flare', outputModality: 'image' }), false, 'a picture maker is not asked to change a drawing');
+  assert.equal(syncSvgEditGate(root, { provider: 'openai', id: 'gpt-image-2.6-flare', outputModality: 'image', supportedImageFormats: ['png', 'gif', 'svg'] }), true, 'GPT Image 2.6 makes drawings: Luna changes them');
+  assert.equal(syncSvgEditGate(root, { provider: 'openrouter', id: 'black-forest-labs/flux-3-image', outputModality: 'image' }), false, 'a picture maker that makes no drawings');
   assert.equal(syncSvgEditGate(root, null), false);
 });

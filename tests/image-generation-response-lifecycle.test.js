@@ -850,3 +850,26 @@ test('a drawing marked in the editor goes to the text model with its code and th
   assert.equal(request.config.n, 1, 'one SVG is changed, not as many as the Count says');
   assert.equal(request.config.outputFormat, 'svg');
 });
+
+test('a drawing of GPT Image 2.6 marked in the editor goes back as an SVG with its code and the marked picture (Luna writes the new one)', async () => {
+  const requests = [];
+  const code = '<svg width="1024" height="1024" viewBox="0 0 8 8"><circle r="3"/></svg>';
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'PHN2Zy8+', mediaType: 'image/svg+xml' }] }; },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/svg+xml', size: 5 }),
+    getStoredImageDataUrl: async (descriptor) => (descriptor.id === 'drawing-1' ? `data:image/svg+xml;base64,${btoa(code)}` : ''),
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const maker = { id: 'gpt-image-2.6-flare', provider: 'openai', outputModality: 'image', supportedImageFormats: ['png', 'gif', 'svg'], supportedImageOptions: [], maxImageCount: 10, maxImageReferences: 16 };
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', n: 3 }, messages: [{ role: 'model', parts: [{ generatedImage: { id: 'drawing-1', mediaType: 'image/svg+xml' } }] }] };
+  await lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'make the circle orange' }, { inlineData: { mimeType: 'image/png', data: 'QUJD', targetedEdit: { svg: 'drawing-1' } } }], modelInfo: maker, conversation });
+  const request = requests[0];
+  assert.equal(request.config.outputFormat, 'svg');
+  assert.equal(request.config.n, 1);
+  assert.equal(request.config.aspectRatio, 'auto');
+  assert.ok(request.prompt.includes(code));
+  assert.deepEqual(request.inputReferences, ['data:image/png;base64,QUJD']);
+  assert.equal(request.provider, 'openai');
+});

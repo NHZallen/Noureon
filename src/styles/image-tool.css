@@ -12,6 +12,8 @@
 /* On the card of a picture the number stands in the corner where the Edit button stands at the bottom (.75rem from the edge), so the two chips line up. */
 .generated-image-card > .picture-number { top: 0.75rem; left: 0.75rem; }
 /* A drawing may have no size of its own (only a viewBox): on a card as wide as its picture it would be 0 by 0. */
+.generated-image-card .generated-image-action-btn { white-space: nowrap; }
+.generated-image-card .generated-image-download-btn { margin-left: auto; }
 .generated-image-card.is-svg img { min-width: 8rem; background: var(--paper-bg); }
 /* An SVG is changed by a text model that looks at pictures (updateFunctionButtonsState sets data-model-vision), so the Edit button is only there for one. */
 .generated-image-card.is-svg .generated-image-edit-btn { display: none; }

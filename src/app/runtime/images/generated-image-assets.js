@@ -1,6 +1,17 @@
 import { createImageFileName } from '../../ui/files/file-name-policy.js';
 import { settlePicture, settlePictures } from '../../ui/files/picture-loading.js';
 import { saveWithShareSheet } from './picture-blob.js';
+import { withIntrinsicSize } from './svg-writer.js';
+
+// A drawing kept before every drawing was given a size (only a viewBox, or its own 300 or 512) is shown at the size every picture has: its text is brought to it when it is read, the file kept is not touched.
+const withPictureSize = async (descriptor, blob) => {
+  if (descriptor?.mediaType !== 'image/svg+xml' || typeof blob?.text !== 'function') return blob;
+  try {
+    return new Blob([withIntrinsicSize(await blob.text())], { type: blob.type || 'image/svg+xml' });
+  } catch {
+    return blob;
+  }
+};
 
 /**
  * The number a picture has in its message, as the person sees it on the picture (the chip), or its place among the pictures of the message.
@@ -90,10 +101,10 @@ export function createGeneratedImageAssetStore({
 
   const getBlob = async (descriptor) => {
     const volatileBlob = descriptor && volatileBlobs.get(descriptor);
-    if (volatileBlob instanceof Blob) return volatileBlob;
+    if (volatileBlob instanceof Blob) return withPictureSize(descriptor, volatileBlob);
     if (!descriptor?.storageKey) return null;
     const value = await getItem(descriptor.storageKey);
-    return value instanceof Blob ? value : null;
+    return value instanceof Blob ? withPictureSize(descriptor, value) : null;
   };
 
   const persist = async (descriptor) => {

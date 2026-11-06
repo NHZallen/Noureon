@@ -165,7 +165,8 @@ export function createImageGenerationResponseLifecycle({
     // A drawing marked in the editor goes back to the text model with its code (the marked picture goes along as the picture to look at).
     let svgEditCode = '';
     let svgRoute = null;
-    const svgEditId = svgByTextModel ? requestParts.map(part => part.inlineData?.targetedEdit?.svg).find(Boolean) : '';
+    // (A picture model that makes SVGs gets the same: Luna of OpenAI or OpenRouter changes the drawing, as it writes the SVGs of that model.)
+    const svgEditId = requestParts.map(part => part.inlineData?.targetedEdit?.svg).find(Boolean) || '';
     if (svgEditId) {
       svgRoute = await import('./svg-chat-route.js');
       const source = (conversation.messages || []).flatMap(message => message.parts || []).map(part => part.generatedImage).find(picture => picture?.id === svgEditId);
@@ -185,7 +186,7 @@ export function createImageGenerationResponseLifecycle({
     const modelFormats = supportedFormatsOf(modelInfo);
     const savedFormat = conversation.imageAdvancedConfig?.outputFormat;
     // What was said ("make a GIF", "as an SVG") wins for this message; the setting is not changed.
-    const outputFormat = svgByTextModel ? 'svg' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
+    const outputFormat = svgByTextModel || svgEditCode ? 'svg' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
     // Pictures the person attached go with any format (a picture can be made into a GIF or an SVG), except a GIF on OpenRouter (it answers a PNG sheet of the frames: the probe of 2026-11-06). The earlier picture that goes
     // along as the one to build on, when none is attached, does not go with an SVG (the endpoint that edits does not make one) or with a GIF on OpenRouter, so they would only fail.
     let inputReferences = getInlineReferences(requestParts);
@@ -276,7 +277,11 @@ export function createImageGenerationResponseLifecycle({
     if (spoken.frameDuration && modelInfo.supportedImageOptions?.includes('frameDuration')) generationRequest.config.frameDuration = spoken.frameDuration;
     // What was said about the count wins for this message; a count saved with another model must not ask a one-picture model for more.
     if (spoken.count) generationRequest.config.n = spoken.count;
-    if (svgEditCode) generationRequest.config.n = 1;
+    if (svgEditCode) {
+      // One drawing, in the shape of the one that is changed (no canvas is told).
+      generationRequest.config.n = 1;
+      generationRequest.config.aspectRatio = 'auto';
+    }
     if (groups) generationRequest.config.n = groups.length;
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     // The format, put right for the model; then for the format (a GIF has its frames and no compression, an SVG is one picture).
