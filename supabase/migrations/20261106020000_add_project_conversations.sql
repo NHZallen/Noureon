@@ -98,7 +98,8 @@ begin
     'role', v_role,
     'shared_at', v_folder.shared_at,
     'has_more', v_more,
-    'project', jsonb_build_object('id', v_folder.id, 'name', v_folder.name, 'icon', v_folder.icon, 'color', v_folder.color, 'text_color', v_folder.text_color, 'instructions', v_folder.instructions, 'memory_scope', v_folder.memory_scope, 'updated_at', v_folder.updated_at),
+    'project', jsonb_build_object('id', v_folder.id, 'name', v_folder.name, 'icon', v_folder.icon, 'color', v_folder.color, 'text_color', v_folder.text_color, 'instructions', v_folder.instructions, 'memory_scope', v_folder.memory_scope, 'updated_at', v_folder.updated_at, 'sources', v_folder.sources,
+      'notes', coalesce((select jsonb_agg(jsonb_build_object('id', n.id, 'text', n.note_text, 'created_at', n.created_at) order by n.created_at) from public.project_notes n where n.project_id = p_project_id), '[]'::jsonb)),
     'owner_id', v_folder.user_id,
     'owner_name', public.project_person_name(v_folder.user_id),
     'conversations', coalesce((

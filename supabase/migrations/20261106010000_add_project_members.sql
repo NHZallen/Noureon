@@ -20,7 +20,7 @@
 --   get_project_invite(code)              for anyone: the name of the project, the role and who invited, when the link works.
 --   accept_project_invite(code)           a signed-in person joins (not when they were removed with this generation, not over 100 members, not the owner).
 --   set_project_member_role(project, member, role)   owner only.
---   remove_project_member(project, member)           owner only; the person cannot come back with an old link.
+--   remove_project_member(project, member, delete_conversations)   owner only; the person cannot come back with an old link; their conversations stay unless asked.
 --   leave_project(project)                a member leaves.
 --   list_shared_with_me()                 the projects the signed-in person has joined.
 
@@ -413,7 +413,7 @@ begin
 end;
 $$;
 
-create or replace function public.remove_project_member(p_project_id uuid, p_member_id uuid)
+create or replace function public.remove_project_member(p_project_id uuid, p_member_id uuid, p_delete_conversations boolean default false)
 returns void
 language plpgsql
 volatile
@@ -431,6 +431,11 @@ begin
     insert into public.project_removed_members (project_id, owner_id, member_id, link_generation)
     values (p_project_id, v_member.owner_id, p_member_id, coalesce(v_member.link_generation, (select invite_link_generation from public.workspace_folders where id = p_project_id)))
     on conflict (project_id, member_id) do update set removed_at = now(), link_generation = excluded.link_generation;
+    -- The owner may take what the person made in the project with them (it goes to the trash of that person, as any conversation the owner of it deletes); by default it stays.
+    if p_delete_conversations then
+      update public.workspace_conversations set deleted_at = now(), updated_at = now()
+      where user_id = p_member_id and shared_project_id = p_project_id and shared_project_owner = v_member.owner_id and deleted_at is null;
+    end if;
   end if;
 end;
 $$;
@@ -471,12 +476,12 @@ $$;
 revoke all on function
   public.project_share_preview(uuid), public.share_project(uuid), public.list_project_members(uuid), public.get_project_links(uuid), public.create_project_link(uuid, text, text),
   public.refresh_project_link(uuid, text, text), public.close_project_link(uuid, text), public.get_project_invite(text), public.accept_project_invite(text),
-  public.set_project_member_role(uuid, uuid, text), public.remove_project_member(uuid, uuid), public.leave_project(uuid), public.list_shared_with_me()
+  public.set_project_member_role(uuid, uuid, text), public.remove_project_member(uuid, uuid, boolean), public.leave_project(uuid), public.list_shared_with_me()
   from public, anon, authenticated;
 grant execute on function
   public.project_share_preview(uuid), public.share_project(uuid), public.list_project_members(uuid), public.get_project_links(uuid), public.create_project_link(uuid, text, text),
   public.refresh_project_link(uuid, text, text), public.close_project_link(uuid, text), public.accept_project_invite(text),
-  public.set_project_member_role(uuid, uuid, text), public.remove_project_member(uuid, uuid), public.leave_project(uuid), public.list_shared_with_me()
+  public.set_project_member_role(uuid, uuid, text), public.remove_project_member(uuid, uuid, boolean), public.leave_project(uuid), public.list_shared_with_me()
   to authenticated, service_role;
 -- the page of an invitation shows the project before the person signs in
 grant execute on function public.get_project_invite(text) to anon, authenticated, service_role;

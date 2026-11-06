@@ -133,7 +133,7 @@ test('only the owner changes a role or removes someone; a person who was removed
   assert.match((await B.error("select public.set_project_member_role($1, $2, 'editor')", [projectId, cy]))?.message || 'it worked', /not_allowed/);
   await rpc(A, 'set_project_member_role', projectId, bob, 'editor');
   assert.equal((await rpc(B, 'list_project_members', projectId)).role, 'editor');
-  assert.match((await B.error('select public.remove_project_member($1, $2)', [projectId, cy]))?.message || 'it worked', /not_allowed/);
+  assert.match((await B.error('select public.remove_project_member($1, $2, false)', [projectId, cy]))?.message || 'it worked', /not_allowed/);
   await rpc(A, 'remove_project_member', projectId, cy);
   assert.match((await C.error('select public.list_project_members($1)', [projectId]))?.message || 'it worked', /not_a_member/);
   assert.match((await C.error('select public.accept_project_invite($1)', [link.code]))?.message || 'it worked', /invite_removed/);
@@ -275,4 +275,96 @@ test('a conversation whose messages changed shows up again from a time on, even 
   const alone = await read(ada, projectId, null, 50, quiet);
   assert.deepEqual(alone.conversations.map((chat) => chat.id), [quiet]);
   assert.equal((await read(ada, projectId, mark, 50, quiet)).conversations.length, 0);
+});
+
+// ---------- the content of a shared project (supabase/migrations/20261106015000_add_project_content.sql)
+
+test('an editor and the owner change the instructions and the sources, a chat member does not, and a change made after the person read is refused', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'editor', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  const chatLink = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(C, 'accept_project_invite', chatLink.code);
+  const readAt = (await read(bob, projectId)).project.updated_at;
+  const source = { id: 's1', kind: 'text', title: 'Rules', mime: 'text/plain', size: 5, text: 'Rules', addedAt: now() };
+  const changed = await rpc(B, 'update_shared_project', projectId, 'Be brief.', JSON.stringify([source]), readAt);
+  assert.ok(changed.updated_at);
+  const after = (await read(cy, projectId)).project;
+  assert.equal(after.instructions, 'Be brief.');
+  assert.equal(after.sources[0].title, 'Rules');
+  assert.match((await C.error("select public.update_shared_project($1, 'x', null, null)", [projectId]))?.message || 'it worked', /not_allowed/);
+  // the owner wrote after bob read it: bob's change is refused until he reads again
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await rpc(A, 'update_shared_project', projectId, 'Owner wins.', null, null);
+  assert.match((await B.error("select public.update_shared_project($1, 'late', null, $2)", [projectId, changed.updated_at]))?.message || 'it worked', /stale/);
+  assert.equal((await read(cy, projectId)).project.instructions, 'Owner wins.');
+  // the sources stay when only the instructions change
+  assert.equal((await read(cy, projectId)).project.sources.length, 1);
+});
+
+test('the notes of a shared project are one list: everyone reads, the owner and the editors write, a chat member does not, and there are limits', async () => {
+  const projectId = await sharedProject();
+  const editor = await rpc(A, 'create_project_link', projectId, 'editor', 'Ada');
+  await rpc(B, 'accept_project_invite', editor.code);
+  const chat = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(C, 'accept_project_invite', chat.code);
+  const note = await rpc(B, 'add_project_note', projectId, '  The client likes red.  ');
+  assert.equal(note.text, 'The client likes red.');
+  await rpc(A, 'add_project_note', projectId, 'Deadline is Friday.');
+  assert.deepEqual((await rpc(C, 'list_project_notes', projectId)).map((entry) => entry.text), ['The client likes red.', 'Deadline is Friday.']);
+  assert.deepEqual((await read(cy, projectId)).project.notes.map((entry) => entry.text), ['The client likes red.', 'Deadline is Friday.']);
+  assert.match((await C.error("select public.add_project_note($1, 'x')", [projectId]))?.message || 'it worked', /not_allowed/);
+  assert.match((await C.error('select public.delete_project_note($1, $2)', [projectId, note.id]))?.message || 'it worked', /not_allowed/);
+  assert.match((await A.error("select public.add_project_note($1, '   ')", [projectId]))?.message || 'it worked', /invalid_note/);
+  assert.equal((await rpc(A, 'add_project_note', projectId, 'x'.repeat(501))).text.length, 500);
+  await rpc(A, 'delete_project_note', projectId, (await rpc(A, 'list_project_notes', projectId)).at(-1).id);
+  await rpc(B, 'delete_project_note', projectId, note.id);
+  assert.equal((await rpc(A, 'list_project_notes', projectId)).length, 1);
+  assert.match((await database.service.query('select 1').then(() => A.error('select public.list_project_notes($1)', [id()])))?.message || 'it worked', /not_a_member/);
+  for (let index = 0; index < 299; index += 1) await database.service.query("insert into public.project_notes (project_id, owner_id, note_text) values ($1, $2, 'n')", [projectId, ada]);
+  assert.match((await A.error("select public.add_project_note($1, 'one too many')", [projectId]))?.message || 'it worked', /notes_full/);
+});
+
+const mail = async (userId, projectId, email, role) => (await database.service.query('select public.server_create_project_email_invite($1, $2, $3, $4, $5) as r', [userId, projectId, email, role, 'Ada']))[0].r;
+
+test('an invitation by mail is for one address: the account with that address joins with it once; a newer one replaces an older; the owner and the editors list and take them back', async () => {
+  const projectId = await sharedProject();
+  const invite = await mail(ada, projectId, ' Bob@Example.test ', 'editor');
+  assert.equal(invite.email, 'bob@example.test');
+  assert.equal(invite.project_name, 'City plan');
+  assert.deepEqual((await rpc(A, 'list_project_invites', projectId)).map((entry) => [entry.email, entry.role]), [['bob@example.test', 'editor']]);
+  assert.match((await C.error('select public.accept_project_invite($1)', [invite.code]))?.message || 'it worked', /invite_email_mismatch/);
+  const joined = await rpc(B, 'accept_project_invite', invite.code);
+  assert.deepEqual([joined.role, joined.already], ['editor', false]);
+  assert.deepEqual(await rpc(A, 'list_project_invites', projectId), []);
+  assert.match((await database.service.query('select public.server_create_project_email_invite($1, $2, $3, $4, $5)', [cy, projectId, 'x@example.test', 'chat', '']).catch((error) => error))?.message || 'it worked', /not_allowed/);
+  assert.match((await database.service.query('select public.server_create_project_email_invite($1, $2, $3, $4, $5)', [ada, projectId, 'not-an-address', 'chat', '']).catch((error) => error))?.message || 'it worked', /invalid_email/);
+  assert.match((await A.error("select public.server_create_project_email_invite($1, $2, 'a@example.test', 'chat', '')", [ada, projectId]))?.message || 'it worked', /permission denied/);
+  const first = await mail(ada, projectId, 'cy@example.test', 'chat');
+  const second = await mail(ada, projectId, 'cy@example.test', 'chat');
+  assert.match((await C.error('select public.accept_project_invite($1)', [first.code]))?.message || 'it worked', /invite_invalid/);
+  assert.equal((await rpc(A, 'list_project_invites', projectId)).length, 1);
+  await rpc(B, 'revoke_project_invite', projectId, second.id);
+  assert.match((await C.error('select public.accept_project_invite($1)', [second.code]))?.message || 'it worked', /invite_invalid/);
+  // a person who was taken out comes back by an invitation to their address (the owner wrote it), not by an old link
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(C, 'accept_project_invite', link.code);
+  await rpc(A, 'remove_project_member', projectId, cy, false);
+  assert.match((await C.error('select public.accept_project_invite($1)', [link.code]))?.message || 'it worked', /invite_removed/);
+  const back = await mail(ada, projectId, 'cy@example.test', 'chat');
+  assert.equal((await rpc(C, 'accept_project_invite', back.code)).already, false);
+});
+
+test('taking a person out can take what they made in the project with them (to their trash); by default it stays', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  await rpc(C, 'accept_project_invite', link.code);
+  const bobs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  const cys = await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada } });
+  await rpc(A, 'remove_project_member', projectId, bob, true);
+  await rpc(A, 'remove_project_member', projectId, cy, false);
+  const deleted = async (conversationId) => (await database.service.query('select deleted_at is not null as gone from public.workspace_conversations where id = $1', [conversationId]))[0].gone;
+  assert.equal(await deleted(bobs), true);
+  assert.equal(await deleted(cys), false);
 });
