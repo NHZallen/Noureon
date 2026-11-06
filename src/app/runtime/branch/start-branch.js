@@ -19,6 +19,32 @@ export function decorateFooters(list, title) {
   return added;
 }
 
+/**
+ * In a conversation made as a branch, what was copied from the original is shown a little dimmer, with a line after it that says so (the footers and this are put on from here, not drawn by the code
+ * that draws the messages: it has no room). Run again each time the messages are drawn; it does nothing to a conversation that is not a branch.
+ */
+export function markBranchCopies(list, conversation, label) {
+  if (!list) return 0;
+  const copied = Math.max(0, Number(conversation?.branchedFrom?.copied) || 0);
+  const items = [...list.querySelectorAll('.message-item[data-message-index]')];
+  let marked = 0;
+  for (const item of items) {
+    const copy = copied > 0 && Number(item.dataset.messageIndex) < copied;
+    item.classList.toggle('branch-copied', copy);
+    if (copy) marked += 1;
+  }
+  const divider = list.querySelector('.branch-divider');
+  const last = copied > 0 ? items.find((item) => Number(item.dataset.messageIndex) === copied - 1) : null;
+  if (!last || !label) { divider?.remove(); return marked; }
+  if (divider && divider.previousElementSibling === last && divider.textContent === label) return marked;
+  divider?.remove();
+  const line = list.ownerDocument.createElement('div');
+  line.className = 'branch-divider';
+  line.textContent = label;
+  last.after(line);
+  return marked;
+}
+
 export function startBranch({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar, openConversation = () => {} }) {
   const text = (key, values = {}) => {
     const table = i18n[configAccess.getUiLanguage()] || i18n['zh-TW'] || {};
@@ -41,11 +67,13 @@ export function startBranch({ document, window = globalThis.window, configAccess
     }
   }
   // The buttons are put under the replies from here, not drawn by the code that draws the messages: that code is the biggest piece of the page and has no room (check:sizes).
+  let activeId = '';
+  window?.addEventListener?.('astra:active-conversation-changed', (event) => { activeId = String(event.detail?.conversationId || ''); });
   const list = document.getElementById('message-list');
   const Observer = window?.MutationObserver || globalThis.MutationObserver;
   if (list && Observer) {
     let queued = false;
-    const run = () => { queued = false; decorateFooters(list, text('branchChat')); };
+    const run = () => { queued = false; decorateFooters(list, text('branchChat')); markBranchCopies(list, (dataStore.getConversations() || []).find((entry) => entry.id === activeId), text('branchDivider')); };
     new Observer(() => { if (!queued) { queued = true; (window.requestAnimationFrame || ((callback) => setTimeout(callback, 16)))(run); } }).observe(list, { childList: true, subtree: true });
     run();
   }

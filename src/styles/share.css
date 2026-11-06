@@ -58,3 +58,8 @@
 
 /* The small tags beside a title in the sidebar. */
 .cs-tag { display: inline-block; margin-left: 0.4rem; padding: 0 0.4rem; border: 1px solid var(--border-color); border-radius: 0.3rem; font-size: 0.6875rem; line-height: 1.25rem; color: var(--text-secondary); vertical-align: middle; white-space: nowrap; }
+
+/* A conversation made as a branch: what was copied is a little dimmer, with a line after it (runtime/branch/start-branch.js). */
+.message-item.branch-copied { opacity: 0.62; }
+.branch-divider { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
+.branch-divider::before, .branch-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }

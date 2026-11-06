@@ -41,7 +41,7 @@ test('a branch goes on with the settings of the source, in the same project, and
   assert.equal(branch.isWebSearchEnabled, true);
   assert.equal(branch.isRenamed, true);
   assert.equal(branch.pinned, false);
-  assert.deepEqual(branch.branchedFrom, { conversationId: 'c1', messageId: 'a2', at: 'now', title: '中和南路改造', by: 'Allen' });
+  assert.deepEqual(branch.branchedFrom, { conversationId: 'c1', messageId: 'a2', copied: branch.messages.length, at: 'now', title: '中和南路改造', by: 'Allen' });
   assert.notEqual(branch.genConfig, conversation().genConfig);
   // a research that was not finished is left out of the copy
   assert.deepEqual(branch.messages.at(-1).parts, [{ text: '答二' }]);
@@ -121,4 +121,23 @@ test('the button under a reply asks for a branch of that reply in the conversati
   list.querySelectorAll('.branch-message-btn')[1].click();
   list.querySelectorAll('.branch-message-btn')[0].click();
   assert.deepEqual(seen, [{ conversationId: 'c9', messageIndex: 3 }, { conversationId: 'c9', messageIndex: 1 }]);
+});
+
+import { markBranchCopies } from '../src/app/runtime/branch/start-branch.js';
+
+test('a branch remembers how many messages were copied; the copies are dimmed and a line says so, once', () => {
+  const window = new Window();
+  const document = window.document;
+  document.body.innerHTML = '<div id="list">' + [0, 1, 2, 3].map((index) => `<div class="message-item" data-message-index="${index}">m${index}</div>`).join('') + '</div>';
+  const list = document.getElementById('list');
+  const conversation = { branchedFrom: { conversationId: 'x', messageId: 'y', copied: 2 } };
+  assert.equal(markBranchCopies(list, conversation, 'Copied above'), 2);
+  assert.deepEqual([...list.children].map((node) => node.className), ['message-item branch-copied', 'message-item branch-copied', 'branch-divider', 'message-item', 'message-item']);
+  assert.equal(list.children[2].textContent, 'Copied above');
+  markBranchCopies(list, conversation, 'Copied above');
+  assert.equal(list.querySelectorAll('.branch-divider').length, 1);
+  // a conversation that is not a branch (or has no count) is left plain, and a divider that is no longer wanted goes
+  assert.equal(markBranchCopies(list, { title: 'plain' }, 'Copied above'), 0);
+  assert.equal(list.querySelector('.branch-divider'), null);
+  assert.equal(list.querySelector('.branch-copied'), null);
 });

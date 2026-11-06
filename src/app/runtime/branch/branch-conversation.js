@@ -55,6 +55,6 @@ export function branchConversation({ conversation, messageIndex, title, uuid = (
     deletedAt: null,
     unsentMessage: '',
     // For good: the tag "Branch" is drawn from it, and it travels with the conversation to the other devices.
-    branchedFrom: { conversationId: conversation.id, messageId: source.id, at, title: String(conversation.title || '').slice(0, 200), ...(by ? { by: String(by).slice(0, 100) } : {}) }
+    branchedFrom: { conversationId: conversation.id, messageId: source.id, copied: messages.length, at, title: String(conversation.title || '').slice(0, 200), ...(by ? { by: String(by).slice(0, 100) } : {}) }
   };
 }
