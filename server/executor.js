@@ -32,6 +32,7 @@ import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { categoriesOf } from '../src/app/runtime/memory-notes/categories.js';
 import { createServerTidy } from './memory-tidy.js';
 import { scopedMemory } from './memory-scope.js';
+import { sharedProjectMemory } from './shared-project-memory.js';
 import { createServerMediaViewer } from './project-media-view.js';
 import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
 import { createProjectFileTextReader } from './project-file-text.js';
@@ -249,8 +250,18 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     try {
       const conversationId = spec.conversationId;
       // The scope of the chat (memory-notes/scope.js): the project that keeps its notes for itself, or '' (the memory of the account; the notes of such projects are left out).
-      const scopeId = spec.tools.memory.scope || '';
-      const scopedStore = scopedMemory(memory, scopeId, spec.tools.memory.project || '');
+      // A chat made in a shared project (of someone else) uses the notes of that project, which are the owner's; the database says who the person is there, and a chat member may not write.
+      const sharedProject = spec.tools.memory.sharedProject || '';
+      let memoryBase = memory;
+      let mayWrite = spec.tools.memory.canWrite === true;
+      if (sharedProject) {
+        const access = await memory.projectAccess?.(userId, sharedProject);
+        if (!access) throw new Error('The person is not in that shared project.');
+        memoryBase = sharedProjectMemory(memory, { ownerId: access.owner_id, projectId: sharedProject });
+        mayWrite = mayWrite && access.role !== 'chat';
+      }
+      const scopeId = sharedProject || spec.tools.memory.scope || '';
+      const scopedStore = scopedMemory(memoryBase, scopeId, sharedProject || spec.tools.memory.project || '');
       let loaded = await scopedStore.load(userId, { conversationId });
       if (loaded.settings.use && spec.tools.memory.curator === true) {
         // No tools for this model: after the reply (and its message is written) a small model reads the turn and the program keeps what the check accepts (runs.js calls this).
@@ -260,7 +271,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
             const fresh = await scopedStore.load(userId, { conversationId });
             const settings = fresh.settings;
             const current = turnMessages[turnMessages.length - 1];
-            if (!current || !settings.use || !settings.learn || settings.paused || spec.tools.memory.canWrite !== true) return;
+            if (!current || !settings.use || !settings.learn || settings.paused || !mayWrite) return;
             const model = pickCuratorModel({ settingsId: settings.curatorModelId, current: spec.model.info, models: MODELS, hasKey: (provider) => provider === spec.model.provider });
             if (!model) return;
             const runModel = createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] });
@@ -286,7 +297,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         const events = [];
         if (memoryOut) { memoryOut.used = [...used]; memoryOut.events = events; }
         const appliedOps = [...loaded.cursor.appliedOps];
-        const canWrite = spec.tools.memory.canWrite === true && loaded.settings.learn && !loaded.settings.paused;
+        const canWrite = mayWrite && loaded.settings.learn && !loaded.settings.paused;
         memoryLoader = createMemoryLoader({
           getNotes: () => loaded.notes,
           getContext: () => ({ conversationId, messages: spec.tools.memory.messages.map((message) => ({ id: message.id, role: 'user', text: message.text, at: message.at })), appliedOps, categories: categoriesOf(loaded.settings) }),
@@ -312,7 +323,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
             ids.forEach((id) => used.add(id));
             if (memoryOut) memoryOut.used = [...used];
             // The notes the model looked up count as used (the list in the settings says when), as the ones of the slip do on the page.
-            void Promise.resolve(memory.markUsed?.(userId, ids)).catch((error) => onProblem('memory_mark_used_failed', error));
+            void Promise.resolve(memoryBase.markUsed?.(userId, ids)).catch((error) => onProblem('memory_mark_used_failed', error));
           },
           onWrite: ({ event }) => { if (event?.id) { events.push(event.id); if (memoryOut) memoryOut.events = events; } },
           language,

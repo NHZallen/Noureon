@@ -30,6 +30,8 @@ export function createMemoryRecords({ db, now = () => new Date().toISOString() }
   }
 
   return {
+    /** Who a person is in a shared project: { owner_id, role }, or null when they are not in it (the notes of the project are the owner's; server/shared-project-memory.js). */
+    projectAccess: async (userId, projectId) => (await db.rpc('server_project_memory_access', { p_user_id: userId, p_project_id: projectId })) || null,
     /** What a reply needs: all the notes (with the version each was read at), the settings, and how far the conversation was read. */
     async load(userId, { conversationId = '' } = {}) {
       const rows = await readRows(userId);

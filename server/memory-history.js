@@ -16,8 +16,11 @@ const literal = (vector) => `[${Array.from(vector, (value) => Number(value.toFix
 const short = (hit) => ({ conversationId: hit.conversationId, at: hit.at, role: hit.role, text: String(hit.text).slice(0, 400) });
 
 /** The conversations of the person as the page holds them: { id, lastUpdatedAt, messages: [{ role, parts, createdAt }] }. The server has no grant on the workspace tables: it asks a function of the database. */
-export async function readConversations(db, userId, limits = HISTORY) {
-  const read = await db.rpc('server_read_history', { p_user_id: userId, p_max_conversations: limits.conversations, p_max_messages: limits.messages });
+export async function readConversations(db, userId, limits = HISTORY, sharedProject = '') {
+  // In a shared project the past conversations are the ones of all its people (the database checks that the person is in it).
+  const read = sharedProject
+    ? await db.rpc('server_read_project_history', { p_user_id: userId, p_project_id: sharedProject, p_max_conversations: limits.conversations, p_max_messages: limits.messages })
+    : await db.rpc('server_read_history', { p_user_id: userId, p_max_conversations: limits.conversations, p_max_messages: limits.messages });
   // `scopeId`: the id of the project when the conversation is in one that keeps its notes for itself (memory-notes/scope.js), '' otherwise.
   const projects = new Set(Array.isArray(read?.project_folders) ? read.project_folders : []);
   const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, scopeId: row.folder_id && projects.has(row.folder_id) ? row.folder_id : '', projectId: row.folder_id || '', messages: [] }]));
@@ -27,16 +30,17 @@ export async function readConversations(db, userId, limits = HISTORY) {
 
 export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (...args) => globalThis.fetch(...args), logger = console, limits = HISTORY }) {
   const cache = new Map();
-  const conversationsOf = (userId) => readConversations(db, userId, limits);
+  const conversationsOf = (userId, sharedProject) => readConversations(db, userId, limits, sharedProject);
 
-  async function indexOf(userId) {
-    const held = cache.get(userId);
+  async function indexOf(userId, sharedProject = '') {
+    const cacheKey = sharedProject ? `shared:${sharedProject}:${userId}` : userId;
+    const held = cache.get(cacheKey);
     if (held && now() - held.at < limits.cacheMs) return held;
     const index = createHistoryIndex({ clean: summarizeFileBlocks });
-    const conversations = await conversationsOf(userId);
+    const conversations = await conversationsOf(userId, sharedProject);
     index.update(conversations);
     const entry = { at: now(), index, projects: new Map(conversations.map((conversation) => [conversation.id, conversation.projectId || ''])) };
-    cache.set(userId, entry);
+    cache.set(cacheKey, entry);
     if (cache.size > 50) cache.delete(cache.keys().next().value);
     return entry;
   }
@@ -46,12 +50,12 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
      * The search for one reply: `search(query, limit)` resolves the pieces of past conversations ([{ conversationId, at, role, text }]), the keyword hits and, when `vector` is given
      * ({ provider, key }) and the person synced their vectors, the nearest in meaning, put together. Never throws.
      */
-    forReply({ userId, conversationId = '', scopeId = '', projectId = '', vector = null, signal }) {
+    forReply({ userId, conversationId = '', scopeId = '', projectId = '', sharedProject = '', vector = null, signal }) {
       return async (query, limit = 5) => {
         let index;
         let allow;
         try {
-          const held = await indexOf(userId);
+          const held = await indexOf(userId, sharedProject);
           index = held.index;
           // The chats of a project are seen from that project only; a chat outside looks through the chats outside (memory-notes/scope.js, canSearchConversation).
           allow = (id) => canSearchConversation({ scopeId, projectId }, held.projects.get(id) || '');
@@ -60,7 +64,8 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
           return [];
         }
         const keywords = index.search(query, { limit, minNorm: 0.1, minStrong: 1, coverage: 0, soleNorm: 0.1, excludeConversationId: conversationId, allow }).map(short);
-        if (!vector?.key) return keywords;
+        // (The vectors are each person's own: in a shared project the search is by words.)
+        if (!vector?.key || sharedProject) return keywords;
         try {
           const client = createEmbeddingClient({ provider: vector.provider, getApiKey: () => vector.key, fetchImpl });
           // A provider that does not answer must not hold the reply: the search by meaning waits a few seconds at most.

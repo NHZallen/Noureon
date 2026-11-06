@@ -422,3 +422,68 @@ test('the people of a shared project are pinged when something in it changes: ne
   // and without Realtime nothing fails
   await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
 });
+
+const noteRow = async (userId, key) => (await database.service.query('select payload, version, deleted_at from public.workspace_memory_records where user_id = $1 and record_key = $2', [userId, key]))[0];
+
+test('the memory of a shared project is the project notes of its owner: everyone in it reads them, the owner and the editors write them, a chat member does not, and no other note is reached', async () => {
+  const projectId = await sharedProject();
+  const editor = await rpc(A, 'create_project_link', projectId, 'editor', 'Ada');
+  await rpc(B, 'accept_project_invite', editor.code);
+  const chat = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(C, 'accept_project_invite', chat.code);
+  const noteId = `note:${id()}`;
+  const privateId = `note:${id()}`;
+  await database.service.query("insert into public.workspace_memory_records (user_id, record_key, payload) values ($1, $2, '{\"text\":\"private to Ada\"}'::jsonb), ($1, $3, jsonb_build_object('text', 'of the project', 'projectId', $4::text))", [ada, privateId, noteId, projectId]);
+  const read = async (client) => (await rpc(client, 'read_project_memory', projectId));
+  assert.deepEqual((await read(C)).map((row) => row.record_key), [noteId]);
+  assert.deepEqual((await read(B)).map((row) => row.record_key), [noteId]);
+  // an editor writes a new note (tagged with the project even when the page forgot) and changes the one that was there
+  const fresh = `note:${id()}`;
+  const wrote = await rpc(B, 'write_project_memory', projectId, [{ key: fresh, payload: { text: 'new' }, baseVersion: null }, { key: noteId, payload: { text: 'changed', projectId }, baseVersion: 1 }]);
+  assert.deepEqual(wrote.map((entry) => entry.status), ['ok', 'ok']);
+  assert.equal((await noteRow(ada, fresh)).payload.projectId, projectId);
+  assert.equal((await noteRow(ada, noteId)).payload.text, 'changed');
+  assert.equal((await noteRow(bob, fresh)), undefined);
+  // a change that read an old version is told so, with the row as it is
+  const late = await rpc(A, 'write_project_memory', projectId, [{ key: noteId, payload: { text: 'late' }, baseVersion: 1 }]);
+  assert.equal(late[0].status, 'conflict');
+  assert.equal(late[0].row.version, 2);
+  // the other notes of the owner, other kinds of rows and bad keys are refused; nothing changes
+  const refused = await rpc(B, 'write_project_memory', projectId, [{ key: privateId, payload: { text: 'taken' }, baseVersion: 1 }, { key: `cursor:${id()}`, payload: {}, baseVersion: null }, { key: 'note:x y', payload: {}, baseVersion: null }]);
+  assert.deepEqual(refused.map((entry) => entry.status), ['refused', 'refused', 'refused']);
+  assert.equal((await noteRow(ada, privateId)).payload.text, 'private to Ada');
+  // deleting is a change too
+  assert.equal((await rpc(A, 'write_project_memory', projectId, [{ key: fresh, payload: { text: 'new' }, baseVersion: 1, deleted: true }]))[0].status, 'ok');
+  assert.ok((await noteRow(ada, fresh)).deleted_at);
+  // a chat member and a stranger cannot write; a stranger cannot read
+  assert.match((await C.error('select public.write_project_memory($1, $2::jsonb)', [projectId, '[]']))?.message || 'it worked', /not_allowed/);
+  const stranger = database.asUser(await database.createUser(`eve-${id()}@example.test`));
+  assert.match((await stranger.error('select public.read_project_memory($1)', [projectId]))?.message || 'it worked', /not_a_member/);
+  assert.match((await stranger.error('select public.write_project_memory($1, $2::jsonb)', [projectId, '[]']))?.message || 'it worked', /not_a_member/);
+  // a project that is not shared has no shared memory
+  const plain = await projectOf(A);
+  assert.match((await A.error('select public.read_project_memory($1)', [plain]))?.message || 'it worked', /not_shared/);
+});
+
+test('for the server: the owner and role of a person in a shared project, and the history of all the people of the project', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  const access = async (userId, project) => (await database.service.query('select public.server_project_memory_access($1, $2) as r', [userId, project]))[0].r;
+  assert.deepEqual(await access(bob, projectId), { owner_id: ada, role: 'chat' });
+  assert.deepEqual(await access(ada, projectId), { owner_id: ada, role: 'owner' });
+  assert.equal(await access(cy, projectId), null);
+  assert.equal(await access(ada, id()), null);
+  const own = await conversationIn(A, { folderId: projectId, texts: ['the harbour plan', 'we looked at the harbour'] });
+  const theirs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, texts: ['the airport plan', 'we looked at the airport'] });
+  const outside = await conversationIn(B, { texts: ['my private chat', 'secret'] });
+  const history = async (userId) => (await database.service.query('select public.server_read_project_history($1, $2, 150, 6000) as r', [userId, projectId]))[0].r;
+  const asBob = await history(bob);
+  assert.deepEqual(asBob.conversations.map((entry) => entry.id).sort(), [own, theirs].sort());
+  assert.ok(asBob.conversations.every((entry) => entry.folder_id === projectId));
+  assert.deepEqual(asBob.project_folders, [projectId]);
+  assert.ok(asBob.messages.some((entry) => entry.conversation_id === own && /harbour/.test(entry.parts[0].text)));
+  assert.ok(!asBob.messages.some((entry) => entry.conversation_id === outside));
+  assert.equal(await history(cy), null);
+  assert.match((await B.error('select public.server_read_project_history($1, $2)', [bob, projectId]))?.message || 'it worked', /permission denied/);
+});
