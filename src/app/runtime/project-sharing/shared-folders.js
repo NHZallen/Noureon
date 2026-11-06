@@ -15,6 +15,7 @@ export const sharedFolderOf = (project = {}) => ({
 export function createSharedFolders({ storage = null } = {}) {
   const folders = new Map();
   const owned = new Set();
+  const counts = new Map();
   const load = () => {
     try {
       const saved = JSON.parse(storage?.getItem(KEY) || '{}');
@@ -29,12 +30,15 @@ export function createSharedFolders({ storage = null } = {}) {
     /** The project as the page of the projects shows a project: a folder that is not the person's own ('shared', with the role). */
     folderOf: (id) => (folders.has(id) ? { ...folders.get(id), conversationIds: [], shared: true } : null),
     ownerOf: (id) => folders.get(id)?.ownerId || '',
-    set(project) { const folder = sharedFolderOf(project); if (folder.id) { folders.set(folder.id, folder); save(); } return folder; },
+    // (A write that does not know how many chats the project has keeps the number it had.)
+    set(project) { const folder = sharedFolderOf(project); if (folder.id) { const before = folders.get(folder.id); if (project?.chatCount === undefined && before) folder.chatCount = before.chatCount; folders.set(folder.id, folder); save(); } return folder; },
     /** The role of the person in the project ('owner' | 'editor' | 'chat'), '' when it is not known yet. */
     roleOf: (id) => folders.get(id)?.role || '',
     forget(id) { if (folders.delete(id)) save(); },
     /** The projects of the person's own that are shared (set when the page starts and when one is shared). */
-    setOwned(ids) { owned.clear(); for (const id of ids || []) owned.add(String(id)); },
+    // `items`: ids, or { project_id, chat_count } of the person's own projects that are shared.
+    setOwned(items) { owned.clear(); counts.clear(); for (const item of items || []) { const id = String(item?.project_id ?? item); owned.add(id); if (item && typeof item === 'object' && item.chat_count !== undefined) counts.set(id, Number(item.chat_count) || 0); } },
+    ownedCount: (id) => (counts.has(id) ? counts.get(id) : null),
     addOwned: (id) => { owned.add(String(id)); },
     /** Whether the folder is a project of the person's own that is shared (known once the page has read the list of them). */
     isOwned: (id) => owned.has(id)

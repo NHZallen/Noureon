@@ -272,10 +272,14 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
   const drawChats = () => {
     if (!chatsBody) return;
-    chatsBody.replaceChildren();
     const project = projectOrNull(state.projectId);
-    if (!project) return;
+    if (!project) { chatsBody.replaceChildren(); return; }
     const list = actions.chatsOf(project.id);
+    // The page is drawn again each time the server tells something about the project; what shows is only drawn again when it is not the same (so nothing flashes for nothing).
+    const sign = `${project.id}|${actions.chatsLoading?.(project.id) ? 'wait' : ''}|${canEdit(project)}|${list.map((conversation) => [conversation.id, conversation.title, conversation.pinned ? 1 : 0, conversation.mine === false ? 'o' : 'm', conversation.authorName || '', previewOf(conversation)].join('\u0001')).join('\u0002')}`;
+    if (chatsBody.dataset.sign === sign && chatsBody.childElementCount) return;
+    chatsBody.dataset.sign = sign;
+    chatsBody.replaceChildren();
     // A shared project's chats come from the server: until they do, places for them are drawn, not "no chats".
     if (!list.length && actions.chatsLoading?.(project.id)) {
       for (let place = 0; place < 3; place += 1) chatsBody.appendChild(make(document, 'div', 'pj-chat is-place'));

@@ -74,7 +74,7 @@ export function createProjectActions({
     .filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && !conversation.archived && conversation.retentionMode !== 'ephemeral')
     .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stamp(right) - stamp(left));
 
-  const countOf = (id) => (sharedHas(id) ? sharedHook.countOf(id) : ownCountOf(id) + (sharedHook?.othersOf?.(id) || []).length);
+  const countOf = (id) => (sharedHas(id) ? sharedHook.countOf(id) : (sharedHook?.ownedCount?.(id) ?? ownCountOf(id)));
   /** The owner of a shared project may take the chat of another member out of it (it goes back to the history of its author). */
   /** A shared project whose chats have not come from the server yet (the page draws a place for them, not "no chats"). */
   const chatsLoading = (id) => sharedHas(id) && sharedHook.chatsLoading?.(id) === true;

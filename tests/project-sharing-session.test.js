@@ -421,3 +421,45 @@ test('a project of the list "Shared with you" is counted from the list, and its 
   await env.api.drawSharedList({ box: null, done: () => { told += 1; } });
   assert.equal(told, 2);
 });
+
+test('the real reader, the real list and the real actions together: an editor who has a chat of their own sees the chats of the owner and the right count, before and after the project is opened', async () => {
+  const { createSharedProjectReader } = await import('../src/app/runtime/project-sharing/project-reader-client.js');
+  const rows = [chat('o1', 'o', 'Owner one', '2026-11-04T06:46:51Z'), chat('o2', 'o', 'Owner two', '2026-11-04T06:46:51Z'), chat('o3', 'o', 'Owner three', '2026-11-04T06:46:51Z'), chat('mine', ME, 'Mine', '2026-11-06T17:56:19Z')];
+  const payload = { role: 'editor', sharedAt: '2026-11-06T00:00:00Z', project: { id: PROJECT, name: 'City plan', icon: 'globe', color: 'blue', instructions: '', sources: [], updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: rows, hasMore: false, next: '2026-11-06T17:56:19Z' };
+  const asked = [];
+  const request = async (method, path, options) => { asked.push([path, options?.body]); return { ok: true, status: 200, data: path.endsWith('/read') ? payload : {} }; };
+  const items = [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'editor', owner_name: 'Ada', chat_count: 4, icon: 'globe', color: 'blue' }];
+  const env = setup({ items, local: [{ id: 'mine', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES, lastUpdatedAt: '2026-11-06T17:56:19Z' }] });
+  const api = startProjectSharing({
+    document: env.document, window: env.window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => env.state.conversations, getFolders: () => [], replaceFolders: () => {} },
+    saveAppData: async () => {}, showNotification: () => {}, renderSidebar: () => {}, supabase: env.rt.client, client: { sharedWithMe: async () => ({ ok: true, data: items }), mine: async () => ({ ok: true, data: [] }), exits: async () => ({ ok: true, data: [] }) },
+    storage: env.window.localStorage, createReader: ({ projectId }) => createSharedProjectReader({ projectId, request }), pollMs: 40
+  });
+  const actions = createProjectActions({ dataStore: { getConversations: () => env.state.conversations, getFolders: () => [], replaceFolders: () => {} }, saveAppData: async () => {}, startNewChat: async () => {}, getCurrentConversationId: () => '', renderSidebar: () => {}, randomUUID: () => 'x', deleteFolderFromCloud: async () => {}, deferConversationFolderSync: () => {}, getDefaultFolder: () => null });
+  await api.drawSharedList({ box: null, done: () => {} });
+  await tick(); await tick();
+  assert.equal(actions.countOf(PROJECT), 4, 'in the list, after the chats were read in the background');
+  assert.deepEqual(actions.chatsOf(PROJECT).map((row) => row.id).sort(), ['mine', 'o1', 'o2', 'o3']);
+  env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-view', { detail: { projectId: PROJECT, root: env.root, refresh: () => {} } }));
+  await tick(); await tick();
+  assert.equal(actions.countOf(PROJECT), 4, 'after the project is opened');
+  assert.deepEqual(actions.chatsOf(PROJECT).map((row) => row.id).sort(), ['mine', 'o1', 'o2', 'o3']);
+  env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-view', { detail: { projectId: null } }));
+  await tick();
+  assert.equal(actions.countOf(PROJECT), 4, 'back in the list');
+});
+
+test('a person who opens a shared project before the cloud account is ready gets its chats as soon as it is, without leaving the project', async () => {
+  const env = setup({ items: [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'editor', owner_name: 'Ada', chat_count: 1 }] });
+  let ready = false;
+  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: ready }), retry: async () => {} });
+  env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'editor', ownerId: 'o', chatCount: 0 });
+  env.view(PROJECT);
+  await tick();
+  assert.equal(env.actions.chatsLoading(PROJECT), true, 'nothing was read: the cloud is not ready');
+  ready = true;
+  await new Promise((resolve) => setTimeout(resolve, 1700));
+  assert.equal(env.actions.chatsLoading(PROJECT), false);
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), ['c-ada']);
+  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
+});

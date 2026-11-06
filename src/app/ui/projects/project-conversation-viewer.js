@@ -21,7 +21,7 @@ const SIDEBAR_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height=
  * `chat` is { id, title, authorName, messages }; `texts` the interface texts of the language (for the markup of the messages); `onBranch({ id, index })` is told which reply the reader chose
  * (`{ last: true }` for the button at the foot); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
  */
-export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, project = null, onSidebar = null, onClose = () => {} }) {
+export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, project = null, onClose = () => {} }) {
   const win = document.defaultView;
   const sheet = openSheet({ document, root, title: chat.title || '', close: text('pjBack'), className: 'psh-viewer', back: true, onClose });
   // The head is the one of a chat of the project (project-crumb.js): the arrow back at the left, the project's icon and name with "Chat" under it in the middle, the button of the menu at the right.
@@ -35,17 +35,37 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
     heading.classList.add('psh-crumb');
     heading.replaceChildren(top, make(document, 'span', 'psh-crumb-sub', text('pjHeadSub')));
   }
-  if (onSidebar) {
-    const side = make(document, 'button', 'pj-round');
-    side.type = 'button';
-    side.setAttribute('aria-label', text('psViewerMenu'));
-    side.innerHTML = SIDEBAR_ICON;
-    side.addEventListener('click', () => onSidebar());
-    sheet.element.querySelector('.pj-sheet-head')?.appendChild(side);
-  }
+  // The button at the right opens the panel at the right (as the chat's own does): the questions of this conversation, one tap goes to one of them.
+  const panel = make(document, 'aside', 'psh-side');
+  panel.hidden = true;
+  panel.setAttribute('aria-label', text('psViewerPanel'));
+  const scrim = make(document, 'div', 'psh-side-scrim');
+  scrim.hidden = true;
+  const side = make(document, 'button', 'pj-round');
+  side.type = 'button';
+  side.setAttribute('aria-label', text('psViewerPanel'));
+  side.setAttribute('aria-expanded', 'false');
+  side.innerHTML = SIDEBAR_ICON;
+  const setPanel = (open) => { panel.hidden = !open; scrim.hidden = !open; side.setAttribute('aria-expanded', String(open)); };
+  side.addEventListener('click', () => { if (panel.hidden) drawPanel(); setPanel(panel.hidden); });
+  scrim.addEventListener('click', () => setPanel(false));
+  sheet.element.querySelector('.pj-sheet-head')?.appendChild(side);
+  sheet.element.append(scrim, panel);
   const lead = make(document, 'p', 'pj-note psh-viewer-lead', text('psReadOnly', { name: chat.authorName || '' }));
   const list = make(document, 'section', 'psh-messages');
   sheet.body.append(lead, list);
+  function drawPanel() {
+    panel.replaceChildren(make(document, 'p', 'psh-side-title', text('psViewerPanel')));
+    const asked = (current.messages || []).map((message, index) => ({ message, index })).filter(({ message }) => message.role === 'user' && !message.deletedAt);
+    if (!asked.length) panel.appendChild(make(document, 'p', 'pj-note', text('psViewerPanelEmpty')));
+    for (const { message, index } of asked) {
+      const words = (message.parts || []).map((part) => part?.text || '').join(' ').replace(/\s+/g, ' ').trim().slice(0, 90) || '…';
+      const item = make(document, 'button', 'psh-side-item', words);
+      item.type = 'button';
+      item.addEventListener('click', () => { setPanel(false); list.querySelector(`[data-message-index="${index}"]`)?.scrollIntoView?.({ block: 'start' }); });
+      panel.appendChild(item);
+    }
+  }
   const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({ marked, sanitizer: DOMPurify, DOMParser: win.DOMParser, katex: getKatex(), getUiLanguage: () => language, getText: (key, fallback) => texts[key] || fallback, logger: console }).renderMarkdownWithFormulas;
   const mediaRenderer = createMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => language });
   const previews = createMediaPreviewLifecycle({ document, navigator: win.navigator, fetch: win.fetch?.bind(win), File: win.File, escapeHTML, getInlineMediaSrc: mediaRenderer.getInlineMediaSrc, getUiLanguage: () => language });

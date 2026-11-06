@@ -302,18 +302,26 @@ test('the page joins the private channel of the project, hears the pings and say
 
 
 
-test('the page of someone else’s chat has the head of a chat of the project: the arrow back at the left, the icon and name of the project with "Chat" under it, the button of the menu at the right', async () => {
+test('the page of someone else’s chat has the head of a chat of the project: the arrow back at the left, the icon and name of the project with "Chat" under it, the button of the panel at the right', async () => {
   const { document, root } = page();
-  const told = [];
-  openProjectConversation({ document, root, text, texts: {}, language: 'en', chat: chat('c1', 'o', 'Traffic', 'x', MESSAGES), project: { name: 'City plan', icon: 'book', color: 'blue' }, renderMarkdown: (value) => `<p>${value}</p>`, onSidebar: () => told.push('menu') });
+  openProjectConversation({ document, root, text, texts: {}, language: 'en', chat: chat('c1', 'o', 'Traffic', 'x', MESSAGES), project: { name: 'City plan', icon: 'book', color: 'blue' }, renderMarkdown: (value) => `<p>${value}</p>` });
   const head = root.querySelector('.pj-sheet-head');
   assert.deepEqual([...head.children].map((node) => node.className.split(' ')[0]), ['pj-round', 'pj-sheet-title', 'pj-round'], 'back, the name, the menu');
   assert.ok(head.children[0].classList.contains('is-back'));
   assert.equal(head.querySelector('.psh-crumb-name').textContent, 'City plan');
   assert.ok(head.querySelector('.psh-crumb-icon svg'));
   assert.equal(head.querySelector('.psh-crumb-sub').textContent, text('pjHeadSub'));
+  // the button at the right opens the panel at the right: the questions of the conversation; one of them goes to its message
+  const panel = root.querySelector('.psh-side');
+  assert.equal(panel.hidden, true);
   head.children[2].click();
-  assert.deepEqual(told, ['menu']);
+  assert.equal(panel.hidden, false);
+  assert.deepEqual([...panel.querySelectorAll('.psh-side-item')].map((node) => node.textContent), ['question', 'more']);
+  panel.querySelector('.psh-side-item').click();
+  assert.equal(panel.hidden, true, 'a choice closes it');
+  head.children[2].click();
+  root.querySelector('.psh-side-scrim').click();
+  assert.equal(panel.hidden, true, 'a tap outside closes it');
   // the arrow closes the page
   head.children[0].click();
   assert.equal(root.querySelector('.psh-viewer'), null);

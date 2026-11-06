@@ -678,3 +678,12 @@ test('the list of the projects shared with a person tells how many conversations
   assert.equal(Number(mine.chat_count), 2);
   assert.ok(bobs);
 });
+
+test('the list of the projects of the person’s own that are shared tells how many conversations each has, of everybody in it', async () => {
+  const projectId = await withMembers();
+  await conversationIn(A, { folderId: projectId, title: 'Owner chat' });
+  await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'Bob chat' });
+  await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada }, title: 'Cy chat' });
+  const mine = (await rpc(A, 'list_my_shared_projects')).find((item) => item.project_id === projectId);
+  assert.equal(Number(mine.chat_count), 3);
+});

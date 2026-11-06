@@ -85,3 +85,11 @@
 .psh-crumb-icon svg { width: 100%; height: 100%; }
 .psh-crumb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; line-height: 1.5rem; }
 .psh-crumb-sub { font-size: 0.75rem; line-height: 1rem; color: var(--text-secondary); }
+
+/* The panel at the right of someone else's chat: the questions of the conversation. */
+.psh-viewer { position: relative; overflow: hidden; }
+.psh-side-scrim { position: absolute; inset: 0; z-index: 2; background: var(--scrim); }
+.psh-side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(20rem, 86%); display: grid; align-content: start; gap: 0.15rem; padding: max(1rem, env(safe-area-inset-top, 0px)) 0.75rem 1rem; overflow-y: auto; background: var(--modal-bg); border-left: 1px solid var(--border-color); }
+.psh-side-title { margin: 0 0 0.5rem; padding: 0 0.5rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
+.psh-side-item { padding: 0.6rem 0.5rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-primary); text-align: left; font-size: var(--pj-body, 0.9375rem); }
+.psh-side-item:hover { background: var(--hover-bg); }

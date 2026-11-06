@@ -53,6 +53,13 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     return held;
   });
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
+  // The cloud account may still be starting when the person opens the list or a project (the page is quick): what needs it waits for it, a little while, then runs.
+  const whenCloudOn = (run, { tries = 40, every = 1500 } = {}) => {
+    if (cloudOn()) { run(); return; }
+    let waited = 0;
+    const timer = setInterval(() => { waited += 1; if (cloudOn()) { clearInterval(timer); run(); } else if (waited >= tries) clearInterval(timer); }, every);
+    timer?.unref?.();
+  };
   const pendingStorage = () => { try { return storage || window.localStorage; } catch { return null; } };
   const copy = copyText || (async (value) => { try { await window.navigator.clipboard.writeText(value); return true; } catch { return false; } });
   let stylesLoaded = null;
@@ -187,6 +194,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     // The owner of a project that is shared: the chats of the others come with the person's own, and the owner may take one out of the project (never delete it).
     othersOf: (id) => { const held = sessions.get(id); return held?.owned ? (chatsByProject.get(id) || []).filter((entry) => entry.authorId !== me()).map(rowOf) : []; },
     canModerate: (id) => sharedFolders.isOwned(id) && !sharedFolders.has(id),
+    // A project of the person's own that is shared: how many chats it has, of everybody (from the list until its chats are read).
+    ownedCount: (id) => { if (!sharedFolders.isOwned(id) || sharedFolders.has(id)) return null; const held = sessions.get(id); if (held?.owned && chatsByProject.has(id)) { const mine = (dataStore.getConversations() || []).filter((entry) => entry.folderId === id && !entry.deletedAt && !entry.archived && (entry.messages || []).length > 0).length; return mine + (chatsByProject.get(id) || []).filter((entry) => entry.authorId !== me()).length; } return sharedFolders.ownedCount(id); },
     moveOut: async (id, conversationId) => {
       const result = await shareClient.moveOut(id, conversationId);
       if (!result.ok) return result;
@@ -217,7 +226,9 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   }
   // What the server gave is put where the page looks: the folder the replies use, the chats of the project, and the page itself (its chats, or all of it when the project's own parts changed).
   function applyInfo(session, info) {
-    const before = JSON.stringify([session.info?.project?.sources, session.info?.project?.instructions, session.info?.project?.name, session.info?.role]);
+    // (What the page shows is what it knows from the list until this first read: only a difference from it draws the whole page again.)
+    const shown = session.info ? { project: session.info.project, role: session.info.role } : { project: sharedFolders.folderOf(session.projectId) || {}, role: sharedFolders.roleOf(session.projectId) };
+    const before = JSON.stringify([shown.project?.sources, shown.project?.instructions, shown.project?.name, shown.role]);
     session.info = info;
     if (info.project?.updated_at) session.readAt = info.project.updated_at;
     if (!session.owned) remember(session.projectId, info);
@@ -289,7 +300,6 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     if (sessions.has(projectId)) return sessions.get(projectId);
     sessions.set(projectId, session);
     applyInfo(session, read.project);
-    session.refresh?.({ full: !owned });
     startLive(session);
     return session;
   }
@@ -306,7 +316,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const { projectId, refresh } = event.detail || {};
     viewing = projectId ? { projectId, refresh } : null;
     for (const session of [...sessions.values()]) if (session.projectId !== projectId) stopSession(session);
-    if (!projectId || !cloudOn()) return;
+    if (!projectId) return;
+    if (!cloudOn()) { whenCloudOn(() => { void refreshShared().then(startViewed); }); return; }
     if (sharedFolders.has(projectId)) { void startSession(projectId, refresh); return; }
     // A project of the person's own that is shared: the chats of the others are read with it, and when the people of it change something else (an editor adds a file) the person's own cloud is asked for it.
     if (sharedFolders.isOwned(projectId)) void startSession(projectId, refresh, { owned: true, quiet: true });
@@ -333,7 +344,6 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const { openProjectConversation } = await import('../../ui/projects/project-conversation-viewer.js');
     const sheet = openProjectConversation({
       document, root: host || document.body, text, texts: i18n[language] || i18n['zh-TW'] || {}, language, chat, renderMarkdown, loadAsset: (path) => session.reader.asset?.(path), project: session.info?.project,
-      onSidebar: () => { sheet.close(); document.getElementById('menu-toggle-btn')?.click(); },
       onClose: () => { if (session.viewer?.sheet === sheet) session.viewer = null; }, onBranch: (pick) => { void branchOf(session, chat, pick); }
     });
     session.viewer = { chatId: chat.id, sheet };
@@ -422,7 +432,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   // `box`: where to draw the list (none: only the page is told, by `done`, that the projects shared with the person are known).
   let sharedAskedAt = 0;
   async function drawSharedList({ box = null, root = null, go = null, done = null }) {
-    if (!cloudOn()) return;
+    if (!cloudOn()) { whenCloudOn(() => { void drawSharedList({ box, root, go, done }); }); return; }
     // The page asks each time its list is drawn (a letter typed in the search): not more than every few seconds.
     if (!box && Date.now() - sharedAskedAt < 8000) { try { done?.(); } catch { /* the page may be gone */ } return; }
     sharedAskedAt = Date.now();
@@ -444,11 +454,13 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   // What the replies need of the shared projects is read again when the page starts (and the account is ready): which of the person's own projects are shared, and the instructions and sources of the others.
   let refreshing = false;
   async function refreshShared() {
-    if (refreshing || !cloudOn() || !getAnnouncedUser()?.supabaseUserId) return;
+    if (refreshing) return;
+    if (!cloudOn()) { whenCloudOn(() => { void refreshShared(); }); return; }
+    if (!getAnnouncedUser()?.supabaseUserId) return;
     refreshing = true;
     try {
       const mine = await shareClient.mine();
-      if (mine.ok) sharedFolders.setOwned((mine.data || []).map((item) => item.project_id));
+      if (mine.ok) sharedFolders.setOwned(mine.data || []);
       // What the owner of a project took out of it while this page was away: the link it still holds is forgotten.
       const exits = await shareClient.exits?.();
       if (exits?.ok) { const gone = new Set((exits.data || []).map((item) => item.conversation_id)); if (gone.size) releaseConversations((conversation) => gone.has(conversation.id)); }
