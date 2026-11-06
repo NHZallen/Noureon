@@ -1,26 +1,10 @@
 -- What the people of a shared project do to its content (docs/superpowers/specs/2026-11-06-project-sharing-design.md, §6, §7 and §8, S3 to S5).
 --
---   project_notes                      the notes of the memory of a shared project (one list for all of its people, not one for each). Read through the project read; written only by the functions below.
 --   update_shared_project(project, instructions, sources, expected)   an editor or the owner changes the instructions and the sources of the project; `expected` is the time the person read the project at: when
 --                                                                    someone changed it since, nothing is written ('stale') and the page reads the project again.
---   list_project_notes / add_project_note / delete_project_note      anyone in the project reads; the owner and the editors add (up to 300, 500 letters each) and delete.
 --   server_create_project_email_invite / list_project_invites / revoke_project_invite   an invitation for one mail address (made by the server, which sends the mail and limits how many a person sends); it can be used once, by the
 --                                                                    account of that address.
 
-create table if not exists public.project_notes (
-  id uuid primary key default gen_random_uuid(),
-  project_id uuid not null,
-  owner_id uuid not null,
-  note_text text not null check (char_length(note_text) between 1 and 500),
-  created_by uuid references auth.users (id) on delete set null,
-  created_at timestamptz not null default now(),
-  foreign key (project_id, owner_id) references public.workspace_folders (id, user_id) on delete cascade
-);
-create index if not exists project_notes_project_idx on public.project_notes (project_id, created_at);
-alter table public.project_notes enable row level security;
-revoke all on table public.project_notes from public, anon, authenticated;
-grant all on table public.project_notes to service_role;
-comment on table public.project_notes is 'The notes of the memory of a shared project. Read and written only through functions.';
 
 create or replace function public.update_shared_project(p_project_id uuid, p_instructions text default null, p_sources jsonb default null, p_expected timestamptz default null)
 returns jsonb
@@ -44,64 +28,6 @@ begin
   set instructions = coalesce(p_instructions, instructions), sources = coalesce(p_sources, sources), updated_at = now()
   where id = p_project_id returning * into v_folder;
   return jsonb_build_object('updated_at', v_folder.updated_at);
-end;
-$$;
-
-create or replace function public.list_project_notes(p_project_id uuid)
-returns jsonb
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-declare v_user uuid := (select auth.uid());
-begin
-  if v_user is null then raise exception 'Authentication required'; end if;
-  if public.project_role(p_project_id, v_user) is null then raise exception 'not_a_member'; end if;
-  return coalesce((select jsonb_agg(jsonb_build_object('id', n.id, 'text', n.note_text, 'created_at', n.created_at) order by n.created_at) from public.project_notes n where n.project_id = p_project_id), '[]'::jsonb);
-end;
-$$;
-
-create or replace function public.add_project_note(p_project_id uuid, p_text text)
-returns jsonb
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
-declare
-  v_user uuid := (select auth.uid());
-  v_role text;
-  v_folder public.workspace_folders;
-  v_note public.project_notes;
-begin
-  if v_user is null then raise exception 'Authentication required'; end if;
-  v_role := public.project_role(p_project_id, v_user);
-  if v_role is null or v_role = 'chat' then raise exception 'not_allowed'; end if;
-  select * into v_folder from public.workspace_folders where id = p_project_id;
-  if v_folder.shared_at is null then raise exception 'not_shared'; end if;
-  if char_length(btrim(coalesce(p_text, ''))) = 0 then raise exception 'invalid_note'; end if;
-  if (select count(*) from public.project_notes where project_id = p_project_id) >= 300 then raise exception 'notes_full'; end if;
-  insert into public.project_notes (project_id, owner_id, note_text, created_by) values (p_project_id, v_folder.user_id, left(btrim(p_text), 500), v_user) returning * into v_note;
-  return jsonb_build_object('id', v_note.id, 'text', v_note.note_text, 'created_at', v_note.created_at);
-end;
-$$;
-
-create or replace function public.delete_project_note(p_project_id uuid, p_note_id uuid)
-returns void
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
-declare
-  v_user uuid := (select auth.uid());
-  v_role text;
-begin
-  if v_user is null then raise exception 'Authentication required'; end if;
-  v_role := public.project_role(p_project_id, v_user);
-  if v_role is null or v_role = 'chat' then raise exception 'not_allowed'; end if;
-  delete from public.project_notes where id = p_note_id and project_id = p_project_id;
 end;
 $$;
 
@@ -172,7 +98,7 @@ begin
 end;
 $$;
 
--- The shared projects of the person that they own, with their notes: the page puts the notes in the replies of the owner too (one call when the page starts).
+-- The projects of the person's own that are shared (their ids): the page knows which of its folders are shared, to give a link for the members only.
 create or replace function public.list_my_shared_projects()
 returns jsonb
 language plpgsql
@@ -184,7 +110,7 @@ declare v_user uuid := (select auth.uid());
 begin
   if v_user is null then raise exception 'Authentication required'; end if;
   return coalesce((
-    select jsonb_agg(jsonb_build_object('project_id', f.id, 'notes', coalesce((select jsonb_agg(jsonb_build_object('id', n.id, 'text', n.note_text) order by n.created_at) from public.project_notes n where n.project_id = f.id), '[]'::jsonb)) order by f.shared_at)
+    select jsonb_agg(jsonb_build_object('project_id', f.id) order by f.shared_at)
     from public.workspace_folders f where f.user_id = v_user and f.shared_at is not null and f.deleted_at is null
   ), '[]'::jsonb);
 end;
@@ -204,11 +130,11 @@ end;
 $$;
 
 revoke all on function
-  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid), public.list_my_shared_projects(),
+  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_my_shared_projects(),
   public.server_create_project_email_invite(uuid, uuid, text, text, text), public.server_revoke_project_invite(uuid, uuid, uuid), public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
   from public, anon, authenticated;
 grant execute on function
-  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_project_notes(uuid), public.add_project_note(uuid, text), public.delete_project_note(uuid, uuid), public.list_my_shared_projects(),
+  public.update_shared_project(uuid, text, jsonb, timestamptz), public.list_my_shared_projects(),
   public.list_project_invites(uuid), public.revoke_project_invite(uuid, uuid)
   to authenticated, service_role;
 grant execute on function public.server_create_project_email_invite(uuid, uuid, text, text, text), public.server_revoke_project_invite(uuid, uuid, uuid) to service_role;

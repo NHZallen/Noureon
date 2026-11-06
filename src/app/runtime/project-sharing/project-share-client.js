@@ -3,7 +3,7 @@ import { serverRequest } from '../cli/cli-server-bridge.js';
 // What the page asks of the database to share a project (supabase/migrations/20261106010000_add_project_members.sql, docs/superpowers/specs/2026-11-06-project-sharing-design.md). Every call
 // resolves { ok: true, data } or { ok: false, code }; the code is one of the words the database raises (`not_allowed`, `invite_removed`, ...) or `failed`.
 
-const CODES = ['stale', 'invalid_note', 'notes_full', 'invalid_email', 'rate_limited', 'mail', 'project_not_found', 'not_a_member', 'not_allowed', 'not_shared', 'invalid_role', 'invite_invalid', 'invite_removed', 'invite_full', 'invite_owner', 'invite_email_mismatch'];
+const CODES = ['stale', 'invalid_email', 'rate_limited', 'mail', 'project_not_found', 'not_a_member', 'not_allowed', 'not_shared', 'invalid_role', 'invite_invalid', 'invite_removed', 'invite_full', 'invite_owner', 'invite_email_mismatch'];
 
 /** The word of the database in an error of a call, or 'failed'. */
 export function codeOfError(error) {
@@ -40,9 +40,6 @@ export function createProjectShareClient({ getSupabase, request = serverRequest 
     sharedWithMe: () => call('list_shared_with_me'),
     mine: () => call('list_my_shared_projects'),
     updateProject: (projectId, { instructions = null, sources = null, expected = null }) => call('update_shared_project', { p_project_id: projectId, p_instructions: instructions, p_sources: sources, p_expected: expected }),
-    notes: (projectId) => call('list_project_notes', { p_project_id: projectId }),
-    addNote: (projectId, noteText) => call('add_project_note', { p_project_id: projectId, p_text: noteText }),
-    deleteNote: (projectId, noteId) => call('delete_project_note', { p_project_id: projectId, p_note_id: noteId }),
     invites: (projectId) => call('list_project_invites', { p_project_id: projectId }),
     revokeInvite: (projectId, inviteId) => call('revoke_project_invite', { p_project_id: projectId, p_invite_id: inviteId }),
     /** The mail goes out from the server (20 an hour for each person): { ok: true, data: { remaining, limit } } or { ok: false, code, remaining? }. */

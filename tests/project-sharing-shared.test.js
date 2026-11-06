@@ -306,39 +306,23 @@ test('the page stops reading when it is closed', async () => {
 
 // ---------- the content of a shared project in the replies, editing, leaving into a project of one's own
 
-import { instructionsWithNotes } from '../src/app/runtime/project-sharing/shared-folders.js';
 import { ownProjectFrom } from '../src/app/runtime/project-sharing/own-project.js';
 import { openInstructionsEditor } from '../src/app/ui/projects/shared-project-page.js';
 
-test('the notes of the project follow its instructions in the replies, for the others and for the owner', () => {
-  assert.equal(instructionsWithNotes('Be brief.', []), 'Be brief.');
-  assert.match(instructionsWithNotes('Be brief.', [{ text: 'Red.' }, { text: ' ' }, { text: 'Friday.' }]), /Be brief\.\n\nNotes of this project[^\n]*\n- Red\.\n- Friday\./);
-  assert.match(instructionsWithNotes('', [{ text: 'Red.' }]), /^Notes of this project/);
-  const folders = createSharedFolders({ storage: null });
-  folders.set({ id: 'p1', name: 'P', instructions: 'Rules.', notes: [{ text: 'Red.' }], sources: [{ id: 's', kind: 'text', title: 'T', text: 'text of a source' }] });
-  assert.match(folders.list()[0].instructions, /Rules\.[\s\S]*- Red\./);
-  assert.equal(folders.list()[0].sources.length, 1);
-  folders.setOwnNotes('mine', [{ id: 'n', text: 'Blue.' }]);
-  assert.match(folders.decorate({ id: 'mine', instructions: 'Own rules.' }).instructions, /Own rules\.[\s\S]*- Blue\./);
-  assert.equal(folders.decorate({ id: 'other', instructions: 'x' }).instructions, 'x');
-});
-
-test('the notes and the sources reach the replies of a conversation made in the project, and they are read again when the page starts', async () => {
+test('the instructions and the sources reach the replies of a conversation made in the project, and they are read again when the page starts', async () => {
   const items = [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'chat' }];
   const env = started({ read: async () => ({ ok: false }), items, live: {} });
   // the reader of the page gives the project only (no conversation) when it is asked for that
-  const reader = { info: async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Rules.', notes: [{ text: 'Red.' }], sources: [{ id: 's1', kind: 'text', title: 'Brief', text: 'The brief says blue.', addedAt: 'x' }] }, owner: { id: 'o', name: 'Ada' } } }) };
+  const reader = { info: async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Rules.', sources: [{ id: 's1', kind: 'text', title: 'Brief', text: 'The brief says blue.', addedAt: 'x' }] }, owner: { id: 'o', name: 'Ada' } } }) };
   const again = startProjectSharing({
     document: env.document, window: env.document.defaultView, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
-    saveAppData: async () => {}, showNotification: () => {}, client: { sharedWithMe: async () => ({ ok: true, data: items }), mine: async () => ({ ok: true, data: [{ project_id: 'own1', notes: [{ id: 'n', text: 'Own note.' }] }] }) },
+    saveAppData: async () => {}, showNotification: () => {}, client: { sharedWithMe: async () => ({ ok: true, data: items }), mine: async () => ({ ok: true, data: [{ project_id: 'own1' }] }) },
     storage: env.document.defaultView.localStorage, createReader: () => reader, pollMs: 40
   });
   await again.refreshShared();
   const answer = projectInstructionTextFor({ id: 'k', sharedProject: { id: PROJECT, ownerId: 'o' } });
   assert.match(answer, /Rules\./);
-  assert.match(answer, /- Red\./);
   assert.match(answer, /The brief says blue\./);
-  assert.match(projectInstructionTextFor({ id: 'k2', folderId: 'own1' }) || 'none', /none|Own note/);
 });
 
 test('an editor writes the instructions; a stale change reads the project again and tells the person; others cannot edit', async () => {

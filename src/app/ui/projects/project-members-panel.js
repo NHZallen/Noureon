@@ -77,11 +77,10 @@ export function openShareConfirm({ document, root, text, preview }) {
  * Opens the page. `project` is { id, name }; `me` the id of the signed-in person; `ownerName` and `inviterName` are the name shown on a link. `onShared(projectId)` is told when the project has
  * just been shared (the page makes the memory of its own copy of the folder `project`). `avatarUrl(userId, version)` may give the picture of a person.
  */
-export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, onNotes = () => {}, avatarUrl = () => '', confirm = null }) {
+export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, avatarUrl = () => '', confirm = null }) {
   let role = 'chat';
   let data = null;
   let links = [];
-  let notes = [];
   let pending = [];
   let mailLeft = null;
   let busy = false;
@@ -94,12 +93,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
     if (!members.ok) { fail(members.code); sheet.close(); return false; }
     data = members.data;
     links = [];
-    notes = [];
     pending = [];
-    if (data.shared_at) {
-      const noteList = await client.notes(project.id);
-      if (noteList.ok) { notes = noteList.data || []; onNotes(notes); }
-    }
     if (data.shared_at && data.role !== 'chat') {
       const result = await client.links(project.id);
       if (result.ok) links = result.data || [];
@@ -238,52 +232,6 @@ export async function openMembersPanel({ document, root, text, client, project, 
     body.appendChild(card);
   };
 
-  const drawNotes = () => {
-    body.appendChild(make(document, 'div', 'pj-section-title', text('psNotesSection')));
-    const card = make(document, 'div', 'psh-card');
-    card.appendChild(make(document, 'p', 'pj-note', text('psNotesHint')));
-    if (!notes.length) card.appendChild(make(document, 'p', 'pj-note', text('psNotesNone')));
-    for (const note of notes) {
-      const line = make(document, 'div', 'psh-note');
-      line.dataset.noteId = note.id;
-      line.appendChild(make(document, 'span', 'psh-note-text', note.text));
-      if (data.role !== 'chat') {
-        const del = make(document, 'button', 'pj-round');
-        del.type = 'button';
-        del.setAttribute('aria-label', text('psNoteDelete'));
-        del.innerHTML = ICONS.trash;
-        del.addEventListener('click', () => { void act(() => client.deleteNote(project.id, note.id)); });
-        line.appendChild(del);
-      }
-      card.appendChild(line);
-    }
-    if (data.role !== 'chat') {
-      const input = make(document, 'input', 'psh-input');
-      input.type = 'text';
-      input.id = 'psh-note';
-      input.maxLength = 500;
-      input.placeholder = text('psNotePlaceholder');
-      const add = make(document, 'button', 'pj-chip', text('psNoteAdd'));
-      add.type = 'button';
-      add.setAttribute('data-note-add', '');
-      const submit = async () => {
-        if (!input.value.trim() || busy) return;
-        busy = true;
-        try {
-          const result = await client.addNote(project.id, input.value.trim());
-          if (!result.ok) { notify(text(result.code === 'notes_full' ? 'psNotesFull' : errorKey(result.code)), 'error'); return; }
-        } finally { busy = false; }
-        if (await load()) draw();
-      };
-      add.addEventListener('click', () => { void submit(); });
-      input.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); void submit(); } });
-      const row = make(document, 'div', 'psh-note-add');
-      row.append(input, add);
-      card.appendChild(row);
-    }
-    body.appendChild(card);
-  };
-  const errorKey = (code) => (code === 'no_cloud' ? 'psNeedCloud' : code === 'not_allowed' ? 'psNotAllowed' : 'psFailed');
 
   const memberMenu = (member, anchor) => {
     const items = [];
@@ -360,7 +308,6 @@ export async function openMembersPanel({ document, root, text, client, project, 
     }
     if (data.role !== 'chat') { drawLinks(); drawEmail(); }
     drawMembers();
-    drawNotes();
   }
 
   if (await load()) draw();

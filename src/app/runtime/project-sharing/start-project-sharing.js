@@ -33,7 +33,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   };
   // The replies of a conversation made in a shared project carry its instructions and use its memory only: the folders the replies look at are the person's own and the shared ones.
   const sharedFolders = createSharedFolders({ storage: (() => { try { return storage || window.localStorage; } catch { return null; } })() });
-  setProjectFoldersReader(() => [...(dataStore.getFolders() || []).map(sharedFolders.decorate), ...sharedFolders.list()]);
+  setProjectFoldersReader(() => [...(dataStore.getFolders() || []), ...sharedFolders.list()]);
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
   const pendingStorage = () => { try { return storage || window.localStorage; } catch { return null; } };
   const copy = copyText || (async (value) => { try { await window.navigator.clipboard.writeText(value); return true; } catch { return false; } });
@@ -50,8 +50,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       document, root: root || document.body, text, client: shareClient, project: { id: folder.id, name: folder.name },
       inviterName: nameOf(getAnnouncedUser()), origin: window.location?.origin || '', copy, notify: showNotification,
       // The folder the page keeps has the memory the database has now (a stale copy written back could not undo it: the database keeps it, but the page should show it too).
-      onNotes: (list) => sharedFolders.setOwnNotes(folder.id, list), avatarUrl: avatarOf,
-      onShared: async () => { folder.memoryScope = 'project'; try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ } }
+      avatarUrl: avatarOf,
+      onShared: async () => { sharedFolders.addOwned(folder.id); folder.memoryScope = 'project'; try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ } }
     });
   }
 
@@ -179,14 +179,14 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     drawSharedProjects({ document, box, text, items: result.data, onOpen: (item) => { void openShared({ ...item, root }); } });
   }
 
-  // What the replies need of the shared projects is read again when the page starts (and the account is ready): the notes of the person's own shared projects, and the instructions, notes and sources of the others.
+  // What the replies need of the shared projects is read again when the page starts (and the account is ready): which of the person's own projects are shared, and the instructions and sources of the others.
   let refreshing = false;
   async function refreshShared() {
     if (refreshing || !cloudOn() || !getAnnouncedUser()?.supabaseUserId) return;
     refreshing = true;
     try {
       const mine = await shareClient.mine();
-      if (mine.ok) for (const item of mine.data || []) sharedFolders.setOwnNotes(item.project_id, item.notes);
+      if (mine.ok) sharedFolders.setOwned((mine.data || []).map((item) => item.project_id));
       const others = await shareClient.sharedWithMe();
       if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id }); }
     } catch { /* the next start tries again */ } finally { refreshing = false; }

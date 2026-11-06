@@ -302,31 +302,6 @@ test('an editor and the owner change the instructions and the sources, a chat me
   assert.equal((await read(cy, projectId)).project.sources.length, 1);
 });
 
-test('the notes of a shared project are one list: everyone reads, the owner and the editors write, a chat member does not, and there are limits', async () => {
-  const projectId = await sharedProject();
-  const editor = await rpc(A, 'create_project_link', projectId, 'editor', 'Ada');
-  await rpc(B, 'accept_project_invite', editor.code);
-  const chat = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
-  await rpc(C, 'accept_project_invite', chat.code);
-  const note = await rpc(B, 'add_project_note', projectId, '  The client likes red.  ');
-  assert.equal(note.text, 'The client likes red.');
-  await rpc(A, 'add_project_note', projectId, 'Deadline is Friday.');
-  assert.deepEqual((await rpc(C, 'list_project_notes', projectId)).map((entry) => entry.text), ['The client likes red.', 'Deadline is Friday.']);
-  assert.deepEqual((await read(cy, projectId)).project.notes.map((entry) => entry.text), ['The client likes red.', 'Deadline is Friday.']);
-  assert.match((await C.error("select public.add_project_note($1, 'x')", [projectId]))?.message || 'it worked', /not_allowed/);
-  assert.match((await C.error('select public.delete_project_note($1, $2)', [projectId, note.id]))?.message || 'it worked', /not_allowed/);
-  assert.match((await A.error("select public.add_project_note($1, '   ')", [projectId]))?.message || 'it worked', /invalid_note/);
-  assert.equal((await rpc(A, 'add_project_note', projectId, 'x'.repeat(501))).text.length, 500);
-  await rpc(A, 'delete_project_note', projectId, (await rpc(A, 'list_project_notes', projectId)).at(-1).id);
-  await rpc(B, 'delete_project_note', projectId, note.id);
-  assert.equal((await rpc(A, 'list_project_notes', projectId)).length, 1);
-  assert.deepEqual((await rpc(A, 'list_my_shared_projects')).filter((entry) => entry.project_id === projectId).map((entry) => entry.notes.map((n) => n.text)), [['Deadline is Friday.']]);
-  assert.deepEqual((await rpc(B, 'list_my_shared_projects')).filter((entry) => entry.project_id === projectId), []);
-  assert.match((await database.service.query('select 1').then(() => A.error('select public.list_project_notes($1)', [id()])))?.message || 'it worked', /not_a_member/);
-  for (let index = 0; index < 299; index += 1) await database.service.query("insert into public.project_notes (project_id, owner_id, note_text) values ($1, $2, 'n')", [projectId, ada]);
-  assert.match((await A.error("select public.add_project_note($1, 'one too many')", [projectId]))?.message || 'it worked', /notes_full/);
-});
-
 const mail = async (userId, projectId, email, role) => (await database.service.query('select public.server_create_project_email_invite($1, $2, $3, $4, $5) as r', [userId, projectId, email, role, 'Ada']))[0].r;
 
 test('an invitation by mail is for one address: the account with that address joins with it once; a newer one replaces an older; the owner and the editors list and take them back', async () => {

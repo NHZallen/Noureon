@@ -56,7 +56,7 @@ export function createSharedProjectReader({ projectId, request = serverRequest }
       const changed = merge(result);
       return { ok: true, project: snapshot(), changed };
     },
-    /** Only the project (its instructions, sources and notes, no conversation): a conversation id that nothing has is asked for. */
+    /** Only the project (its instructions and sources, no conversation): a conversation id that nothing has is asked for. */
     async info() {
       const result = await pages({ conversationId: '00000000-0000-0000-0000-000000000000' });
       return result.ok ? { ok: true, project: { role: result.first.role, project: result.first.project, owner: result.first.owner } } : result;
