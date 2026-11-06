@@ -128,7 +128,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   async function addSourceTo(session, input) {
     const [model, { getProjectFileStore }] = await Promise.all([import('../projects/project-source-model.js'), import('../projects/project-source-files.js')]);
     const list = sourcesOfSession(session);
-    let source = model.normalizeSource({ ...input, id: crypto.randomUUID(), addedAt: new Date().toISOString() });
+    let source = model.normalizeSource({ ...input, id: crypto.randomUUID(), addedAt: new Date().toISOString(), addedBy: { id: me(), name: nameOf(getAnnouncedUser()) } });
     if (!source) return { ok: false, code: 'empty' };
     if (list.length >= model.PROJECT_SOURCES_MAX) return { ok: false, code: 'full' };
     if (model.sourcesCharsOf(list) + source.text.length > model.PROJECT_SOURCES_CHARS_MAX) return { ok: false, code: 'too_much' };
@@ -157,29 +157,71 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     folderOf: (id) => sharedFolders.folderOf(id),
     chatsOf,
     countOf: (id) => chatsOf(id).length,
-    update: async (id, patch = {}) => { const session = sessionFor(id); if (!session || !('instructions' in patch)) return { ok: false, code: 'gone' }; return saveInstructionsOf(session, String(patch.instructions ?? '').slice(0, 8000)); },
+    update: async (id, patch = {}) => {
+      const session = sessionFor(id);
+      if (!session) return { ok: false, code: 'gone' };
+      const look = ['name', 'icon', 'color', 'textColor'].filter((key) => key in patch);
+      if (!('instructions' in patch) && !look.length) return { ok: false, code: 'gone' };
+      if (look.length) {
+        const saved = await shareClient.updateProject(id, { name: patch.name, icon: patch.icon, color: patch.color, textColor: patch.textColor, expected: session.readAt });
+        if (!saved.ok) return failedWrite(session, saved);
+        session.readAt = saved.data?.updated_at || session.readAt;
+        await loadSession(session);
+        session.refresh?.({ full: true });
+      }
+      if ('instructions' in patch) return saveInstructionsOf(session, String(patch.instructions ?? '').slice(0, 8000));
+      return { ok: true };
+    },
+    // The owner of a project that is shared: the chats of the others come with the person's own, and the owner may take one out of the project (never delete it).
+    othersOf: (id) => { const held = sessions.get(id); return held?.owned ? (chatsByProject.get(id) || []).filter((entry) => entry.authorId !== me()).map(rowOf) : []; },
+    canModerate: (id) => sharedFolders.isOwned(id) && !sharedFolders.has(id),
+    moveOut: async (id, conversationId) => {
+      const result = await shareClient.moveOut(id, conversationId);
+      if (!result.ok) return result;
+      chatsByProject.set(id, (chatsByProject.get(id) || []).filter((entry) => entry.id !== conversationId));
+      const held = sessions.get(id);
+      if (held) void tickSession(held);
+      return { ok: true };
+    },
     addSource: async (id, input) => { const session = sessionFor(id); return session ? addSourceTo(session, input) : { ok: false, code: 'gone' }; },
     removeSource: async (id, sourceId) => { const session = sessionFor(id); return session ? removeSourceFrom(session, sourceId) : { ok: false, code: 'gone' }; },
     link: (id) => ({ id, ownerId: sharedFolders.ownerOf(id) }),
     sent: () => { void Promise.resolve(saveAppData({ immediateCloudSync: true })).catch(() => {}); }
   });
 
+  // The link of a conversation to a shared project is forgotten (the person left, was taken out, or the owner took the conversation out): it is a plain conversation of the person's history again.
+  function releaseConversations(match) {
+    let changed = false;
+    const stamp = new Date().toISOString();
+    for (const conversation of dataStore.getConversations() || []) {
+      if (!conversation?.sharedProject || !match(conversation)) continue;
+      delete conversation.sharedProject;
+      conversation.stateUpdatedAt = stamp;
+      changed = true;
+    }
+    if (changed) { void Promise.resolve(saveAppData({ immediateCloudSync: true })).catch(() => {}); renderSidebar(); }
+    return changed;
+  }
   // What the server gave is put where the page looks: the folder the replies use, the chats of the project, and the page itself (its chats, or all of it when the project's own parts changed).
   function applyInfo(session, info) {
     const before = JSON.stringify([session.info?.project?.sources, session.info?.project?.instructions, session.info?.project?.name, session.info?.role]);
     session.info = info;
     if (info.project?.updated_at) session.readAt = info.project.updated_at;
-    remember(session.projectId, info);
+    if (!session.owned) remember(session.projectId, info);
     chatsByProject.set(session.projectId, info.conversations || []);
     const fresh = session.viewer ? (info.conversations || []).find((entry) => entry.id === session.viewer.chatId) : null;
     if (fresh) session.viewer.sheet.update(fresh);
-    session.refresh?.({ full: before !== JSON.stringify([info.project?.sources, info.project?.instructions, info.project?.name, info.role]) });
+    // (An owner's own page keeps the project itself by its own sync: only the chats are drawn again.)
+    session.refresh?.({ full: !session.owned && before !== JSON.stringify([info.project?.sources, info.project?.instructions, info.project?.name, info.role]) });
   }
   // The person was taken out of the project (or it was deleted): say so, forget it, and let the page of the projects go back to its list.
   function removedFrom(session) {
     if (!sessions.has(session.projectId)) return;
+    if (session.owned) { stopSession(session); chatsByProject.delete(session.projectId); return; }
     showNotification(text('psSharedGone'), 'error');
     stopSession(session);
+    // What the person made in the project is theirs again (the database gave it back): their page forgets the link too.
+    releaseConversations((conversation) => conversation.sharedProject?.id === session.projectId);
     sharedFolders.forget(session.projectId);
     chatsByProject.delete(session.projectId);
     memoryStores.get(session.projectId)?.stop();
@@ -198,8 +240,11 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     try {
       session.lastRead = Date.now();
       const result = await session.reader.refresh();
-      if (result.ok && result.changed) applyInfo(session, result.project);
-      else if (!result.ok && result.code === 'gone') removedFrom(session);
+      if (result.ok && result.changed) {
+        applyInfo(session, result.project);
+        // A conversation of the person that the owner took out of the project is told as gone: their page lets go of it too.
+        if (result.removed?.length) { const gone = new Set(result.removed); releaseConversations((conversation) => conversation.sharedProject?.id === session.projectId && gone.has(conversation.id)); }
+      } else if (!result.ok && result.code === 'gone') removedFrom(session);
     } finally { session.reading = false; }
     if (session.again) { session.again = false; later(() => { void tickSession(session); }, 300); }
   }
@@ -209,7 +254,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     session.live = false;
     session.lastRead = Date.now();
     const onVisible = () => { if (!document.hidden) void tickSession(session); };
-    session.channel = subscribeProjectLive({ getSupabase, projectId: session.projectId, onPing: () => { void tickSession(session); }, onState: (joined) => { session.live = joined; if (joined) void tickSession(session); } });
+    session.channel = subscribeProjectLive({ getSupabase, projectId: session.projectId, onPing: (ping) => { if (session.owned && !ping?.c) void Promise.resolve(getService(SERVICES.cloudSync)?.retry?.()).catch(() => {}).then(() => session.refresh?.({ full: true })); void tickSession(session); }, onState: (joined) => { session.live = joined; if (joined) void tickSession(session); } });
     session.timer = setInterval(() => { if (!session.live || Date.now() - session.lastRead >= LIVE_NET_MS) void tickSession(session); }, pollMs);
     session.timer?.unref?.(); // (a page keeps the process of a test alive otherwise; in a browser the timer is a number)
     document.addEventListener('visibilitychange', onVisible);
@@ -223,31 +268,27 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     sessions.delete(session.projectId);
   }
   /** Reads a shared project of the person and keeps it live (the page of the projects shows it). Resolves the session, or null when the person is not in the project. */
-  async function startSession(projectId, refresh = null, { notMemberText = 'psSharedGone', quiet = false } = {}) {
+  async function startSession(projectId, refresh = null, { notMemberText = 'psSharedGone', quiet = false, owned = false } = {}) {
     if (sessions.has(projectId)) { const held = sessions.get(projectId); if (refresh) held.refresh = refresh; return held; }
-    const session = { projectId, reader: createReader({ projectId }), info: null, readAt: null, refresh, live: false, lastRead: 0, reading: false, again: false, timer: null, channel: null, viewer: null, off: null };
+    const session = { projectId, owned, reader: createReader({ projectId }), info: null, readAt: null, refresh, live: false, lastRead: 0, reading: false, again: false, timer: null, channel: null, viewer: null, off: null };
     const read = await session.reader.load();
     if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); return null; }
     if (sessions.has(projectId)) return sessions.get(projectId);
     sessions.set(projectId, session);
     applyInfo(session, read.project);
-    session.refresh?.({ full: true });
+    session.refresh?.({ full: !owned });
     startLive(session);
     return session;
   }
   // The page of the projects says which project it shows: the shared one is read and kept live while it is shown, and left when the page goes elsewhere. A project of the person's own that is shared is only
   // listened to: when the people of it change something (an editor adds a file), the person's own cloud is asked for the change, and the page draws it.
-  let ownChannel = null;
   document.addEventListener('noureon:project-view', (event) => {
     const { projectId, refresh } = event.detail || {};
     for (const session of [...sessions.values()]) if (session.projectId !== projectId) stopSession(session);
-    ownChannel?.stop();
-    ownChannel = null;
     if (!projectId || !cloudOn()) return;
     if (sharedFolders.has(projectId)) { void startSession(projectId, refresh); return; }
-    if (sharedFolders.isOwned(projectId)) {
-      ownChannel = subscribeProjectLive({ getSupabase, projectId, onPing: (ping) => { if (ping?.c) return; void Promise.resolve(getService(SERVICES.cloudSync)?.retry?.()).catch(() => {}).then(() => refresh?.({ full: true })); } });
-    }
+    // A project of the person's own that is shared: the chats of the others are read with it, and when the people of it change something else (an editor adds a file) the person's own cloud is asked for it.
+    if (sharedFolders.isOwned(projectId)) void startSession(projectId, refresh, { owned: true, quiet: true });
   });
 
   // Someone else's chat of the project is read as a page, with the way on: a branch (a conversation of the reader's, made of it up to the last reply or the reply they chose).
@@ -294,9 +335,13 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       openLeaveDialog({
         document, root: root || document.body, text, project: session.info.project, mineCount,
         onLeave: async (choice = {}) => {
-          let made = null;
-          // First the copy is made (it needs the conversations as they are), then the person leaves.
-          if (choice.own) made = ownProjectFrom({ conversations: dataStore.getConversations() || [], sharedId: projectId, name: choice.name, memoryScope: choice.memory, icon: session.info.project?.icon, color: session.info.project?.color });
+          // First the project keeps its copy of what the person made (the server needs it as it is), then their own project is thought of, then they leave. If the copy cannot be made they choose.
+          if (choice.keep !== false && mineCount > 0) {
+            const { askKeepFailed, keepConversationsOrAsk } = await import('../../ui/projects/project-keep.js');
+            const done = await keepConversationsOrAsk({ client: shareClient, projectId, ask: () => askKeepFailed({ document, root: root || document.body, text }) });
+            if (!done.ok) return;
+          }
+          const made = choice.own ? ownProjectFrom({ conversations: dataStore.getConversations() || [], sharedId: projectId, name: choice.name, memoryScope: choice.memory, icon: session.info.project?.icon, color: session.info.project?.color }) : null;
           const left = await shareClient.leave(projectId);
           if (!left.ok) { showNotification(text('psFailed'), 'error'); return; }
           const name = session.info.project?.name || '';
@@ -306,9 +351,15 @@ export function startProjectSharing({ document, window = globalThis.window, conf
           memoryStores.get(projectId)?.stop();
           memoryStores.delete(projectId);
           onLeft?.();
-          if (made && made.copies.length) {
+          // What the person made is theirs again: in a project of their own when they chose that, else in their history.
+          const moved = new Set(made?.ids || []);
+          if (made && moved.size) {
             dataStore.replaceFolders([...(dataStore.getFolders() || []), made.folder]);
-            dataStore.getConversations().unshift(...made.copies);
+            const stamp = new Date().toISOString();
+            for (const conversation of dataStore.getConversations() || []) if (moved.has(conversation.id)) { delete conversation.sharedProject; conversation.folderId = made.folder.id; conversation.stateUpdatedAt = stamp; }
+          }
+          releaseConversations((conversation) => conversation.sharedProject?.id === projectId);
+          if (moved.size) {
             try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ }
             renderSidebar();
             showNotification(text('psLeaveOwnDone', { name: made.folder.name }), 'success');
@@ -364,6 +415,9 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     try {
       const mine = await shareClient.mine();
       if (mine.ok) sharedFolders.setOwned((mine.data || []).map((item) => item.project_id));
+      // What the owner of a project took out of it while this page was away: the link it still holds is forgotten.
+      const exits = await shareClient.exits?.();
+      if (exits?.ok) { const gone = new Set((exits.data || []).map((item) => item.conversation_id)); if (gone.size) releaseConversations((conversation) => gone.has(conversation.id)); }
       const others = await shareClient.sharedWithMe();
       if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id, role: info.project.role }); }
     } catch { /* the next start tries again */ } finally { refreshing = false; }

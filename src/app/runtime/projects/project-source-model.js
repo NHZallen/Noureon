@@ -68,6 +68,8 @@ export function normalizeSource(value) {
     // Where the source came from, when it is not a file or a text the person added: the report of a deep research.
     ...(value.origin === 'research' ? { origin: 'research' } : {}),
     ...(transcript ? { transcript } : {}),
+    // Who added it, in a project that others share (so that the owner knows what a person who left put in).
+    ...(value.addedBy && typeof value.addedBy === 'object' && String(value.addedBy.id || '') ? { addedBy: { id: String(value.addedBy.id).slice(0, 64), name: String(value.addedBy.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) } } : {}),
     addedAt: typeof value.addedAt === 'string' ? value.addedAt : ''
   };
 }

@@ -47,7 +47,7 @@ function setup({ info = infoOf(), local = [], client = {}, readerOver = {}, item
   const rt = fakeRealtime();
   const reader = {
     load: async () => { state.loads += 1; return state.gone ? { ok: false, code: 'gone' } : { ok: true, project: state.info }; },
-    refresh: async () => { state.reads += 1; return state.gone ? { ok: false, code: 'gone' } : { ok: true, changed: state.changed === true, project: state.info }; },
+    refresh: async () => { state.reads += 1; return state.gone ? { ok: false, code: 'gone' } : { ok: true, changed: state.changed === true, project: state.info, removed: state.refresh?.removed || [] }; },
     info: async () => (state.gone ? { ok: false, code: 'gone' } : { ok: true, project: { role: state.info.role, project: state.info.project, owner: state.info.owner } }),
     conversation: async (id) => { const found = state.info.conversations.find((entry) => entry.id === id); return found ? { ok: true, chat: found } : { ok: false, code: 'gone' }; },
     asset: async () => 'AAA=',
@@ -58,7 +58,9 @@ function setup({ info = infoOf(), local = [], client = {}, readerOver = {}, item
   const api = startProjectSharing({
     document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore,
     saveAppData: async () => { state.saved += 1; }, showNotification: (message, kind) => state.notes.push([message, kind]), renderSidebar: () => {}, openConversation: (id) => state.opened.push(id), supabase: rt.client,
-    client: { sharedWithMe: async () => ({ ok: true, data: items }), mine: async () => ({ ok: true, data: [] }), leave: async (id) => { state.left.push(id); return { ok: true }; },
+    client: { sharedWithMe: async () => ({ ok: true, data: items }), mine: async () => ({ ok: true, data: state.owned || [] }), exits: async () => ({ ok: true, data: state.exits || [] }), leave: async (id) => { state.left.push(id); return { ok: true }; },
+      keepConversations: async (id, member) => { state.kept = [...(state.kept || []), [id, member]]; return state.keepFails ? { ok: false, code: 'failed' } : { ok: true, data: {} }; },
+      moveOut: async (id, conversation) => { state.movedOut = [...(state.movedOut || []), [id, conversation]]; return { ok: true }; },
       updateProject: async (id, args) => { state.written.push(args); return state.write ? state.write(args) : { ok: true, data: { updated_at: `t${state.written.length + 1}` } }; }, ...client },
     storage: window.localStorage, createReader: () => reader, pollMs: 40, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
   });
@@ -155,7 +157,11 @@ test('a write that met a newer project reads it again and says so; one that is n
   env.state.write = () => ({ ok: false, code: 'not_allowed' });
   assert.deepEqual(await env.actions.removeSource(PROJECT, 's-text'), { ok: false, code: 'not_allowed' });
   assert.deepEqual(env.state.notes.at(-1), [texts.psNotAllowed, 'error']);
-  assert.deepEqual(await env.actions.update(PROJECT, { name: 'x' }), { ok: false, code: 'gone' }, 'only the instructions are the person’s to write');
+  // an editor changes the name and the look too; anything else is not theirs to write
+  env.state.write = null;
+  assert.deepEqual(await env.actions.update(PROJECT, { name: 'New name', icon: 'book', color: 'green' }), { ok: true });
+  assert.deepEqual(env.state.written.at(-1), { name: 'New name', icon: 'book', color: 'green', textColor: undefined, expected: env.state.written.at(-1).expected });
+  assert.deepEqual(await env.actions.update(PROJECT, { pinned: true }), { ok: false, code: 'gone' }, 'only the instructions and the look are the person’s to write');
 });
 
 test('a person who was taken out of the project is told on the next read; the project is forgotten and the page is told to leave it', async () => {
@@ -218,9 +224,10 @@ test('a new chat made in a shared project is linked to it by its `sharedProject`
   assert.equal(conversation.sharedProject, undefined);
 });
 
-test('leaving asks first; the person may keep the conversations they made as a project of their own; the page is told it is left', async () => {
+test('leaving asks first: the project keeps a copy of what the person made, they may move it into a project of their own, and what is left is a plain conversation again', async () => {
   const mine = { id: 'a1', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES, model: 'm', provider: 'p' };
-  const env = setup({ info: infoOf({ role: 'chat', conversations: [chat('a1', ME, 'Mine', '2026-11-05T00:00:00Z')] }), local: [mine] });
+  const stays = { id: 'a5', title: 'Stays', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES, model: 'm', provider: 'p' };
+  const env = setup({ info: infoOf({ role: 'chat', conversations: [chat('a1', ME, 'Mine', '2026-11-05T00:00:00Z')] }), local: [mine, stays] });
   env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'chat', ownerId: 'o' });
   env.view(PROJECT);
   await tick();
@@ -229,15 +236,100 @@ test('leaving asks first; the person may keep the conversations they made as a p
   await tick(); await tick();
   assert.match(env.root.textContent, /Make my own project/);
   assert.equal(env.root.querySelector('#psh-own-name').value, 'City plan (my copy)');
+  assert.equal(env.root.querySelector('.psh-choice[data-keep="true"]').getAttribute('aria-pressed'), 'true');
   env.root.querySelector('[data-leave-go]').click();
   await tick(); await tick();
+  assert.deepEqual(env.state.kept, [[PROJECT, '']], 'the project is asked to keep a copy first');
   assert.deepEqual(env.state.left, [PROJECT]);
   assert.equal(left, 1);
   assert.equal(env.state.folders.length, 1);
   assert.equal(env.state.folders[0].name, 'City plan (my copy)');
+  // nothing was copied or deleted here: the same two conversations, now plain ones (the own project holds them, since the person chose that)
   assert.equal(env.state.conversations.length, 2);
+  assert.ok(env.state.conversations.every((conversation) => !conversation.sharedProject));
+  assert.deepEqual(env.state.conversations.map((conversation) => conversation.folderId), [env.state.folders[0].id, env.state.folders[0].id]);
   assert.equal(env.actions.folderOf(PROJECT), null);
   assert.deepEqual(env.state.notes.at(-1), [texts.psLeaveOwnDone.replace('{name}', 'City plan (my copy)'), 'success']);
+});
+
+test('leaving without a project of one’s own gives the conversations back as plain ones; the person may choose not to leave a copy, and when the copy cannot be made they are asked', async () => {
+  const make = () => setup({ info: infoOf({ role: 'chat', conversations: [chat('a1', ME, 'Mine', '2026-11-05T00:00:00Z')] }), local: [{ id: 'a1', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES, model: 'm', provider: 'p' }] });
+  const leave = async (env, choose) => {
+    env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'chat', ownerId: 'o' });
+    env.view(PROJECT);
+    await tick();
+    env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-leave', { detail: { projectId: PROJECT, root: env.root, onLeft: () => {} } }));
+    await tick(); await tick();
+    choose(env.root);
+    env.root.querySelector('[data-leave-go]').click();
+    await tick(); await tick();
+  };
+  // not keeping a copy and no project of one’s own: nothing is asked of the server, the conversation is plain again
+  const first = make();
+  await leave(first, (root) => { root.querySelector('.psh-choice[data-keep="false"]').click(); root.querySelector('[data-leave-own]').click(); });
+  assert.equal(first.state.kept, undefined);
+  assert.deepEqual(first.state.left, [PROJECT]);
+  assert.equal(first.state.folders.length, 0);
+  assert.equal(first.state.conversations[0].sharedProject, undefined);
+  assert.equal(first.state.conversations[0].folderId, undefined);
+  assert.deepEqual(first.state.notes.at(-1), [texts.psLeft.replace('{name}', 'City plan'), 'success']);
+  // the copy cannot be made: the person is asked; going without it leaves
+  const second = make();
+  second.state.keepFails = true;
+  await leave(second, (root) => { root.querySelector('[data-leave-own]').click(); });
+  assert.deepEqual(second.state.left, [], 'asked first, not left yet');
+  second.root.querySelector('[data-keep-skip]').click();
+  await tick(); await tick();
+  assert.deepEqual(second.state.left, [PROJECT]);
+  // stopping at the question keeps the person in
+  const third = make();
+  third.state.keepFails = true;
+  await leave(third, (root) => { root.querySelector('[data-leave-own]').click(); });
+  const heads = third.root.querySelectorAll('.pj-sheet-head .pj-round');
+  heads[heads.length - 1].click();
+  await tick(); await tick();
+  assert.deepEqual(third.state.left, []);
+  assert.equal(third.state.conversations[0].sharedProject.id, PROJECT);
+});
+
+test('the owner of a shared project reads it too: the chats of the others come with the page, the owner takes one out of the project (and cannot do more), and a member forgets the link of a chat that was taken out', async () => {
+  const ADA = 'ada-owner';
+  const rows = [chat('theirs', 'bob', 'By Bob', '2026-11-05T00:00:00Z'), chat('owners', ME, 'By me', '2026-11-05T00:00:00Z')];
+  const env = setup({ info: infoOf({ role: 'owner', conversations: rows }), local: [] });
+  env.state.owned = [{ project_id: PROJECT }];
+  await env.api.refreshShared();
+  assert.equal(env.api.sharedFolders.isOwned(PROJECT), true);
+  env.view(PROJECT);
+  await tick(); await tick();
+  assert.equal(env.api.sharedFolders.has(PROJECT), false, 'the project stays the owner’s own folder');
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), ['theirs']);
+  assert.equal(env.actions.canModerate(PROJECT), true);
+  assert.equal(env.actions.canModerate('not-owned'), false);
+  assert.deepEqual(await env.actions.moveChatOut('not-owned', 'theirs'), { ok: false, code: 'not_allowed' });
+  assert.deepEqual(await env.actions.moveChatOut(PROJECT, 'theirs'), { ok: true });
+  assert.deepEqual(env.state.movedOut, [[PROJECT, 'theirs']]);
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), []);
+  void ADA;
+});
+
+test('a conversation of the person that the owner took out of the project is let go of by their page: when told so by the read, and when the page starts', async () => {
+  const kept = { id: 'k1', title: 'Kept', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES };
+  const goes = { id: 'g1', title: 'Goes', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES };
+  const away = { id: 'g2', title: 'Went while away', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: MESSAGES };
+  const env = setup({ info: infoOf({ role: 'chat', conversations: [chat('k1', ME, 'Kept', '2026-11-05T00:00:00Z'), chat('g1', ME, 'Goes', '2026-11-05T00:00:00Z')] }), local: [kept, goes, away] });
+  env.state.exits = [{ project_id: PROJECT, conversation_id: 'g2' }];
+  env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'chat', ownerId: 'o' });
+  await env.api.refreshShared();
+  assert.equal(away.sharedProject, undefined, 'told by the list of the exits when the page starts');
+  assert.ok(kept.sharedProject && goes.sharedProject);
+  env.view(PROJECT);
+  await tick();
+  env.state.changed = true;
+  env.state.refresh = { removed: ['g1'] };
+  env.state.info = infoOf({ role: 'chat', conversations: [chat('k1', ME, 'Kept', '2026-11-05T00:00:00Z')] });
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(goes.sharedProject, undefined, 'told as gone by the read');
+  assert.ok(kept.sharedProject);
 });
 
 test('opening a shared project asks the page of the projects to show it; a link to one chat opens it: someone else’s as a page, one’s own in the chat; a person who is not in the project is told', async () => {

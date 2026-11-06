@@ -35,11 +35,15 @@ export function createProjectShareClient({ getSupabase, request = serverRequest 
     invite: (code) => call('get_project_invite', { p_code: code }),
     accept: (code) => call('accept_project_invite', { p_code: code }),
     setRole: (projectId, memberId, role) => call('set_project_member_role', { p_project_id: projectId, p_member_id: memberId, p_role: role }),
-    remove: (projectId, memberId, deleteConversations = false) => call('remove_project_member', { p_project_id: projectId, p_member_id: memberId, p_delete_conversations: deleteConversations === true }),
+    remove: (projectId, memberId) => call('remove_project_member', { p_project_id: projectId, p_member_id: memberId }),
+    /** The owner takes the conversation of another member out of the project (it goes back to the history of its author; nothing is deleted). */
+    moveOut: (projectId, conversationId) => call('move_conversation_out_of_project', { p_project_id: projectId, p_conversation_id: conversationId }),
+    /** The conversations of this person that were taken out of a project (by its owner, or because they were removed), for the page to forget the link it still holds. */
+    exits: () => call('list_my_project_exits'),
     leave: (projectId) => call('leave_project', { p_project_id: projectId }),
     sharedWithMe: () => call('list_shared_with_me'),
     mine: () => call('list_my_shared_projects'),
-    updateProject: (projectId, { instructions = null, sources = null, expected = null }) => call('update_shared_project', { p_project_id: projectId, p_instructions: instructions, p_sources: sources, p_expected: expected }),
+    updateProject: (projectId, { instructions = null, sources = null, expected = null, name = null, icon = null, color = null, textColor = null }) => call('update_shared_project', { p_project_id: projectId, p_instructions: instructions, p_sources: sources, p_expected: expected, p_name: name, p_icon: icon, p_color: color, p_text_color: textColor }),
     invites: (projectId) => call('list_project_invites', { p_project_id: projectId }),
     revokeInvite: (projectId, inviteId) => call('revoke_project_invite', { p_project_id: projectId, p_invite_id: inviteId }),
     /** The mail goes out from the server (20 an hour for each person): { ok: true, data: { remaining, limit } } or { ok: false, code, remaining? }. */
@@ -50,6 +54,17 @@ export function createProjectShareClient({ getSupabase, request = serverRequest 
         const reason = result?.data?.error?.reason || '';
         if (result?.status === 429 || reason === 'rate_limited') return { ok: false, code: 'rate_limited', remaining: 0 };
         return { ok: false, code: ['invalid_email', 'invalid_role', 'not_allowed', 'not_shared', 'invite_full', 'mail'].includes(reason) ? reason : 'failed' };
+      } catch { return { ok: false, code: 'failed' }; }
+    },
+    /**
+     * Before a member leaves, or is taken out, the project may keep what they made in it: the server copies the conversations (and their files) to the owner. `memberId` is the person who leaves (the one
+     * who asks) or the one the owner takes out. { ok: true, data: { conversations, files: { copied, skipped } } } or { ok: false, code: 'forbidden' | 'failed' }.
+     */
+    async keepConversations(projectId, memberId = '') {
+      try {
+        const result = await request('POST', `/v1/projects/${projectId}/keep-conversations`, { body: JSON.stringify(memberId ? { memberId } : {}) });
+        if (result?.ok) return { ok: true, data: result.data || {} };
+        return { ok: false, code: result?.status === 404 ? 'forbidden' : 'failed' };
       } catch { return { ok: false, code: 'failed' }; }
     },
     async inviteQuota() {

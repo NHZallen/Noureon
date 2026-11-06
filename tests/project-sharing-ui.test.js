@@ -88,7 +88,8 @@ const fakeClient = (state) => ({
   refreshLink: async (_p, role) => { state.calls.push(`refresh:${role}`); state.links = [{ code: 'fresh'.padEnd(30, 'y'), role, generation: 2 }]; return { ok: true, data: {} }; },
   closeLink: async (_p, role) => { state.calls.push(`close:${role}`); state.links = state.links.filter((link) => link.role !== role); return { ok: true, data: null }; },
   setRole: async (_p, member, role) => { state.calls.push(`role:${member}:${role}`); return { ok: true, data: null }; },
-  remove: async (_p, member, deleteThem) => { state.calls.push(`remove:${member}:${deleteThem}`); return { ok: true, data: null }; },
+  remove: async (_p, member) => { state.calls.push(`remove:${member}`); return { ok: true, data: null }; },
+  keepConversations: async (_p, member) => { state.calls.push(`keep:${member}`); return state.keepFails ? { ok: false, code: 'failed' } : { ok: true, data: { conversations: 1, files: { copied: 0, skipped: 0 } } }; },
   invites: async () => ({ ok: true, data: state.pending || [] }),
   revokeInvite: async (_p, inviteId) => { state.calls.push(`revoke:${inviteId}`); state.pending = (state.pending || []).filter((entry) => entry.id !== inviteId); return { ok: true, data: null }; },
   inviteQuota: async () => ({ ok: true, data: { remaining: state.left ?? 17, limit: 20 } }),
@@ -165,7 +166,7 @@ test('the owner changes a role and removes a member after being asked', async ()
   assert.match(root.textContent, /Remove Bob\?/);
   root.querySelector('[data-remove-go]').click();
   await tick(); await tick();
-  assert.deepEqual(state.calls, ['role:u2:editor', 'remove:u2:false']);
+  assert.deepEqual(state.calls, ['role:u2:editor', 'keep:u2', 'remove:u2']);
 });
 
 test('the invitation shows the project, the role and what it can do, and joining tells the page; a bad invitation says why', async () => {
@@ -231,20 +232,54 @@ test('the owner and the editors invite by mail and see how many are left this ho
   assert.equal(chat.root.querySelector('#psh-email'), null);
 });
 
-test('taking a person out asks whether to keep their conversations (kept by default) or delete them too', async () => {
-  const { document, root } = page();
-  const state = { role: 'owner', shared: true, links: [], calls: [] };
-  await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {} });
-  root.querySelector('[data-user-id="u2"] .pj-round').click();
-  await tick();
-  [...document.querySelectorAll('.pj-menu button, [role="menuitem"]')].find((node) => node.textContent.includes('Remove member')).click();
-  await tick();
-  assert.equal(root.querySelector('.psh-choice[data-delete="false"]').getAttribute('aria-pressed'), 'true');
-  root.querySelector('.psh-choice[data-delete="true"]').click();
-  assert.equal(root.querySelector('.psh-choice[data-delete="true"]').getAttribute('aria-pressed'), 'true');
+test('taking a person out asks whether the project keeps a copy of their conversations (by default it does); when the copy cannot be made the owner chooses', async () => {
+  const open = async (state) => {
+    const { document, root } = page();
+    await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {} });
+    root.querySelector('[data-user-id="u2"] .pj-round').click();
+    await tick();
+    [...document.querySelectorAll('.pj-menu button, [role="menuitem"]')].find((node) => node.textContent.includes('Remove member')).click();
+    await tick();
+    return { document, root };
+  };
+  // kept by default: the copy is asked for first, then the person is taken out
+  const first = { role: 'owner', shared: true, links: [], calls: [] };
+  const { root } = await open(first);
+  assert.equal(root.querySelector('.psh-choice[data-keep="true"]').getAttribute('aria-pressed'), 'true');
+  root.querySelector('.psh-choice[data-keep="false"]').click();
+  assert.equal(root.querySelector('.psh-choice[data-keep="false"]').getAttribute('aria-pressed'), 'true');
+  root.querySelector('.psh-choice[data-keep="true"]').click();
   root.querySelector('[data-remove-go]').click();
   await tick(); await tick();
-  assert.deepEqual(state.calls, ['remove:u2:true']);
+  assert.deepEqual(first.calls, ['keep:u2', 'remove:u2']);
+  // not kept: nothing is copied
+  const second = { role: 'owner', shared: true, links: [], calls: [] };
+  const other = await open(second);
+  other.root.querySelector('.psh-choice[data-keep="false"]').click();
+  other.root.querySelector('[data-remove-go]').click();
+  await tick(); await tick();
+  assert.deepEqual(second.calls, ['remove:u2']);
+  // the copy fails: the owner is asked; trying again asks again, going without takes the person out, stopping leaves them in
+  const third = { role: 'owner', shared: true, links: [], calls: [], keepFails: true };
+  const failing = await open(third);
+  failing.root.querySelector('[data-remove-go]').click();
+  await tick(); await tick();
+  assert.deepEqual(third.calls, ['keep:u2']);
+  failing.root.querySelector('[data-keep-retry]').click();
+  await tick(); await tick();
+  assert.deepEqual(third.calls, ['keep:u2', 'keep:u2']);
+  failing.root.querySelector('[data-keep-skip]').click();
+  await tick(); await tick();
+  assert.deepEqual(third.calls, ['keep:u2', 'keep:u2', 'remove:u2']);
+  const fourth = { role: 'owner', shared: true, links: [], calls: [], keepFails: true };
+  const stopped = await open(fourth);
+  stopped.root.querySelector('[data-remove-go]').click();
+  await tick(); await tick();
+  const heads = stopped.root.querySelectorAll('.pj-sheet-head .pj-round');
+  heads[heads.length - 1].click();
+  await tick(); await tick();
+  assert.equal(stopped.root.querySelector('[data-keep-retry]'), null, 'the question is closed');
+  assert.deepEqual(fourth.calls, ['keep:u2'], 'stopped: the person is still in');
 });
 
 test('the head of a shared project shows a few pictures and the number of people; a project with nobody else shows nothing; a picture that is still coming shows the letter first', async () => {

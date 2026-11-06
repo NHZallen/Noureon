@@ -980,7 +980,7 @@ test('a shared project opens in the page like any project: its chats of everyone
   setSharedProjectHook(null);
 });
 
-test('in a shared project only an editor changes the instructions and the sources; a chat member sees them without the buttons; the menu is leaving, not renaming or deleting', async () => {
+test('in a shared project only an editor changes the name, the instructions and the sources; a chat member sees them without the buttons; nobody but the owner deletes it', async () => {
   for (const [role, editable] of [['chat', false], ['editor', true]]) {
     setSharedProjectHook(sharedHook(role));
     const env = setup({ wide: true });
@@ -997,7 +997,7 @@ test('in a shared project only an editor changes the instructions and the source
     const labels = env.$$('.pj-menu-item').map((node) => node.textContent.trim());
     assert.ok(labels.includes(text('psLeave')), role);
     assert.equal(labels.includes(text('pjMenuDelete')), false, role);
-    assert.equal(labels.includes(text('pjMenuEdit')), false, role);
+    assert.equal(labels.includes(text('pjMenuEdit')), editable, role);
     await env.finish();
     setSharedProjectHook(null);
   }
@@ -1039,6 +1039,56 @@ test('on a computer the column of projects has a button for the kind: all, the o
   await env.tick();
   assert.equal(env.$('.pj-title-text').textContent, 'City plan');
   assert.equal(env.$('.pj-side .pj-tab[aria-selected="true"]').textContent.trim(), text('pjTabShared'), 'a shared project opens with the kind it is in selected');
+  await env.finish();
+  setSharedProjectHook(null);
+});
+
+const OWNERS_CHATS = [
+  { id: 'o1', title: 'By Ada', lastUpdatedAt: '2026-11-05T00:00:00Z', messages: [{ role: 'user', parts: [{ text: 'q' }] }], shared: true, mine: false, authorName: 'Ada' }
+];
+
+test('the owner of a project that others share sees their chats and may take one out of the project, and nothing else; a member sees no menu on the chats of the others', async () => {
+  const out = [];
+  const folders = [{ id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], instructions: '', sources: [] }];
+  setSharedProjectHook({ has: () => false, othersOf: (id) => (id === 'f1' ? OWNERS_CHATS : []), canModerate: (id) => id === 'f1', moveOut: async (id, conversationId) => { out.push([id, conversationId]); return { ok: true }; }, list: () => [] });
+  const env = setup({ folders, wide: true });
+  env.open({ id: 'f1' });
+  await env.tick();
+  const row = env.$('[data-conversation-id="o1"]');
+  assert.ok(row, 'the chat of another member is in the list');
+  const more = row.querySelector('.pj-more');
+  assert.ok(more, 'the owner has a menu on it');
+  more.click();
+  await env.tick();
+  assert.deepEqual(env.$$('.pj-menu-item').map((node) => node.textContent.trim()), [text('psMoveOut')], 'only taking it out; no rename, archive or delete');
+  env.$$('.pj-menu-item')[0].click();
+  await env.tick();
+  assert.deepEqual(out, [['f1', 'o1']]);
+  await env.finish();
+  // a member: no menu at all on the chats of the others, not even by the right button
+  setSharedProjectHook(sharedHook('editor'));
+  const member = setup({ wide: true });
+  member.open({ id: 'sp1' }, { sourcesEnabled: true });
+  await member.tick();
+  const theirs = member.$('[data-conversation-id="o1"]');
+  assert.equal(theirs.querySelector('.pj-more'), null);
+  theirs.dispatchEvent(new member.window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  await member.tick();
+  assert.equal(member.$$('.pj-menu-item').length, 0);
+  await member.finish();
+  setSharedProjectHook(null);
+});
+
+test('in a project that others share, a source says who added it', async () => {
+  const hook = sharedHook('editor');
+  const folder = hook.folderOf('sp1');
+  setSharedProjectHook({ ...hook, folderOf: (id) => (id === 'sp1' ? { ...folder, sources: [{ ...folder.sources[0], addedBy: { id: 'u2', name: 'Bob' } }, { id: 's2', kind: 'text', title: 'Old', mime: 'text/plain', size: 3, text: 'old', addedAt: 'x' }] } : null) });
+  const env = setup({ wide: true });
+  env.open({ id: 'sp1' }, { sourcesEnabled: true });
+  await env.tick();
+  const metas = env.$$('.pj-panel .pj-source .pj-row-meta').map((node) => node.textContent);
+  assert.match(metas[0], /added by Bob/);
+  assert.doesNotMatch(metas[1], /added by/);
   await env.finish();
   setSharedProjectHook(null);
 });

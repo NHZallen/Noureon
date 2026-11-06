@@ -8,12 +8,24 @@ import { make, openSheet, projectMark } from './project-parts.js';
  * `onLeave({ own, name, memory })` is called when the person says to leave.
  */
 export function openLeaveDialog({ document, root, text, project = {}, mineCount = 0, onLeave }) {
-  const choice = { own: mineCount > 0, name: `${project.name || ''}`, memory: 'default' };
+  const choice = { own: mineCount > 0, keep: true, name: `${project.name || ''}`, memory: 'default' };
   return openSheet({
       document, root, title: text('psLeaveTitle', { name: project.name || '' }), dialog: true, close: text('psCancel'),
       body: (content, { close }) => {
         content.appendChild(make(document, 'p', 'pj-note', text('psLeaveBody')));
         if (mineCount > 0) {
+          // What the person made in the project: the project keeps a copy (they keep their own), or nothing of it stays. They keep their own either way; nothing of theirs is deleted.
+          const keepBoxes = [];
+          for (const [value, label, hint] of [[true, 'psLeaveKeep', 'psLeaveKeepHint'], [false, 'psLeaveTake', 'psLeaveTakeHint']]) {
+            const option = make(document, 'button', 'psh-choice');
+            option.type = 'button';
+            option.dataset.keep = String(value);
+            option.setAttribute('aria-pressed', String(value === choice.keep));
+            option.append(make(document, 'span', 'psh-choice-label', text(label)), make(document, 'span', 'pj-note', text(hint, { count: mineCount })));
+            option.addEventListener('click', () => { choice.keep = value; keepBoxes.forEach((box) => box.setAttribute('aria-pressed', String(box.dataset.keep === String(choice.keep)))); });
+            keepBoxes.push(option);
+            content.appendChild(option);
+          }
           const own = make(document, 'button', 'psh-choice');
           own.type = 'button';
           own.setAttribute('data-leave-own', '');

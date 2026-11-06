@@ -517,6 +517,25 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
       }
+      // A member leaves, or the owner takes a member out, and the project keeps what the member made in it (server/project-reader.js `keepConversations`): { memberId } (the person themselves when none).
+      const projectKeep = /^\/v1\/projects\/([0-9a-f-]{36})\/keep-conversations$/i.exec(url.pathname);
+      if (request.method === 'POST' && projectKeep) {
+        const user = await authenticate(request);
+        if (!projectReader) throw new RequestError(ERROR_CODES.runsUnavailable, 'Shared projects are not set up on the server.');
+        if (!projectLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
+        const body = await readJson(request, 4096, { optional: true });
+        const memberId = String(body?.memberId || user.id).toLowerCase();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(memberId)) throw new RequestError(ERROR_CODES.badRequest, 'The member is not sent right.');
+        try {
+          send(response, 200, await projectReader.keepConversations({ userId: user.id, projectId: projectKeep[1].toLowerCase(), memberId }), origin);
+          status = 200;
+          return;
+        } catch (error) {
+          if (!(error instanceof ProjectReadError)) throw error;
+          if (error.code === 'not_found' || error.code === 'forbidden') throw new RequestError(ERROR_CODES.conversationNotFound, error.message, { reason: error.code });
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
+      }
       // An invitation to a shared project by mail (server/project-invites.js): the mail is sent here, 20 an hour for each person; the quota says how many are left.
       if (route === 'GET /v1/project-invite-quota') {
         const user = await authenticate(request);

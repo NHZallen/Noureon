@@ -133,5 +133,46 @@ export function createFileStore({ url, serviceKey, db = null, quotaBytes = USER_
     return bytes;
   }
 
-  return { save, load, loadPath, usage, quotaBytes, removeAll };
+  /**
+   * Copies a file from the folder of one person to the folder of another by the storage API (the bytes are the same, so is the name). Resolves { status, size }: 'copied', 'there' (the other already
+   * has it: no space is taken), 'missing' (the first person's file is not there) or 'quota' (the other person's space would be over). Throws a FileStoreError when the storage does not answer.
+   */
+  async function copyFile({ fromUserId, toUserId, hash, quota = true }) {
+    const sourceKey = `${fromUserId}/${hash}`;
+    const destinationKey = `${toUserId}/${hash}`;
+    if (!SAFE_PATH.test(sourceKey) || !SAFE_PATH.test(destinationKey)) throw new FileStoreError('That is not the path of a file.');
+    if (await exists(destinationKey)) return { status: 'there', size: 0 };
+    let info;
+    try {
+      info = await fetchImpl(`${url}/storage/v1/object/info/${ASSET_BUCKET}/${encodePath(sourceKey)}`, { headers: authHeaders, signal: AbortSignal.timeout(timeoutMs) });
+    } catch {
+      throw new FileStoreError('The file could not be looked at.');
+    }
+    if (info.status === 404 || info.status === 400) return { status: 'missing', size: 0 };
+    if (!info.ok) throw new FileStoreError(`The file could not be looked at (${info.status}).`, info.status);
+    const details = await info.json().catch(() => ({}));
+    const size = Number(details?.size ?? details?.metadata?.size) || 0;
+    if (quota) {
+      const used = await usage(toUserId);
+      if (used !== null && used + size > quotaBytes) return { status: 'quota', size };
+    }
+    let response;
+    try {
+      response = await fetchImpl(`${url}/storage/v1/object/copy`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bucketId: ASSET_BUCKET, sourceKey, destinationKey }),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+    } catch {
+      throw new FileStoreError('The file could not be copied.');
+    }
+    if (!response.ok && response.status !== 409) {
+      const text = await response.text().catch(() => '');
+      if (!(response.status === 400 && /already exists|duplicate/i.test(text))) throw new FileStoreError(`The file could not be copied (${response.status}).`, response.status);
+    }
+    return { status: 'copied', size };
+  }
+
+  return { save, load, loadPath, usage, quotaBytes, removeAll, copyFile };
 }

@@ -131,6 +131,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (project.shared) {
       // A project of someone else: a new chat in it, the instructions for an editor, and leaving.
       if (!fromPage) items.push({ label: text('pjMenuNewChat'), icon: 'plus', action: async () => { const result = await actions.startChat(project.id, '').catch(() => ({ ok: false })); if (result.ok) close(); else notify(text('pjFailed'), 'error'); } });
+      // An editor changes the name, the icon and the colour of the project too (not deleting it: that is for its owner).
+      if (canEdit(project)) items.push({ label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEdit(project, refresh) });
       if (canEdit(project) && fromPage && !isWide(document)) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
       items.push({ label: text('psLeave'), icon: 'remove', danger: true, action: () => document.dispatchEvent(new document.defaultView.CustomEvent('noureon:project-leave', { detail: { projectId: project.id, root, onLeft: () => go({ list: true }, false) } })) });
       anchor?.setAttribute?.('aria-expanded', 'true');
@@ -258,6 +260,13 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     ];
     menu = openMenu({ document, root, anchor, point, items, onClose: () => { menu = null; } });
   };
+  // The conversation of someone else in a project of the person: the only thing the owner can do with it is to take it out of the project (it goes back to the history of the person who wrote it).
+  const otherChatMenu = (project, conversation, anchor, point) => {
+    if (toggledOff(anchor)) return;
+    closeMenu();
+    const items = [{ label: text('psMoveOut'), icon: 'remove', action: async () => { const result = await actions.moveChatOut(project.id, conversation.id); if (result.ok) notify(text('psMovedOut'), 'success'); else notify(text('pjFailed'), 'error'); drawChats(); } }];
+    menu = openMenu({ document, root, anchor, point, items, onClose: () => { menu = null; } });
+  };
   const drawChats = () => {
     if (!chatsBody) return;
     chatsBody.replaceChildren();
@@ -282,14 +291,17 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       more.type = 'button';
       more.setAttribute('aria-label', text('pjMore'));
       more.innerHTML = ICONS.dots(18);
-      more.addEventListener('click', (event) => { event.stopPropagation(); chatMenu(conversation, more); });
-      // In a shared project the chats of the others have no menu (they are theirs) and are read in a page of their own; the person's own open in the chat.
+      // In a shared project the chats of the others are theirs: they are read in a page of their own, and have no menu but for the owner of the project, who may take them out of it (never delete them).
+      // The person's own open in the chat.
       const others = conversation.shared && !conversation.mine;
-      if (others) row.append(words); else row.append(words, more);
+      const moderator = others && actions.canModerate?.(project.id) === true;
+      const menuFor = (anchor, point = null) => { if (!others) chatMenu(conversation, anchor, point); else if (moderator) otherChatMenu(project, conversation, anchor, point); };
+      more.addEventListener('click', (event) => { event.stopPropagation(); menuFor(more); });
+      if (others && !moderator) row.append(words); else row.append(words, more);
       const open = () => { if (others) { document.dispatchEvent(new win.CustomEvent('noureon:shared-chat', { detail: { projectId: project.id, chat: conversation, root } })); return; } close(); openChat(conversation.id); };
       row.addEventListener('click', open);
       row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
-      row.addEventListener('contextmenu', (event) => { event.preventDefault(); chatMenu(conversation, null, { x: event.clientX, y: event.clientY }); });
+      row.addEventListener('contextmenu', (event) => { event.preventDefault(); menuFor(null, { x: event.clientX, y: event.clientY }); });
       // A touch held on a row opens the menu, as the long press of the phone's own lists.
       let timer = null;
       let held = false;
@@ -298,7 +310,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         if (event.pointerType !== 'touch') return;
         held = false;
         stop();
-        timer = win.setTimeout(() => { held = true; timer = null; chatMenu(conversation, row); }, LONG_PRESS_MS);
+        timer = win.setTimeout(() => { held = true; timer = null; menuFor(row); }, LONG_PRESS_MS);
       });
       for (const name of ['pointerup', 'pointercancel', 'pointermove', 'pointerleave']) row.addEventListener(name, stop);
       row.addEventListener('click', (event) => { if (held) { event.stopImmediatePropagation(); held = false; } }, true);
@@ -471,6 +483,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     }
     return tile;
   };
+  // (In a project that others share, who added a source: their name.)
+  const addedByText = (source) => (source.addedBy?.name ? ` · ${text('psSourceAddedBy', { name: source.addedBy.name })}` : '');
   const sourceRow = (project, source, after, onRemove = null) => {
     const row = make(document, 'div', 'pj-row pj-source');
     row.dataset.sourceId = source.id;
@@ -479,7 +493,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const tile = source.kind === 'url' ? urlTile(source) : tone && source.kind === 'file' && source.origin !== 'research' && label.length <= 4 ? sourceTile(document, { tone, label })
       : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
     const meta = make(document, 'span', 'pj-row-text');
-    meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));
+    meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}${project.shared || actions.canModerate?.(project.id) ? addedByText(source) : ''}`));
     // Where the vectors of the source are (only when they are turned on): being made, made, not possible, or too big.
     const status = make(document, 'span', 'pj-row-status');
     status.dataset.sourceId = source.id;

@@ -2,6 +2,7 @@
 // time. Made the way the other pages of the projects are (openSheet): a page over the page, a small dialog for a question. `client` is the one of runtime/project-sharing.
 
 import { make, openMenu, openSheet } from './project-parts.js';
+import { askKeepFailed, keepConversationsOrAsk } from './project-keep.js';
 import { joinUrl } from '../../runtime/project-sharing/join-route.js';
 
 const ROLE_KEYS = { owner: 'psRoleOwner', editor: 'psRoleEditor', chat: 'psRoleChat' };
@@ -243,20 +244,21 @@ export async function openMembersPanel({ document, root, text, client, project, 
   };
 
   async function removeMember(member) {
-    let deleteThem = false;
+    let keep = true;
     const dialog = openSheet({
       document, root, title: text('psRemoveTitle', { name: member.name }), dialog: true, close: text('psCancel'),
       body: (content, { close }) => {
         content.appendChild(make(document, 'p', 'pj-note', text('psRemoveBody')));
-        const choices = [[false, 'psRemoveKeep', 'psRemoveKeepHint'], [true, 'psRemoveDelete', 'psRemoveDeleteHint']];
+        // What the person made in the project: the project keeps a copy of it (the person keeps their own), or nothing of it stays. Nothing of theirs is deleted either way.
+        const choices = [[true, 'psRemoveKeep', 'psRemoveKeepHint'], [false, 'psRemoveDrop', 'psRemoveDropHint']];
         const boxes = [];
         for (const [value, label, hint] of choices) {
           const option = make(document, 'button', 'psh-choice');
           option.type = 'button';
-          option.dataset.delete = String(value);
-          option.setAttribute('aria-pressed', String(value === deleteThem));
+          option.dataset.keep = String(value);
+          option.setAttribute('aria-pressed', String(value === keep));
           option.append(make(document, 'span', 'psh-choice-label', text(label)), make(document, 'span', 'pj-note', text(hint)));
-          option.addEventListener('click', () => { deleteThem = value; boxes.forEach((box) => box.setAttribute('aria-pressed', String(box.dataset.delete === String(deleteThem)))); });
+          option.addEventListener('click', () => { keep = value; boxes.forEach((box) => box.setAttribute('aria-pressed', String(box.dataset.keep === String(keep)))); });
           boxes.push(option);
           content.appendChild(option);
         }
@@ -267,7 +269,17 @@ export async function openMembersPanel({ document, root, text, client, project, 
         const go = make(document, 'button', 'pj-button pj-primary psh-go', text('psRemoveGo'));
         go.type = 'button';
         go.setAttribute('data-remove-go', '');
-        go.addEventListener('click', () => { close(); void act(() => client.remove(project.id, member.user_id, deleteThem)); });
+        go.addEventListener('click', () => {
+          close();
+          void act(async () => {
+            // The copy is made before the person is taken out (it needs what they made as it is); if it cannot be made the owner chooses: try again, go without it, or stop.
+            if (keep) {
+              const done = await keepConversationsOrAsk({ client, projectId: project.id, memberId: member.user_id, ask: () => askKeepFailed({ document, root, text }) });
+              if (!done.ok) return { ok: true, stopped: true };
+            }
+            return client.remove(project.id, member.user_id);
+          });
+        });
         buttons.append(cancel, go);
         content.appendChild(buttons);
       }

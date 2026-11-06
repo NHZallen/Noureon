@@ -30,11 +30,13 @@ export function createSharedProjectReader({ projectId, request = serverRequest }
 
   const snapshot = () => ({ role: head.role, sharedAt: head.sharedAt, project: head.project, owner: head.owner, conversations: [...byId.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))) });
 
+  let removed = [];
   function merge(result) {
+    removed = [];
     let changed = !head || JSON.stringify(head.project) !== JSON.stringify(result.first.project) || head.role !== result.first.role;
     head = { role: result.first.role, sharedAt: result.first.sharedAt, project: result.first.project, owner: result.first.owner };
     for (const chat of result.got) {
-      if (chat.deleted) { if (byId.delete(chat.id)) changed = true; } else { byId.set(chat.id, chat); changed = true; }
+      if (chat.deleted) { if (byId.delete(chat.id)) { changed = true; removed.push(chat.id); } } else { byId.set(chat.id, chat); changed = true; }
     }
     if (result.cursor) next = result.cursor;
     return changed;
@@ -54,7 +56,7 @@ export function createSharedProjectReader({ projectId, request = serverRequest }
       const result = await pages({ since: next });
       if (!result.ok) return result;
       const changed = merge(result);
-      return { ok: true, project: snapshot(), changed };
+      return { ok: true, project: snapshot(), changed, removed };
     },
     /** Only the project (its instructions and sources, no conversation): a conversation id that nothing has is asked for. */
     async info() {

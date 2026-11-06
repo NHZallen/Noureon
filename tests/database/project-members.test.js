@@ -133,7 +133,7 @@ test('only the owner changes a role or removes someone; a person who was removed
   assert.match((await B.error("select public.set_project_member_role($1, $2, 'editor')", [projectId, cy]))?.message || 'it worked', /not_allowed/);
   await rpc(A, 'set_project_member_role', projectId, bob, 'editor');
   assert.equal((await rpc(B, 'list_project_members', projectId)).role, 'editor');
-  assert.match((await B.error('select public.remove_project_member($1, $2, false)', [projectId, cy]))?.message || 'it worked', /not_allowed/);
+  assert.match((await B.error('select public.remove_project_member($1, $2)', [projectId, cy]))?.message || 'it worked', /not_allowed/);
   await rpc(A, 'remove_project_member', projectId, cy);
   assert.match((await C.error('select public.list_project_members($1)', [projectId]))?.message || 'it worked', /not_a_member/);
   assert.match((await C.error('select public.accept_project_invite($1)', [link.code]))?.message || 'it worked', /invite_removed/);
@@ -203,20 +203,27 @@ test('a member links a conversation to the project by its metadata; a person who
   assert.deepEqual(await linkOf(odd), { shared_project_id: null, shared_project_owner: null });
 });
 
-test('a member who was taken out keeps the link of what they made; the project going for good empties it', async () => {
+test('a member who is taken out gets what they made in the project back as plain conversations, and an old page cannot link them again; the project going for good empties the links of the others', async () => {
   const projectId = await sharedProject();
   const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
   await rpc(B, 'accept_project_invite', link.code);
+  await rpc(C, 'accept_project_invite', link.code);
   const mine = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  const cys = await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada } });
   await rpc(A, 'remove_project_member', projectId, bob);
-  // the page writes the conversation back with the same metadata: the link stands
+  assert.deepEqual(await linkOf(mine), { shared_project_id: null, shared_project_owner: null });
+  // the page writes the conversation back with the old metadata: it stays a plain conversation
   await callWith(B, 'upsert_workspace_conversations', [{ id: mine, title: 'Changed', model: 'm', provider: 'p', created_at: now(), metadata: { sharedProject: { id: projectId, ownerId: ada } } }]);
-  assert.deepEqual(await linkOf(mine), { shared_project_id: projectId, shared_project_owner: ada });
-  // but a new conversation cannot be linked any more
+  assert.deepEqual(await linkOf(mine), { shared_project_id: null, shared_project_owner: null });
+  assert.equal((await database.service.query('select title, deleted_at is null as alive, metadata ? \'sharedProject\' as marked from public.workspace_conversations where id = $1', [mine]))[0].title, 'Changed');
+  assert.deepEqual((await rpc(B, 'list_my_project_exits')).map((item) => item.conversation_id), [mine]);
+  // a new conversation cannot be linked any more
   const later = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
   assert.deepEqual(await linkOf(later), { shared_project_id: null, shared_project_owner: null });
+  // the others keep theirs, until the project goes for good
+  assert.deepEqual(await linkOf(cys), { shared_project_id: projectId, shared_project_owner: ada });
   await database.service.query('delete from public.workspace_folders where id = $1', [projectId]);
-  assert.deepEqual(await linkOf(mine), { shared_project_id: null, shared_project_owner: null });
+  assert.deepEqual(await linkOf(cys), { shared_project_id: null, shared_project_owner: null });
 });
 
 test('the server reads the project for a person who is in it: the conversations of the owner and of every member, with their messages; nobody else gets anything', async () => {
@@ -326,24 +333,22 @@ test('an invitation by mail is for one address: the account with that address jo
   // a person who was taken out comes back by an invitation to their address (the owner wrote it), not by an old link
   const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
   await rpc(C, 'accept_project_invite', link.code);
-  await rpc(A, 'remove_project_member', projectId, cy, false);
+  await rpc(A, 'remove_project_member', projectId, cy);
   assert.match((await C.error('select public.accept_project_invite($1)', [link.code]))?.message || 'it worked', /invite_removed/);
   const back = await mail(ada, projectId, 'cy@example.test', 'chat');
   assert.equal((await rpc(C, 'accept_project_invite', back.code)).already, false);
 });
 
-test('taking a person out can take what they made in the project with them (to their trash); by default it stays', async () => {
+test('leaving gives the person what they made back as plain conversations; nothing is deleted', async () => {
   const projectId = await sharedProject();
   const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
   await rpc(B, 'accept_project_invite', link.code);
-  await rpc(C, 'accept_project_invite', link.code);
   const bobs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
-  const cys = await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada } });
-  await rpc(A, 'remove_project_member', projectId, bob, true);
-  await rpc(A, 'remove_project_member', projectId, cy, false);
-  const deleted = async (conversationId) => (await database.service.query('select deleted_at is not null as gone from public.workspace_conversations where id = $1', [conversationId]))[0].gone;
-  assert.equal(await deleted(bobs), true);
-  assert.equal(await deleted(cys), false);
+  await rpc(B, 'leave_project', projectId);
+  assert.deepEqual(await linkOf(bobs), { shared_project_id: null, shared_project_owner: null });
+  const row = (await database.service.query('select deleted_at is null as alive from public.workspace_conversations where id = $1', [bobs]))[0];
+  assert.equal(row.alive, true);
+  assert.equal((await read(ada, projectId)).conversations.some((chat) => chat.id === bobs), false);
 });
 
 test('two people who are in the same shared project can see each other’s picture; a stranger and oneself cannot', async () => {
@@ -502,4 +507,122 @@ test('a change the owner makes to the sources of the shared project through the 
   await callWith(A, 'upsert_workspace_folders', [{ id: projectId, name: 'City plan', memory_scope: 'project', sources: [{ id: 's1', kind: 'text', title: 'Brief', text: 'x' }] }]);
   assert.ok((await count()) > before, 'the sync writes the folder with its sources, and the people hear it');
   await database.db.query('drop function realtime.send(jsonb, text, text, boolean)');
+});
+
+// ---------- the rules of the conversations of a shared project (supabase/migrations/20261106070000_add_project_conversation_rules.sql)
+
+const rowOf = async (conversationId) => (await database.service.query('select user_id, title, deleted_at is not null as deleted, shared_project_id, metadata from public.workspace_conversations where id = $1', [conversationId]))[0];
+const withMembers = async () => {
+  const projectId = await sharedProject();
+  const chatLink = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  const editorLink = await rpc(A, 'create_project_link', projectId, 'editor', 'Ada');
+  await rpc(B, 'accept_project_invite', editorLink.code);
+  await rpc(C, 'accept_project_invite', chatLink.code);
+  return projectId;
+};
+
+test('the owner takes a conversation of someone else out of the project; an editor or a chat member cannot, and nobody deletes the conversation of another', async () => {
+  const projectId = await withMembers();
+  const bobs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'By Bob' });
+  const cys = await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada }, title: 'By Cy' });
+  assert.match((await B.error('select public.move_conversation_out_of_project($1, $2)', [projectId, cys]))?.message || 'it worked', /not_allowed/);
+  assert.match((await C.error('select public.move_conversation_out_of_project($1, $2)', [projectId, bobs]))?.message || 'it worked', /not_allowed/);
+  assert.match((await database.anon.error('select public.move_conversation_out_of_project($1, $2)', [projectId, bobs]))?.message || 'it worked', /permission denied/);
+  // the owner cannot delete it: not by the sync, not by the function that deletes for good
+  for (const attempt of [
+    () => callWith(A, 'upsert_workspace_conversations', [{ id: cys, title: 'By Cy', model: 'm', provider: 'p', created_at: now(), deleted_at: now() }]),
+    () => callWith(A, 'permanently_delete_workspace_conversations', [cys]),
+    () => callWith(B, 'upsert_workspace_conversations', [{ id: cys, title: 'Hijacked', model: 'm', provider: 'p', created_at: now(), deleted_at: now() }])
+  ]) { try { await attempt(); } catch { /* refused */ } }
+  assert.deepEqual([(await rowOf(cys)).title, (await rowOf(cys)).deleted, (await rowOf(cys)).user_id], ['By Cy', false, cy]);
+  // the owner takes Bob's out: it is a plain conversation of Bob again, not deleted, and an old page cannot link it back
+  await rpc(A, 'move_conversation_out_of_project', projectId, bobs);
+  assert.deepEqual(await linkOf(bobs), { shared_project_id: null, shared_project_owner: null });
+  assert.deepEqual([(await rowOf(bobs)).deleted, (await rowOf(bobs)).user_id], [false, bob]);
+  await callWith(B, 'upsert_workspace_conversations', [{ id: bobs, title: 'By Bob', model: 'm', provider: 'p', created_at: now(), metadata: { sharedProject: { id: projectId, ownerId: ada } } }]);
+  assert.deepEqual(await linkOf(bobs), { shared_project_id: null, shared_project_owner: null });
+  assert.deepEqual((await rpc(B, 'list_my_project_exits')).filter((item) => item.project_id === projectId).map((item) => item.conversation_id), [bobs]);
+  assert.deepEqual((await rpc(C, 'list_my_project_exits')).filter((item) => item.project_id === projectId), []);
+  assert.deepEqual((await read(cy, projectId)).conversations.map((chat) => chat.title), ['By Cy']);
+  // what is not a conversation of someone else in this project is not found
+  const ownChat = await conversationIn(A, { folderId: projectId });
+  assert.match((await A.error('select public.move_conversation_out_of_project($1, $2)', [projectId, ownChat]))?.message || 'it worked', /conversation_not_found/);
+  assert.match((await A.error('select public.move_conversation_out_of_project($1, $2)', [projectId, bobs]))?.message || 'it worked', /conversation_not_found/);
+});
+
+test('an editor changes the name, icon and colours of the project; a chat member cannot; a blank name changes nothing', async () => {
+  const projectId = await withMembers();
+  await rpc(B, 'update_shared_project', projectId, null, null, null, 'City plan 2', 'book', 'green', 'green');
+  const after = (await database.service.query('select name, icon, color, text_color from public.workspace_folders where id = $1', [projectId]))[0];
+  assert.deepEqual(after, { name: 'City plan 2', icon: 'book', color: 'green', text_color: 'green' });
+  assert.match((await C.error("select public.update_shared_project($1, null, null, null, 'Mine now')", [projectId]))?.message || 'it worked', /not_allowed/);
+  await rpc(B, 'update_shared_project', projectId, null, null, null, '   ');
+  assert.equal((await database.service.query('select name from public.workspace_folders where id = $1', [projectId]))[0].name, 'City plan 2');
+  assert.equal((await read(cy, projectId)).project.name, 'City plan 2');
+});
+
+test('the copy for the owner: only the owner who removes a member, or the member who leaves, may ask; the copies are the owner’s conversations that the owner can delete; asking twice makes one copy', async () => {
+  const projectId = await withMembers();
+  const bobs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'By Bob', texts: ['q', 'a', 'q2'] });
+  const collect = async (actor, member) => (await database.service.query('select public.server_collect_project_copy($1, $2, $3) as r', [actor, projectId, member]))[0].r;
+  assert.equal(await collect(cy, bob), null, 'another member');
+  assert.equal(await collect(id(), bob), null, 'a stranger');
+  assert.equal(await collect(bob, ada), null, 'the owner is not copied');
+  assert.equal(await collect(ada, id()), null, 'not a member');
+  const forOwner = await collect(ada, bob);
+  const forMember = await collect(bob, bob);
+  assert.deepEqual(forOwner, forMember);
+  assert.equal(forOwner.owner_id, ada);
+  assert.deepEqual(forOwner.conversations.map((chat) => chat.title), ['By Bob']);
+  assert.equal(forOwner.messages.length, 3);
+  const store = async (data) => (await database.service.query('select public.server_store_project_copy($1, $2, $3, $4) as r', [projectId, bob, JSON.stringify(data.conversations), JSON.stringify(data.messages)]))[0].r;
+  const messages = forOwner.messages.map((message) => ({ ...message, parts: [{ text: `${message.parts[0].text} (kept)` }] }));
+  assert.equal(await store({ conversations: forOwner.conversations, messages }), 1);
+  assert.equal(await store({ conversations: forOwner.conversations, messages }), 0, 'the second time makes no second copy');
+  const copies = await database.service.query("select id, title, folder_id, shared_project_id, metadata from public.workspace_conversations where user_id = $1 and metadata ? 'copiedFrom'", [ada]);
+  assert.equal(copies.length, 1);
+  assert.equal(copies[0].folder_id, projectId);
+  assert.equal(copies[0].shared_project_id, null);
+  assert.equal(copies[0].metadata.copiedFrom.authorId, bob);
+  assert.equal(copies[0].metadata.copiedFrom.conversationId, bobs);
+  assert.equal(copies[0].metadata.sharedProject, undefined);
+  const copiedMessages = await database.service.query('select parts, sequence from public.workspace_messages where conversation_id = $1 order by sequence', [copies[0].id]);
+  assert.deepEqual(copiedMessages.map((row) => row.parts[0].text), ['q (kept)', 'a (kept)', 'q2 (kept)']);
+  // only what the member made in the project is copied
+  const outside = await conversationIn(B, { title: 'Not in the project' });
+  assert.equal(await store({ conversations: [{ id: outside, title: 'x', model: 'm', provider: 'p', created_at: now() }], messages: [] }), 0);
+  // Bob leaves: his own is a plain conversation again; the project keeps the copy, which the others read and the owner deletes without touching Bob's
+  await rpc(B, 'leave_project', projectId);
+  assert.deepEqual((await read(cy, projectId)).conversations.map((chat) => [chat.title, chat.author_id]), [['By Bob', ada]]);
+  assert.equal((await rowOf(bobs)).deleted, false);
+  await callWith(A, 'upsert_workspace_conversations', [{ id: copies[0].id, title: 'By Bob', model: 'm', provider: 'p', created_at: now(), folder_id: projectId, deleted_at: now() }]);
+  assert.equal((await rowOf(copies[0].id)).deleted, true);
+  assert.deepEqual([(await rowOf(bobs)).deleted, (await rowOf(bobs)).user_id], [false, bob]);
+});
+
+test('the functions of the copy are for the server only', async () => {
+  assert.match((await A.error('select public.server_collect_project_copy($1, $2, $3)', [ada, id(), bob]))?.message || 'it worked', /permission denied/);
+  assert.match((await A.error("select public.server_store_project_copy($1, $2, '[]', '[]')", [id(), bob]))?.message || 'it worked', /permission denied/);
+});
+
+test('a reader that asks from a time on is told which conversations were taken out of the project since, as gone', async () => {
+  const projectId = await withMembers();
+  const bobs = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'By Bob' });
+  const cys = await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada }, title: 'By Cy' });
+  const first = await read(cy, projectId);
+  assert.deepEqual(first.conversations.map((chat) => chat.title).sort(), ['By Bob', 'By Cy']);
+  const cursor = first.conversations.map((chat) => chat.updated_at).sort().at(-1);
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  await rpc(A, 'move_conversation_out_of_project', projectId, bobs);
+  const later = await read(cy, projectId, cursor);
+  assert.deepEqual(later.conversations.map((chat) => [chat.title, Boolean(chat.deleted_at)]), [['By Bob', true]]);
+  assert.equal(later.messages.filter((message) => message.conversation_id === bobs).length, 0);
+  // a reader that starts from nothing is not told about what is not there
+  assert.deepEqual((await read(cy, projectId)).conversations.map((chat) => chat.title), ['By Cy']);
+  // and what leaves because its author leaves is told the same way
+  const cursor2 = later.conversations.map((chat) => chat.updated_at).sort().at(-1);
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  await rpc(C, 'leave_project', projectId);
+  const afterLeave = await read(ada, projectId, cursor2);
+  assert.deepEqual(afterLeave.conversations.map((chat) => [chat.id === cys, Boolean(chat.deleted_at)]), [[true, true]]);
 });

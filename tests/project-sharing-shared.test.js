@@ -197,22 +197,17 @@ test('the instructions and the sources reach the replies of a conversation made 
 });
 
 
-test('leaving can make a project of one’s own from the conversations one made there: copies in a new folder, the originals stay', async () => {
-  const mine = { id: 'a1', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: [{ id: 'm1', role: 'user', parts: [{ text: 'q' }] }, { id: 'm2', role: 'model', parts: [{ text: 'a' }] }], model: 'm', provider: 'p' };
+test('leaving can make a project of one’s own from the conversations one made there: they move into a new folder, nothing is copied', async () => {
+  const mine = { id: 'a1', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: [{ id: 'm1', role: 'user', parts: [{ text: 'q' }] }], model: 'm', provider: 'p' };
   const other = { id: 'a2', title: 'Elsewhere', messages: [], folderId: null };
   const trashed = { id: 'a3', title: 'Gone', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: [{ id: 'x', role: 'user', parts: [{ text: 'z' }] }], deletedAt: 'x' };
-  let counter = 0;
-  const made = ownProjectFrom({ conversations: [mine, other, trashed], sharedId: PROJECT, name: ' Copy ', memoryScope: 'project', uuid: () => `id-${++counter}`, now: () => 'now' });
-  assert.equal(made.folder.name, 'Copy');
+  const elsewhere = { id: 'a4', title: 'Other project', sharedProject: { id: 'another', ownerId: 'o' }, messages: [] };
+  const made = ownProjectFrom({ conversations: [mine, other, trashed, elsewhere], sharedId: PROJECT, name: ' Mine now ', memoryScope: 'project', uuid: () => 'new-folder' });
+  assert.equal(made.folder.name, 'Mine now');
   assert.equal(made.folder.memoryScope, 'project');
-  assert.equal(made.copies.length, 1);
-  assert.equal(made.copies[0].folderId, made.folder.id);
-  assert.equal(made.copies[0].sharedProject, undefined);
-  assert.deepEqual(made.copies[0].messages.map((message) => message.parts[0].text), ['q', 'a']);
-  assert.notEqual(made.copies[0].id, 'a1');
-  assert.ok(made.copies[0].messages.every((message) => !['m1', 'm2'].includes(message.id)));
-  assert.deepEqual(made.folder.conversationIds, [made.copies[0].id]);
-  assert.equal(mine.sharedProject.id, PROJECT);
+  assert.deepEqual(made.ids, ['a1']);
+  assert.deepEqual(made.folder.conversationIds, ['a1']);
+  assert.equal(mine.sharedProject.id, PROJECT, 'the function only says which; the caller moves them');
   assert.equal(ownProjectFrom({ conversations: [], sharedId: PROJECT, name: '' }).folder.name, 'Project');
 });
 

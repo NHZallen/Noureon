@@ -68,12 +68,16 @@ export function createProjectActions({
   const prepared = new Set();
 
   /** The conversations of a project: the pinned first, then the newest; none that is in the trash, archived or temporary. */
-  const chatsOf = (id) => (sharedHas(id) ? sharedHook.chatsOf(id) : ownChatsOf(id));
+  // (In a project of the person that others share, the chats of the others come with the person's own: the hook gives them, `othersOf`.)
+  const chatsOf = (id) => (sharedHas(id) ? sharedHook.chatsOf(id) : [...ownChatsOf(id), ...(sharedHook?.othersOf?.(id) || [])].sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stamp(right) - stamp(left)));
   const ownChatsOf = (id) => conversations()
     .filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && !conversation.archived && conversation.retentionMode !== 'ephemeral')
     .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stamp(right) - stamp(left));
 
-  const countOf = (id) => (sharedHas(id) ? sharedHook.countOf(id) : ownCountOf(id));
+  const countOf = (id) => (sharedHas(id) ? sharedHook.countOf(id) : ownCountOf(id) + (sharedHook?.othersOf?.(id) || []).length);
+  /** The owner of a shared project may take the chat of another member out of it (it goes back to the history of its author). */
+  const canModerate = (id) => sharedHook?.canModerate?.(id) === true;
+  const moveChatOut = async (projectId, conversationId) => (canModerate(projectId) && sharedHook.moveOut ? sharedHook.moveOut(projectId, conversationId) : { ok: false, code: 'not_allowed' });
   const ownCountOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
 
   async function create({ name, icon, color, memoryScope } = {}) {
@@ -304,5 +308,5 @@ export function createProjectActions({
     return { ok: true, conversationId: made.conversationId };
   }
 
-  return { list, sharedList, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
+  return { list, sharedList, canModerate, moveChatOut, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
 }

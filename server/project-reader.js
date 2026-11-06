@@ -89,5 +89,53 @@ export function createProjectReader({ db, files = null, pageSize = PAGE } = {}) 
     }
   }
 
-  return { read, asset, upload };
+  /**
+   * A member leaves (the person asks) or is taken out (the owner asks) and the project keeps what they made in it: the conversations are copied to the OWNER, with the files they hold (the owner's
+   * space pays; a file that does not fit, or is not there any more, is replaced by a line that says so, and the text of the message stays). The ids of the copies come from the ids of the originals,
+   * so a second try makes no second copy. Resolves { conversations, files: { copied, skipped } }. It is called before the member is taken out; the database function that takes them out then gives
+   * the originals back to their author.
+   */
+  async function keepConversations({ userId, projectId, memberId }) {
+    let data;
+    try { data = await db.rpc('server_collect_project_copy', { p_actor_id: userId, p_project_id: projectId, p_member_id: memberId }); } catch { throw new ProjectReadError('The project could not be read.', 'database'); }
+    if (!data) throw new ProjectReadError('That is not allowed.', 'forbidden');
+    const conversations = Array.isArray(data.conversations) ? data.conversations : [];
+    if (!conversations.length) return { conversations: 0, files: { copied: 0, skipped: 0 } };
+    if (!files?.copyFile) throw new ProjectReadError('Storage is not set up.', 'database');
+    const owner = data.owner_id;
+    const messages = Array.isArray(data.messages) ? data.messages : [];
+    const pattern = new RegExp(`${memberId}/([0-9a-f]{64})`, 'g');
+    const hashes = new Set();
+    for (const message of messages) for (const match of JSON.stringify(message.parts ?? []).matchAll(pattern)) hashes.add(match[1]);
+    const state = new Map();
+    let failed = false;
+    for (const hash of hashes) {
+      try {
+        const done = await files.copyFile({ fromUserId: memberId, toUserId: owner, hash });
+        state.set(hash, done.status === 'copied' || done.status === 'there');
+      } catch { state.set(hash, false); failed = true; }
+    }
+    if (failed && [...state.values()].every((ok) => !ok)) throw new ProjectReadError('The files could not be copied.', 'database');
+    const rewritten = messages.map((message) => {
+      const parts = (Array.isArray(message.parts) ? message.parts : []).map((part) => {
+        const text = JSON.stringify(part);
+        const found = [...new Set([...text.matchAll(pattern)].map((match) => match[1]))];
+        if (!found.length) return part;
+        if (!found.every((hash) => state.get(hash))) {
+          const name = typeof part?.name === 'string' ? part.name : typeof part?.fileName === 'string' ? part.fileName : typeof part?.inlineData?.name === 'string' ? part.inlineData.name : '';
+          return { text: `[Attachment not kept${name ? `: ${name.slice(0, 120)}` : ''}]` };
+        }
+        let out = text;
+        for (const hash of found) out = out.split(`${memberId}/${hash}`).join(`${owner}/${hash}`);
+        return JSON.parse(out);
+      });
+      return { ...message, parts };
+    });
+    let stored;
+    try { stored = await db.rpc('server_store_project_copy', { p_project_id: projectId, p_member_id: memberId, p_conversations: conversations, p_messages: rewritten }); } catch { throw new ProjectReadError('The conversations could not be kept.', 'database'); }
+    const copied = [...state.values()].filter(Boolean).length;
+    return { conversations: Number(stored) || 0, files: { copied, skipped: state.size - copied } };
+  }
+
+  return { read, asset, upload, keepConversations };
 }
