@@ -9,6 +9,8 @@ import { announceUser } from '../src/app/runtime/features/user-ready.js';
 import { provideService, SERVICES } from '../src/app/runtime/services.js';
 import { drawSharedProjects, openSharedProjectPage } from '../src/app/ui/projects/shared-project-page.js';
 import { openProjectConversation } from '../src/app/ui/projects/project-conversation-viewer.js';
+import { memoryScopeOf, projectIdOf, projectInstructionTextFor } from '../src/app/runtime/projects/project-instructions.js';
+import { createSharedFolders } from '../src/app/runtime/project-sharing/shared-folders.js';
 import sharing from '../src/data/i18n/parts/project-sharing.js';
 
 // A member reads a shared project: the pages of the server are put together, the conversations of the others are read as a page, a branch is a conversation of the reader in the project (the words only),
@@ -114,11 +116,11 @@ const started = ({ read, conversations = [], items = [] } = {}) => {
   const { window, document, root } = page();
   announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
   provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
-  const events = { notes: [], opened: [], saved: 0 };
+  const events = { notes: [], opened: [], saved: 0, left: [] };
   const api = startProjectSharing({
     document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => conversations, getFolders: () => [] },
     saveAppData: async () => { events.saved += 1; }, showNotification: (message, kind) => events.notes.push([message, kind]), renderSidebar: () => {}, openConversation: (id) => events.opened.push(id),
-    client: { sharedWithMe: async () => ({ ok: true, data: items }), invite: async () => ({ ok: false }) }, storage: window.localStorage, readProject: read, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
+    client: { sharedWithMe: async () => ({ ok: true, data: items }), invite: async () => ({ ok: false }), leave: async (id) => { events.left.push(id); return { ok: true }; } }, storage: window.localStorage, readProject: read, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
   });
   return { api, document, root, events, conversations };
 };
@@ -164,4 +166,68 @@ test('a project that cannot be read says so, and the list "Shared with you" is d
   const direct = page();
   drawSharedProjects({ document: direct.document, box: direct.root, text, items: [{ project_id: 'p', name: 'X', owner_name: 'O', role: 'chat' }], onOpen: () => {} });
   assert.match(direct.root.textContent, /O · Chat member/);
+});
+
+test('a conversation made in a shared project is answered with the instructions of the project and the memory of the project only', async () => {
+  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Answer like a planner.' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
+  const env = started({ read });
+  const inShared = { id: 'k1', sharedProject: { id: PROJECT, ownerId: 'o' }, folderId: null };
+  assert.equal(projectInstructionTextFor(inShared), '');
+  assert.equal(memoryScopeOf(inShared), '');
+  await env.api.openShared({ project_id: PROJECT, root: env.root });
+  assert.match(projectInstructionTextFor(inShared), /Answer like a planner\./);
+  assert.match(projectInstructionTextFor(inShared), /City plan/);
+  assert.equal(memoryScopeOf(inShared), PROJECT);
+  assert.equal(projectIdOf(inShared), PROJECT);
+  // a plain conversation and a temporary or deleted one of the shared project are not in it
+  assert.equal(memoryScopeOf({ id: 'k2' }), '');
+  assert.equal(memoryScopeOf({ ...inShared, retentionMode: 'ephemeral' }), '');
+  assert.equal(memoryScopeOf({ ...inShared, deletedAt: 'x' }), '');
+});
+
+test('the shared projects are kept in the browser between visits', () => {
+  const store = new Map();
+  const storage = { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
+  const first = createSharedFolders({ storage });
+  first.set({ id: 'p1', name: 'N'.repeat(200), instructions: 'x'.repeat(9000) });
+  const again = createSharedFolders({ storage });
+  assert.equal(again.list().length, 1);
+  assert.equal(again.list()[0].name.length, 80);
+  assert.equal(again.list()[0].instructions.length, 8000);
+  assert.equal(again.list()[0].memoryScope, 'project');
+  again.forget('p1');
+  assert.equal(createSharedFolders({ storage }).list().length, 0);
+  assert.equal(first.set({ name: 'no id' }).id, '');
+  assert.equal(first.list().length, 1);
+});
+
+test('a member leaves a shared project after being asked; the page forgets the project', async () => {
+  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'x' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
+  const env = started({ read });
+  const left = [];
+  const { document, root } = page();
+  openSharedProjectPage({ document, root, text, meId: ME, shared: { project: { name: 'City plan' }, owner: { name: 'Ada' }, conversations: [] }, onOpenChat: () => {}, onNewChat: () => {}, onLeave: () => left.push('left') });
+  root.querySelector('[data-leave-open]').click();
+  await tick();
+  assert.match(root.textContent, /Leave the project “City plan”\?/);
+  root.querySelector('[data-leave-go]').click();
+  assert.deepEqual(left, ['left']);
+  const none = page();
+  openSharedProjectPage({ document: none.document, root: none.root, text, meId: ME, shared: { project: { name: 'P' }, owner: { name: 'A' }, conversations: [] }, onOpenChat: () => {}, onNewChat: () => {} });
+  assert.equal(none.root.querySelector('[data-leave-open]'), null);
+});
+
+test('leaving through the page tells the database and drops the shared project from the replies', async () => {
+  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Be brief.' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
+  const env = started({ read });
+  const inShared = { id: 'k9', sharedProject: { id: PROJECT, ownerId: 'o' } };
+  await env.api.openShared({ project_id: PROJECT, root: env.root });
+  assert.match(projectInstructionTextFor(inShared), /Be brief\./);
+  env.root.querySelector('[data-leave-open]').click();
+  await tick();
+  env.root.querySelector('[data-leave-go]').click();
+  await tick(); await tick();
+  assert.deepEqual(env.events.left, [PROJECT]);
+  assert.deepEqual(env.events.notes.at(-1), [text('psLeft', { name: 'City plan' }), 'success']);
+  assert.equal(projectInstructionTextFor(inShared), '');
 });

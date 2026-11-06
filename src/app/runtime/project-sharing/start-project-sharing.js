@@ -9,6 +9,8 @@ import { createProjectShareClient } from './project-share-client.js';
 import { clearPendingJoin, readPendingJoin } from './join-route.js';
 import { readSharedProject } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
+import { createSharedFolders } from './shared-folders.js';
+import { setProjectFoldersReader } from '../projects/project-instructions.js';
 
 export const MEMBERS_EVENT = 'noureon:project-members';
 export const SHARED_EVENT = 'noureon:shared-projects';
@@ -25,6 +27,9 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const table = i18n[configAccess.getUiLanguage()] || i18n['zh-TW'] || {};
     return String(table[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => (values[name] ?? ''));
   };
+  // The replies of a conversation made in a shared project carry its instructions and use its memory only: the folders the replies look at are the person's own and the shared ones.
+  const sharedFolders = createSharedFolders({ storage: (() => { try { return storage || window.localStorage; } catch { return null; } })() });
+  setProjectFoldersReader(() => [...(dataStore.getFolders() || []), ...sharedFolders.list()]);
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
   const pendingStorage = () => { try { return storage || window.localStorage; } catch { return null; } };
   const copy = copyText || (async (value) => { try { await window.navigator.clipboard.writeText(value); return true; } catch { return false; } });
@@ -65,6 +70,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const me = getAnnouncedUser()?.supabaseUserId || '';
     const read = await readProject({ projectId });
     if (!read.ok) { showNotification(text(read.code === 'gone' ? 'psSharedGone' : 'psSharedLoadFailed'), 'error'); return null; }
+    sharedFolders.set({ ...read.project.project, id: projectId });
     await ensureStyles();
     const language = configAccess.getUiLanguage();
     const texts = i18n[language] || i18n['zh-TW'] || {};
@@ -82,6 +88,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       document, root: root || document.body, text, language, shared: read.project, meId: me,
       onOpenChat: (chat) => openProjectConversation({ document, root: root || document.body, text, texts, language, chat, renderMarkdown, onBranch: (index) => { void branch(chat, index); } }),
       onOpenOwn: (chat) => { if ((dataStore.getConversations() || []).some((entry) => entry.id === chat.id)) openConversation(chat.id); else openProjectConversation({ document, root: root || document.body, text, texts, language, chat, renderMarkdown, onBranch: (index) => { void branch(chat, index); } }); },
+      onLeave: async () => { const left = await shareClient.leave(projectId); if (!left.ok) { showNotification(text('psFailed'), 'error'); return; } sharedFolders.forget(projectId); showNotification(text('psLeft', { name: read.project.project?.name || '' }), 'success'); },
       onNewChat: async () => { try { await put(newSharedConversation({ shared, defaults: await defaults() })); } catch { showNotification(text('psFailed'), 'error'); } }
     });
   }

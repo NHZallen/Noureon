@@ -9,7 +9,7 @@ const dateText = (value, language) => { const date = new Date(value); return Num
  * The page of one project. `shared` is what the server read ({ role, project, owner, conversations }); `meId` is the signed-in person (their own conversations open in the chat: `onOpenOwn(chat)`,
  * the others' are read: `onOpenChat(chat)`); `onNewChat()` makes a conversation of the person in this project.
  */
-export function openSharedProjectPage({ document, root, text, language = 'zh-TW', shared, meId, onOpenChat, onOpenOwn = onOpenChat, onNewChat }) {
+export function openSharedProjectPage({ document, root, text, language = 'zh-TW', shared, meId, onOpenChat, onOpenOwn = onOpenChat, onNewChat, onLeave = null }) {
   const project = shared.project || {};
   const sheet = openSheet({ document, root, title: project.name || '', close: text('psCancel'), className: 'psh-project' });
   const info = make(document, 'p', 'pj-note', text('psSharedBy', { name: shared.owner?.name || '' }));
@@ -31,6 +31,30 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
     list.appendChild(row);
   }
   sheet.body.append(info, go, list);
+  if (onLeave) {
+    const leave = make(document, 'button', 'pj-text-button psh-leave', text('psLeave'));
+    leave.type = 'button';
+    leave.setAttribute('data-leave-open', '');
+    leave.addEventListener('click', () => {
+      openSheet({
+        document, root, title: text('psLeaveTitle', { name: project.name || '' }), dialog: true, close: text('psCancel'),
+        body: (content, { close }) => {
+          content.appendChild(make(document, 'p', 'pj-note', text('psLeaveBody')));
+          const buttons = make(document, 'div', 'psh-buttons');
+          const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
+          cancel.type = 'button';
+          cancel.addEventListener('click', close);
+          const confirm = make(document, 'button', 'pj-primary psh-go', text('psLeaveGo'));
+          confirm.type = 'button';
+          confirm.setAttribute('data-leave-go', '');
+          confirm.addEventListener('click', () => { close(); sheet.close(); onLeave(); });
+          buttons.append(cancel, confirm);
+          content.appendChild(buttons);
+        }
+      });
+    });
+    sheet.body.appendChild(leave);
+  }
   return sheet;
 }
 

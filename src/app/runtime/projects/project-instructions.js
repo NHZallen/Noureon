@@ -1,7 +1,7 @@
 // The instructions of a project (a folder of the workspace, docs/superpowers/specs/2026-10-31-projects-design.md): every conversation in the project carries them. The reply puts them
 // together with the rest of its system instruction (reply/stream-api-call.js), after the Noura, the learning mode and the memory, so inside the project they are the last word.
 
-import { projectOfConversation, scopeOfConversation } from '../memory-notes/scope.js';
+import { homeOf, projectOfConversation, scopeOfConversation } from '../memory-notes/scope.js';
 import { projectSourcesFor } from './project-source-prompt.js';
 
 export const PROJECT_INSTRUCTIONS_MAX = 8000;
@@ -17,9 +17,9 @@ const oneLine = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().
 
 /** The project a conversation is in, or null: not for a temporary chat, a deleted conversation or a project that is gone. */
 export function projectOf(conversation) {
-  if (!conversation?.folderId || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return null;
+  if (!homeOf(conversation) || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return null;
   const folders = readFolders();
-  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === conversation.folderId && !item.deletedAt) : null;
+  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === homeOf(conversation) && !item.deletedAt) : null;
   return folder || null;
 }
 

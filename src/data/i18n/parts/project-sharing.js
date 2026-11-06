@@ -65,7 +65,12 @@ export default {
         psSharedLoadFailed: '無法讀取這個專案，請稍後再試。',
         psSharedGone: '你已不在這個專案裡，或專案已不存在。',
         psBranched: '已分支成你的對話，放在這個專案裡。',
-        psFilesNotCarried: '對方的檔案沒有一起帶過來，只有文字。'
+        psFilesNotCarried: '對方的檔案沒有一起帶過來，只有文字。',
+        psLeave: '退出專案',
+        psLeaveTitle: '退出專案「{name}」？',
+        psLeaveBody: '退出後就看不到專案的檔案、指示、記憶與其他人的對話。你建立的對話會留在專案裡。',
+        psLeaveGo: '退出',
+        psLeft: '已退出「{name}」。'
     },
     en: {
         branchChat: 'Branch in new chat',
@@ -132,7 +137,12 @@ export default {
         psSharedLoadFailed: 'Could not read this project. Try again later.',
         psSharedGone: 'You are not in this project any more, or the project is gone.',
         psBranched: 'Branched into your own conversation, in this project.',
-        psFilesNotCarried: 'The files of the other person did not come along, only the words.'
+        psFilesNotCarried: 'The files of the other person did not come along, only the words.',
+        psLeave: 'Leave project',
+        psLeaveTitle: 'Leave the project “{name}”?',
+        psLeaveBody: 'You will no longer see the files, instructions, memory and other people’s conversations of the project. The conversations you made stay in the project.',
+        psLeaveGo: 'Leave',
+        psLeft: 'You left “{name}”.'
     },
     fr: {
         branchChat: 'Créer une branche dans une nouvelle discussion',
@@ -199,7 +209,12 @@ export default {
         psSharedLoadFailed: 'Impossible de lire ce projet. Réessayez plus tard.',
         psSharedGone: 'Vous n’êtes plus dans ce projet, ou le projet n’existe plus.',
         psBranched: 'Branche créée dans votre propre conversation, dans ce projet.',
-        psFilesNotCarried: 'Les fichiers de l’autre personne n’ont pas suivi, seulement le texte.'
+        psFilesNotCarried: 'Les fichiers de l’autre personne n’ont pas suivi, seulement le texte.',
+        psLeave: 'Quitter le projet',
+        psLeaveTitle: 'Quitter le projet « {name} » ?',
+        psLeaveBody: 'Vous ne verrez plus les fichiers, les instructions, la mémoire ni les conversations des autres. Les conversations que vous avez créées restent dans le projet.',
+        psLeaveGo: 'Quitter',
+        psLeft: 'Vous avez quitté « {name} ».'
     },
     ru: {
         branchChat: 'Ответвить в новом чате',
@@ -266,7 +281,12 @@ export default {
         psSharedLoadFailed: 'Не удалось прочитать проект. Попробуйте позже.',
         psSharedGone: 'Вас больше нет в этом проекте, или проекта не существует.',
         psBranched: 'Создана ваша собственная ветка в этом проекте.',
-        psFilesNotCarried: 'Файлы другого участника не перенесены, только текст.'
+        psFilesNotCarried: 'Файлы другого участника не перенесены, только текст.',
+        psLeave: 'Покинуть проект',
+        psLeaveTitle: 'Покинуть проект «{name}»?',
+        psLeaveBody: 'Вы больше не увидите файлы, инструкции, память и беседы других участников. Созданные вами беседы останутся в проекте.',
+        psLeaveGo: 'Покинуть',
+        psLeft: 'Вы покинули «{name}».'
     },
     es: {
         branchChat: 'Crear una rama en un chat nuevo',
@@ -333,6 +353,11 @@ export default {
         psSharedLoadFailed: 'No se pudo leer este proyecto. Inténtalo más tarde.',
         psSharedGone: 'Ya no estás en este proyecto, o el proyecto ya no existe.',
         psBranched: 'Rama creada como conversación tuya, en este proyecto.',
-        psFilesNotCarried: 'Los archivos de la otra persona no vinieron, solo el texto.'
+        psFilesNotCarried: 'Los archivos de la otra persona no vinieron, solo el texto.',
+        psLeave: 'Salir del proyecto',
+        psLeaveTitle: '¿Salir del proyecto «{name}»?',
+        psLeaveBody: 'Ya no verás los archivos, instrucciones, memoria ni conversaciones de los demás. Las conversaciones que creaste se quedan en el proyecto.',
+        psLeaveGo: 'Salir',
+        psLeft: 'Saliste de «{name}».'
     }
 };

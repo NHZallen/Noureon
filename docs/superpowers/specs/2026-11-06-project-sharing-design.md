@@ -212,3 +212,18 @@
 - 頁面：`runtime/project-sharing/`（`project-share-client.js`、`join-route.js`、`start-project-sharing.js`）、`ui/projects/project-members-panel.js`（成員與邀請整頁面板、分享前確認視窗）、`project-join-dialog.js`、樣式 `styles/project-sharing.css`（用到才載入）；入口是專案 ⋯ 選單的「成員與分享」。邀請網址 `noureon.com/join/<code>`（`vercel.json` 已加改寫與 `noindex`／`no-referrer` 標頭；`main.js` 把代碼放進 localStorage 並把網址換回 `/`，登入且雲端帳號就緒後才問）。
 - 測試：`tests/database/project-members.test.js`（真 SQL）、`tests/project-sharing-ui.test.js`、`tests/database/migrations.test.js`（函式權限清單）。
 - **沒做（留給後面幾期）**：成員頭像圖片（目前用名字首字；其他人的頭像在私有儲存桶，要讀取規則，S2）、「與你共享」分頁列出專案（S2）、專案頁頭的成員按鈕（先用選單項目）、寄信邀請與額度顯示（S5）、移除時「一併刪除他的對話」選項（S2 之後才有成員對話）。
+
+### 18.3 成員讀取（S2，2026-11-06，已在 `staging`，migration 待 Allen 套用）
+
+- 資料庫：`supabase/migrations/20261106020000_add_project_conversations.sql`。`workspace_conversations` 新增 `shared_project_id`、`shared_project_owner`（複合外鍵到擁有者的資料夾，專案永久刪除時清空）。頁面不直接寫這兩欄：把 `sharedProject: { id, ownerId }` 放進對話的 metadata（同步本來就會帶 metadata，`cloud-sync-v2-codecs.js` 的 `marksOf` 多收一個鍵），觸發器 `link_conversation_to_shared_project` 只在該人是成員時才轉成欄位；已經連著的連結保留（被移除的人留下的對話還在專案裡），資料夾已不在時不保留。`server_read_project_for_member(person, project, since, limit)`（只給伺服器）：回專案資料與擁有者及所有成員的對話與訊息，一次最多 200 則對話，`has_more` 分頁。
+- 伺服器：`server/project-reader.js` 與路由 `POST /v1/projects/:id/read`（每人每分鐘 120 次）。分享時間以前的訊息拿掉個人記憶的痕跡（`memoryUsed`／`memoryUpdated`／`memoryHistory` 與回覆開頭處理紀錄的記憶步驟，沿用 `shares.js` 的 `textForShare`）；對話 metadata 只留 `branchedFrom`；已刪除的對話沒有訊息。
+- 頁面：`runtime/project-sharing/` 的 `project-reader-client.js`（把分頁接起來）、`branch-from-mirror.js`（別人的對話分支成自己的，只帶文字，檔案留給 S3；在共享專案開新對話）、`shared-folders.js`（共享專案的指示存在瀏覽器，回覆用）、`start-project-sharing.js`；畫面 `ui/projects/shared-project-page.js`（專案頁與「與你共享」清單，對話列只有文字加建立者名字）、`project-conversation-viewer.js`（唯讀對話，每則回覆下面有分支鈕，底部有分支列）；專案頁的「與你共享」分頁用事件 `noureon:shared-projects` 把清單放進去；「退出專案」有確認視窗。
+- 回覆：在共享專案裡建立的對話（`sharedProject`）回覆時帶專案指示、記憶只用專案範圍（`scope.js` 的 `homeOf`；`project-instructions.js` 的資料夾讀取多了共享專案）。`submit-input-*.js` 區塊餘量極小，改動沒有增加位元組。
+- 測試：`tests/database/project-members.test.js`（真 SQL）、`tests/server/server-project-reader.test.js`、`tests/project-sharing-shared.test.js`。
+
+**沒做的（S3 到 S5 的缺口）**
+
+- 成員讀不到別人的附件與專案檔案；共享專案的「資料來源」沒有帶給成員。要做：伺服器以擁有者身分代讀、成員下載、檔案工具。
+- 編輯者上傳／移除檔案、改指示（`update_shared_project`）；成員端的指示現在是打開專案時讀到的快照，不會即時更新。
+- 共用的專案記憶（`project_memory_records`）、角色限制、整理加鎖、跨成員查對話：成員在共享專案裡的筆記目前是各自的、只在自己的帳號（專案範圍）。
+- 退出時「建立成我自己的專案」、被移除時「一併刪除他的對話」、寄信邀請與額度顯示、對話連結（成員專用）、成員頭像圖片、專案頁頭的成員按鈕、隱私權政策／使用條款／協助中心五語的修改。

@@ -5,6 +5,9 @@
 
 export const MEMORY_SCOPES = Object.freeze(['default', 'project']);
 
+/** Where a conversation lives: the folder it is in, or the shared project of someone else that it was made in (docs/superpowers/specs/2026-11-06-project-sharing-design.md). */
+export const homeOf = (conversation) => conversation?.folderId || conversation?.sharedProject?.id;
+
 /** The scope a note belongs to: the id of the project, or '' for the memory of the account. */
 export const noteScopeOf = (note) => (typeof note?.projectId === 'string' ? note.projectId : '');
 
@@ -16,15 +19,15 @@ export const scopeOfFolder = (folder) => (folder && !folder.deletedAt && folder.
  * `folders` is the list of folders of the workspace.
  */
 export function scopeOfConversation(conversation, folders) {
-  if (!conversation?.folderId || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return '';
-  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === conversation.folderId) : null;
+  if (!homeOf(conversation) || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return '';
+  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === homeOf(conversation)) : null;
   return scopeOfFolder(folder);
 }
 
 /** The project a conversation is in (any project, whatever its memory), '' for a chat outside every project, a temporary one, a deleted one or one whose project is gone. */
 export function projectOfConversation(conversation, folders) {
-  if (!conversation?.folderId || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return '';
-  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === conversation.folderId) : null;
+  if (!homeOf(conversation) || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return '';
+  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === homeOf(conversation)) : null;
   return folder && !folder.deletedAt && typeof folder.id === 'string' ? folder.id : '';
 }
 
