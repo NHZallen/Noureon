@@ -3,6 +3,7 @@ import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle
 import { bindGeneratedImageSets } from './generated-image-set.js';
 import { downloadNameOf } from './generated-image-assets.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
+import { loadGifFrames, meanFrameDelay } from './gif-editor-frames.js';
 
 const EDITOR_COLORS = Object.freeze([
   { value: '#ef4444', key: 'red' },
@@ -18,7 +19,8 @@ const getEditorTexts = (language) => {
     title: text.edit, hint: text.editHint, close: text.cancelEdit, brush: text.brush,
     eraser: text.eraser, size: text.size, confirm: text.confirmSelection,
     drawingArea: text.drawableArea, undo: text.undo, redo: text.redo, clear: text.clearAll,
-    colors: { red: text.red, blue: text.blue, green: text.green, yellow: text.yellow, white: text.white }
+    colors: { red: text.red, blue: text.blue, green: text.green, yellow: text.yellow, white: text.white },
+    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames
   };
 };
 
@@ -105,11 +107,13 @@ export function createGeneratedImageInteractions({
   const openEditor = async (descriptor, sourceElement = null) => {
     const [dataUrl] = await Promise.all([getImageDataUrl(descriptor), ensureStyles()]);
     if (!dataUrl) return;
+    // A GIF is edited frame by frame: each one is shown on its own, marked on its own, and the ones that were marked are sent in their order.
+    const gif = descriptor?.mediaType === 'image/gif' ? await loadGifFrames({ document, dataUrl }) : null;
     closeExistingEditor();
     const texts = getEditorTexts(getUiLanguage());
     const actionLabels = { undo: texts.undo, redo: texts.redo, clear: texts.clear };
     const overlay = document.createElement('div');
-    overlay.className = 'generated-image-editor';
+    overlay.className = `generated-image-editor${gif ? ' has-frames' : ''}`;
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', texts.title);
@@ -140,9 +144,17 @@ export function createGeneratedImageInteractions({
         <div class="generated-image-editor-canvas-wrap">
           <img class="generated-image-editor-photo" alt="${texts.title}" draggable="false">
           <canvas class="generated-image-editor-canvas"></canvas>
+          ${gif ? '<img class="generated-image-editor-playback" alt="" draggable="false">' : ''}
           <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
         </div>
       </div>
+      ${gif ? `<div class="generated-image-editor-frames" role="group" aria-label="${texts.frames}">
+        <button type="button" class="generated-image-editor-play" aria-label="${texts.play}">
+          <svg class="play-icon" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>
+          <svg class="pause-icon" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
+        </button>
+        <div class="generated-image-editor-frame-list">${gif.frames.map((frame, index) => `<button type="button" class="generated-image-editor-frame" data-editor-frame="${index}" aria-label="${texts.frame.replace('{n}', index + 1)}"><img src="${frame.dataUrl}" alt="" draggable="false"><span>${index + 1}</span></button>`).join('')}</div>
+      </div>` : ''}
       <footer class="generated-image-editor-toolbar">
         <label class="generated-image-editor-size">
           <span class="generated-image-editor-size-preview" aria-hidden="true"></span>
@@ -182,6 +194,14 @@ export function createGeneratedImageInteractions({
     let brushSize = 14;
     let history = [null];
     let historyIndex = 0;
+    // A GIF: the marks and the history of each frame are its own, kept here while another frame is shown.
+    const frameStates = gif ? gif.frames.map(() => ({ history: [null], historyIndex: 0 })) : [];
+    let currentFrame = 0;
+    let playing = false;
+    let playbackTimer = null;
+    const playbackImage = overlay.querySelector('.generated-image-editor-playback');
+    const playButton = overlay.querySelector('.generated-image-editor-play');
+    const frameButtons = [...overlay.querySelectorAll('.generated-image-editor-frame')];
 
     const updateBrushCursorStyle = () => {
       if (!brushCursor) return;
@@ -217,9 +237,16 @@ export function createGeneratedImageInteractions({
       }
       return false;
     };
+    // The frames that have marks (the one on the screen counts by what is on the canvas, the others by the last of their history).
+    const markedFrames = () => frameStates.map((state, index) => (index === currentFrame ? annotated : state.history[state.historyIndex] !== null));
     const syncEditorState = () => {
       annotated = ready && hasCanvasMarks();
-      confirmButton.disabled = !ready || !annotated;
+      const marked = gif ? markedFrames() : [];
+      confirmButton.disabled = !ready || !(gif ? marked.includes(true) : annotated);
+      frameButtons.forEach((button, index) => {
+        button.classList.toggle('active', index === currentFrame);
+        button.classList.toggle('has-marks', Boolean(marked[index]));
+      });
       if (undoButton) undoButton.disabled = historyIndex <= 0;
       if (redoButton) redoButton.disabled = historyIndex >= history.length - 1;
       if (clearButton) clearButton.disabled = !annotated;
@@ -266,13 +293,74 @@ export function createGeneratedImageInteractions({
     const hideBrushCursor = () => {
       brushCursor?.classList.remove('is-visible');
     };
+    const loadImage = (src) => new Promise((resolve, reject) => {
+      const element = document.createElement('img');
+      element.onload = () => resolve(element);
+      element.onerror = reject;
+      element.src = src;
+    });
+    // A frame as it is with its marks on it (the live canvas for the frame on the screen, the last snapshot of its history for the others).
+    const frameComposite = async (index) => {
+      const output = document.createElement('canvas');
+      output.width = canvas.width;
+      output.height = canvas.height;
+      const outputContext = output.getContext('2d');
+      outputContext.drawImage(await loadImage(gif.frames[index].dataUrl), 0, 0, output.width, output.height);
+      const marks = index === currentFrame ? (hasCanvasMarks() ? canvas : null) : frameStates[index].history[frameStates[index].historyIndex];
+      if (marks) outputContext.drawImage(typeof marks === 'string' ? await loadImage(marks) : marks, 0, 0, output.width, output.height);
+      return output.toDataURL('image/png');
+    };
+    const stopPlayback = () => {
+      if (!playing) return;
+      playing = false;
+      clearTimeout(playbackTimer);
+      canvasWrap.classList.remove('is-playing');
+      playButton?.classList.remove('is-playing');
+      playButton?.setAttribute('aria-label', texts.play);
+    };
+    const startPlayback = async () => {
+      if (!gif || playing || !ready) return;
+      playing = true;
+      playButton.classList.add('is-playing');
+      playButton.setAttribute('aria-label', texts.pause);
+      try {
+        const pictures = await Promise.all(gif.frames.map((_, index) => frameComposite(index)));
+        if (!playing) return;
+        canvasWrap.classList.add('is-playing');
+        let at = 0;
+        const step = () => {
+          if (!playing) return;
+          playbackImage.src = pictures[at];
+          const wait = Math.max(40, gif.frames[at].delayMs || 100);
+          at = (at + 1) % pictures.length;
+          playbackTimer = setTimeout(step, wait);
+        };
+        step();
+      } catch (error) {
+        logWarn('Playing the frames failed:', error);
+        stopPlayback();
+      }
+    };
+    const selectFrame = (next) => {
+      stopPlayback();
+      if (!gif || !ready || next === currentFrame || next < 0 || next >= gif.frames.length) return;
+      frameStates[currentFrame] = { history, historyIndex };
+      currentFrame = next;
+      ({ history, historyIndex } = frameStates[next]);
+      image.src = gif.frames[next].dataUrl;
+      hideBrushCursor();
+      void restoreSnapshot(history[historyIndex]);
+      frameButtons[next]?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
+    };
     const close = () => {
+      stopPlayback();
       overlay.remove();
       document.removeEventListener('keydown', onKeyDown);
       blockedEditorEvents.forEach(type => overlay.removeEventListener(type, blockEditorCopy));
     };
     const onKeyDown = (event) => {
       if (event.key === 'Escape') close();
+      if (gif && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) selectFrame(currentFrame + (event.key === 'ArrowRight' ? 1 : -1));
     };
     const selectBrush = (button) => {
       currentColor = button.dataset.editorColor;
@@ -354,16 +442,30 @@ export function createGeneratedImageInteractions({
       context.clearRect(0, 0, canvas.width, canvas.height);
       captureHistory();
     });
+    frameButtons.forEach((button, index) => button.addEventListener('click', () => selectFrame(index)));
+    playButton?.addEventListener('click', () => (playing ? stopPlayback() : startPlayback()));
+    playbackImage?.addEventListener('pointerdown', stopPlayback);
     overlay.querySelector('.generated-image-editor-close')?.addEventListener('click', close);
     overlay.addEventListener('click', event => {
       if (event.target === overlay) close();
     });
     blockedEditorEvents.forEach(type => overlay.addEventListener(type, blockEditorCopy));
     confirmButton.addEventListener('click', async () => {
-      if (!ready || !annotated) return;
+      if (!ready || !(gif ? markedFrames().includes(true) : annotated)) return;
       confirmButton.disabled = true;
       setButtonBusy(confirmButton, true);
       try {
+        if (gif) {
+          // The frames that have marks, in their order, each with its marks on it; what animation they came from goes with them.
+          const delayMs = meanFrameDelay(gif.frames);
+          const frames = [];
+          for (const [index, marked] of markedFrames().entries()) {
+            if (marked) frames.push({ dataUrl: await frameComposite(index), index, count: gif.frames.length, delayMs });
+          }
+          await attachAnnotatedImage({ dataUrl: frames[0].dataUrl, frames, descriptor });
+          close();
+          return;
+        }
         const output = document.createElement('canvas');
         output.width = canvas.width;
         output.height = canvas.height;
@@ -385,7 +487,7 @@ export function createGeneratedImageInteractions({
     document.addEventListener('keydown', onKeyDown);
     applyEditorMotionOrigin(document, overlay, sourceElement);
     document.body.appendChild(overlay);
-    image.src = dataUrl;
+    image.src = gif ? gif.frames[0].dataUrl : dataUrl;
   };
 
   const bind = (root, descriptors = []) => {

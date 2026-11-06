@@ -55,15 +55,16 @@ export function createGeneratedImageRuntimeLoader({
                 const interactions = interactionsModule.createGeneratedImageInteractions({
                     document,
                     getImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
-                    attachAnnotatedImage: async ({ dataUrl, descriptor }) => {
-                        const blob = dataUrlToBlob(dataUrl);
-                        setUploadedFiles([{
-                            name: createImageFileName({ description: descriptor.title || descriptor.prompt, mediaType: 'image/png' }),
+                    attachAnnotatedImage: async ({ dataUrl, descriptor, frames }) => {
+                        // A picture, or the frames of a GIF that were marked (in their order, each told which of how many it is).
+                        setUploadedFiles((frames?.length ? frames : [{ dataUrl }]).map((entry) => ({
+                            name: createImageFileName({ description: descriptor.title || descriptor.prompt, number: entry.count ? entry.index + 1 : 1, mediaType: 'image/png' }),
                             type: 'image/png',
-                            size: blob?.size || 0,
-                            base64: dataUrl,
-                            targetedEdit: true
-                        }]);
+                            size: dataUrlToBlob(entry.dataUrl)?.size || 0,
+                            base64: entry.dataUrl,
+                            // true for a picture; for a frame of a GIF, which frame of how many and the time of one
+                            targetedEdit: entry.count ? { index: entry.index, count: entry.count, delayMs: entry.delayMs } : true
+                        })));
                         renderFilePreviews();
                         focusMessageInput();
                         showNotification(getImageReadyText(), 'success');

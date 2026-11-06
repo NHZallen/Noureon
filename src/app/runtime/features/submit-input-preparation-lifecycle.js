@@ -55,7 +55,7 @@ export function createSubmitInputPreparationLifecycle({
         size: file.size,
         name: file.name
       };
-      if (file.targetedEdit) inlineData.targetedEdit = true;
+      if (file.targetedEdit) inlineData.targetedEdit = file.targetedEdit;
       userParts.push({
         inlineData
       });

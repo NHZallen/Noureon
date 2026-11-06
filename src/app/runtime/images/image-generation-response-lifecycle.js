@@ -166,13 +166,18 @@ export function createImageGenerationResponseLifecycle({
     // The count and the shape are sent as parameters; the picture model must not take the words that ask for them for something to draw (two pictures as two panels of one).
     const spokenInstruction = spoken.collage ? COLLAGE_INSTRUCTION : spoken.count > 1 ? SEVERAL_INSTRUCTION : spoken.aspectRatio ? SHAPE_INSTRUCTION : '';
     const formatInstruction = spoken.format === 'gif' ? GIF_INSTRUCTION : spoken.format === 'svg' ? SVG_INSTRUCTION : '';
-    const prompt = [editedPrompt, spokenInstruction, formatInstruction].filter(Boolean).join('\n\n');
+    let prompt = [editedPrompt, spokenInstruction, formatInstruction].filter(Boolean).join('\n\n');
+    // The frames of a GIF that were marked in the editor (editor of a picture: generated-image-interactions.js): which of how many they are, and the time the animation gave each.
+    const animation = requestParts.map(part => part.inlineData?.targetedEdit).filter(frame => frame?.count);
 
     // The format: the one saved, when this model makes it (a GIF saved with GPT Image must not go to a model that makes none); else a png (or the first the model lists).
     const modelFormats = supportedFormatsOf(modelInfo);
     const savedFormat = conversation.imageAdvancedConfig?.outputFormat;
     // What was said ("make a GIF", "as an SVG") wins for this message; the setting is not changed.
-    const outputFormat = svgByTextModel ? 'svg' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
+    const outputFormat = svgByTextModel ? 'svg' : animation.length && modelFormats.includes('gif') ? 'gif' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
+    if (animation.length && outputFormat === 'gif') {
+      prompt = `${prompt}\n\nThe attached pictures are frames ${animation.map(frame => frame.index + 1).join(', ')} of an animation of ${animation[0].count} frames, in that order. Apply the marked changes to those frames and make the whole animation again as a GIF of ${animation[0].count} frames with the same motion, the changes carried through the frames that follow them where they belong.`;
+    }
     // Pictures the person attached go with any format (a picture can be made into a GIF or an SVG), except a GIF on OpenRouter (it answers a PNG sheet of the frames: the probe of 2026-11-06). The earlier picture that goes
     // along as the one to build on, when none is attached, does not go with an SVG (the endpoint that edits does not make one) or with a GIF on OpenRouter, so they would only fail.
     let inputReferences = getInlineReferences(requestParts);
@@ -255,6 +260,12 @@ export function createImageGenerationResponseLifecycle({
     // Quality, background and compression are sent only to a model that lists them (GPT Image); the others would be asked for what they do not take.
     for (const key of ['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration']) {
       if (!modelInfo.supportedImageOptions?.includes(key)) delete generationRequest.config[key];
+    }
+    // The animation of the frames that were marked: its number of frames and the time of one (what was said in words wins over them, below).
+    if (animation.length && outputFormat === 'gif') {
+      generationRequest.config.n = 1;
+      if (modelInfo.supportedImageOptions?.includes('frameCount')) generationRequest.config.frameCount = animation[0].count;
+      if (modelInfo.supportedImageOptions?.includes('frameDuration')) generationRequest.config.frameDuration = animation[0].delayMs;
     }
     // The frames and their time that were said win for this message (the format settles whether they are used).
     if (spoken.frameCount && modelInfo.supportedImageOptions?.includes('frameCount')) generationRequest.config.frameCount = spoken.frameCount;

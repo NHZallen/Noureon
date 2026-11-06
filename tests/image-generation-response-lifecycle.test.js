@@ -656,3 +656,35 @@ test('a text model that is asked for an SVG in a chat writes it: the format is S
   assert.deepEqual([request.model, request.provider, request.config.outputFormat, request.config.svgWriter, request.config.n, request.config.aspectRatio], ['openai/gpt-6-luna', 'openrouter', 'svg', true, 1, 'auto']);
   assert.deepEqual(request.inputReferences, [], 'an earlier picture is not carried into an SVG');
 });
+
+test('the frames of a GIF that were marked in the editor: the animation is made again with its number of frames and the time of one, and the prompt says which frames they are', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/gif' }] }; },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const frame = (index, extra = {}) => ({ inlineData: { mimeType: 'image/png', data: `F${index}`, targetedEdit: { index, count: 9, delayMs: 120 }, ...extra } });
+  const run = (modelInfo, advanced = {}) => lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts: [{ text: 'make the eyes bigger' }, frame(2), frame(5), frame(6)], modelInfo,
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', n: 3, ...advanced } }
+  });
+  const gpt = { id: 'gpt-image-2.6-flare', provider: 'openai', maxImageCount: 10, maxImageReferences: 16, supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'], supportedImageOptions: ['quality', 'frameCount', 'frameDuration'] };
+  await run(gpt);
+  const request = requests.at(-1);
+  assert.deepEqual([request.config.outputFormat, request.config.frameCount, request.config.frameDuration, request.config.n], ['gif', 9, 120, 1]);
+  assert.deepEqual(request.inputReferences, ['data:image/png;base64,F2', 'data:image/png;base64,F5', 'data:image/png;base64,F6'], 'the marked frames, in their order');
+  assert.match(request.prompt, /frames 3, 6, 7 of an animation of 9 frames/);
+  assert.match(request.prompt, /colored hand-drawn marks/);
+  // a model that makes no GIF: the pictures are marked pictures like any other
+  await run({ id: 'flux', provider: 'openrouter', maxImageCount: 1, maxImageReferences: 10 });
+  assert.equal(requests.at(-1).config.outputFormat, 'png');
+  assert.doesNotMatch(requests.at(-1).prompt, /animation of 9 frames/);
+  // OpenRouter makes no GIF from a picture: nothing is sent, and it says why
+  const sent = requests.length;
+  await assert.rejects(run({ ...gpt, id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' }), /OpenRouter cannot make a GIF from a picture/);
+  assert.equal(requests.length, sent);
+});

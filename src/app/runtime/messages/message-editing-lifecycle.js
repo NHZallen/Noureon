@@ -10,7 +10,7 @@ const filesFromMessage = (message) => (message?.parts || [])
     type: inlineData.mimeType || 'application/octet-stream',
     size: inlineData.size || 0,
     base64: `data:${inlineData.mimeType || 'application/octet-stream'};base64,${inlineData.data || ''}`,
-    targetedEdit: Boolean(inlineData.targetedEdit)
+    targetedEdit: inlineData.targetedEdit || false
   }));
 
 const quoteReferenceFromMessage = (message) => (message?.parts || [])
