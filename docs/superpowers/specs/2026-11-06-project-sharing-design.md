@@ -198,4 +198,17 @@
 
 ## 18. 實作紀錄
 
-（尚未開始）
+### 18.1 對話分支（B，2026-11-06，已在 `staging`）
+
+- `src/app/runtime/branch/`：`branch-conversation.js`（純函式：複製到被選的回覆為止，新訊息 id、深拷貝、拿掉未完成的研究計劃與 `serverError`／`steer`，沿用模型、搜尋、議會、專案設定，`branchedFrom = { conversationId, messageId, at, title }`）、`branch-button.js`、`start-branch.js`（事件 `noureon:branch-message`，加到最上面、存檔、開啟、通知）。
+- 按鈕不是由畫訊息的程式畫的：`start-branch.js` 用 MutationObserver 在每則回覆的 `.message-footer-left` 複製鈕後面補上，因為 `submit-input-*.js` 是最大的 JS 區塊，上限 300 KB、當時只剩約 120 位元組（`check:sizes`）。點擊由 `message-list-actions.js` 轉成事件（順手把 `i18n[config.uiLanguage]` 收成 `ui()` 騰出位元組）。`start-branch.js` 由 `start-shares.js` 啟動，不再動 `shell.js`。
+- `branchedFrom` 隨對話同步（`cloud-sync-v2-codecs.js` 的 `marksOf`，與 `sharedFrom` 同一條路）。
+- **沒做**：側邊欄的「分支」小標籤（核心區塊沒有位元組）、對話裡的分支線與淡色已複製內容（草稿畫面 6）；標題已寫成「原標題（分支）」。
+- 測試：`tests/branch-conversation.test.js`、`tests/cloud-sync-v2-codecs.test.js`。
+
+### 18.2 成員與連結邀請（S1，2026-11-06，已在 `staging`，migration 待 Allen 套用）
+
+- 資料庫：`supabase/migrations/20261106010000_add_project_members.sql`。表 `project_members`、`project_invites`、`project_removed_members`（都不給直接權限，只走函式）；`workspace_folders` 新增 `shared_at`、`invite_link_generation`，並用 BEFORE UPDATE 觸發器保住分享狀態（同步寫回舊資料夾也不能取消專案記憶或改掉連結代次）。函式：`project_share_preview`、`share_project`（強制專案記憶、撤銷專案內對話的公開連結）、`list_project_members`、`get_project_links`、`create_project_link`、`refresh_project_link`（只有擁有者，代次加一、舊連結全部失效）、`close_project_link`、`get_project_invite`（匿名可呼叫，只回專案名稱、角色、邀請者）、`accept_project_invite`（上限 100 位、被移除者用舊代次連結回 `invite_removed`、寄信邀請綁信箱）、`set_project_member_role`、`remove_project_member`、`leave_project`、`list_shared_with_me`。
+- 頁面：`runtime/project-sharing/`（`project-share-client.js`、`join-route.js`、`start-project-sharing.js`）、`ui/projects/project-members-panel.js`（成員與邀請整頁面板、分享前確認視窗）、`project-join-dialog.js`、樣式 `styles/project-sharing.css`（用到才載入）；入口是專案 ⋯ 選單的「成員與分享」。邀請網址 `noureon.com/join/<code>`（`vercel.json` 已加改寫與 `noindex`／`no-referrer` 標頭；`main.js` 把代碼放進 localStorage 並把網址換回 `/`，登入且雲端帳號就緒後才問）。
+- 測試：`tests/database/project-members.test.js`（真 SQL）、`tests/project-sharing-ui.test.js`、`tests/database/migrations.test.js`（函式權限清單）。
+- **沒做（留給後面幾期）**：成員頭像圖片（目前用名字首字；其他人的頭像在私有儲存桶，要讀取規則，S2）、「與你共享」分頁列出專案（S2）、專案頁頭的成員按鈕（先用選單項目）、寄信邀請與額度顯示（S5）、移除時「一併刪除他的對話」選項（S2 之後才有成員對話）。

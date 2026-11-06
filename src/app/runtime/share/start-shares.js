@@ -134,6 +134,7 @@ export function startShares({ document, window = globalThis.window, configAccess
 
   // Branch Chat starts here because it needs the same hands (the conversations, the save, the sidebar, opening a conversation) and the shell has no room for another line (check:sizes).
   import('../branch/start-branch.js').then(({ startBranch }) => startBranch({ document, window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar, openConversation })).catch((error) => console.warn('Branching did not start.', error));
+  import('../project-sharing/start-project-sharing.js').then(({ startProjectSharing }) => startProjectSharing({ document, window, configAccess, dataStore, i18n, saveAppData, showNotification, supabase: shareClientSupabase() })).catch((error) => console.warn('Project sharing did not start.', error));
   window.addEventListener(SHARE_EVENT, (event) => { void open(String(event.detail?.id || '')); });
   document.addEventListener(USER_READY_EVENT, () => { state.clear(); void reload(); if (readPending()) lookForPending(); });
   state.onChange(() => { try { renderSidebar(); } catch { /* the sidebar draws the tags the next time */ } });

@@ -128,6 +128,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       { label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEdit(project, refresh) }
     );
     if (fromPage && !isWide(document)) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
+    items.push({ label: text('psMenu'), icon: 'users', action: () => document.dispatchEvent(new document.defaultView.CustomEvent('noureon:project-members', { detail: { projectId: project.id, root } })) });
     items.push({ label: text('pjMenuDelete'), icon: 'trash', danger: true, action: () => openDeleteSheet({ document, root, text, actions, project, notify, onDeleted: () => go({ list: true }, false) }) });
     anchor?.setAttribute?.('aria-expanded', 'true');
     menu = openMenu({ document, root, anchor, point, items, onClose: () => { anchor?.removeAttribute?.('aria-expanded'); menu = null; } });

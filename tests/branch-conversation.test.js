@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { branchConversation, branchMessages } from '../src/app/runtime/branch/branch-conversation.js';
 import { branchButtonHTML } from '../src/app/runtime/branch/branch-button.js';
-import { shareTagsHtml } from '../src/app/runtime/share/share-ref.js';
+import { Window } from 'happy-dom';
+import { BRANCH_EVENT, decorateFooters, startBranch } from '../src/app/runtime/branch/start-branch.js';
+import { bindMessageListActions } from '../src/app/runtime/features/message-list-actions.js';
 
 let counter = 0;
 const uuid = () => `id-${++counter}`;
@@ -59,10 +61,64 @@ test('the copy does not share parts with the source', () => {
   assert.equal(source.messages[0].parts[0].text, '問題一');
 });
 
-test('the button is drawn only with a title, and the sidebar tags a branch', () => {
+test('the button is drawn only with a title', () => {
   assert.equal(branchButtonHTML(''), '');
   assert.match(branchButtonHTML('在新聊天中分支'), /branch-message-btn/);
   assert.match(branchButtonHTML('a"b'), /title="a&quot;b"/);
-  assert.match(shareTagsHtml({ id: 'x', branchedFrom: { conversationId: 'c1' } }, (key) => (key === 'branchTag' ? '分支' : key)), /data-share-tag="branch">分支</);
-  assert.equal(shareTagsHtml({ id: 'x' }, (key) => key), '');
+});
+
+const pageWith = () => {
+  const window = new Window({ url: 'https://noureon.test/' });
+  window.document.body.innerHTML = '<div id="message-list"><div class="message-item" data-message-index="1"><div class="message-footer-left"><button class="copy-content-btn"></button><button class="sources"></button></div></div><div class="message-item" data-message-index="3"><div class="message-footer-left"><button class="copy-content-btn"></button></div></div></div>';
+  return window;
+};
+
+test('the branch button is put after the copy button of every reply, once', () => {
+  const { document } = pageWith();
+  const list = document.getElementById('message-list');
+  assert.equal(decorateFooters(list, 'Branch'), 2);
+  assert.equal(decorateFooters(list, 'Branch'), 0);
+  assert.equal(decorateFooters(list, ''), 0);
+  const first = list.querySelector('.message-footer-left');
+  assert.deepEqual([...first.children].map((node) => node.className.split(' ')[0]), ['copy-content-btn', 'branch-message-btn', 'sources']);
+});
+
+test('the page branches the conversation when the button asks, and tells the person', async () => {
+  const window = pageWith();
+  const { document } = window;
+  const conversations = [{ id: 'c1', title: 'Plan', model: 'm', provider: 'p', messages: [
+    { id: 'u1', role: 'user', parts: [{ text: 'q' }] }, { id: 'a1', role: 'model', parts: [{ text: 'a' }] }] }];
+  const events = [];
+  const opened = [];
+  let saved = 0;
+  const api = startBranch({
+    document, window, configAccess: { getUiLanguage: () => 'en' }, i18n: { en: { branchTitle: '{title} (branch)', branchDone: 'done', branchFailed: 'failed', branchNothing: 'nothing', branchChat: 'Branch' } },
+    dataStore: { getConversations: () => conversations }, saveAppData: async () => { saved += 1; }, showNotification: (message, kind) => events.push([message, kind]), renderSidebar: () => {}, openConversation: (id) => opened.push(id)
+  });
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(document.querySelectorAll('.branch-message-btn').length, 2);
+  document.dispatchEvent(new window.CustomEvent(BRANCH_EVENT, { detail: { conversationId: 'c1', messageIndex: 1 } }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(conversations.length, 2);
+  assert.equal(conversations[0].title, 'Plan (branch)');
+  assert.equal(conversations[0].branchedFrom.conversationId, 'c1');
+  assert.deepEqual(opened, [conversations[0].id]);
+  assert.equal(saved, 1);
+  assert.deepEqual(events, [['done', 'success']]);
+  assert.equal(await api.run({ conversationId: 'c1', messageIndex: 0 }), null);
+  assert.deepEqual(events.at(-1), ['nothing', 'error']);
+});
+
+test('the button under a reply asks for a branch of that reply in the conversation that is open', () => {
+  const window = pageWith();
+  const { document } = window;
+  const list = document.getElementById('message-list');
+  decorateFooters(list, 'Branch');
+  const conversation = { id: 'c9', messages: [{ role: 'user', parts: [{ text: 'q' }] }, { role: 'model', parts: [{ text: 'a' }] }, { role: 'user', parts: [{ text: 'q2' }] }, { role: 'model', parts: [{ text: 'a2' }] }] };
+  bindMessageListActions({ window, document, elements: { messageList: list }, i18n: { en: {} }, config: { uiLanguage: 'en' }, getConfig: () => ({ uiLanguage: 'en' }), getActiveConversation: () => conversation, copyTextToClipboard: async () => {}, showNotification: () => {}, startMessageEditing: () => {}, logger: console });
+  const seen = [];
+  document.addEventListener(BRANCH_EVENT, (event) => seen.push(event.detail));
+  list.querySelectorAll('.branch-message-btn')[1].click();
+  list.querySelectorAll('.branch-message-btn')[0].click();
+  assert.deepEqual(seen, [{ conversationId: 'c9', messageIndex: 3 }, { conversationId: 'c9', messageIndex: 1 }]);
 });

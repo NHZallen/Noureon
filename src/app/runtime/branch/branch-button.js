@@ -6,5 +6,5 @@ const escapeText = (value) => String(value).replace(/&/g, '&amp;').replace(/</g,
 
 export function branchButtonHTML(title) {
   if (!title) return '';
-  return `<button type="button" class="branch-message-btn p-1 rounded-md hover:bg-gray-500/20 text-[var(--text-secondary)] opacity-50 hover:opacity-100 transition-opacity" title="${escapeText(title)}" aria-label="${escapeText(title)}">${ICON}</button>`;
+  return `<button type="button" data-message-action="branch" class="branch-message-btn p-1 rounded-md hover:bg-gray-500/20 text-[var(--text-secondary)] opacity-50 hover:opacity-100 transition-opacity" title="${escapeText(title)}" aria-label="${escapeText(title)}">${ICON}</button>`;
 }

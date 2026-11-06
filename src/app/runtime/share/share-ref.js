@@ -12,7 +12,6 @@ const escapeText = (value) => String(value).replace(/&/g, '&amp;').replace(/</g,
 export function shareTagsHtml(conversation, text) {
   let html = '';
   if (conversation?.sharedFrom) html += `<span class="cs-tag" data-share-tag="from">${escapeText(text('csTagFrom'))}</span>`;
-  if (conversation?.branchedFrom) html += `<span class="cs-tag" data-share-tag="branch">${escapeText(text('branchTag'))}</span>`;
   if (shares?.state.activeFor(conversation?.id).length) html += `<span class="cs-tag" data-share-tag="shared">${escapeText(text('csTagShared'))}</span>`;
   return html;
 }

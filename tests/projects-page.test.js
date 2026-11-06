@@ -7,12 +7,13 @@ import { createProjectActions } from '../src/app/runtime/projects/project-action
 import { closeProjectsPage, getProjectsPage, openProjectsPage } from '../src/app/ui/projects/projects-page.js';
 import { projectPath, projectsRouteFromPath } from '../src/app/ui/projects/project-path.js';
 import i18nParts from '../src/data/i18n/parts/projects.js';
+import sharingParts from '../src/data/i18n/parts/project-sharing.js';
 
 // The pages of the projects, drawn in a page with the real actions over a plain workspace: the list, the tabs, the search, making a project, one project with its chats and its menus,
 // the instructions, the choice when deleting, and the address.
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
-const texts = i18nParts.en;
+const texts = { ...i18nParts.en, ...sharingParts.en };
 const text = (key, values = {}) => String(texts[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? '');
 
 // `wide`: a computer (the dialogs are in the middle, the icon is chosen in a box at the name); without it the page is a phone's.
@@ -266,7 +267,7 @@ test('the menu of a project: edit its name and icon, write its instructions, del
     t.open({ id: 'f1' });
     const more = () => t.$('.pj-head .pj-round:last-child');
     more().click();
-    assert.deepEqual(t.$$('.pj-menu-item').map((item) => item.textContent), ['Pin', 'Edit project', 'Edit instructions', 'Delete project']);
+    assert.deepEqual(t.$$('.pj-menu-item').map((item) => item.textContent), ['Pin', 'Edit project', 'Edit instructions', 'Members and sharing', 'Delete project']);
     t.byText('.pj-menu-item', 'Edit project').click();
     assert.equal(t.$('.pj-name-input').value, 'Translation');
     t.type(t.$('.pj-name-input'), 'Translations');
@@ -294,7 +295,7 @@ test('a row of the list has a ⋯ menu: new chat in the project, pin, settings, 
     t.open();
     const rowOf = (id) => t.$(`.pj-row[data-project-id="${id}"]`);
     const menuOf = (id) => { rowOf(id).querySelector('.pj-more').click(); return t.$$('.pj-menu-item').map((item) => item.textContent); };
-    assert.deepEqual(menuOf('f2'), ['New project chat', 'Pin', 'Project settings', 'Delete project']);
+    assert.deepEqual(menuOf('f2'), ['New project chat', 'Pin', 'Project settings', 'Members and sharing', 'Delete project']);
     assert.equal(t.$('.pj-title-text'), null, 'the menu did not open the project');
 
     t.byText('.pj-menu-item', 'Pin').click();

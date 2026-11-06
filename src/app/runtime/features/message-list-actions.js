@@ -8,6 +8,7 @@ import { copyableAnswerText, sourcesOfPill } from '../../ui/citations/citation-p
 import { openSourceSheet } from '../../ui/citations/source-sheet.js';
 
 export function bindMessageListActions({ window, document, elements: ALL_ELEMENTS, i18n, config, getConfig, getActiveConversation, copyTextToClipboard, showNotification, startMessageEditing, logger }) {
+    const ui = () => i18n[config.uiLanguage];
     ALL_ELEMENTS.messageList.addEventListener('click', (e) => {
         const userAction = e.target.closest('[data-message-action]');
         if (userAction) {
@@ -15,15 +16,18 @@ export function bindMessageListActions({ window, document, elements: ALL_ELEMENT
             const messageIndex = Number(messageItem?.dataset.messageIndex);
             const conv = getActiveConversation();
             const message = conv?.messages?.[messageIndex];
-            if (!message || message.role !== 'user') return;
-            if (userAction.dataset.messageAction === 'copy') {
+            if (!message || (message.role !== 'user' && userAction.dataset.messageAction !== 'branch')) return;
+            if (userAction.dataset.messageAction === 'branch') {
+                // The button is put under the replies by runtime/branch/start-branch.js.
+                document.dispatchEvent(new window.CustomEvent('noureon:branch-message', { detail: { conversationId: conv.id, messageIndex } }));
+            } else if (userAction.dataset.messageAction === 'copy') {
                 const textToCopy = message.parts
                 .filter(part => part.text && !part.quoteContext)
                 .map(part => part.displayText ?? part.text)
                 .join('\n');
                 copyTextToClipboard(textToCopy)
-                .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製訊息。', 'success'))
-                .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '無法複製訊息。', 'error'));
+                .then(() => showNotification(ui().copySuccess || '已複製訊息。', 'success'))
+                .catch(() => showNotification(ui().copyFailed || '無法複製訊息。', 'error'));
             } else if (userAction.dataset.messageAction === 'edit') {
                 startMessageEditing(messageIndex);
             }
@@ -33,8 +37,8 @@ export function bindMessageListActions({ window, document, elements: ALL_ELEMENT
         const codeCopy = e.target.closest('.run-code-copy');
         if (codeCopy) {
             copyTextToClipboard(codeOfCard(codeCopy))
-            .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製。', 'success'))
-            .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗。', 'error'));
+            .then(() => showNotification(ui().copySuccess || '已複製。', 'success'))
+            .catch(() => showNotification(ui().copyFailed || '複製失敗。', 'error'));
             return;
         }
         // A page the reply's web search found: opened in a new tab, as it is.
@@ -67,13 +71,6 @@ export function bindMessageListActions({ window, document, elements: ALL_ELEMENT
             document.dispatchEvent(new window.CustomEvent('noureon:open-history-source', { detail: { id: openChat.dataset.openChat } }));
             return;
         }
-        const branchBtn = e.target.closest('.branch-message-btn');
-        if (branchBtn) {
-            const index = parseInt(branchBtn.closest('.message-item')?.dataset.messageIndex, 10);
-            const id = getActiveConversation()?.id;
-            if (id && Number.isInteger(index)) document.dispatchEvent(new window.CustomEvent('noureon:branch-message', { detail: { conversationId: id, messageIndex: index } }));
-            return;
-        }
         const copyBtn = e.target.closest('.copy-content-btn');
         if (copyBtn) {
             const messageItem = copyBtn.closest('.message-item');
@@ -85,9 +82,9 @@ export function bindMessageListActions({ window, document, elements: ALL_ELEMENT
                     // What was said, without the record of what the model did and without the citation markers.
                     const textToCopy = copyableAnswerText(msg);
                     copyTextToClipboard(textToCopy)
-                    .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '內容已複製！', 'success'))
+                    .then(() => showNotification(ui().copySuccess || '內容已複製！', 'success'))
                     .catch(err => {
-                        showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗！瀏覽器可能限制了此功能。', 'error');
+                        showNotification(ui().copyFailed || '複製失敗！瀏覽器可能限制了此功能。', 'error');
                         logger.error('Could not copy text with any method: ', err);
                     });
                 }

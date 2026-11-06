@@ -107,6 +107,19 @@
       ]
     },
     {
+      "source": "/join/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
       "source": "/admin/:path*",
       "headers": [
         {
@@ -179,6 +192,10 @@
     },
     {
       "source": "/s/:code",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/join/:code",
       "destination": "/index.html"
     },
     {

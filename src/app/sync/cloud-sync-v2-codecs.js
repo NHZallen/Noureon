@@ -108,9 +108,7 @@ function conversationMetadata(conversation = {}) {
       : {}),
     ...(conversation.messagesCutAt ? { messagesCutAt: conversation.messagesCutAt } : {}),
     // Made from a link someone shared (src/app/runtime/share/): kept for good, the tag "from a share" is drawn from it.
-    ...(conversation.sharedFrom && typeof conversation.sharedFrom === 'object' ? { sharedFrom: conversation.sharedFrom } : {}),
-    // Made as a branch of another conversation (src/app/runtime/branch/): kept for good, the tag "Branch" is drawn from it.
-    ...(conversation.branchedFrom && typeof conversation.branchedFrom === 'object' ? { branchedFrom: conversation.branchedFrom } : {}),
+    ...marksOf(conversation),
     clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null,
     stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null,
     ...(trashStateUpdatedAt ? { trashStateUpdatedAt } : {})
@@ -119,6 +117,8 @@ function conversationMetadata(conversation = {}) {
 
 // councilTurn: a message sent to a council, so that a conversation stays known as a council's after it is opened again or comes from another device.
 // memoryUsed, memoryUpdated: the notes of the memory that were given to the model for a reply and the changes it made (ids), shown under the reply. memoryHistory: the conversations it looked into ({ id, title, at }), shown in the sources.
+// What a conversation keeps for good about where it came from: made from a link someone shared (src/app/runtime/share/) or as a branch of another conversation (src/app/runtime/branch/).
+const marksOf = (source) => Object.fromEntries(['sharedFrom', 'branchedFrom'].filter((key) => source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])).map((key) => [key, source[key]]));
 const KEPT_MESSAGE_METADATA = ['visionCheck', 'visionChecked', 'serverError', 'councilTurn', 'steer', 'memoryUsed', 'memoryUpdated', 'memoryHistory'];
 const KEPT_METADATA_CHARS = 20_000;
 
@@ -185,8 +185,7 @@ function conversationFromRow(row = {}, messages = []) {
     isTemporary: Boolean(metadata.isTemporary),
     isNaming: false,
     ...(canonicalizeTimestamp(metadata.messagesCutAt) ? { messagesCutAt: canonicalizeTimestamp(metadata.messagesCutAt) } : {}),
-    ...(metadata.sharedFrom && typeof metadata.sharedFrom === 'object' && !Array.isArray(metadata.sharedFrom) ? { sharedFrom: metadata.sharedFrom } : {}),
-    ...(metadata.branchedFrom && typeof metadata.branchedFrom === 'object' && !Array.isArray(metadata.branchedFrom) ? { branchedFrom: metadata.branchedFrom } : {})
+    ...marksOf(metadata)
   };
 }
 
