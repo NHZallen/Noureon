@@ -216,14 +216,14 @@
 .generated-image-editor-size {
     position: absolute;
     left: max(.7rem, env(safe-area-inset-left));
-    top: 50%;
+    top: var(--stage-mid, 50%);
     z-index: 6;
     transform: translateY(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: .35rem;
-    width: 2.9rem;
+    width: 3.9rem;
     padding: .45rem 0 .7rem;
     border: 1px solid rgba(255, 255, 255, .12);
     border-radius: 1.5rem;
@@ -436,7 +436,8 @@
 
 .generated-image-editor-frames {
     z-index: 7;
-    display: flex;
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem;
     align-items: center;
     gap: .6rem;
     min-width: 0;
@@ -485,6 +486,7 @@
 
 .generated-image-editor-speed {
     flex: none;
+    justify-self: end;
     min-width: 3rem;
     padding: .45rem .6rem;
     border: 1px solid rgba(255, 255, 255, .35);
@@ -527,6 +529,10 @@
     stroke: currentColor;
     fill: none;
 }
+
+/* The frames stand in the middle (auto margins: they still scroll from the first when there are too many to show). */
+.generated-image-editor-frame-list > :first-child { margin-left: auto; }
+.generated-image-editor-frame-list > :last-child { margin-right: auto; }
 
 .generated-image-editor-frame-list::-webkit-scrollbar {
     display: none;

@@ -379,6 +379,7 @@ export function createGeneratedImageInteractions({
     };
     const close = () => {
       stopPlayback();
+      stageWatcher?.disconnect();
       overlay.remove();
       document.removeEventListener('keydown', onKeyDown);
       blockedEditorEvents.forEach(type => overlay.removeEventListener(type, blockEditorCopy));
@@ -517,6 +518,16 @@ export function createGeneratedImageInteractions({
     document.addEventListener('keydown', onKeyDown);
     applyEditorMotionOrigin(document, overlay, sourceElement);
     document.body.appendChild(overlay);
+    // The size control on the left edge stands at the middle of the picture's area (between the top bar and what is under the picture), not of the whole screen.
+    const stage = overlay.querySelector('.generated-image-editor-stage');
+    const centerSize = () => {
+      const frame = overlay.getBoundingClientRect();
+      const box = stage.getBoundingClientRect();
+      overlay.style.setProperty('--stage-mid', `${box.top - frame.top + box.height / 2}px`);
+    };
+    const stageWatcher = typeof ResizeObserver === 'function' ? new ResizeObserver(centerSize) : null;
+    stageWatcher?.observe(stage);
+    overlay.addEventListener('transitionend', centerSize, { once: true });
     image.src = gif ? gif.frames[0].dataUrl : dataUrl;
   };
 
