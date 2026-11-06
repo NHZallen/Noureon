@@ -491,3 +491,15 @@ test('for the server: the owner and role of a person in a shared project, and th
   assert.equal(await history(cy), null);
   assert.match((await B.error('select public.server_read_project_history($1, $2)', [bob, projectId]))?.message || 'it worked', /permission denied/);
 });
+
+test('a change the owner makes to the sources of the shared project through the ordinary sync pings the people of the project too', async () => {
+  await database.db.exec(`create schema if not exists realtime;
+    create table if not exists public.live_log (topic text, event text, payload jsonb, is_private boolean);
+    create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as $$ insert into public.live_log values (topic, event, payload, private) $$;`);
+  const projectId = await sharedProject();
+  const count = async () => (await database.db.query('select count(*)::int as n from public.live_log where topic = $1', ['project:' + projectId])).rows[0].n;
+  const before = await count();
+  await callWith(A, 'upsert_workspace_folders', [{ id: projectId, name: 'City plan', memory_scope: 'project', sources: [{ id: 's1', kind: 'text', title: 'Brief', text: 'x' }] }]);
+  assert.ok((await count()) > before, 'the sync writes the folder with its sources, and the people hear it');
+  await database.db.query('drop function realtime.send(jsonb, text, text, boolean)');
+});
