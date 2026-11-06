@@ -31,7 +31,7 @@ export function createSharedFolders({ storage = null } = {}) {
       for (const [id, notes] of Object.entries(saved.ownNotes || {})) ownNotes.set(id, notes);
     } catch { /* nothing kept */ }
   };
-  const save = () => { try { storage?.setItem(KEY, JSON.stringify({ folders: [...folders.values()].map(({ sources, ...rest }) => rest), ownNotes: Object.fromEntries(ownNotes) })); } catch { /* a full storage: the next reading puts it back */ } }; // eslint-disable-line no-unused-vars
+  const save = () => { try { storage?.setItem(KEY, JSON.stringify({ folders: [...folders.values()].map(({ sources, ...rest }) => rest), ownNotes: Object.fromEntries(ownNotes) })); } catch { /* a full storage: the next reading puts it back */ } };
   load();
   return {
     list: () => [...folders.values()],

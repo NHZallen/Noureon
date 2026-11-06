@@ -9,7 +9,7 @@ const dateText = (value, language) => { const date = new Date(value); return Num
  * The page of one project. `shared` is what the server read ({ role, project, owner, conversations }); `meId` is the signed-in person (their own conversations open in the chat: `onOpenOwn(chat)`,
  * the others' are read: `onOpenChat(chat)`); `onNewChat()` makes a conversation of the person in this project.
  */
-export function openSharedProjectPage({ document, root, text, language = 'zh-TW', shared, meId, onOpenChat, onOpenOwn = onOpenChat, onNewChat, onLeave = null, onClose = () => {} }) {
+export function openSharedProjectPage({ document, root, text, language = 'zh-TW', shared, meId, onOpenChat, onOpenOwn = onOpenChat, onNewChat, onLeave = null, onEditInstructions = null, onClose = () => {} }) {
   const project = shared.project || {};
   const sheet = openSheet({ document, root, title: project.name || '', close: text('psCancel'), className: 'psh-project', onClose });
   const info = make(document, 'p', 'pj-note', text('psSharedBy', { name: shared.owner?.name || '' }));
@@ -35,15 +35,45 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
   };
   draw(shared.conversations);
   sheet.body.append(info, go, list);
+  if (shared.role === 'editor' && onEditInstructions) {
+    const edit = make(document, 'button', 'pj-chip psh-edit', text('psEditInstructions'));
+    edit.type = 'button';
+    edit.setAttribute('data-edit-instructions', '');
+    edit.addEventListener('click', () => onEditInstructions());
+    sheet.body.insertBefore(edit, go);
+  }
   if (onLeave) {
     const leave = make(document, 'button', 'pj-text-button psh-leave', text('psLeave'));
     leave.type = 'button';
     leave.setAttribute('data-leave-open', '');
     leave.addEventListener('click', () => {
+      const mineCount = (shared.conversations || []).filter((chat) => chat.authorId === meId).length;
+      const choice = { own: mineCount > 0, name: `${project.name || ''}`, memory: 'default' };
       openSheet({
         document, root, title: text('psLeaveTitle', { name: project.name || '' }), dialog: true, close: text('psCancel'),
         body: (content, { close }) => {
           content.appendChild(make(document, 'p', 'pj-note', text('psLeaveBody')));
+          if (mineCount > 0) {
+            const own = make(document, 'button', 'psh-choice');
+            own.type = 'button';
+            own.setAttribute('data-leave-own', '');
+            own.setAttribute('aria-pressed', 'true');
+            own.append(make(document, 'span', 'psh-choice-label', text('psLeaveOwn')), make(document, 'span', 'pj-note', text('psLeaveOwnHint', { count: mineCount })));
+            const fields = make(document, 'div', 'psh-own-fields');
+            const name = make(document, 'input', 'psh-input');
+            name.type = 'text';
+            name.id = 'psh-own-name';
+            name.value = text('psLeaveOwnDefaultName', { name: project.name || '' });
+            choice.name = name.value;
+            name.addEventListener('input', () => { choice.name = name.value; });
+            const memory = make(document, 'select', 'psh-input');
+            memory.id = 'psh-own-memory';
+            for (const [value, key] of [['default', 'psMemDefault'], ['project', 'psMemProject']]) { const option = make(document, 'option', '', text(key)); option.value = value; memory.appendChild(option); }
+            memory.addEventListener('change', () => { choice.memory = memory.value; });
+            fields.append(name, memory);
+            own.addEventListener('click', () => { choice.own = !choice.own; own.setAttribute('aria-pressed', String(choice.own)); fields.hidden = !choice.own; });
+            content.append(own, fields);
+          }
           const buttons = make(document, 'div', 'psh-buttons');
           const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
           cancel.type = 'button';
@@ -51,7 +81,7 @@ export function openSharedProjectPage({ document, root, text, language = 'zh-TW'
           const confirm = make(document, 'button', 'pj-primary psh-go', text('psLeaveGo'));
           confirm.type = 'button';
           confirm.setAttribute('data-leave-go', '');
-          confirm.addEventListener('click', () => { close(); sheet.close(); onLeave(); });
+          confirm.addEventListener('click', () => { close(); sheet.close(); onLeave({ ...choice }); });
           buttons.append(cancel, confirm);
           content.appendChild(buttons);
         }
@@ -77,4 +107,24 @@ export function drawSharedProjects({ document, box, text, items, onOpen }) {
     row.addEventListener('click', () => onOpen(item));
     box.appendChild(row);
   }
+}
+
+/** The page where an editor writes the instructions of the project: `onSave(value)` resolves true when it was saved (the page then closes). */
+export function openInstructionsEditor({ document, root, text, value = '', onSave }) {
+  const sheet = openSheet({ document, root, title: text('psInstructionsTitle'), close: text('psCancel'), className: 'psh-instructions' });
+  const area = make(document, 'textarea', 'psh-text');
+  area.id = 'psh-instructions';
+  area.maxLength = 8000;
+  area.value = value;
+  const save = make(document, 'button', 'pj-primary psh-go', text('psInstructionsSave'));
+  save.type = 'button';
+  save.setAttribute('data-instructions-save', '');
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    const saved = await onSave(area.value);
+    save.disabled = false;
+    if (saved) sheet.close();
+  });
+  sheet.body.append(area, save);
+  return sheet;
 }

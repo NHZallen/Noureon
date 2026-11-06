@@ -107,7 +107,8 @@ export default {
         psChatLinkCopied: '已複製連結，只有專案成員打得開。',
         psChatLinkNotMember: '你不是這個專案的成員。請向專案擁有者要邀請連結。',
         psSources: '資料來源',
-        psSourcesNone: '專案沒有資料來源。'
+        psSourcesNone: '專案沒有資料來源。',
+        psLeaveOwnDefaultName: '{name}（我的副本）'
     },
     en: {
         branchChat: 'Branch in new chat',
@@ -216,7 +217,8 @@ export default {
         psChatLinkCopied: 'Link copied. Only members of the project can open it.',
         psChatLinkNotMember: 'You are not a member of this project. Ask its owner for an invitation link.',
         psSources: 'Sources',
-        psSourcesNone: 'The project has no sources.'
+        psSourcesNone: 'The project has no sources.',
+        psLeaveOwnDefaultName: '{name} (my copy)'
     },
     fr: {
         branchChat: 'Créer une branche dans une nouvelle discussion',
@@ -325,7 +327,8 @@ export default {
         psChatLinkCopied: 'Lien copié. Seuls les membres du projet peuvent l’ouvrir.',
         psChatLinkNotMember: 'Vous n’êtes pas membre de ce projet. Demandez un lien d’invitation à son propriétaire.',
         psSources: 'Sources',
-        psSourcesNone: 'Le projet n’a pas de sources.'
+        psSourcesNone: 'Le projet n’a pas de sources.',
+        psLeaveOwnDefaultName: '{name} (ma copie)'
     },
     ru: {
         branchChat: 'Ответвить в новом чате',
@@ -434,7 +437,8 @@ export default {
         psChatLinkCopied: 'Ссылка скопирована. Открыть её могут только участники проекта.',
         psChatLinkNotMember: 'Вы не участник этого проекта. Попросите у владельца ссылку-приглашение.',
         psSources: 'Источники',
-        psSourcesNone: 'В проекте нет источников.'
+        psSourcesNone: 'В проекте нет источников.',
+        psLeaveOwnDefaultName: '{name} (моя копия)'
     },
     es: {
         branchChat: 'Crear una rama en un chat nuevo',
@@ -543,6 +547,7 @@ export default {
         psChatLinkCopied: 'Enlace copiado. Solo los miembros del proyecto pueden abrirlo.',
         psChatLinkNotMember: 'No eres miembro de este proyecto. Pide un enlace de invitación a su propietario.',
         psSources: 'Fuentes',
-        psSourcesNone: 'El proyecto no tiene fuentes.'
+        psSourcesNone: 'El proyecto no tiene fuentes.',
+        psLeaveOwnDefaultName: '{name} (mi copia)'
     }
 };

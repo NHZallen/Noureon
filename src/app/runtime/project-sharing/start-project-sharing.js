@@ -10,6 +10,7 @@ import { clearPendingJoin, readPendingJoin } from './join-route.js';
 import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
 import { createSharedFolders } from './shared-folders.js';
+import { ownProjectFrom } from './own-project.js';
 import { setProjectFoldersReader } from '../projects/project-instructions.js';
 
 export const MEMBERS_EVENT = 'noureon:project-members';
@@ -46,6 +47,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       document, root: root || document.body, text, client: shareClient, project: { id: folder.id, name: folder.name },
       inviterName: nameOf(getAnnouncedUser()), origin: window.location?.origin || '', copy, notify: showNotification,
       // The folder the page keeps has the memory the database has now (a stale copy written back could not undo it: the database keeps it, but the page should show it too).
+      onNotes: (list) => sharedFolders.setOwnNotes(folder.id, list),
       onShared: async () => { folder.memoryScope = 'project'; try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ } }
     });
   }
@@ -78,6 +80,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const shared = { id: projectId, ownerId: read.project.owner.id };
     const host = root || document.body;
     const [{ openSharedProjectPage }, { openProjectConversation }] = await Promise.all([import('../../ui/projects/shared-project-page.js'), import('../../ui/projects/project-conversation-viewer.js')]);
+    let readAt = read.project.project?.updated_at || null;
     let page = null;
     let viewer = null;
     let timer = null;
@@ -100,6 +103,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     };
     const apply = (project) => {
       sharedFolders.set({ ...project.project, id: projectId });
+      if (project.project?.updated_at) readAt = project.project.updated_at;
+      read.project.project = project.project;
       page?.update(project);
       const fresh = viewer ? project.conversations.find((entry) => entry.id === viewer.chatId) : null;
       if (fresh) viewer.sheet.update(fresh);
@@ -111,11 +116,44 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     };
     const onVisible = () => { if (!document.hidden) void tick(); };
     const stop = () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+    // An editor changes the instructions: written with the time the project was read at; when someone changed it since, the project is read again and the person is told.
+    const editInstructions = async () => {
+      const { openInstructionsEditor } = await import('../../ui/projects/shared-project-page.js');
+      openInstructionsEditor({
+        document, root: host, text, value: String(read.project.project?.instructions || ''),
+        onSave: async (value) => {
+          const saved = await shareClient.updateProject(projectId, { instructions: value, expected: readAt });
+          if (saved.ok) { readAt = saved.data?.updated_at || readAt; read.project.project.instructions = value; sharedFolders.set({ ...read.project.project, id: projectId }); showNotification(text('psInstructionsSaved'), 'success'); return true; }
+          if (saved.code === 'stale') { const fresh = await reader.load(); if (fresh.ok) { read.project.project = fresh.project.project; readAt = fresh.project.project?.updated_at || readAt; apply(fresh.project); } showNotification(text('psStale'), 'error'); return false; }
+          showNotification(text(saved.code === 'not_allowed' ? 'psNotAllowed' : 'psFailed'), 'error');
+          return false;
+        }
+      });
+    };
     page = openSharedProjectPage({
       document, root: host, text, language, shared: read.project, meId: me, onClose: stop,
       onOpenChat: openChat,
       onOpenOwn: (chat) => { if ((dataStore.getConversations() || []).some((entry) => entry.id === chat.id)) openConversation(chat.id); else openChat(chat); },
-      onLeave: async () => { const left = await shareClient.leave(projectId); if (!left.ok) { showNotification(text('psFailed'), 'error'); return; } sharedFolders.forget(projectId); showNotification(text('psLeft', { name: read.project.project?.name || '' }), 'success'); },
+      onLeave: async (choice = {}) => {
+        let made = null;
+        if (choice.own) {
+          // First the copy is made (it needs the conversations as they are), then the person leaves.
+          made = ownProjectFrom({ conversations: dataStore.getConversations() || [], sharedId: projectId, name: choice.name, memoryScope: choice.memory, icon: read.project.project?.icon, color: read.project.project?.color });
+        }
+        const left = await shareClient.leave(projectId);
+        if (!left.ok) { showNotification(text('psFailed'), 'error'); return; }
+        sharedFolders.forget(projectId);
+        if (made && made.copies.length) {
+          dataStore.replaceFolders([...(dataStore.getFolders() || []), made.folder]);
+          dataStore.getConversations().unshift(...made.copies);
+          try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ }
+          renderSidebar();
+          showNotification(text('psLeaveOwnDone', { name: made.folder.name }), 'success');
+          return;
+        }
+        showNotification(text('psLeft', { name: read.project.project?.name || '' }), 'success');
+      },
+      onEditInstructions: () => editInstructions(),
       onNewChat: async () => { try { await put(newSharedConversation({ shared, defaults: await defaults() })); } catch { showNotification(text('psFailed'), 'error'); } }
     });
     timer = setInterval(() => { void tick(); }, pollMs);
