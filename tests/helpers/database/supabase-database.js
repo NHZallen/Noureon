@@ -16,7 +16,7 @@ create role authenticator noinherit login;
 create schema auth;
 create schema storage;
 create schema extensions;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean not null default false);
+create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean not null default false, raw_user_meta_data jsonb not null default '{}'::jsonb);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 create function auth.role() returns text language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
 create table storage.buckets (id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
