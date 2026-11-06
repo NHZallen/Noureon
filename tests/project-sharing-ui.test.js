@@ -284,7 +284,7 @@ test('taking a person out asks whether the project keeps a copy of their convers
 });
 
 test('the owner of the project, or a person already in it, who opens an invitation is told so and is not offered to join; the button opens the project', async () => {
-  for (const [viewer, title, body] of [['owner', /This is your own project/, /You are the owner of “City plan”/], ['editor', /You are already in this project/, /already a member of “City plan” \(Editor\)/]]) {
+  for (const [viewer, title, body] of [['owner', /You own this project/, /You are the owner of “City plan”\. There is nothing to join/], ['editor', /You are a member of this project/, /already a member of “City plan” \(Editor\)/]]) {
     const { document, root } = page();
     const client = { accept: async () => { throw new Error('nobody joins from here'); } };
     const opened = [];
