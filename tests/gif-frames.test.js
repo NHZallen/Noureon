@@ -45,13 +45,3 @@ test('what is not a GIF that can be read gives null, and never throws', () => {
     decodeGif(copy);
   }
 });
-
-test('the time a frame stays when the animation is made again is the mean of the frames, to 10 ms, inside what the picture models take', async () => {
-  const { meanFrameDelay } = await import('../src/app/runtime/images/gif-editor-frames.js');
-  assert.equal(meanFrameDelay([{ delayMs: 100 }, { delayMs: 100 }]), 100);
-  assert.equal(meanFrameDelay([{ delayMs: 40 }, { delayMs: 100 }, { delayMs: 250 }, { delayMs: 60 }]), 110);
-  assert.equal(meanFrameDelay([{ delayMs: 20 }, { delayMs: 20 }]), 20);
-  assert.equal(meanFrameDelay([{ delayMs: 0 }, { delayMs: 10 }]), 100, 'a frame of 10 ms or less is shown as 100 ms by the browsers');
-  assert.equal(meanFrameDelay([{ delayMs: 9000 }, { delayMs: 9000 }]), 2000, 'never over 2000');
-  assert.equal(meanFrameDelay([{}, {}]), 100, 'a frame with no time is 100 ms');
-});

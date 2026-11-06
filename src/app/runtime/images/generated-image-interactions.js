@@ -3,7 +3,7 @@ import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle
 import { bindGeneratedImageSets } from './generated-image-set.js';
 import { downloadNameOf } from './generated-image-assets.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
-import { loadGifFrames, meanFrameDelay } from './gif-editor-frames.js';
+import { loadGifFrames } from './gif-editor-frames.js';
 
 const EDITOR_COLORS = Object.freeze([
   { value: '#ef4444', key: 'red' },
@@ -456,11 +456,10 @@ export function createGeneratedImageInteractions({
       setButtonBusy(confirmButton, true);
       try {
         if (gif) {
-          // The frames that have marks, in their order, each with its marks on it; what animation they came from goes with them.
-          const delayMs = meanFrameDelay(gif.frames);
+          // The frames that have marks, in their order, each with its marks on it; which GIF they came from, which frame of how many each is, goes with them (the edited frames are put back there).
           const frames = [];
           for (const [index, marked] of markedFrames().entries()) {
-            if (marked) frames.push({ dataUrl: await frameComposite(index), index, count: gif.frames.length, delayMs });
+            if (marked) frames.push({ dataUrl: await frameComposite(index), index, count: gif.frames.length, source: descriptor.id });
           }
           await attachAnnotatedImage({ dataUrl: frames[0].dataUrl, frames, descriptor });
           close();

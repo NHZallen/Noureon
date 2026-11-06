@@ -657,34 +657,36 @@ test('a text model that is asked for an SVG in a chat writes it: the format is S
   assert.deepEqual(request.inputReferences, [], 'an earlier picture is not carried into an SVG');
 });
 
-test('the frames of a GIF that were marked in the editor: the animation is made again with its number of frames and the time of one, and the prompt says which frames they are', async () => {
-  const requests = [];
+test('the frames of a GIF marked in the editor are edited one by one and put back in that GIF, here in the page, with any model', async () => {
+  const calls = [];
+  const generated = [];
+  const saved = [];
+  const gifDescriptor = { id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' };
   const lifecycle = createImageGenerationResponseLifecycle({
     buildSingleModelTranslatedRequestParts: async parts => parts,
-    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/gif' }] }; },
-    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/gif', size: 5 }),
-    getStoredImageDataUrl: async () => '',
+    generateImage: async value => { generated.push(value); return { images: [] }; },
+    saveImageAsset: async (image) => { saved.push(image); return { id: 'new', storageKey: 'new-key', mediaType: image.mediaType, size: 5 }; },
+    getStoredImageDataUrl: async (descriptor) => (descriptor.id === 'gif-1' ? 'data:image/gif;base64,R0lGODlh' : ''),
     getApiKey: () => 'key',
-    getText: (_key, fallback) => fallback
+    getText: (_key, fallback) => fallback,
+    editGifFrames: async (input) => { calls.push(input); return { images: [{ b64Json: 'R0lGODlh', mediaType: 'image/gif', aspectRatio: '1:1' }] }; }
   });
-  const frame = (index, extra = {}) => ({ inlineData: { mimeType: 'image/png', data: `F${index}`, targetedEdit: { index, count: 9, delayMs: 120 }, ...extra } });
-  const run = (modelInfo, advanced = {}) => lifecycle.run({
-    targetElement: { innerHTML: '' }, userParts: [{ text: 'make the eyes bigger' }, frame(2), frame(5), frame(6)], modelInfo,
-    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', n: 3, ...advanced } }
-  });
-  const gpt = { id: 'gpt-image-2.6-flare', provider: 'openai', maxImageCount: 10, maxImageReferences: 16, supportedImageFormats: ['png', 'jpeg', 'webp', 'gif', 'svg'], supportedImageOptions: ['quality', 'frameCount', 'frameDuration'] };
-  await run(gpt);
-  const request = requests.at(-1);
-  assert.deepEqual([request.config.outputFormat, request.config.frameCount, request.config.frameDuration, request.config.n], ['gif', 9, 120, 1]);
-  assert.deepEqual(request.inputReferences, ['data:image/png;base64,F2', 'data:image/png;base64,F5', 'data:image/png;base64,F6'], 'the marked frames, in their order');
-  assert.match(request.prompt, /frames 3, 6, 7 of an animation of 9 frames/);
-  assert.match(request.prompt, /colored hand-drawn marks/);
-  // a model that makes no GIF: the pictures are marked pictures like any other
-  await run({ id: 'flux', provider: 'openrouter', maxImageCount: 1, maxImageReferences: 10 });
-  assert.equal(requests.at(-1).config.outputFormat, 'png');
-  assert.doesNotMatch(requests.at(-1).prompt, /animation of 9 frames/);
-  // OpenRouter makes no GIF from a picture: nothing is sent, and it says why
-  const sent = requests.length;
-  await assert.rejects(run({ ...gpt, id: 'openai/gpt-image-2.6-flare', provider: 'openrouter' }), /OpenRouter cannot make a GIF from a picture/);
-  assert.equal(requests.length, sent);
+  const frame = (index) => ({ inlineData: { mimeType: 'image/png', data: `F${index}`, targetedEdit: { index, count: 9, source: 'gif-1' } } });
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png' }, messages: [{ role: 'model', parts: [{ generatedImage: gifDescriptor }] }] };
+  const run = (modelInfo, extra = {}) => lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'remove the waves' }, frame(2), frame(5)], modelInfo, conversation: { ...conversation, ...extra } });
+  // OpenAI and OpenRouter alike: the frames are edited as pictures, whatever the model makes
+  for (const model of [{ id: 'gpt-image-2.6-flare', provider: 'openai', maxImageReferences: 16 }, { id: 'black-forest-labs/flux-3-image', provider: 'openrouter', maxImageReferences: 10 }]) {
+    const result = await run(model);
+    const input = calls.at(-1);
+    assert.deepEqual(input.edits.map(edit => [edit.index, edit.count, edit.source, edit.dataUrl]), [[2, 9, 'gif-1', 'data:image/png;base64,F2'], [5, 9, 'gif-1', 'data:image/png;base64,F5']]);
+    assert.equal(input.gifDataUrl, 'data:image/gif;base64,R0lGODlh');
+    assert.match(input.prompt, /^remove the waves\n\nThe colored hand-drawn marks/);
+    assert.equal(input.apiKey, 'key');
+    assert.equal(result.parts.length, 1);
+    assert.equal(saved.at(-1).mediaType, 'image/gif');
+  }
+  assert.equal(generated.length, 0, 'the lifecycle itself asks nothing of the model: the frames are asked for in gif-frame-edit.js');
+  // The GIF is gone from the conversation: the editor of frames is told there is nothing to put them back in
+  await run({ id: 'm', provider: 'openai' }, { messages: [] });
+  assert.equal(calls.at(-1).gifDataUrl, '');
 });

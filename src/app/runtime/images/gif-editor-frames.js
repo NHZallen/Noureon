@@ -23,9 +23,3 @@ export async function loadGifFrames({ document, dataUrl }) {
     return null;
   }
 }
-
-/** The time a frame stays when the animation is made again: the mean of the frames (a frame of 10 ms or less is shown as 100 by the browsers, so it counts as 100), to 10 ms, between the 20 and the 2000 that the picture models take. */
-export function meanFrameDelay(frames) {
-  const total = frames.reduce((sum, frame) => sum + (Number(frame.delayMs) > 10 ? Number(frame.delayMs) : 100), 0);
-  return Math.min(2000, Math.max(20, Math.round(total / Math.max(1, frames.length) / 10) * 10));
-}

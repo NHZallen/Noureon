@@ -58,7 +58,9 @@ export function createImageGenerationResponseLifecycle({
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null,
   getText = (_key, fallback) => fallback,
-  showNotification = () => {}
+  showNotification = () => {},
+  // Edits frames of a GIF (gif-frame-edit.js, loaded when it is needed); the tests give their own.
+  editGifFrames = null
 }) {
   // A picture the server makes: followed until it is over, then given back as one made here ({ parts, descriptors }). A stop (the page's
   // `signal`) is told to the server; a picture that came to nothing because of it ends like any stopped reply.
@@ -166,18 +168,13 @@ export function createImageGenerationResponseLifecycle({
     // The count and the shape are sent as parameters; the picture model must not take the words that ask for them for something to draw (two pictures as two panels of one).
     const spokenInstruction = spoken.collage ? COLLAGE_INSTRUCTION : spoken.count > 1 ? SEVERAL_INSTRUCTION : spoken.aspectRatio ? SHAPE_INSTRUCTION : '';
     const formatInstruction = spoken.format === 'gif' ? GIF_INSTRUCTION : spoken.format === 'svg' ? SVG_INSTRUCTION : '';
-    let prompt = [editedPrompt, spokenInstruction, formatInstruction].filter(Boolean).join('\n\n');
-    // The frames of a GIF that were marked in the editor (editor of a picture: generated-image-interactions.js): which of how many they are, and the time the animation gave each.
-    const animation = requestParts.map(part => part.inlineData?.targetedEdit).filter(frame => frame?.count);
+    const prompt = [editedPrompt, spokenInstruction, formatInstruction].filter(Boolean).join('\n\n');
 
     // The format: the one saved, when this model makes it (a GIF saved with GPT Image must not go to a model that makes none); else a png (or the first the model lists).
     const modelFormats = supportedFormatsOf(modelInfo);
     const savedFormat = conversation.imageAdvancedConfig?.outputFormat;
     // What was said ("make a GIF", "as an SVG") wins for this message; the setting is not changed.
-    const outputFormat = svgByTextModel ? 'svg' : animation.length && modelFormats.includes('gif') ? 'gif' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
-    if (animation.length && outputFormat === 'gif') {
-      prompt = `${prompt}\n\nThe attached pictures are frames ${animation.map(frame => frame.index + 1).join(', ')} of an animation of ${animation[0].count} frames, in that order. Apply the marked changes to those frames and make the whole animation again as a GIF of ${animation[0].count} frames with the same motion, the changes carried through the frames that follow them where they belong.`;
-    }
+    const outputFormat = svgByTextModel ? 'svg' : spoken.format || (!savedFormat ? '' : modelFormats.includes(savedFormat) ? savedFormat : 'png');
     // Pictures the person attached go with any format (a picture can be made into a GIF or an SVG), except a GIF on OpenRouter (it answers a PNG sheet of the frames: the probe of 2026-11-06). The earlier picture that goes
     // along as the one to build on, when none is attached, does not go with an SVG (the endpoint that edits does not make one) or with a GIF on OpenRouter, so they would only fail.
     let inputReferences = getInlineReferences(requestParts);
@@ -261,12 +258,6 @@ export function createImageGenerationResponseLifecycle({
     for (const key of ['quality', 'background', 'outputCompression', 'frameCount', 'frameDuration']) {
       if (!modelInfo.supportedImageOptions?.includes(key)) delete generationRequest.config[key];
     }
-    // The animation of the frames that were marked: its number of frames and the time of one (what was said in words wins over them, below).
-    if (animation.length && outputFormat === 'gif') {
-      generationRequest.config.n = 1;
-      if (modelInfo.supportedImageOptions?.includes('frameCount')) generationRequest.config.frameCount = animation[0].count;
-      if (modelInfo.supportedImageOptions?.includes('frameDuration')) generationRequest.config.frameDuration = animation[0].delayMs;
-    }
     // The frames and their time that were said win for this message (the format settles whether they are used).
     if (spoken.frameCount && modelInfo.supportedImageOptions?.includes('frameCount')) generationRequest.config.frameCount = spoken.frameCount;
     if (spoken.frameDuration && modelInfo.supportedImageOptions?.includes('frameDuration')) generationRequest.config.frameDuration = spoken.frameDuration;
@@ -286,6 +277,16 @@ export function createImageGenerationResponseLifecycle({
       generationRequest.config.reasoningEffort = reasoningEffort;
     }
     if (!generationRequest.apiKey) throw new Error(modelInfo.provider === 'openai' ? getText('imageKeyRequiredOpenAI', 'Enter your OpenAI API key in Settings first.') : getText('imageKeyRequired', 'Enter your OpenRouter API key in Settings first.'));
+    // Frames of a GIF that were marked in the editor: each goes to the model on its own and the edited frame is put back in the GIF (here, in the page: the GIF is written again from the frames).
+    const frameEdits = requestParts.filter(part => part.inlineData?.targetedEdit?.count).map(part => ({ ...part.inlineData.targetedEdit, dataUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` }));
+    if (frameEdits.length) {
+      const source = (conversation.messages || []).flatMap(message => message.parts || []).map(part => part.generatedImage).find(picture => picture?.id === frameEdits[0].source);
+      const gifDataUrl = source ? await getStoredImageDataUrl(source) : '';
+      const edit = editGifFrames || (await import('./gif-frame-edit.js')).editGifFrames;
+      const edited = await edit({ edits: frameEdits, gifDataUrl, prompt: editedPrompt, modelInfo, apiKey: generationRequest.apiKey, generateImage, signal, getText });
+      const savedFrames = await Promise.all(edited.images.map(image => saveImageAsset({ ...image, title: spokenMessage })));
+      return { parts: savedFrames.map(generatedImage => ({ generatedImage })), descriptors: savedFrames };
+    }
     // The server makes the picture when it can (the setting, the account and the kind of chat allow it, and it takes it): the page then only
     // follows it, and a page that is closed meanwhile finds it done. Otherwise it is made here, as always.
     if (serverReply && assistantMessageId && serverReply.planImage({ conversation }).ok) {

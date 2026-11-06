@@ -62,8 +62,8 @@ export function createGeneratedImageRuntimeLoader({
                             type: 'image/png',
                             size: dataUrlToBlob(entry.dataUrl)?.size || 0,
                             base64: entry.dataUrl,
-                            // true for a picture; for a frame of a GIF, which frame of how many and the time of one
-                            targetedEdit: entry.count ? { index: entry.index, count: entry.count, delayMs: entry.delayMs } : true
+                            // true for a picture; for a frame of a GIF, which frame of how many, and which GIF it came from
+                            targetedEdit: entry.count ? { index: entry.index, count: entry.count, source: entry.source } : true
                         })));
                         renderFilePreviews();
                         focusMessageInput();
