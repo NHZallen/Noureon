@@ -1,0 +1,11 @@
+/* The speed button of a GIF and its menu (images/gif-speed.js): loaded the first time a GIF card or a preview of one is shown, not with the page. */
+/* The speed button of a GIF (gif-speed.js): a chip like the buttons of the card (Edit, Download), in the top-right corner of the card and of the preview, with a menu of speeds. */
+.gif-speed-btn { position: absolute; top: 0.75rem; right: 0.75rem; z-index: 3; display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0.45rem 0.8rem; border: 0; border-radius: 999px; color: var(--on-color); background: var(--media-chip-bg); font-size: 0.9375rem; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.gif-speed-btn:hover { background: var(--media-chip-bg-hover); }
+.media-lightbox-stage { position: relative; }
+.gif-speed-menu { position: fixed; z-index: 100000; display: flex; flex-direction: column; min-width: 8.5rem; padding: 0.35rem; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg); box-shadow: var(--shadow-lg); }
+.gif-speed-menu button { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.5rem; padding: 0 0.75rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-primary); font-size: 0.9375rem; font-weight: 400; font-variant-numeric: tabular-nums; text-align: left; cursor: pointer; }
+.gif-speed-menu button:hover { background: var(--hover-bg); }
+.gif-speed-menu button svg { color: inherit; visibility: hidden; }
+.gif-speed-menu button[aria-checked="true"] svg { visibility: visible; }
+.gif-speed-menu button[aria-checked="true"] { font-weight: 500; }

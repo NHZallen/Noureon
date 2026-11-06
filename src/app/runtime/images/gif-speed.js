@@ -4,6 +4,10 @@
 
 import { dataUrlToBlob } from './picture-blob.js';
 
+// The style of the button and of the menu loads with the first of them (it stays unloaded where the page cannot load a stylesheet, as in the tests).
+let stylesLoaded = null;
+const ensureStyles = () => (stylesLoaded ||= import('../../../styles/gif-speed.css').catch(() => {}));
+
 export const SPEEDS = Object.freeze([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]);
 export const speedLabel = (speed) => `${speed}×`;
 
@@ -21,6 +25,7 @@ export function openSpeedMenu({ document, anchor, current = 1, label = '', onPic
   menu.setAttribute('role', 'menu');
   if (label) menu.setAttribute('aria-label', label);
   menu.innerHTML = SPEEDS.map((speed) => `<button type="button" role="menuitemradio" aria-checked="${speed === current}" data-speed="${speed}"><span>${speedLabel(speed)}</span><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></button>`).join('');
+  void ensureStyles();
   document.body.appendChild(menu);
   const box = anchor.getBoundingClientRect();
   const view = document.defaultView;
@@ -55,6 +60,7 @@ export function openSpeedMenu({ document, anchor, current = 1, label = '', onPic
  * GIF written at the speed chosen (null at 1×: the original), so that a download or a share can use it. Returns the button.
  */
 export function attachGifSpeed({ document, host, image, getSource, label, onRetimed = () => {} }) {
+  void ensureStyles();
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'gif-speed-btn';

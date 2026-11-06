@@ -37,6 +37,23 @@ export function extractSvg(text) {
   return start >= 0 && end > start ? value.slice(start, end + 6).trim() : '';
 }
 
+/**
+ * The SVG with a size of its own when it has none. A drawing with only a `viewBox` has no size that a browser can give to an <img>: on a card whose width follows its picture it came to 0 by 0 and the
+ * reply showed nothing (seen on staging with an NVIDIA model, 2026-11-06). The longer side is made 512 pixels, the shape is the viewBox's; a drawing with no viewBox gets 1024 by 1024 (the canvas the model is told).
+ */
+export function withIntrinsicSize(svg) {
+  const open = /<svg\b[^>]*>/i.exec(svg);
+  if (!open) return svg;
+  const tag = open[0];
+  if (/\swidth\s*=/i.test(tag) || /\sheight\s*=/i.test(tag)) return svg;
+  const box = /\sviewBox\s*=\s*["']\s*[-\d.eE]+[\s,]+[-\d.eE]+[\s,]+([\d.eE]+)[\s,]+([\d.eE]+)\s*["']/i.exec(tag);
+  const [wide, high] = box ? [Number(box[1]), Number(box[2])] : [1024, 1024];
+  const scale = wide > 0 && high > 0 ? 512 / Math.max(wide, high) : 0;
+  const size = scale ? ` width="${Math.round(wide * scale)}" height="${Math.round(high * scale)}"` : ' width="512" height="512"';
+  const sized = tag.replace(/<svg\b/i, `<svg${size}${box ? '' : ' viewBox="0 0 1024 1024"'}`);
+  return svg.replace(tag, sized);
+}
+
 const toBase64 = (text) => {
   const bytes = new TextEncoder().encode(text);
   let binary = '';
@@ -80,7 +97,7 @@ export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...a
       const answer = await askText({ provider, model, modelInfo, signal, parts: [{ text: `${SVG_WRITER_INSTRUCTION}\n\n${text}` }, ...inputReferences.map(dataUrlPart).filter(Boolean)] });
       const written = extractSvg(answer);
       if (!written) throw new Error('The model did not write an SVG.');
-      return { images: [{ b64Json: toBase64(written), mediaType: 'image/svg+xml' }] };
+      return { images: [{ b64Json: toBase64(withIntrinsicSize(written)), mediaType: 'image/svg+xml' }] };
     }
     let response;
     if (provider === 'openai') {
@@ -117,7 +134,7 @@ export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...a
     const body = await response.json();
     const svg = extractSvg(provider === 'openai' ? responsesText(body) : chatText(body));
     if (!svg) throw new Error('The model did not write an SVG.');
-    return { images: [{ b64Json: toBase64(svg), mediaType: 'image/svg+xml' }] };
+    return { images: [{ b64Json: toBase64(withIntrinsicSize(svg)), mediaType: 'image/svg+xml' }] };
   };
   // As many SVGs as asked (a text model writes text: one request each, made together, each told which of how many it is so that they are not the same).
   return async function writeSvg(request) {

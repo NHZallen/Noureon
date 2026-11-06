@@ -11,6 +11,8 @@ import { buildDecisionRequest, parseDecisionResponse } from '../src/app/runtime/
 // An SVG written by a text model (images/svg-writer.js): for GPT Image 2.6 on OpenRouter, for a picture to start from, and for a text model asked in a chat.
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>';
+// What the writer gives back: the same drawing with the size it was missing (withIntrinsicSize).
+const SIZED = '<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const PICTURE = 'data:image/png;base64,QUJD';
 const decode = (image) => Buffer.from(image.b64Json, 'base64').toString('utf8');
@@ -50,14 +52,14 @@ test('OpenAI is asked through the Responses API with the pictures; OpenRouter th
   assert.equal(sent[0].body.safety_identifier, 'hash');
   assert.deepEqual(sent[0].body.input[0].content[1], { type: 'input_image', image_url: PICTURE });
   assert.match(sent[0].body.input[0].content[0].text, /redraw this\n\nThe canvas is 1024 by 1024/);
-  assert.deepEqual(openai.images.map((image) => [image.mediaType, decode(image)]), [['image/svg+xml', SVG]]);
+  assert.deepEqual(openai.images.map((image) => [image.mediaType, decode(image)]), [['image/svg+xml', SIZED]]);
 
   const router = await write({ provider: 'openrouter', apiKey: 'k2', model: 'openai/gpt-6-luna', prompt: 'a fox', config: { svgWriter: true, reasoningEffort: 'low' } });
   assert.equal(sent[1].url, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(sent[1].body.messages[0].role, 'system');
   assert.deepEqual(sent[1].body.messages[1].content, [{ type: 'text', text: 'a fox' }]);
   assert.deepEqual(sent[1].body.reasoning, { effort: 'low' }, 'the depth of thinking of the chat model goes along');
-  assert.equal(decode(router.images[0]), SVG);
+  assert.equal(decode(router.images[0]), SIZED);
 
   await write({ provider: 'openrouter', apiKey: 'k2', model: 'm', prompt: 'p', config: { reasoningEffort: 'low' }, inputReferences: [PICTURE] });
   assert.ok(!('reasoning' in sent[2].body), 'the depth of a picture model is not the depth of the writer');
@@ -160,7 +162,7 @@ test('a text model of any other provider writes the SVG through the app\'s own r
   const modelInfo = { id: 'glm', provider: 'opencode-go' };
   const result = await writer({ provider: 'opencode-go', apiKey: 'k', model: 'glm', modelInfo, prompt: 'a fox logo', config: { svgWriter: true, n: 2 }, inputReferences: [PICTURE] });
   assert.equal(result.images.length, 2);
-  assert.equal(decode(result.images[0]), SVG);
+  assert.equal(decode(result.images[0]), SIZED);
   assert.equal(calls.length, 2);
   assert.equal(calls[0].options.modelInfo, modelInfo);
   assert.match(calls[0].parts[0].text, /^You draw vector graphics/);
@@ -178,4 +180,18 @@ test('the picture generator sends a text model of the chat to its own provider a
   const generate = createImageGenerator({ fetchImpl: async () => json({ choices: [{ message: { content: SVG } }] }), askText: async (request) => { asked.push(request.provider); return SVG; } });
   await generate({ provider: 'gemini', apiKey: 'k', model: 'gemini-x', modelInfo: { id: 'gemini-x', provider: 'gemini' }, prompt: 'p', config: { outputFormat: 'svg', svgWriter: true }, inputReferences: [] });
   assert.deepEqual(asked, ['gemini']);
+});
+
+test('a drawing with only a viewBox gets a size of its own (a card as wide as its picture showed it 0 by 0)', async () => {
+  const { withIntrinsicSize } = await import('../src/app/runtime/images/svg-writer.js');
+  assert.match(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><g/></svg>'), /^<svg width="512" height="307" xmlns=/);
+  assert.match(withIntrinsicSize('<svg viewBox="0 0 24 48"></svg>'), /width="256" height="512"/);
+  assert.match(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>'), /width="512" height="512" viewBox="0 0 1024 1024"/);
+  const sized = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 8 8"/>';
+  assert.equal(withIntrinsicSize(sized), sized, 'a size of its own is kept');
+  assert.equal(withIntrinsicSize('<svg width="10" viewBox="0 0 1 1"/>'), '<svg width="10" viewBox="0 0 1 1"/>');
+  assert.equal(withIntrinsicSize('not a drawing'), 'not a drawing');
+  const writer = createSvgWriter({ fetchImpl: async () => json({ choices: [{ message: { content: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>' } }] }) });
+  const result = await writer({ provider: 'openrouter', apiKey: 'k', model: 'm', prompt: 'p', config: {} });
+  assert.match(decode(result.images[0]), /width="512" height="512"/);
 });

@@ -93,7 +93,7 @@ export function buildMessageRenderView({
         const generatedImageCards = assets.map((asset) => {
             const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
             return `
-            <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
+            <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}${asset.mediaType === 'image/svg+xml' ? ' is-svg' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
                 <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${escapeHTML(labels.imagePreview || '')}">
                     <img data-generated-image-id="${asset.id}" alt="${escapeHTML(labels.imageAlt || '')}" loading="lazy">
                 </button>

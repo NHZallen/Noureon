@@ -49,6 +49,7 @@
     height: auto;
 }
 
+
 .generated-image-card.has-natural-aspect {
     aspect-ratio: auto !important;
 }
