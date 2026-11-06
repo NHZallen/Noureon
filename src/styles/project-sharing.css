@@ -86,11 +86,12 @@
 .psh-crumb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; line-height: 1.5rem; }
 .psh-crumb-sub { font-size: 0.75rem; line-height: 1rem; color: var(--text-secondary); }
 
-/* The panel at the right of someone else's chat: the questions of the conversation. */
+/* The panel at the right of someone else's chat: the app's own side panel (Timeline | Sources), drawn with its classes (styles/citations.css); this is only where it sits. */
 .psh-viewer { position: relative; overflow: hidden; }
-.psh-side-scrim { position: absolute; inset: 0; z-index: 2; background: var(--scrim); }
-.psh-side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(20rem, 86%); display: grid; align-content: start; gap: 0.15rem; padding: max(1rem, env(safe-area-inset-top, 0px)) 0.75rem 1rem; overflow-y: auto; background: var(--modal-bg); border-left: 1px solid var(--border-color); }
-.psh-side-title { margin: 0 0 0.5rem; padding: 0 0.5rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
-.psh-side-item { padding: 0.6rem 0.5rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-primary); text-align: left; font-size: var(--pj-body, 0.9375rem); }
-.psh-side-item:hover { background: var(--hover-bg); }
-.psh-side[hidden], .psh-side-scrim[hidden] { display: none; }
+.psh-history-scrim { position: absolute; inset: 0; z-index: 2; background: color-mix(in srgb, var(--chat-bg) 38%, transparent); opacity: 0; visibility: hidden; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.3s; }
+.psh-history-scrim.visible { opacity: 1; visibility: visible; transition-delay: 0s; }
+.psh-history { position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-direction: column; width: min(18rem, 100%); background: var(--sidebar-bg); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-lg, none); transform: translateX(100%); visibility: hidden; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.3s; }
+.psh-history.visible { transform: translateX(0); visibility: visible; transition-delay: 0s; }
+.psh-history-list, .psh-history-sources { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+@media (min-width: 768px) { .psh-history { width: min(25rem, 100%); } }
+@media (prefers-reduced-motion: reduce) { .psh-history, .psh-history-scrim { transition: none; } }

@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 import { startProjects } from '../src/app/runtime/projects/start-projects.js';
+import { setSharedProjectHook } from '../src/app/runtime/projects/project-actions.js';
 import i18nParts from '../src/data/i18n/parts/projects.js';
 
 // Starting the projects for the page: the entry of the left menu (in the language of the page, below the Extensions, drawn again when the language changes), the page that is loaded when it is
@@ -11,14 +12,14 @@ import i18nParts from '../src/data/i18n/parts/projects.js';
 const i18n = { 'zh-TW': i18nParts['zh-TW'], en: i18nParts.en, fr: i18nParts.fr };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions = true, staticEntry = false, load = null, phone = false } = {}) => {
+const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions = true, staticEntry = false, load = null, phone = false, currentId = null, conversations = [] } = {}) => {
   const window = new Window({ url });
   const { document } = window;
   window.matchMedia = (query) => ({ matches: phone && /max-width: 767px/.test(query), media: query, addEventListener() {}, removeEventListener() {} });
   document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${staticEntry ? '<button id="open-projects-btn" class="sidebar-item"><span class="cli-sidebar-label">專案</span></button>' : ''}${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest"><button id="a-chat" data-chat-id="c9">history</button></div><div id="history-list"><div class="sidebar-item" data-id="h1"><span class="title">An old chat</span><button class="chat-options-btn">⋯</button></div></div></div><button id="settings-btn">Settings</button></aside><div id="sidebar-overlay"></div><button id="menu-toggle-btn"></button>`;
   const config = { language };
   const opened = [];
-  const state = { folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }], conversations: [] };
+  const state = { folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }], conversations };
   const started = startProjects({
     document,
     configAccess: { getUiLanguage: () => config.language },
@@ -26,7 +27,7 @@ const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions 
     i18n,
     getDefaultFolder: () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false }),
     saveAppData: async () => {}, renderSidebar: () => {}, deleteFolderFromCloud: async () => {}, deferConversationFolderSync: () => {},
-    startNewChat: async () => {}, loadChat: () => {}, archiveChat: async () => {}, deleteChat: async () => {}, getCurrentConversationId: () => null,
+    startNewChat: async () => {}, loadChat: () => {}, archiveChat: async () => {}, deleteChat: async () => {}, getCurrentConversationId: () => currentId,
     load: load || (async () => ({ openProjectsPage: (args) => { opened.push(args.route); return { go: (route) => opened.push(['go', route]) }; } }))
   });
   return { window, document, config, opened, state, started, $: (selector) => document.querySelector(selector) };
@@ -175,5 +176,18 @@ test('with the rail of a computer the page neither brings the menu nor shuts it:
   assert.equal(args.backOut(), false);
   args.openChat('c1');
   assert.equal(toggles, 0);
+  await t.window.happyDOM.abort();
+});
+
+test('a chat made in a project that someone else shares has the head of the project, as a chat of a project of the person’s own has: the arrow back, the icon and name, "Chat" under it', async () => {
+  setSharedProjectHook({ has: (id) => id === 'sp1', folderOf: (id) => (id === 'sp1' ? { id: 'sp1', name: 'City plan', icon: 'book', color: 'blue', shared: true, sources: [] } : null), chatsOf: () => [], countOf: () => 0 });
+  const t = setup({ currentId: 'c1', conversations: [{ id: 'c1', title: 'Mine', sharedProject: { id: 'sp1', ownerId: 'o' }, messages: [] }] });
+  t.document.body.insertAdjacentHTML('beforeend', '<div id="chat-workspace"><header><div></div></header></div>');
+  t.document.dispatchEvent(new t.window.CustomEvent('noureon:chat-changed'));
+  await tick(); await tick();
+  assert.equal(t.$('#project-head-title .pj-head-name').textContent, 'City plan');
+  assert.ok(t.$('#project-head-back'));
+  assert.ok(t.$('#chat-workspace > header').classList.contains('pj-in-project'));
+  setSharedProjectHook(null);
   await t.window.happyDOM.abort();
 });

@@ -531,3 +531,32 @@ test('a chat that is only a line kept from the last time is read as it is now, a
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.ok(next.root.querySelector('.psh-viewer'), 'the chat is open');
 });
+
+test('the button of the people in the head of a project is kept: a new head has it at once, an answer that says the same people draws nothing, and there is one live channel for the project', async () => {
+  let calls = 0;
+  const members = [{ user_id: 'o', name: 'Ada', avatar_version: 0 }, { user_id: ME, name: 'Me', avatar_version: 0 }];
+  const env = setup({ client: { members: async () => { calls += 1; return { ok: true, data: { members } }; } } });
+  const send = (slot) => env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-members-slot', { detail: { projectId: PROJECT, slot, root: env.root } }));
+  const slot = env.document.createElement('span');
+  env.root.appendChild(slot);
+  send(slot);
+  await tick(); await tick();
+  const button = slot.querySelector('.psh-stack');
+  assert.ok(button, 'the button is drawn');
+  // the same people asked again (the database pinged about the project): the same button stays
+  env.rt.ping(null);
+  await tick(); await tick();
+  assert.ok(calls >= 2);
+  assert.equal(slot.querySelector('.psh-stack'), button, 'nothing is drawn again for the same people');
+  // the head is drawn again (a new box): the button is there before anything is asked
+  const next = env.document.createElement('span');
+  env.root.appendChild(next);
+  send(next);
+  assert.ok(next.querySelector('.psh-stack'), 'at once');
+  assert.equal(env.rt.calls.removed, 1, 'the channel of the head before is left');
+  // somebody joined: it is drawn again
+  members.push({ user_id: 'x', name: 'Bo', avatar_version: 0 });
+  env.rt.ping(null);
+  await tick(); await tick();
+  assert.equal(next.querySelector('.psh-stack-count').textContent, '3');
+});

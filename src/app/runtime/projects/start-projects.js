@@ -224,12 +224,15 @@ export function startProjects({
   // A chat that belongs to a project says so, under its header (ui/projects/project-crumb.js), and its empty box says "Message <project>".
   const projectOfActiveChat = () => {
     const conversation = dataStore.getConversations().find((entry) => entry.id === getCurrentConversationId());
-    return conversation?.folderId ? actions.folderOf(conversation.folderId) : null;
+    // (A chat made in a project that someone else shares is in no folder of the person: it is in the project by its mark.)
+    const id = conversation?.folderId || conversation?.sharedProject?.id || '';
+    return id ? actions.folderOf(id) : null;
   };
   void import('../../../styles/project-crumb.css').catch(() => {});
   createProjectCrumb({ document, text, getProject: projectOfActiveChat, openProject: (id) => { void open({ id }); } });
   setProjectPlaceholder((conversation) => {
-    const project = conversation?.folderId ? actions.folderOf(conversation.folderId) : null;
+    const projectId = conversation?.folderId || conversation?.sharedProject?.id || '';
+    const project = projectId ? actions.folderOf(projectId) : null;
     if (!project) return null;
     const name = String(project.name || '');
     return text('pjComposer', { name: name.length > 16 ? `${name.slice(0, 15)}…` : name });

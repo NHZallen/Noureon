@@ -331,3 +331,20 @@ Allen 的回報：被共享者的專案首頁顯示「對話 0」（應該 4）�
 - **邀請（成員）頁**：右上角的「完成」改成左上角的返回箭頭，與專案頁一致。
 - **右側面板一直顯示**：18.11 的 `.psh-side` 設了 `display: grid`，蓋掉瀏覽器對 `hidden` 屬性的預設（測試只看屬性，看不出來）；補上 `.psh-side[hidden] { display: none }`。
 - **已知限制**：快取存在 localStorage，同一個瀏覽器換帳號時另一個帳號的快取不會被畫（以帳號比對），但專案清單（`noureon:shared-project-folders`）本來就不分帳號，這次沒動。
+
+### 18.13 被共享者的雲端同步一直沒啟用（根因）與右上角頭像閃爍（2026-11-07，已在 `staging`，migration `20261106110000_stop_rewriting_conversation_metadata.sql` 待 Allen 套用）
+
+Allen 要求查後台為什麼被共享者還是沒同步，以及專案右上角的小頭像還是閃。
+
+- **查法**（Supabase 唯讀：API 記錄、資料表）：被共享者那支手機載入頁面時，沒有任何專案函式，也沒有 `list_my_conversation_shares`、記憶向量等「雲端已啟用才會做」的呼叫；擁有者的手機有。載入時只有一組固定的 `fetch_workspace_delta` → `upsert_workspace_conversations` → `GET workspace_conversations` 反覆出現，而且資料庫裡被共享者兩個對話的 `updated_at` 每次載入都被重寫。也就是雲端同步的啟動（`initialize`）每次都失敗，狀態停在 `retry`、`enabled: false`，所有要雲端的功能（共享專案、分享、記憶）都被擋住。
+- **根因**：sync 上傳對話後會把資料庫的列讀回來，逐欄與本機比對（`verify`，含 `metadata`），不一樣就當作同步失敗。`20261106090000` 的連結觸發器在頁面送來空的 `sharedProject.ownerId` 時，會把擁有者寫進 `metadata`（`20261106070000` 也會在對話被移出專案時把 `sharedProject` 從 `metadata` 拿掉）。被共享者本機那段對話的 `ownerId` 是空的（舊版頁面造成），每次上傳都被觸發器改掉，讀回來就不一樣，驗證失敗，同步永遠不啟用，而且本機版本一直比較新，所以不會自己好。
+- **修法**：`20261106110000` 讓觸發器完全不改 `metadata`，只決定 `shared_project_id` 與 `shared_project_owner` 兩欄（專案讀的是這兩欄；`metadata` 是頁面的）。已被改過的列不用另外修：下次上傳會把頁面的版本寫回去，驗證就一致，同步啟用，專案資料跟著讀到。DB 測試改成確認 `metadata` 原樣保留。
+- **要記住**：以後資料庫端的觸發器、函式不可以改寫 sync 會比對的欄位（`CONVERSATION_COLUMNS`、`FOLDER_COLUMNS`、`MESSAGE_COLUMNS`：`metadata`、`title`、`folder_id` 等），否則該帳號的雲端同步會停在 `retry`。
+- **右上角成員頭像閃爍**：後台記錄 20 秒內 28 次 `list_project_members`。原因是每次整頁重畫都重新要一次成員、每次都把按鈕整個重建（頭像先顯示字母，再換成圖，Google 照片還要重新載入）。現在把按鈕記在頁面裡：新的頭部馬上複製上次的按鈕（圖已載入）；新答案如果是同樣的人就什麼都不畫；一個專案只留一條即時頻道（新頭部出現就收掉舊的）；同時進行的詢問合併成一次。
+
+### 18.14 別人對話頁的側邊欄用一般側邊欄、專案內自己的對話用專案頂列（2026-11-07，已在 `staging`，不需要新的 migration）
+
+Allen 的要求：別人對話頁右上角的側邊欄要像淺色那張，就是一般的側邊欄，不要另外自訂樣式；專案最上方（頂列）要統一成深色那張（返回箭頭、中間專案圖示與名稱加「對話」、右邊側邊欄鈕）。
+
+- **側邊欄**：18.11 我做了自己樣式的面板（`.psh-side`），已拿掉。現在 `project-conversation-viewer.js` 用與 `#history-sidebar` 一樣的標記與 class：標頭有「時間線／來源」分頁（來源有數量）、右邊關閉叉叉；時間線每一則訊息一個點（你／Noureon、內容開頭，用 `timelineSnippet`）；來源用同一個 `latestSources` 與 `fillSourceList`。樣式不重寫：`styles/citations.css` 裡時間線的規則（原本只認 `#history-sidebar #history-sidebar-list`）多認 `.psh-history .psh-history-list`，標頭、分頁、關閉鈕本來就是 class。`project-sharing.css` 只管位置（從右邊滑入、淡出的遮罩、寬度與一般側邊欄相同）。點時間線的一項會捲到那則並短暫標亮，然後收起。
+- **頂列**：專案頂列（`project-crumb.js`）原本只看 `conversation.folderId`，所以「別人分享給你的專案」裡自己的對話（沒有 `folderId`，只有 `sharedProject` 標記）還是一般頂列（左側選單鈕、新對話鈕）。現在也看 `sharedProject.id`（輸入框的「傳訊息給 <專案>」也是）。

@@ -215,7 +215,9 @@ test('a member who is taken out gets what they made in the project back as plain
   // the page writes the conversation back with the old metadata: it stays a plain conversation
   await callWith(B, 'upsert_workspace_conversations', [{ id: mine, title: 'Changed', model: 'm', provider: 'p', created_at: now(), metadata: { sharedProject: { id: projectId, ownerId: ada } } }]);
   assert.deepEqual(await linkOf(mine), { shared_project_id: null, shared_project_owner: null });
-  assert.equal((await database.service.query('select title, deleted_at is null as alive, metadata ? \'sharedProject\' as marked from public.workspace_conversations where id = $1', [mine]))[0].title, 'Changed');
+  const kept = (await database.service.query('select title, deleted_at is null as alive, metadata ? \'sharedProject\' as marked from public.workspace_conversations where id = $1', [mine]))[0];
+  assert.equal(kept.title, 'Changed');
+  assert.equal(kept.marked, true, 'the metadata is what the page sent; only the columns say that it is out of the project');
   assert.deepEqual((await rpc(B, 'list_my_project_exits')).map((item) => item.conversation_id), [mine]);
   // a new conversation cannot be linked any more
   const later = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
@@ -645,7 +647,8 @@ test('a conversation made in a shared project by a page that did not know the ow
   const projectId = await withMembers();
   const blank = await conversationIn(B, { sharedProject: { id: projectId, ownerId: '' }, title: 'Blank owner' });
   assert.deepEqual(await linkOf(blank), { shared_project_id: projectId, shared_project_owner: ada });
-  assert.equal((await rowOf(blank)).metadata.sharedProject.ownerId, ada);
+  // (the metadata is the page's: what it sent is what is kept, or the sync, which reads a conversation back and compares it, would call the cloud a failed copy)
+  assert.equal((await rowOf(blank)).metadata.sharedProject.ownerId, '');
   const missing = await conversationIn(B, { sharedProject: { id: projectId }, title: 'No owner' });
   assert.deepEqual(await linkOf(missing), { shared_project_id: projectId, shared_project_owner: ada });
   const stranger = await conversationIn(database.asUser(await database.createUser(`dan-${id()}@example.test`)), { sharedProject: { id: projectId, ownerId: '' } });

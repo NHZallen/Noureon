@@ -565,20 +565,43 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   document.addEventListener(SHARED_EVENT, (event) => { if (event.detail) void drawSharedList({ box: event.detail.box || null, root: event.detail.root || null, go: event.detail.go || null, done: event.detail.done || null }); });
   // The head of a shared project shows its people (the box comes from the page of the project); the pictures are read from the bucket once for each version.
   const MEMBERS_SLOT_EVENT = 'noureon:project-members-slot';
+  // The page of a project is drawn again whenever something of it changes, and each time it asks for its head: the button is kept (the people it showed, and the little pictures as they were drawn) so a new head
+  // gets it at once, and a new answer that says the same people draws nothing (no letter that turns into a picture again, no flash). One live channel for each project, the one of the head that is shown.
+  const memberViews = new Map();
+  const memberChannels = new Map();
   document.addEventListener(MEMBERS_SLOT_EVENT, (event) => {
     const { projectId, slot, root } = event.detail || {};
     if (!projectId || !slot || !cloudOn()) return;
-    // The button is drawn when the page of the project opens and again whenever the people of the project change (a person joins or leaves: the database pings the channel of the project).
-    const draw = async () => {
-      const answer = await shareClient.members(projectId);
-      if (!answer.ok || !slot.isConnected) return;
+    const open = () => { void openMembers({ projectId, root }); };
+    const show = (node, sign) => { slot.replaceChildren(node); slot.dataset.sign = sign; };
+    const held = memberViews.get(projectId);
+    if (held?.node) { const copy = held.node.cloneNode(true); copy.addEventListener('click', open); show(copy, held.sign); }
+    const paint = async (members) => {
+      const sign = JSON.stringify((Array.isArray(members) ? members : []).map((member) => [member.user_id, member.name, member.avatar_version, member.photo_url]));
+      if (slot.firstChild && slot.dataset.sign === sign) return;
       await ensureStyles();
       const { drawMemberButton } = await import('../../ui/projects/project-head-members.js');
-      drawMemberButton({ document, slot, text, members: answer.data?.members || answer.data, avatarOf, onOpen: () => { void openMembers({ projectId, root }); } });
+      if (!slot.isConnected) return;
+      const node = drawMemberButton({ document, slot, text, members, avatarOf, onOpen: open });
+      slot.dataset.sign = sign;
+      if (node) memberViews.set(projectId, { sign, node }); else memberViews.delete(projectId);
+    };
+    // The button is drawn when the page of the project opens and again whenever the people of the project change (a person joins or leaves: the database pings the channel of the project).
+    let drawing = false;
+    let again = false;
+    const draw = async () => {
+      if (drawing) { again = true; return; }
+      drawing = true;
+      try {
+        const answer = await shareClient.members(projectId);
+        if (answer.ok && slot.isConnected) await paint(answer.data?.members || answer.data);
+      } finally { drawing = false; }
+      if (again) { again = false; void draw(); }
     };
     void draw();
-    let heard = null;
-    heard = subscribeProjectLive({ getSupabase, projectId, onPing: (ping) => { if (!slot.isConnected) heard?.stop(); else if (!ping?.c) void draw(); } });
+    memberChannels.get(projectId)?.stop();
+    const heard = subscribeProjectLive({ getSupabase, projectId, onPing: (ping) => { if (!slot.isConnected) { heard.stop(); if (memberChannels.get(projectId) === heard) memberChannels.delete(projectId); } else if (!ping?.c) void draw(); } });
+    memberChannels.set(projectId, heard);
   });
   document.addEventListener(MEMBERS_EVENT, (event) => { void openMembers({ projectId: String(event.detail?.projectId || ''), root: event.detail?.root || null }); });
   document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); if (area && readPendingChatLink(area)) lookForChat(); lookToRefresh(); });

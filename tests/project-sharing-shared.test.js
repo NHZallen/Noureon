@@ -312,24 +312,35 @@ test('the page of someone else’s chat has the head of a chat of the project: t
   assert.equal(head.querySelector('.psh-crumb-name').textContent, 'City plan');
   assert.ok(head.querySelector('.psh-crumb-icon svg'));
   assert.equal(head.querySelector('.psh-crumb-sub').textContent, text('pjHeadSub'));
-  // the button at the right opens the panel at the right: the questions of the conversation; one of them goes to its message
-  const panel = root.querySelector('.psh-side');
-  assert.equal(panel.hidden, true);
+  // the button at the right opens the side panel of the app (Timeline | Sources, the same markup as the chat's own): every message, one of them goes to it
+  const panel = root.querySelector('.psh-history');
+  assert.equal(panel.classList.contains('visible'), false);
   head.children[2].click();
-  assert.equal(panel.hidden, false);
-  assert.deepEqual([...panel.querySelectorAll('.psh-side-item')].map((node) => node.textContent), ['question', 'more']);
-  panel.querySelector('.psh-side-item').click();
-  assert.equal(panel.hidden, true, 'a choice closes it');
+  assert.equal(panel.classList.contains('visible'), true);
+  assert.equal(head.children[2].getAttribute('aria-expanded'), 'true');
+  assert.deepEqual([...panel.querySelectorAll('.history-tab')].map((node) => node.dataset.historyTab), ['timeline', 'sources']);
+  assert.ok(panel.querySelector('.history-close'));
+  assert.deepEqual([...panel.querySelectorAll('.history-sidebar-item')].map((node) => [node.className.includes('is-user'), node.dataset.messageIndex]), [[true, '0'], [false, '1'], [true, '2'], [false, '3']]);
+  assert.equal(panel.querySelector('.history-sidebar-item .history-sidebar-text').textContent, 'question');
+  panel.querySelector('.history-tab[data-history-tab="sources"]').click();
+  assert.ok(panel.querySelector('.history-sources-empty'), 'no sources in this chat');
+  panel.querySelector('.history-close').click();
+  assert.equal(panel.classList.contains('visible'), false, 'the cross closes it');
   head.children[2].click();
-  root.querySelector('.psh-side-scrim').click();
-  assert.equal(panel.hidden, true, 'a tap outside closes it');
+  panel.querySelector('.history-tab[data-history-tab="timeline"]').click();
+  panel.querySelector('.history-sidebar-item').click();
+  assert.equal(panel.classList.contains('visible'), false, 'a choice closes it');
+  head.children[2].click();
+  root.querySelector('.psh-history-scrim').click();
+  assert.equal(panel.classList.contains('visible'), false, 'a tap outside closes it');
   // the arrow closes the page
   head.children[0].click();
   assert.equal(root.querySelector('.psh-viewer'), null);
 });
 
-test('the panel at the right of someone else’s chat is hidden by the hidden attribute (a class that sets display does not undo it)', () => {
+test('the panel at the right of someone else’s chat is the app’s own side panel: it shares the rules of the timeline, and is out of sight until it is opened', () => {
   const css = readFileSync(new URL('../src/styles/project-sharing.css', import.meta.url), 'utf8');
-  assert.match(css, /\.psh-side\[hidden\][^{]*\{\s*display:\s*none/);
-  assert.match(css, /\.psh-side-scrim\[hidden\]/);
+  assert.match(css, /\.psh-history \{[^}]*transform: translateX\(100%\)[^}]*visibility: hidden/);
+  const shared = readFileSync(new URL('../src/styles/citations.css', import.meta.url), 'utf8');
+  assert.match(shared, /\.psh-history \.psh-history-list \.history-sidebar-item \{/);
 });
