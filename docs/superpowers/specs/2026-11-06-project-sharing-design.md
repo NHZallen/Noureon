@@ -245,3 +245,12 @@
 - 編輯者上傳／移除專案檔案（現在只能由擁有者在自己的專案頁處理檔案；成員看得到對話裡的附件，但專案檔案區沒有同步給成員）。
 - 自動記憶（回覆後由模型整理出筆記）寫進共用清單，以及跨成員查歷史對話的 `search_memory`：目前共用筆記只有手動新增，回覆端不會自動整理成共用筆記。
 - 側邊欄的分支標記、分支訊息的灰階分隔線（只有「分支」字尾與 `branchedFrom` 資料）。
+
+### 18.5 共用筆記拿掉、Realtime 即時更新、共享專案記憶、分支標記（2026-11-06，已在 `staging`，migration 與伺服器待 Allen 套用）
+
+- **共用筆記（`project_notes`）已拿掉**：那是我誤解 Allen 說的「筆記」（指記憶筆記）而另外做的手動清單，沒有討論就加了。資料表、三個函式、畫面、文字、測試都刪了（migration 是同一批未套用的檔，直接改）。`list_my_shared_projects()` 留下，只回傳自己共享出去的專案 id。
+- **即時更新改用 Supabase Realtime**（`20261106050000_add_project_live_updates.sql`、`runtime/project-sharing/project-live.js`）：資料庫的觸發器在專案裡有訊息寫入、對話建立或改名、指示／來源變動、成員加入或離開時，從私有 Broadcast 頻道 `project:<id>` 發一則只有對話 id 的小通知；開著專案頁的人收到就透過伺服器增量讀取。頻道只有專案的擁有者和成員能加入（`realtime.messages` 的政策，用 `can_hear_project()`）。串流中的回覆每個對話最多 700 毫秒一則（`project_live_marks` 未記錄表做節流），新訊息和完成的訊息一定發，所以最後一段不會被吃掉。頻道連上時計時器只當保險（15 秒一次），沒連上就照舊 3 秒輪詢。測試環境沒有 Realtime 時什麼都不發也不出錯。訊息量：每則通知每位在線成員算一則 Realtime 訊息（Free 每月 200 萬、Pro 500 萬、超過每百萬 2.5 美元）。**需要確認專案有開 Realtime，並沒有用真帳號測過。**
+- **共享專案的記憶**（`20261106060000_add_project_shared_memory.sql`）：專案的記憶筆記就是擁有者帳號裡帶這個專案 id 的筆記；擁有者與編輯者可寫（手動與回覆後自動學習），聊天成員只讀；設定、對話讀到哪裡、事件仍存在各自的帳號。`read_project_memory`／`write_project_memory`（頁面用，函式檢查角色，只碰 `note:` 鍵且強制帶專案 id、有版本衝突回報）；`server_project_memory_access`、`server_read_project_history`（伺服器用）。伺服器：`shared-project-memory.js` 在 `scopedMemory` 底下把讀寫導到擁有者的列，角色由資料庫查、不信頁面；run-spec 新欄位 `tools.memory.sharedProject`。頁面：`shared-memory-store.js`（像帳號的 store，筆記走函式、其餘走自己的 store）、`memory-ref.js` 的 `setSharedMemoryFor`、載入器與策展器各加一行。跨成員查歷史：共享專案裡的 `search_memory` 在伺服器上用 `server_read_project_history`（所有成員的對話，只用關鍵字，不做向量）。聊天成員的回覆查到的筆記會讓擁有者那筆的「用過」計數增加，這是唯一的寫入。法律文件已改成「記憶共享」。
+- **已知缺口**：頁面端（不是伺服器）回覆的歷史搜尋只看本機索引，不含別人的對話；成員自己的頁面在專案頁裡沒有筆記清單；擁有者的整理（tidy）會處理這些筆記，成員不會觸發。
+- **分支標記**：側邊欄對分支對話顯示「分支」標籤（`share-ref.js` 一行）；分支對話複製來的訊息變淡、後面加一條分隔線（`start-branch.js` 的 `markBranchCopies`，`branchedFrom.copied` 記複製了幾則，CSS 在 `share.css`）。
+- **還沒做**：編輯者上傳／移除專案檔案，以及成員回覆讀專案檔案內容。成員的共享專案頁目前不列資料來源，檔案工具讀的是回覆者自己的雲端資料夾，所以成員的回覆讀不到擁有者的檔案。要做的話需要：成員頁的資料來源分頁、伺服器上傳端點（用擁有者的額度）、`projectFiles` 工具用擁有者的 id 讀取並由資料庫檢查角色。
