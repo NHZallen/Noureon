@@ -95,3 +95,27 @@ test('a file that cannot be read says so and the reply goes on; one that is not 
   await reader({ file: { hash: HASH, mimeType: 'text/plain', name: 'x.txt' } });
   assert.deepEqual(paths, [`${USER}/${HASH}`], 'the path is made from the person and the hash only');
 });
+
+const OWNER = '11111111-1111-4111-8111-111111111111';
+const SHARED = '323e4567-e89b-12d3-a456-426614174002';
+
+test('a reply in a shared project reads the files from the owner’s folder, after the database says the person is in the project; a stranger’s reply reads from their own folder', async () => {
+  for (const [role, expectedUser] of [['editor', OWNER], ['chat', OWNER], [null, USER]]) {
+    clearProjectFileTextCache();
+    const loads = [];
+    const files = { load: async ({ userId, marker }) => { loads.push([userId, marker.__astraCloudAsset.path]); return new TextEncoder().encode('The plan: open the Hsinchu office in March.'); } };
+    const asked = [];
+    const memory = { projectAccess: async (userId, projectId) => { asked.push([userId, projectId]); return role ? { owner_id: OWNER, role } : null; } };
+    let round = 0;
+    await executeReply({
+      spec: goodSpec({ ...ENTRIES, sharedProject: SHARED }), secrets: { providerKey: 'sk-provider-secret-value' }, userId: USER, files, memory,
+      fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'search_project_files', { query: 'Hsinchu office March' })) : sse(content('Done.'))); }
+    });
+    assert.deepEqual(asked, [[USER, SHARED]], String(role));
+    assert.deepEqual(loads, [[expectedUser, `${expectedUser}/${HASH}`]], String(role));
+  }
+  const ok = validateRunSpec(goodSpec({ ...ENTRIES, sharedProject: SHARED.toUpperCase() }));
+  assert.equal(ok.ok, true);
+  assert.equal(ok.spec.tools.projectFiles.sharedProject, SHARED);
+  assert.equal(validateRunSpec(goodSpec({ ...ENTRIES, sharedProject: 'nope' })).ok, false);
+});

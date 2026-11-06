@@ -70,5 +70,24 @@ export function createProjectReader({ db, files = null, pageSize = PAGE } = {}) 
       conversations, hasMore: Boolean(result.has_more), next: conversations.length ? conversations.at(-1).updatedAt : since
     };
   }
-  return { read, asset };
+  /**
+   * An editor (or the owner) adds a file to a shared project: it is kept in the OWNER's folder of the cloud storage (the space it takes counts for the owner), and the answer is what the page puts in
+   * the source: { hash, mimeType, size, asset }. A chat member may not. The page then writes the source into the project with `update_shared_project`.
+   */
+  async function upload({ userId, projectId, bytes, mimeType = 'application/octet-stream' }) {
+    let access = null;
+    try { access = await db.rpc('server_project_memory_access', { p_user_id: userId, p_project_id: projectId }); } catch { throw new ProjectReadError('The project could not be read.', 'database'); }
+    if (!access) throw new ProjectReadError('That project is not there.', 'not_found');
+    if (access.role === 'chat') throw new ProjectReadError('A chat member cannot add files.', 'forbidden');
+    if (!files?.save) throw new ProjectReadError('Storage is not set up.', 'database');
+    try {
+      const marker = await files.save({ userId: access.owner_id, bytes, mimeType });
+      const path = marker.__astraCloudAsset.path;
+      return { hash: path.slice(path.indexOf('/') + 1), mimeType, size: bytes.byteLength, asset: marker };
+    } catch (error) {
+      throw new ProjectReadError(error?.message || 'The file could not be saved.', error?.code === 'quota' ? 'quota' : 'database');
+    }
+  }
+
+  return { read, asset, upload };
 }

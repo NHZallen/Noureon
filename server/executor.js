@@ -345,7 +345,12 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // The files of the project the model may look into by itself (src/data/project-files-tool.js): the text comes with the request or is read from the person's cloud storage.
   let projectFilesLoader = null;
   if (spec.tools.projectFiles && userId && mode !== 'grounding') {
-    const readText = createProjectFileTextReader({ files, userId, signal });
+    // The files of a shared project of someone else are in the owner's folder of the cloud storage: the database says who the person is there, and the owner's id is only used to read.
+    let filesUser = userId;
+    if (spec.tools.projectFiles.sharedProject) {
+      try { filesUser = (await memory?.projectAccess?.(userId, spec.tools.projectFiles.sharedProject))?.owner_id || userId; } catch (error) { onProblem('project_files_access_failed', error); }
+    }
+    const readText = createProjectFileTextReader({ files, userId: filesUser, signal });
     const byId = new Map(spec.tools.projectFiles.entries.map((entry) => [entry.id, entry]));
     const entries = spec.tools.projectFiles.entries.filter((entry) => !entry.url).map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' }));
     // The web addresses of the project: the page is fetched when the model asks, with the reading service of the person's key for this reply (nothing is kept).
@@ -359,7 +364,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     projectFilesLoader = createProjectFilesLoader({
       entries, linkEntries, readLink: createLinkReader({ getFetchPages: () => pageReader?.fetchPageContents, signal }), mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: entry.kind || 'image' })), canView,
       // A small copy of a picture, frames of a video or a page of a scan, made from the file read from the person's cloud storage like the text of a file (nothing is kept).
-      viewMedia: canView ? createServerMediaViewer({ files, userId, signal }) : null,
+      viewMedia: canView ? createServerMediaViewer({ files, userId: filesUser, signal }) : null,
       language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).

@@ -380,6 +380,10 @@ test('a member may have a file that the project holds (in a conversation of the 
   assert.equal(await assetAllowed(bob, projectId, 'not-a-path'), false);
   await rpc(A, 'update_shared_project', projectId, null, [{ id: 's1', kind: 'file', name: 'x.png', fileHash: hash('b') , path: adaFile }], null);
   assert.equal(await assetAllowed(bob, projectId, adaFile), true);
+  // a source that names its file only by the hash is enough
+  await rpc(A, 'update_shared_project', projectId, null, [{ id: 's2', kind: 'file', title: 'y.pdf', file: { name: 'y.pdf', mimeType: 'application/pdf', size: 3, hash: hash('d') } }], null);
+  assert.equal(await assetAllowed(bob, projectId, `${ada}/${hash('d')}`), true);
+  assert.equal(await assetAllowed(bob, projectId, `${ada}/${hash('e')}`), false);
   assert.match((await B.error('select public.server_project_asset_allowed($1, $2, $3)', [bob, projectId, bobFile]))?.message || 'it worked', /permission denied/);
 });
 

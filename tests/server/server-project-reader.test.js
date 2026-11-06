@@ -120,3 +120,33 @@ test('a file of the project is given to a member as base64 only when the databas
     assert.equal((await post({ path: `${USER}/${'f'.repeat(64)}` })).status, 413);
   }, { projectReader: reader });
 });
+
+test('an editor’s file is kept in the owner’s folder; a chat member and a stranger cannot add one; a full space is told', async () => {
+  const OWNER = '9f9f9f9f-9f9f-49f9-89f9-9f9f9f9f9f9f';
+  const saved = [];
+  const files = { save: async ({ userId, bytes, mimeType }) => { if (bytes.length === 4) { const error = new Error('full'); error.code = 'quota'; throw error; } saved.push([userId, bytes.length, mimeType]); return { __astraCloudAsset: { path: `${userId}/${'c'.repeat(64)}`, mimeType, encoding: 'base64' } }; } };
+  const roles = new Map([[USER, { owner_id: OWNER, role: 'editor' }]]);
+  const db = { rpc: async (name, params) => roles.get(params.p_user_id) || null };
+  const reader = createProjectReader({ db, files });
+  const result = await reader.upload({ userId: USER, projectId: PROJECT, bytes: new Uint8Array([1, 2, 3]), mimeType: 'application/pdf' });
+  assert.deepEqual(saved, [[OWNER, 3, 'application/pdf']]);
+  assert.deepEqual(result, { hash: 'c'.repeat(64), mimeType: 'application/pdf', size: 3, asset: { __astraCloudAsset: { path: `${OWNER}/${'c'.repeat(64)}`, mimeType: 'application/pdf', encoding: 'base64' } } });
+  roles.set(USER, { owner_id: OWNER, role: 'chat' });
+  await assert.rejects(() => reader.upload({ userId: USER, projectId: PROJECT, bytes: new Uint8Array([1]) }), (error) => error.code === 'forbidden');
+  roles.delete(USER);
+  await assert.rejects(() => reader.upload({ userId: USER, projectId: PROJECT, bytes: new Uint8Array([1]) }), (error) => error.code === 'not_found');
+  roles.set(USER, { owner_id: OWNER, role: 'editor' });
+  await assert.rejects(() => reader.upload({ userId: USER, projectId: PROJECT, bytes: new Uint8Array([1, 2, 3, 4]) }), (error) => error.code === 'quota');
+  await withServer(async (base) => {
+    const post = (body, token = TOKEN) => fetch(`${base}/v1/projects/${PROJECT}/upload`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+    const ok = await post({ mimeType: 'text/plain', data: Buffer.from('hello').toString('base64') });
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).hash, 'c'.repeat(64));
+    assert.equal((await post({ mimeType: 'text/plain', data: Buffer.from('hello').toString('base64') }, '')).status, 401);
+    assert.equal((await post({ mimeType: 'text/plain', data: '***' })).status, 400);
+    assert.equal((await post({ mimeType: 'bad', data: 'aGk=' })).status, 400);
+    assert.equal((await post({ mimeType: 'text/plain', data: Buffer.from('1234').toString('base64') })).status, 413);
+    roles.set(USER, { owner_id: OWNER, role: 'chat' });
+    assert.equal((await post({ mimeType: 'text/plain', data: 'aGk=' })).status, 404);
+  }, { projectReader: reader });
+});

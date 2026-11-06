@@ -84,6 +84,8 @@ function checkProjectFilesTool(tools, fail) {
   // `media`: the pictures, videos, recordings and scanned PDFs of the project (no text; the search may name them): [{ id, name, kind, size, fileHash, mimeType, duration, pages, attached }].
   // `canView`: the model can look at pictures, so it gets view_project_file for them (the page decides from the model).
   if (tools.projectFiles.canView !== undefined && typeof tools.projectFiles.canView !== 'boolean') fail('tools.projectFiles.canView', 'must be true or false');
+  // `sharedProject`: the files are those of a shared project of someone else; they are read from the owner's cloud folder after the database says the person is in the project (executor.js).
+  if (tools.projectFiles.sharedProject !== undefined && !/^[0-9a-f-]{36}$/i.test(String(tools.projectFiles.sharedProject))) fail('tools.projectFiles.sharedProject', 'must be the id of a shared project');
   if (tools.projectFiles.media !== undefined) {
     const media = tools.projectFiles.media;
     if (!Array.isArray(media) || media.length > PROJECT_MEDIA_MAX) fail('tools.projectFiles.media', `must be a list of at most ${PROJECT_MEDIA_MAX} files`);
@@ -97,7 +99,7 @@ function checkProjectFilesTool(tools, fail) {
 }
 
 function normalizeProjectFiles(value) {
-  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, kind: PROJECT_MEDIA_KINDS.includes(entry.kind) ? entry.kind : 'image', size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), ...(Number(entry.duration) > 0 ? { duration: Math.min(86_400, Number(entry.duration)) } : {}), ...(Number(entry.pages) > 0 ? { pages: Math.min(100_000, Math.floor(Number(entry.pages))) } : {}), ...(entry.transcribe === true ? { transcribe: true } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
+  return { ...(value.sharedProject ? { sharedProject: String(value.sharedProject).toLowerCase() } : {}), ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, kind: PROJECT_MEDIA_KINDS.includes(entry.kind) ? entry.kind : 'image', size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), ...(Number(entry.duration) > 0 ? { duration: Math.min(86_400, Number(entry.duration)) } : {}), ...(Number(entry.pages) > 0 ? { pages: Math.min(100_000, Math.floor(Number(entry.pages))) } : {}), ...(entry.transcribe === true ? { transcribe: true } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
     ...(typeof entry.text === 'string' ? { text: entry.text } : typeof entry.url === 'string' ? { url: entry.url } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };

@@ -495,6 +495,28 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
       }
+      // An editor adds a file to a shared project (server/project-reader.js `upload`): kept in the owner's cloud folder, the owner's space pays. { mimeType, data (base64) } up to 30 MB of file.
+      const projectUpload = /^\/v1\/projects\/([0-9a-f-]{36})\/upload$/i.exec(url.pathname);
+      if (request.method === 'POST' && projectUpload) {
+        const user = await authenticate(request);
+        if (!projectReader) throw new RequestError(ERROR_CODES.runsUnavailable, 'Shared projects are not set up on the server.');
+        if (!projectLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
+        const body = await readJson(request, 42 * 1024 * 1024);
+        const mimeType = String(body?.mimeType || 'application/octet-stream').slice(0, 120);
+        if (typeof body?.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.data) || !/^[\w.+-]+\/[\w.+-]+$/.test(mimeType)) throw new RequestError(ERROR_CODES.badRequest, 'The file is not sent right.');
+        const bytes = Buffer.from(body.data, 'base64');
+        if (!bytes.length || bytes.length > 30 * 1024 * 1024) throw new RequestError(ERROR_CODES.requestTooLarge, 'The file must be at most 30 MB.', { reason: 'too_large' });
+        try {
+          send(response, 200, await projectReader.upload({ userId: user.id, projectId: projectUpload[1].toLowerCase(), bytes: new Uint8Array(bytes), mimeType }), origin);
+          status = 200;
+          return;
+        } catch (error) {
+          if (!(error instanceof ProjectReadError)) throw error;
+          if (error.code === 'not_found' || error.code === 'forbidden') throw new RequestError(ERROR_CODES.conversationNotFound, error.message, { reason: error.code });
+          if (error.code === 'quota') throw new RequestError(ERROR_CODES.requestTooLarge, error.message, { reason: 'quota' });
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
+      }
       // An invitation to a shared project by mail (server/project-invites.js): the mail is sent here, 20 an hour for each person; the quota says how many are left.
       if (route === 'GET /v1/project-invite-quota') {
         const user = await authenticate(request);

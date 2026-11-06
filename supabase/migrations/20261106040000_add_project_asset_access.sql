@@ -20,7 +20,8 @@ begin
   if v_folder.id is null or v_folder.shared_at is null then return false; end if;
   v_owner := split_part(p_path, '/', 1)::uuid;
   if v_owner <> v_folder.user_id and not exists (select 1 from public.project_members m where m.project_id = p_project_id and m.member_id = v_owner) then return false; end if;
-  if v_owner = v_folder.user_id and position(p_path in coalesce(v_folder.sources::text, '')) > 0 then return true; end if;
+  -- a source names its file by the hash (and, once the file is in the cloud, by the whole path too)
+  if v_owner = v_folder.user_id and (position(p_path in coalesce(v_folder.sources::text, '')) > 0 or position(split_part(p_path, '/', 2) in coalesce(v_folder.sources::text, '')) > 0) then return true; end if;
   return exists (
     select 1
     from public.workspace_conversations c
