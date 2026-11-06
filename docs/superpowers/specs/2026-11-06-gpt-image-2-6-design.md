@@ -144,3 +144,9 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 - The grey ring of the size preview (made 3.3 rem in §14) was outside the control, which was 2.9 rem wide: the control is now 3.9 rem wide.
 - The size control was centered on the whole screen, not on the picture (the strip of frames and the colours are under the picture, so the picture is higher): `generated-image-interactions.js` sets `--stage-mid` (the middle of the picture's area, measured, kept up to date by a ResizeObserver) and the control stands there (`top: var(--stage-mid, 50%)`). Measured in Chromium at 1440×900 and again at 1100×700: the picture's middle and the control's middle are 1 px apart.
 - The strip of frames is a grid of three (3.5 rem for Play, the frames, 3.5 rem for the speed) with the frames in the middle (auto margins on the first and the last: too many frames still scroll from the first); the first and the last frame of 8 are 240 px from the centre on each side.
+
+## 16. How many pictures at once (2026-11-06, Allen's report from the count probe)
+
+- **GIF**: both OpenAI and OpenRouter take `n` from 1 to 10 (the same as the other formats), so the Count of the settings goes to the request as it is (`settleImageFormatConfig` leaves `n` alone for a GIF: checked, 10 stays 10).
+- **SVG**: always one picture (`n` is made 1 and the Count menu shows only 1): unchanged.
+- Nothing to change in the code; this is the result of `scripts/gpt-image-26-probe.mjs --tests gifcount,svgcount`, told by Allen without the JSON (the numbers are his).
