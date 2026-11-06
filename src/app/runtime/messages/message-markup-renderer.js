@@ -7,6 +7,7 @@ import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.j
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
 import { liftSandboxRunBlock, withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
 import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
+import { branchButtonHTML } from '../branch/branch-button.js';
 import { imageThumbsPlaceholder } from '../../ui/image-wait/image-wait-markup.js';
 import { renderGeneratedImageSet } from '../images/generated-image-set.js';
 
@@ -60,6 +61,7 @@ export function buildMessageRenderView({
     buildMediaAttachmentView,
     formatTimestamp,
     copyTitle,
+    branchTitle,
     uiLanguage = 'zh-TW',
     // The words of the buttons and notes the message carries (from the interface texts of the language in use).
     labels = {},
@@ -179,7 +181,7 @@ export function buildMessageRenderView({
                             <button class="copy-content-btn p-1 rounded-md hover:bg-gray-500/20 text-[var(--text-secondary)] opacity-50 hover:opacity-100 transition-opacity" title="${copyTitle}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                             </button>
-                            ${replySourcesButtonHTML(message, uiLanguage)}
+                            ${branchButtonHTML(branchTitle)}${replySourcesButtonHTML(message, uiLanguage)}
                             </div>
                             <span class="text-xs text-gray-400">${timeString}</span></div>
                     `;

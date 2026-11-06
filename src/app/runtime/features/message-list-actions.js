@@ -67,6 +67,13 @@ export function bindMessageListActions({ window, document, elements: ALL_ELEMENT
             document.dispatchEvent(new window.CustomEvent('noureon:open-history-source', { detail: { id: openChat.dataset.openChat } }));
             return;
         }
+        const branchBtn = e.target.closest('.branch-message-btn');
+        if (branchBtn) {
+            const index = parseInt(branchBtn.closest('.message-item')?.dataset.messageIndex, 10);
+            const id = getActiveConversation()?.id;
+            if (id && Number.isInteger(index)) document.dispatchEvent(new window.CustomEvent('noureon:branch-message', { detail: { conversationId: id, messageIndex: index } }));
+            return;
+        }
         const copyBtn = e.target.closest('.copy-content-btn');
         if (copyBtn) {
             const messageItem = copyBtn.closest('.message-item');

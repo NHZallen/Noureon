@@ -132,6 +132,8 @@ export function startShares({ document, window = globalThis.window, configAccess
   const lookForPending = () => { for (const wait of [0, 2000, 6000, 15000, 30000]) setTimeout(() => { void takePending(); }, wait); };
   lookForPending();
 
+  // Branch Chat starts here because it needs the same hands (the conversations, the save, the sidebar, opening a conversation) and the shell has no room for another line (check:sizes).
+  import('../branch/start-branch.js').then(({ startBranch }) => startBranch({ document, window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar, openConversation })).catch((error) => console.warn('Branching did not start.', error));
   window.addEventListener(SHARE_EVENT, (event) => { void open(String(event.detail?.id || '')); });
   document.addEventListener(USER_READY_EVENT, () => { state.clear(); void reload(); if (readPending()) lookForPending(); });
   state.onChange(() => { try { renderSidebar(); } catch { /* the sidebar draws the tags the next time */ } });

@@ -21,6 +21,7 @@ import share from './share.js';
 import projects from './projects.js';
 import rail from './rail.js';
 import shortcuts from './shortcuts.js';
+import projectSharing from './project-sharing.js';
 
 const parts = [
     login,
@@ -44,7 +45,8 @@ const parts = [
     share,
     projects,
     rail,
-    shortcuts
+    shortcuts,
+    projectSharing
 ];
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));

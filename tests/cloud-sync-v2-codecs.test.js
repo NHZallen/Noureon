@@ -699,3 +699,17 @@ test('where the notes of a project are kept goes to the cloud and comes back; a 
   assert.equal(shadowRowsEqual(old, { ...old, memory_scope: 'default' }), true);
   assert.equal(shadowRowsEqual(old, { ...old, memory_scope: 'project' }), false);
 });
+
+test('the mark of a branch goes to the cloud with the conversation and comes back', async () => {
+  const branchedFrom = { conversationId: '55555555-5555-4555-8555-555555555555', messageId: 'a1', at: '2026-11-06T01:00:00.000Z', title: 'Original' };
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: { conversations: [{ id: conversationId, title: 'Original (branch)', model: 'model-1', provider: 'provider-1', createdAt: '2026-07-06T01:00:00.000Z', messages: [], branchedFrom }] }
+  });
+  assert.deepEqual(encoded.conversations[0].metadata.branchedFrom, branchedFrom);
+  const decoded = decodeWorkspaceConversationShadow({ conversations: encoded.conversations, messages: encoded.messages, folders: encoded.folders || [], astras: [] });
+  assert.deepEqual(decoded.conversations[0].branchedFrom, branchedFrom);
+  const plain = await encodeWorkspaceConversationShadow({ userId, cryptoProvider: webcrypto, workspace: { conversations: [{ id: conversationId, title: 'x', model: 'm', provider: 'p', createdAt: '2026-07-06T01:00:00.000Z', messages: [] }] } });
+  assert.equal('branchedFrom' in plain.conversations[0].metadata, false);
+});
