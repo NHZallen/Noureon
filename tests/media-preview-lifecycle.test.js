@@ -203,7 +203,7 @@ test('missing media and out-of-range preview indexes remain no-op boundaries', (
   }
 });
 
-test('share handoff fetches the media and invokes navigator share when supported', async () => {
+test('share handoff decodes a data address (the page policy refuses to fetch it) and invokes navigator share when supported', async () => {
   const { window, document, cleanup } = createDom();
   try {
     const shared = [];
@@ -220,11 +220,11 @@ test('share handoff fetches the media and invokes navigator share when supported
       }
     });
 
-    lifecycle.openMediaPreview({ name: 'share.png', mimeType: 'image/png', data: 'share' });
+    lifecycle.openMediaPreview({ name: 'share.png', mimeType: 'image/png', data: 'c2hhcmU=' });
     document.querySelector('.media-lightbox-share').click();
     await new Promise((resolve) => window.setTimeout(resolve, 0));
 
-    assert.deepEqual(fetched, ['data:image/png;base64,share']);
+    assert.deepEqual(fetched, [], 'a data address is decoded, not fetched');
     assert.equal(shared.length, 1);
     assert.deepEqual(Object.keys(shared[0]), ['files'], 'only the file is shared: a title or a text would be put into the message as words');
     assert.equal(shared[0].files[0].name, 'share.png');

@@ -77,3 +77,12 @@ Allen 的要求（2026-11-06）：OpenRouter 的生圖模型換成 `openai/gpt-i
 - 尺寸：OpenAI 1024×1024 配 4 或 9 格 400；512×512 在 2、4、16 格成功。OpenRouter 1:1 每格 512×512。16:9 沒測到（OpenRouter 402，見下）。
 - OpenAI 的 GIF「需有 GIF 預覽權限」：沒有權限的帳號會收到 API 的錯誤，app 原樣顯示。
 - OpenRouter 的 402 `in_flight_budget_exhausted` 是帳戶餘額不夠預留併發請求（報告寫總儲值 31 USD、已用 29.37 USD），不是程式或參數的問題。
+
+## 8. Picture buttons that did nothing (2026-11-06, found on staging by Allen)
+
+- **Cause**: the page policy in `vercel.json` has `connect-src` without `data:`, so `fetch('data:...')` is refused in production (not in the dev server, which has no policy). Two buttons fetched a data address: **Share** in the preview (`media-preview-lifecycle.js`) and the **confirm** of the picture editor (`generated-image-runtime.js`, `attachAnnotatedImage`). Both failed inside a `try/catch` that only logged, so they "did nothing", for every picture (a GIF too). Reproduced in Chromium with the policy of `vercel.json` (`fetch` of a data address: "Failed to fetch", the CSP violation in the console); after the change the share gets the file and no violation.
+- **Fix**: `images/picture-blob.js` decodes a data address (`dataUrlToBlob`) instead of fetching it; the Share button is not drawn where `navigator.share` does not exist.
+- **Save (download)**: `<a download>` works in Chromium under the same policy (a blob and a 3 MB data address were both downloaded), so the desktop was not the problem. On an iPhone or iPad (and in the browsers inside other apps, such as the Google app) the link is not acted on, so there `saveWithShareSheet` opens the share sheet with the file (it holds "Save Image" and "Save to Files"). The card button and the preview's Save button both do it. **Not tried on a real iPhone**: the sandbox has no WebKit.
+- **Editing a GIF**: the editor draws the first frame of a GIF and attaches that picture (a PNG with the marks), as it does for any picture; the animation is not kept.
+- The number on a picture stands where the Edit button stands (0.75rem from the corner).
+- A rule from this: **never `fetch` a data address in the page**; decode it.

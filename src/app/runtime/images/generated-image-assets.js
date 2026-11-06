@@ -1,5 +1,6 @@
 import { createImageFileName } from '../../ui/files/file-name-policy.js';
 import { settlePicture, settlePictures } from '../../ui/files/picture-loading.js';
+import { saveWithShareSheet } from './picture-blob.js';
 
 /**
  * The number a picture has in its message, as the person sees it on the picture (the chip), or its place among the pictures of the message.
@@ -142,7 +143,11 @@ export function createGeneratedImageAssetStore({
           element.href = objectUrl;
           element.download = downloadNameOf(descriptor, element);
           // The number is read when it is pressed (a picture of a reply may be numbered after it was bound).
-          element.addEventListener?.('click', () => { element.download = downloadNameOf(descriptor, element); });
+          // On an iPhone the link does nothing, so the file goes to the share sheet instead (picture-blob.js).
+          element.addEventListener?.('click', (event) => {
+            element.download = downloadNameOf(descriptor, element);
+            if (saveWithShareSheet({ blob, name: element.download })) event.preventDefault();
+          });
         });
     }));
   };

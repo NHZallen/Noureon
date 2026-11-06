@@ -2,6 +2,7 @@
 // the reply lifecycle, the buttons on a picture): one promise, made on the first call. Moved out of shell.js, which is at the limit of its size;
 // everything it needs from the shell is given to it here.
 import { createImageFileName } from '../../ui/files/file-name-policy.js';
+import { dataUrlToBlob } from '../images/picture-blob.js';
 export function createGeneratedImageRuntimeLoader({
     document,
     fetch,
@@ -55,11 +56,11 @@ export function createGeneratedImageRuntimeLoader({
                     document,
                     getImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
                     attachAnnotatedImage: async ({ dataUrl, descriptor }) => {
-                        const blob = await (await fetch(dataUrl)).blob();
+                        const blob = dataUrlToBlob(dataUrl);
                         setUploadedFiles([{
                             name: createImageFileName({ description: descriptor.title || descriptor.prompt, mediaType: 'image/png' }),
                             type: 'image/png',
-                            size: blob.size,
+                            size: blob?.size || 0,
                             base64: dataUrl,
                             targetedEdit: true
                         }]);

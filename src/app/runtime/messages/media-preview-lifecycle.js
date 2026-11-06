@@ -1,4 +1,5 @@
 import { prepareVideoThumbnails } from '../features/video-thumbnail-lifecycle.js';
+import { dataUrlToBlob, saveWithShareSheet } from '../images/picture-blob.js';
 
 export function createMediaPreviewLifecycle({
     document,
@@ -78,10 +79,18 @@ export function createMediaPreviewLifecycle({
         overlay.addEventListener('click', (event) => {
             if (event.target === overlay || event.target.closest('.media-lightbox-close')) close();
         });
+        // A place that cannot share a file has no Share button (it did nothing when pressed).
+        if (typeof navigator.share !== 'function') overlay.querySelector('.media-lightbox-share')?.remove();
+        // The picture is held as a data address: it is decoded, not fetched (the page's policy refuses fetching data addresses, picture-blob.js).
+        const pictureBlob = () => dataUrlToBlob(src);
+        overlay.querySelector('.media-lightbox-download')?.addEventListener('click', (event) => {
+            const blob = pictureBlob();
+            if (blob && saveWithShareSheet({ blob, name, navigator, FileCtor: File })) event.preventDefault();
+        });
         overlay.querySelector('.media-lightbox-share')?.addEventListener('click', async () => {
             if (!navigator.share) return;
             try {
-                const blob = await (await fetch(src)).blob();
+                const blob = pictureBlob() || await (await fetch(src)).blob();
                 const file = new File([blob], name, { type: mimeType });
                 if (navigator.canShare?.({ files: [file] })) {
                     // Only the file: a title or a text beside it is put into the message as words by the apps that take it (the file name appeared as text).
