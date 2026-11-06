@@ -20,7 +20,7 @@ const getEditorTexts = (language) => {
     eraser: text.eraser, size: text.size, confirm: text.confirmSelection,
     drawingArea: text.drawableArea, undo: text.undo, redo: text.redo, clear: text.clearAll,
     colors: { red: text.red, blue: text.blue, green: text.green, yellow: text.yellow, white: text.white },
-    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames, all: text.gifAll, grid: text.gifGrid, speed: text.gifSpeed
+    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames, grid: text.gifGrid, speed: text.gifSpeed
   };
 };
 
@@ -156,7 +156,6 @@ export function createGeneratedImageInteractions({
         </button>
         <div class="generated-image-editor-frame-list">${gif.frames.map((frame, index) => `<button type="button" class="generated-image-editor-frame" data-editor-frame="${index}" aria-label="${texts.frame.replace('{n}', index + 1)}"><img src="${frame.dataUrl}" alt="" draggable="false"><span>${index + 1}</span></button>`).join('')}</div>
         <button type="button" class="generated-image-editor-speed" aria-label="${texts.speed}" title="${texts.speed}">1×</button>
-        <button type="button" class="generated-image-editor-all" aria-pressed="false">${texts.all}</button>
       </div>` : ''}
       <footer class="generated-image-editor-toolbar">
         <label class="generated-image-editor-size">
@@ -208,9 +207,6 @@ export function createGeneratedImageInteractions({
     let playbackTimer = null;
     const playbackImage = overlay.querySelector('.generated-image-editor-playback');
     const playButton = overlay.querySelector('.generated-image-editor-play');
-    // "All frames": the change that is asked for is made in every frame, not only in the marked ones (the marked ones say where to look).
-    const allButton = overlay.querySelector('.generated-image-editor-all');
-    allButton?.addEventListener('click', () => allButton.setAttribute('aria-pressed', String(allButton.getAttribute('aria-pressed') !== 'true')));
     const frameButtons = [...overlay.querySelectorAll('.generated-image-editor-frame')];
     const gridButton = overlay.querySelector('.generated-image-editor-grid');
     const speedButton = overlay.querySelector('.generated-image-editor-speed');
@@ -261,7 +257,6 @@ export function createGeneratedImageInteractions({
       });
       gridButton?.setAttribute('aria-pressed', String(currentFrame === sheetAt));
       gridButton?.classList.toggle('has-marks', Boolean(marked[sheetAt]));
-      if (allButton) allButton.hidden = currentFrame === sheetAt;
       if (undoButton) undoButton.disabled = historyIndex <= 0;
       if (redoButton) redoButton.disabled = historyIndex >= history.length - 1;
       if (clearButton) clearButton.disabled = !annotated;
@@ -495,7 +490,7 @@ export function createGeneratedImageInteractions({
           const common = { count: gif.frames.length, source: descriptor.id, ...(speed !== 1 ? { speed } : {}) };
           const frames = [];
           for (const [index, marked] of markedFrames().entries()) {
-            if (marked && (index === sheetAt || !markedFrames()[sheetAt])) frames.push({ dataUrl: await frameComposite(index), index: index === sheetAt ? 0 : index, ...common, ...(index === sheetAt ? { sheet: true } : allButton.getAttribute('aria-pressed') === 'true' ? { all: true } : {}) });
+            if (marked && (index === sheetAt || !markedFrames()[sheetAt])) frames.push({ dataUrl: await frameComposite(index), index: index === sheetAt ? 0 : index, ...common, ...(index === sheetAt ? { sheet: true } : {}) });
           }
           await attachAnnotatedImage({ dataUrl: frames[0].dataUrl, frames, descriptor });
           close();

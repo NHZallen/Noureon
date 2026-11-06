@@ -9,7 +9,13 @@ export const speedLabel = (speed) => `${speed}×`;
 
 /** Opens the menu of speeds under (or over, when there is no room) `anchor`; `onPick(speed)` is called with the one chosen. Closes on a choice, a press outside, Escape. */
 export function openSpeedMenu({ document, anchor, current = 1, label = '', onPick }) {
-  document.querySelector('.gif-speed-menu')?.remove();
+  // A second press on the button closes the menu that is open.
+  const open = document.querySelector('.gif-speed-menu');
+  if (open) {
+    const same = open.anchorElement === anchor;
+    open.closeMenu();
+    if (same) return null;
+  }
   const menu = document.createElement('div');
   menu.className = 'gif-speed-menu';
   menu.setAttribute('role', 'menu');
@@ -27,7 +33,8 @@ export function openSpeedMenu({ document, anchor, current = 1, label = '', onPic
     document.removeEventListener('pointerdown', onOutside, true);
     document.removeEventListener('keydown', onKey, true);
   };
-  const onOutside = (event) => { if (!menu.contains(event.target)) { if (anchor.contains(event.target)) event.stopPropagation(); close(); } };
+  // A press on the button itself is left to its own click (it closes the menu there); a press anywhere else closes it.
+  const onOutside = (event) => { if (!menu.contains(event.target) && !anchor.contains(event.target)) close(); };
   const onKey = (event) => { if (event.key === 'Escape') { event.stopPropagation(); close(); } };
   menu.addEventListener('click', (event) => {
     const item = event.target.closest('[data-speed]');
@@ -36,6 +43,8 @@ export function openSpeedMenu({ document, anchor, current = 1, label = '', onPic
     close();
     onPick(Number(item.dataset.speed));
   });
+  menu.anchorElement = anchor;
+  menu.closeMenu = close;
   document.addEventListener('pointerdown', onOutside, true);
   document.addEventListener('keydown', onKey, true);
   return menu;
