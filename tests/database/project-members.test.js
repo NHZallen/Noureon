@@ -175,3 +175,88 @@ test('a project in the trash is closed to its members and its links', async () =
   assert.equal(await rpc(database.anon, 'get_project_invite', link.code), null);
   assert.deepEqual((await rpc(B, 'list_shared_with_me')).filter((item) => item.project_id === projectId), []);
 });
+
+// ---------- S2: the conversations of a shared project (supabase/migrations/20261106020000_add_project_conversations.sql)
+
+const conversationIn = async (client, { folderId = null, sharedProject = null, title = 'A chat', texts = ['hello', 'hi there'] } = {}) => {
+  const conversationId = id();
+  await callWith(client, 'upsert_workspace_conversations', [{ id: conversationId, title, model: 'm', provider: 'p', created_at: now(), folder_id: folderId, metadata: sharedProject ? { sharedProject } : {} }]);
+  await callWith(client, 'upsert_workspace_messages', texts.map((text, index) => ({ id: id(), conversation_id: conversationId, role: index % 2 ? 'model' : 'user', parts: [{ text }], sequence: index, created_at: now() })));
+  return conversationId;
+};
+const linkOf = async (conversationId) => (await database.service.query('select shared_project_id, shared_project_owner from public.workspace_conversations where id = $1', [conversationId]))[0];
+const read = async (userId, projectId, since = null, limit = 50) => (await database.service.query('select public.server_read_project_for_member($1, $2, $3, $4) as r', [userId, projectId, since, limit]))[0].r;
+
+test('a member links a conversation to the project by its metadata; a person who is not a member cannot, and a conversation moved out is not linked', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  const mine = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  assert.deepEqual(await linkOf(mine), { shared_project_id: projectId, shared_project_owner: ada });
+  const outsider = await conversationIn(C, { sharedProject: { id: projectId, ownerId: ada } });
+  assert.deepEqual(await linkOf(outsider), { shared_project_id: null, shared_project_owner: null });
+  // the person who made it takes the project out of its metadata: it is a plain conversation again
+  await callWith(B, 'upsert_workspace_conversations', [{ id: mine, title: 'A chat', model: 'm', provider: 'p', created_at: now(), metadata: {} }]);
+  assert.deepEqual(await linkOf(mine), { shared_project_id: null, shared_project_owner: null });
+  // garbage in the metadata is no link
+  const odd = await conversationIn(B, { sharedProject: { id: 'not-a-uuid', ownerId: ada } });
+  assert.deepEqual(await linkOf(odd), { shared_project_id: null, shared_project_owner: null });
+});
+
+test('a member who was taken out keeps the link of what they made; the project going for good empties it', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  const mine = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  await rpc(A, 'remove_project_member', projectId, bob);
+  // the page writes the conversation back with the same metadata: the link stands
+  await callWith(B, 'upsert_workspace_conversations', [{ id: mine, title: 'Changed', model: 'm', provider: 'p', created_at: now(), metadata: { sharedProject: { id: projectId, ownerId: ada } } }]);
+  assert.deepEqual(await linkOf(mine), { shared_project_id: projectId, shared_project_owner: ada });
+  // but a new conversation cannot be linked any more
+  const later = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  assert.deepEqual(await linkOf(later), { shared_project_id: null, shared_project_owner: null });
+  await database.service.query('delete from public.workspace_folders where id = $1', [projectId]);
+  assert.deepEqual(await linkOf(mine), { shared_project_id: null, shared_project_owner: null });
+});
+
+test('the server reads the project for a person who is in it: the conversations of the owner and of every member, with their messages; nobody else gets anything', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  const ownerChat = await conversationIn(A, { folderId: projectId, title: 'Owner chat' });
+  const memberChat = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada }, title: 'Member chat', texts: ['q', 'a', 'q2'] });
+  const outside = await conversationIn(A, { title: 'Not in the project' });
+  const result = await read(bob, projectId);
+  assert.equal(result.role, 'chat');
+  assert.equal(result.project.name, 'City plan');
+  assert.equal(result.owner_name, 'Ada Lovelace');
+  assert.deepEqual(result.conversations.map((chat) => [chat.title, chat.author_name]).sort(), [['Member chat', 'bob'], ['Owner chat', 'Ada Lovelace']]);
+  assert.ok(!result.conversations.some((chat) => chat.id === outside));
+  assert.equal(result.messages.filter((message) => message.conversation_id === memberChat).length, 3);
+  assert.equal(result.messages.filter((message) => message.conversation_id === ownerChat).length, 2);
+  assert.equal(await read(cy, projectId), null);
+  assert.equal(await read(bob, id()), null);
+  const unshared = await projectOf(A);
+  assert.equal(await read(ada, unshared), null);
+});
+
+test('the read gives a page at a time, from a time on', async () => {
+  const projectId = await sharedProject();
+  const first = await conversationIn(A, { folderId: projectId, title: 'One' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await conversationIn(A, { folderId: projectId, title: 'Two' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await conversationIn(A, { folderId: projectId, title: 'Three' });
+  const page = await read(ada, projectId, null, 2);
+  assert.equal(page.conversations.length, 2);
+  assert.equal(page.has_more, true);
+  const rest = await read(ada, projectId, page.conversations.at(-1).updated_at, 2);
+  assert.deepEqual(rest.conversations.map((chat) => chat.title), ['Three']);
+  assert.equal(rest.has_more, false);
+  assert.ok(first);
+});
+
+test('the server function is for the server only', async () => {
+  assert.match((await A.error('select public.server_read_project_for_member($1, $2)', [ada, id()]))?.message || 'it worked', /permission denied/);
+  assert.match((await database.anon.error('select public.server_read_project_for_member($1, $2)', [ada, id()]))?.message || 'it worked', /permission denied/);
+});
