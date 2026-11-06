@@ -541,8 +541,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       open.classList.add('is-openable');
       open.setAttribute('role', 'button');
       open.tabIndex = 0;
-      const look = () => { void sourceOpener.preview(project, source, open); };
-      open.addEventListener('click', look);
+      const look = (back = open) => { void sourceOpener.preview(project, source, back); };
+      // A tap or a click gives no element to give the focus back to (the row would stay lit after the preview closes); the keyboard does.
+      open.addEventListener('click', () => look(null));
       open.addEventListener('keydown', (event) => { if (event.target === open && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); look(); } });
       if (source.kind !== 'url') {
         const save = make(document, 'button', 'pj-more');

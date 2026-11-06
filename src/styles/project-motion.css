@@ -9,4 +9,6 @@
 .pj-source.pj-row, .pj-source.pj-row:hover, .pj-source.pj-row:focus-visible { background: transparent; cursor: default; }
 .pj-source-open { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 0.8rem; padding: 0.15rem 0.3rem; border-radius: 0.6rem; }
 .pj-source-open.is-openable { cursor: pointer; }
-.pj-source-open.is-openable:hover, .pj-source-open.is-openable:focus-visible { background: var(--hover-bg); outline: none; }
+@media (hover: hover) { .pj-source-open.is-openable:hover { background: var(--hover-bg); } }
+.pj-source-open.is-openable:focus-visible { outline: 2px solid var(--border-color); outline-offset: -2px; }
+.pj-source-open.is-openable:focus:not(:focus-visible) { outline: none; }

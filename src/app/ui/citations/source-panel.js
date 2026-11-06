@@ -112,7 +112,7 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
       open.classList.add('is-openable');
       open.tabIndex = 0;
       open.setAttribute('role', 'button');
-      open.addEventListener('click', () => onOpenFile(file.name, open));
+      open.addEventListener('click', () => onOpenFile(file.name, null));
       open.addEventListener('keydown', (event) => { if (event.target === open && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpenFile(file.name, open); } });
     }
     if (onDownloadFile) {
