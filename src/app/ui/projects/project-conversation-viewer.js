@@ -15,47 +15,63 @@ import { branchButtonHTML } from '../../runtime/branch/branch-button.js';
 import { make, openSheet } from './project-parts.js';
 
 /**
- * `chat` is { id, title, authorName, messages }; `texts` the interface texts of the language (for the markup of the messages); `onBranch(messageIndex)` is told which reply the reader chose
- * (the last one when they use the button at the foot); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
+ * `chat` is { id, title, authorName, messages }; `texts` the interface texts of the language (for the markup of the messages); `onBranch({ id, index })` is told which reply the reader chose
+ * (`{ last: true }` for the button at the foot); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
  */
-export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null }) {
+export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, onClose = () => {} }) {
   const win = document.defaultView;
-  const sheet = openSheet({ document, root, title: chat.title || '', close: text('psCancel'), className: 'psh-viewer' });
+  const sheet = openSheet({ document, root, title: chat.title || '', close: text('psCancel'), className: 'psh-viewer', onClose });
   const lead = make(document, 'p', 'pj-note psh-viewer-lead', text('psReadOnly', { name: chat.authorName || '' }));
   const list = make(document, 'section', 'psh-messages');
   sheet.body.append(lead, list);
   const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({ marked, sanitizer: DOMPurify, DOMParser: win.DOMParser, katex: getKatex(), getUiLanguage: () => language, getText: (key, fallback) => texts[key] || fallback, logger: console }).renderMarkdownWithFormulas;
   const mediaRenderer = createMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => language });
   const previews = createMediaPreviewLifecycle({ document, navigator: win.navigator, fetch: win.fetch?.bind(win), File: win.File, escapeHTML, getInlineMediaSrc: mediaRenderer.getInlineMediaSrc, getUiLanguage: () => language });
-  const drawn = renderSharedMessages({
-    document, list, messages: chat.messages || [], code: chat.id, texts, language, renderUserText, renderModelText, buildMediaAttachmentView: mediaRenderer.buildMediaAttachmentView,
-    bindMediaPreviewButtons: previews.bindMediaPreviewButtons, bindGeneratedImageAssets: async () => {}
-  });
-  try { installCodeHighlighting({ document: list, window: win }); } catch { /* the colours of code are a help */ }
-  const replies = [];
-  drawn.forEach((message, index) => { if (message.role === 'model') replies.push(index); });
-  if (canBranch) {
-    // The button under each reply (the same one the chat has); the footer of a message that the page draws has the copy button first.
-    for (const index of replies) {
-      const footer = list.querySelector(`[data-message-index="${index}"] .message-footer-left`);
-      footer?.querySelector('.copy-content-btn')?.insertAdjacentHTML('afterend', branchButtonHTML(text('branchChat')));
+  let current = chat;
+  let go = null;
+  const draw = () => {
+    const drawn = renderSharedMessages({
+      document, list, messages: current.messages || [], code: current.id, texts, language, renderUserText, renderModelText, buildMediaAttachmentView: mediaRenderer.buildMediaAttachmentView,
+      bindMediaPreviewButtons: previews.bindMediaPreviewButtons, bindGeneratedImageAssets: async () => {}
+    });
+    try { installCodeHighlighting({ document: list, window: win }); } catch { /* the colours of code are a help */ }
+    const replies = [];
+    drawn.forEach((message, index) => { if (message.role === 'model') replies.push(index); });
+    if (canBranch) {
+      // The button under each reply (the same one the chat has); the footer of a message that the page draws has the copy button first.
+      for (const index of replies) list.querySelector(`[data-message-index="${index}"] .message-footer-left .copy-content-btn`)?.insertAdjacentHTML('afterend', branchButtonHTML(text('branchChat')));
+      if (go) go.hidden = !replies.length;
     }
+  };
+  if (canBranch) {
+    // A reply is named by its id, not by its place, so the branch is made of the reply the reader saw even when the conversation went on since.
     list.addEventListener('click', (event) => {
       const button = event.target.closest('.branch-message-btn');
       if (!button) return;
       const index = Number(button.closest('[data-message-index]')?.dataset.messageIndex);
-      if (Number.isInteger(index)) { sheet.close(); onBranch(index); }
+      const message = current.messages?.[index];
+      if (message) { sheet.close(); onBranch({ id: message.id, index }); }
     });
-    if (replies.length) {
-      const bar = make(document, 'div', 'psh-branch-bar');
-      bar.append(make(document, 'span', 'psh-branch-hint', text('psBranchHint', { name: chat.authorName || '' })));
-      const go = make(document, 'button', 'pj-primary psh-branch-go', text('branchChat'));
-      go.type = 'button';
-      go.setAttribute('data-branch-last', '');
-      go.addEventListener('click', () => { sheet.close(); onBranch(replies.at(-1)); });
-      bar.appendChild(go);
-      sheet.element.appendChild(bar);
-    }
+    const bar = make(document, 'div', 'psh-branch-bar');
+    bar.append(make(document, 'span', 'psh-branch-hint', text('psBranchHint', { name: chat.authorName || '' })));
+    go = make(document, 'button', 'pj-primary psh-branch-go', text('branchChat'));
+    go.type = 'button';
+    go.setAttribute('data-branch-last', '');
+    go.addEventListener('click', () => { sheet.close(); onBranch({ last: true }); });
+    bar.appendChild(go);
+    sheet.element.appendChild(bar);
   }
-  return sheet;
+  draw();
+  // The page keeps up with the conversation: the messages are drawn again (the reader stays where they were unless they were at the end).
+  return {
+    ...sheet,
+    update: (next) => {
+      const body = sheet.body;
+      const atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+      const top = body.scrollTop;
+      current = next;
+      draw();
+      body.scrollTop = atEnd ? body.scrollHeight : top;
+    }
+  };
 }

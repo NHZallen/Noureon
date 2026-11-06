@@ -6,7 +6,7 @@
 -- (a person who was taken out keeps what they made in it); a conversation whose metadata no longer names the project is not linked any more. When the project goes for good the link is emptied and the
 -- conversation is a plain one of its author.
 --
---   server_read_project_for_member(person, project, since, limit)   for the server only: the project, and the conversations of every member (and of the owner) in it with their messages, for a person
+--   server_read_project_for_member(person, project, since, limit, conversation)   for the server only (one conversation when asked): the project, and the conversations of every member (and of the owner) in it with their messages, for a person
 --                                                                   who is in the project. The server takes what belongs to the personal memory out of the older messages before it gives them on.
 
 alter table public.workspace_conversations add column if not exists shared_project_id uuid;
@@ -60,7 +60,7 @@ create trigger link_conversation_to_shared_project
   before insert or update on public.workspace_conversations
   for each row execute function public.link_conversation_to_shared_project();
 
-create or replace function public.server_read_project_for_member(p_user_id uuid, p_project_id uuid, p_since timestamptz default null, p_limit integer default 50)
+create or replace function public.server_read_project_for_member(p_user_id uuid, p_project_id uuid, p_since timestamptz default null, p_limit integer default 50, p_conversation_id uuid default null)
 returns jsonb
 language plpgsql
 stable
@@ -77,29 +77,34 @@ begin
   if v_role is null then return null; end if;
   select * into v_folder from public.workspace_folders where id = p_project_id;
   if v_folder.shared_at is null then return null; end if;
-  select coalesce(array_agg(page.id order by page.updated_at, page.id), '{}'), coalesce(bool_or(page.rn > v_limit), false)
+  -- A conversation is "active" when it or one of its messages changed: the person who writes it syncs the messages, and the conversation row follows, but the read does not lean on that.
+  select coalesce(array_agg(page.id order by page.activity, page.id), '{}'), coalesce(bool_or(page.rn > v_limit), false)
   into v_ids, v_more
   from (
-    select c.id, c.updated_at, row_number() over (order by c.updated_at, c.id) as rn
-    from public.workspace_conversations c
-    where ((c.user_id = v_folder.user_id and c.folder_id = p_project_id) or (c.shared_project_id = p_project_id and c.shared_project_owner = v_folder.user_id))
-      and (p_since is null or c.updated_at > p_since)
-    order by c.updated_at, c.id
+    select act.id, act.activity, row_number() over (order by act.activity, act.id) as rn
+    from (
+      select c.id, greatest(c.updated_at, coalesce((select max(m.updated_at) from public.workspace_messages m where m.conversation_id = c.id), c.updated_at)) as activity
+      from public.workspace_conversations c
+      where ((c.user_id = v_folder.user_id and c.folder_id = p_project_id) or (c.shared_project_id = p_project_id and c.shared_project_owner = v_folder.user_id))
+        and (p_conversation_id is null or c.id = p_conversation_id)
+    ) act
+    where p_since is null or act.activity > p_since
+    order by act.activity, act.id
     limit v_limit + 1
-  ) page
-  where page.rn <= v_limit + 1;
+  ) page;
   -- one more than the limit was looked for only to know if there is more
   if v_more then v_ids := v_ids[1:v_limit]; end if;
   return jsonb_build_object(
     'role', v_role,
     'shared_at', v_folder.shared_at,
     'has_more', v_more,
-    'project', jsonb_build_object('id', v_folder.id, 'name', v_folder.name, 'icon', v_folder.icon, 'color', v_folder.color, 'text_color', v_folder.text_color, 'instructions', v_folder.instructions, 'memory_scope', v_folder.memory_scope),
+    'project', jsonb_build_object('id', v_folder.id, 'name', v_folder.name, 'icon', v_folder.icon, 'color', v_folder.color, 'text_color', v_folder.text_color, 'instructions', v_folder.instructions, 'memory_scope', v_folder.memory_scope, 'updated_at', v_folder.updated_at),
     'owner_id', v_folder.user_id,
     'owner_name', public.project_person_name(v_folder.user_id),
     'conversations', coalesce((
       select jsonb_agg(jsonb_build_object('id', c.id, 'author_id', c.user_id, 'author_name', public.project_person_name(c.user_id), 'title', c.title, 'model', c.model, 'provider', c.provider, 'metadata', c.metadata,
-        'created_at', c.created_at, 'updated_at', c.updated_at, 'deleted_at', c.deleted_at) order by c.updated_at, c.id)
+        'created_at', c.created_at, 'updated_at', greatest(c.updated_at, coalesce((select max(m.updated_at) from public.workspace_messages m where m.conversation_id = c.id), c.updated_at)), 'deleted_at', c.deleted_at)
+        order by greatest(c.updated_at, coalesce((select max(m.updated_at) from public.workspace_messages m where m.conversation_id = c.id), c.updated_at)), c.id)
       from public.workspace_conversations c where c.id = any (v_ids)
     ), '[]'::jsonb),
     'messages', coalesce((
@@ -111,5 +116,5 @@ end;
 $$;
 
 revoke all on function public.link_conversation_to_shared_project() from public, anon, authenticated;
-revoke all on function public.server_read_project_for_member(uuid, uuid, timestamptz, integer) from public, anon, authenticated;
-grant execute on function public.server_read_project_for_member(uuid, uuid, timestamptz, integer) to service_role;
+revoke all on function public.server_read_project_for_member(uuid, uuid, timestamptz, integer, uuid) from public, anon, authenticated;
+grant execute on function public.server_read_project_for_member(uuid, uuid, timestamptz, integer, uuid) to service_role;

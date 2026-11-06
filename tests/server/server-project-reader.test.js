@@ -51,7 +51,7 @@ test('the reader gives the project, the conversations with their messages and wh
   const calls = [];
   const reader = createProjectReader({ db: { rpc: async (name, params) => { calls.push([name, params]); return rows(); } }, pageSize: 10 });
   const result = await reader.read({ userId: USER, projectId: PROJECT, since: '2026-10-31T00:00:00Z' });
-  assert.deepEqual(calls, [['server_read_project_for_member', { p_user_id: USER, p_project_id: PROJECT, p_since: '2026-10-31T00:00:00Z', p_limit: 10 }]]);
+  assert.deepEqual(calls, [['server_read_project_for_member', { p_user_id: USER, p_project_id: PROJECT, p_since: '2026-10-31T00:00:00Z', p_limit: 10, p_conversation_id: null }]]);
   assert.equal(result.role, 'chat');
   assert.equal(result.project.name, 'City plan');
   assert.deepEqual(result.owner, { id: 'owner', name: 'Ada' });
@@ -89,6 +89,9 @@ test('POST /v1/projects/:id/read gives the page to a signed-in person, and says 
     assert.equal(seen[0].p_since, '2026-10-31T00:00:00Z');
     assert.equal((await call(base, {}, { token: '' })).status, 401);
     assert.equal((await call(base, { since: 'yesterday-ish' })).status, 400);
+    assert.equal((await call(base, { conversationId: 'nope' })).status, 400);
+    assert.equal((await call(base, { conversationId: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA' })).status, 200);
+    assert.equal(seen.at(-1).p_conversation_id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     assert.equal((await call(base, {}, { project: '323e4567-e89b-12d3-a456-426614174002' })).status, 404);
     assert.equal((await fetch(`${base}/v1/projects/not-an-id/read`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}` }, body: '{}' })).status, 404);
   }, { projectReader });

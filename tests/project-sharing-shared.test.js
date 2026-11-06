@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { readSharedProject } from '../src/app/runtime/project-sharing/project-reader-client.js';
+import { createSharedProjectReader, readSharedProject } from '../src/app/runtime/project-sharing/project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from '../src/app/runtime/project-sharing/branch-from-mirror.js';
 import { startProjectSharing, SHARED_EVENT } from '../src/app/runtime/project-sharing/start-project-sharing.js';
 import { announceUser } from '../src/app/runtime/features/user-ready.js';
@@ -100,11 +100,11 @@ test('the conversation of someone else is read as a page; the button under a rep
   assert.equal(root.querySelector('textarea, input[type="text"]'), null);
   assert.equal(root.querySelectorAll('.branch-message-btn').length, 2);
   root.querySelectorAll('.branch-message-btn')[0].click();
-  assert.deepEqual(asked, [1]);
+  assert.deepEqual(asked, [{ id: 'b', index: 1 }]);
   const again = page();
   openProjectConversation({ document: again.document, root: again.root, text, texts: {}, language: 'en', chat: chat('c1', 'o', 'Traffic', 'x', MESSAGES), renderMarkdown: (value) => `<p>${value}</p>`, onBranch: (index) => asked.push(index) });
   again.root.querySelector('[data-branch-last]').click();
-  assert.deepEqual(asked, [1, 3]);
+  assert.deepEqual(asked, [{ id: 'b', index: 1 }, { last: true }]);
   const none = page();
   openProjectConversation({ document: none.document, root: none.root, text, texts: {}, language: 'en', chat: chat('c1', 'o', 'Traffic', 'x', MESSAGES), renderMarkdown: (value) => value, canBranch: false, onBranch: (index) => asked.push(index) });
   assert.equal(none.root.querySelector('.branch-message-btn'), null);
@@ -112,7 +112,14 @@ test('the conversation of someone else is read as a page; the button under a rep
   assert.ok(window);
 });
 
-const started = ({ read, conversations = [], items = [] } = {}) => {
+// A reader that stands in for the server: `read` is what load() gives (or a function of the call); `live` is changed by a test to say what refresh() and conversation() give next.
+const readerOf = (read, live = {}) => ({
+  load: async () => (typeof read === 'function' ? read() : read),
+  refresh: async () => (live.refresh ? live.refresh() : { ok: true, changed: false, project: (typeof read === 'function' ? await read() : read).project }),
+  conversation: async (id) => (live.conversation ? live.conversation(id) : { ok: false, code: 'gone' })
+});
+
+const started = ({ read, conversations = [], items = [], live = {} } = {}) => {
   const { window, document, root } = page();
   announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
   provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
@@ -120,7 +127,7 @@ const started = ({ read, conversations = [], items = [] } = {}) => {
   const api = startProjectSharing({
     document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => conversations, getFolders: () => [] },
     saveAppData: async () => { events.saved += 1; }, showNotification: (message, kind) => events.notes.push([message, kind]), renderSidebar: () => {}, openConversation: (id) => events.opened.push(id),
-    client: { sharedWithMe: async () => ({ ok: true, data: items }), invite: async () => ({ ok: false }), leave: async (id) => { events.left.push(id); return { ok: true }; } }, storage: window.localStorage, readProject: read, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
+    client: { sharedWithMe: async () => ({ ok: true, data: items }), invite: async () => ({ ok: false }), leave: async (id) => { events.left.push(id); return { ok: true }; } }, storage: window.localStorage, createReader: () => readerOf(read, live), pollMs: 40, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
   });
   return { api, document, root, events, conversations };
 };
@@ -137,6 +144,7 @@ test('opening a shared project reads it and shows it; a branch and a new chat ar
   assert.equal(env.conversations.length, 1);
   assert.deepEqual(env.conversations[0].sharedProject, { id: PROJECT, ownerId: 'o' });
   assert.equal(env.conversations[0].title, 'Traffic (branch)');
+  assert.equal(env.conversations[0].messages.length, 4);
   assert.deepEqual(env.events.opened, [env.conversations[0].id]);
   assert.deepEqual(env.events.notes.at(-1), [texts.psBranched, 'success']);
   assert.equal(env.events.saved, 1);
@@ -202,8 +210,6 @@ test('the shared projects are kept in the browser between visits', () => {
 });
 
 test('a member leaves a shared project after being asked; the page forgets the project', async () => {
-  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'x' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
-  const env = started({ read });
   const left = [];
   const { document, root } = page();
   openSharedProjectPage({ document, root, text, meId: ME, shared: { project: { name: 'City plan' }, owner: { name: 'Ada' }, conversations: [] }, onOpenChat: () => {}, onNewChat: () => {}, onLeave: () => left.push('left') });
@@ -230,4 +236,69 @@ test('leaving through the page tells the database and drops the shared project f
   assert.deepEqual(env.events.left, [PROJECT]);
   assert.deepEqual(env.events.notes.at(-1), [text('psLeft', { name: 'City plan' }), 'success']);
   assert.equal(projectInstructionTextFor(inShared), '');
+});
+
+test('the reader reads all of a project, then only what changed; a conversation can be read alone', async () => {
+  const sent = [];
+  const answers = [
+    { role: 'chat', sharedAt: 's', project: { name: 'P', instructions: 'one' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'One', '2026-11-01T00:00:00Z', MESSAGES)], hasMore: false, next: '2026-11-01T00:00:00Z' },
+    { role: 'chat', sharedAt: 's', project: { name: 'P', instructions: 'one' }, owner: { id: 'o', name: 'Ada' }, conversations: [], hasMore: false, next: '2026-11-01T00:00:00Z' },
+    { role: 'chat', sharedAt: 's', project: { name: 'P', instructions: 'two' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'One', '2026-11-02T00:00:00Z', [...MESSAGES, { id: 'e', role: 'user', parts: [{ text: 'newer' }] }])], hasMore: false, next: '2026-11-02T00:00:00Z' },
+    { role: 'chat', sharedAt: 's', project: { name: 'P' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'One', '2026-11-02T00:00:00Z', MESSAGES)], hasMore: false, next: '2026-11-02T00:00:00Z' }
+  ];
+  const reader = createSharedProjectReader({ projectId: PROJECT, request: async (method, path, { body }) => { sent.push(JSON.parse(body)); return { ok: true, status: 200, data: answers[sent.length - 1] }; } });
+  const loaded = await reader.load();
+  assert.equal(loaded.project.conversations.length, 1);
+  assert.deepEqual(sent[0], {});
+  const quiet = await reader.refresh();
+  assert.equal(quiet.changed, false);
+  assert.deepEqual(sent[1], { since: '2026-11-01T00:00:00Z' });
+  const busy = await reader.refresh();
+  assert.equal(busy.changed, true);
+  assert.equal(busy.project.conversations[0].messages.length, 5);
+  assert.equal(busy.project.project.instructions, 'two');
+  assert.deepEqual(sent[2], { since: '2026-11-01T00:00:00Z' });
+  const alone = await reader.conversation('c1');
+  assert.equal(alone.ok, true);
+  assert.deepEqual(sent[3], { conversationId: 'c1' });
+  assert.equal((await createSharedProjectReader({ projectId: PROJECT, request: async () => ({ ok: true, status: 200, data: { ...answers[1], conversations: [] } }) }).conversation('c1')).code, 'gone');
+});
+
+test('what others write shows while the page is open: the list and the conversation that is read are drawn again, and a branch is made of the conversation as it is now', async () => {
+  const old = chat('c1', 'o', 'Traffic', '2026-11-01T00:00:00Z', MESSAGES);
+  const newer = chat('c1', 'o', 'Traffic', '2026-11-05T00:00:00Z', [...MESSAGES, { id: 'e', role: 'user', parts: [{ text: 'a later question' }] }, { id: 'f', role: 'model', parts: [{ text: 'a later answer' }] }]);
+  const added = chat('c9', 'bob', 'Fresh idea', '2026-11-06T00:00:00Z', MESSAGES.slice(0, 2));
+  const live = {};
+  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [old] } });
+  const env = started({ read, live });
+  await env.api.openShared({ project_id: PROJECT, root: env.root });
+  env.root.querySelector('[data-chat-id="c1"]').click();
+  await tick();
+  assert.doesNotMatch(env.root.textContent, /a later answer/);
+  live.refresh = async () => ({ ok: true, changed: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Now with rules.' }, owner: { id: 'o', name: 'Ada' }, conversations: [added, newer] } });
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.match(env.root.textContent, /a later answer/);
+  assert.match(env.root.textContent, /Fresh idea/);
+  assert.match(projectInstructionTextFor({ id: 'k', sharedProject: { id: PROJECT, ownerId: 'o' } }), /Now with rules\./);
+  // a branch from the first reply is made of the conversation as it is now (it is read again for that), and the reply is found by its id
+  live.conversation = async () => ({ ok: true, chat: { ...newer, messages: [...newer.messages, { id: 'g', role: 'model', parts: [{ text: 'the very latest' }] }] } });
+  live.refresh = null;
+  env.root.querySelector('[data-branch-last]').click();
+  await tick(); await tick();
+  assert.equal(env.conversations.length, 1);
+  assert.equal(env.conversations[0].messages.at(-1).parts[0].text, 'the very latest');
+  assert.equal(env.conversations[0].messages.length, 7);
+});
+
+test('the page stops reading when it is closed', async () => {
+  let refreshes = 0;
+  const live = { refresh: async () => { refreshes += 1; return { ok: true, changed: false, project: {} }; } };
+  const env = started({ read: async () => ({ ok: true, project: { role: 'chat', project: { name: 'P' }, owner: { id: 'o', name: 'A' }, conversations: [] } }), live });
+  const page = await env.api.openShared({ project_id: PROJECT, root: env.root });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.ok(refreshes >= 1);
+  page.close();
+  const after = refreshes;
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(refreshes, after);
 });

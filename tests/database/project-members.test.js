@@ -185,7 +185,7 @@ const conversationIn = async (client, { folderId = null, sharedProject = null, t
   return conversationId;
 };
 const linkOf = async (conversationId) => (await database.service.query('select shared_project_id, shared_project_owner from public.workspace_conversations where id = $1', [conversationId]))[0];
-const read = async (userId, projectId, since = null, limit = 50) => (await database.service.query('select public.server_read_project_for_member($1, $2, $3, $4) as r', [userId, projectId, since, limit]))[0].r;
+const read = async (userId, projectId, since = null, limit = 50, conversationId = null) => (await database.service.query('select public.server_read_project_for_member($1, $2, $3, $4, $5) as r', [userId, projectId, since, limit, conversationId]))[0].r;
 
 test('a member links a conversation to the project by its metadata; a person who is not a member cannot, and a conversation moved out is not linked', async () => {
   const projectId = await sharedProject();
@@ -257,6 +257,22 @@ test('the read gives a page at a time, from a time on', async () => {
 });
 
 test('the server function is for the server only', async () => {
-  assert.match((await A.error('select public.server_read_project_for_member($1, $2)', [ada, id()]))?.message || 'it worked', /permission denied/);
-  assert.match((await database.anon.error('select public.server_read_project_for_member($1, $2)', [ada, id()]))?.message || 'it worked', /permission denied/);
+  assert.match((await A.error('select public.server_read_project_for_member($1, $2, null, 50, null)', [ada, id()]))?.message || 'it worked', /permission denied/);
+  assert.match((await database.anon.error('select public.server_read_project_for_member($1, $2, null, 50, null)', [ada, id()]))?.message || 'it worked', /permission denied/);
+});
+
+test('a conversation whose messages changed shows up again from a time on, even when its own row did not change; one conversation can be asked for alone', async () => {
+  const projectId = await sharedProject();
+  const quiet = await conversationIn(A, { folderId: projectId, title: 'Quiet' });
+  const busy = await conversationIn(A, { folderId: projectId, title: 'Busy' });
+  const first = await read(ada, projectId);
+  const mark = first.conversations.at(-1).updated_at;
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  await callWith(A, 'upsert_workspace_messages', [{ id: id(), conversation_id: busy, role: 'user', parts: [{ text: 'a new line' }], sequence: 5, created_at: now() }]);
+  const later = await read(ada, projectId, mark);
+  assert.deepEqual(later.conversations.map((chat) => chat.id), [busy]);
+  assert.ok(later.messages.some((message) => message.parts[0].text === 'a new line'));
+  const alone = await read(ada, projectId, null, 50, quiet);
+  assert.deepEqual(alone.conversations.map((chat) => chat.id), [quiet]);
+  assert.equal((await read(ada, projectId, mark, 50, quiet)).conversations.length, 0);
 });

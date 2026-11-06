@@ -32,10 +32,10 @@ export function messageForMember(message, { sharedAt }) {
 
 export function createProjectReader({ db, pageSize = PAGE } = {}) {
   /** Resolves the page of the project from `since` on: { role, sharedAt, project, owner, conversations: [{ ..., messages }], hasMore, next }. */
-  async function read({ userId, projectId, since = null }) {
+  async function read({ userId, projectId, since = null, conversationId = null }) {
     let result;
     try {
-      result = await db.rpc('server_read_project_for_member', { p_user_id: userId, p_project_id: projectId, p_since: since, p_limit: pageSize });
+      result = await db.rpc('server_read_project_for_member', { p_user_id: userId, p_project_id: projectId, p_since: since, p_limit: pageSize, p_conversation_id: conversationId });
     } catch {
       throw new ProjectReadError('The project could not be read.', 'database');
     }

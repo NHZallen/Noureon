@@ -461,9 +461,11 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (!projectLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
         const body = await readJson(request, 1024);
         const since = body?.since ? String(body.since) : null;
+        const conversationId = body?.conversationId ? String(body.conversationId).toLowerCase() : null;
+        if (conversationId !== null && !/^[0-9a-f-]{36}$/.test(conversationId)) throw new RequestError(ERROR_CODES.badRequest, 'The conversation is not named right.');
         if (since !== null && Number.isNaN(Date.parse(since))) throw new RequestError(ERROR_CODES.badRequest, 'The time is not right.');
         try {
-          send(response, 200, await projectReader.read({ userId: user.id, projectId: projectRead[1].toLowerCase(), since }), origin);
+          send(response, 200, await projectReader.read({ userId: user.id, projectId: projectRead[1].toLowerCase(), since, conversationId }), origin);
           status = 200;
           return;
         } catch (error) {

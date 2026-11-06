@@ -7,7 +7,7 @@ import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
 import { createProjectShareClient } from './project-share-client.js';
 import { clearPendingJoin, readPendingJoin } from './join-route.js';
-import { readSharedProject } from './project-reader-client.js';
+import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
 import { createSharedFolders } from './shared-folders.js';
 import { setProjectFoldersReader } from '../projects/project-instructions.js';
@@ -20,7 +20,7 @@ const nameOf = (user) => {
   return candidate && !candidate.includes('@') ? candidate : '';
 };
 
-export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar = () => {}, openConversation = () => {}, supabase = null, client = null, storage = null, copyText = null, readProject = readSharedProject, defaultsOf = null, renderMarkdown = null }) {
+export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar = () => {}, openConversation = () => {}, supabase = null, client = null, storage = null, copyText = null, createReader = (args) => createSharedProjectReader(args), pollMs = 3000, defaultsOf = null, renderMarkdown = null }) {
   const getSupabase = () => { if (supabase) return supabase; try { return getSupabaseClient(); } catch { return null; } };
   const shareClient = client || createProjectShareClient({ getSupabase });
   const text = (key, values = {}) => {
@@ -65,32 +65,63 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     openConversation(conversation.id);
   };
 
-  /** Opens a shared project of the person (one of the list "Shared with you"). */
+  /** Opens a shared project of the person (one of the list "Shared with you"). The page keeps reading it while it is open, so what others write shows at once. */
   async function openShared({ project_id: projectId, root = null }) {
     const me = getAnnouncedUser()?.supabaseUserId || '';
-    const read = await readProject({ projectId });
+    const reader = createReader({ projectId });
+    const read = await reader.load();
     if (!read.ok) { showNotification(text(read.code === 'gone' ? 'psSharedGone' : 'psSharedLoadFailed'), 'error'); return null; }
     sharedFolders.set({ ...read.project.project, id: projectId });
     await ensureStyles();
     const language = configAccess.getUiLanguage();
     const texts = i18n[language] || i18n['zh-TW'] || {};
     const shared = { id: projectId, ownerId: read.project.owner.id };
+    const host = root || document.body;
     const [{ openSharedProjectPage }, { openProjectConversation }] = await Promise.all([import('../../ui/projects/shared-project-page.js'), import('../../ui/projects/project-conversation-viewer.js')]);
-    const branch = async (chat, index) => {
+    let page = null;
+    let viewer = null;
+    let timer = null;
+    // A branch is made of the conversation as it is now, not as it was drawn a while ago; the reply is found by its id (the last one when the reader asked for the last).
+    const branch = async (chat, pick) => {
       try {
-        const made = branchFromMirror({ chat, messageIndex: index, shared, title: text('branchTitle', { title: chat.title || '' }), defaults: await defaults() });
+        const fresh = await reader.conversation(chat.id);
+        const base = fresh.ok ? fresh.chat : chat;
+        const messages = base.messages || [];
+        let index = pick?.last ? messages.map((message) => message.role).lastIndexOf('model') : messages.findIndex((message) => message.id === pick?.id);
+        if (index < 0 && Number.isInteger(pick?.index)) index = pick.index;
+        const made = branchFromMirror({ chat: base, messageIndex: index, shared, title: text('branchTitle', { title: base.title || '' }), defaults: await defaults() });
         if (!made) { showNotification(text('branchNothing'), 'error'); return; }
         await put(made);
         showNotification(text('psBranched'), 'success');
       } catch { showNotification(text('branchFailed'), 'error'); }
     };
-    return openSharedProjectPage({
-      document, root: root || document.body, text, language, shared: read.project, meId: me,
-      onOpenChat: (chat) => openProjectConversation({ document, root: root || document.body, text, texts, language, chat, renderMarkdown, onBranch: (index) => { void branch(chat, index); } }),
-      onOpenOwn: (chat) => { if ((dataStore.getConversations() || []).some((entry) => entry.id === chat.id)) openConversation(chat.id); else openProjectConversation({ document, root: root || document.body, text, texts, language, chat, renderMarkdown, onBranch: (index) => { void branch(chat, index); } }); },
+    const openChat = (chat) => {
+      viewer = { chatId: chat.id, sheet: openProjectConversation({ document, root: host, text, texts, language, chat, renderMarkdown, onClose: () => { viewer = null; }, onBranch: (pick) => { void branch(chat, pick); } }) };
+    };
+    const apply = (project) => {
+      sharedFolders.set({ ...project.project, id: projectId });
+      page?.update(project);
+      const fresh = viewer ? project.conversations.find((entry) => entry.id === viewer.chatId) : null;
+      if (fresh) viewer.sheet.update(fresh);
+    };
+    const tick = async () => {
+      if (document.hidden) return;
+      const result = await reader.refresh();
+      if (result.ok && result.changed) apply(result.project);
+    };
+    const onVisible = () => { if (!document.hidden) void tick(); };
+    const stop = () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+    page = openSharedProjectPage({
+      document, root: host, text, language, shared: read.project, meId: me, onClose: stop,
+      onOpenChat: openChat,
+      onOpenOwn: (chat) => { if ((dataStore.getConversations() || []).some((entry) => entry.id === chat.id)) openConversation(chat.id); else openChat(chat); },
       onLeave: async () => { const left = await shareClient.leave(projectId); if (!left.ok) { showNotification(text('psFailed'), 'error'); return; } sharedFolders.forget(projectId); showNotification(text('psLeft', { name: read.project.project?.name || '' }), 'success'); },
       onNewChat: async () => { try { await put(newSharedConversation({ shared, defaults: await defaults() })); } catch { showNotification(text('psFailed'), 'error'); } }
     });
+    timer = setInterval(() => { void tick(); }, pollMs);
+    timer?.unref?.(); // (a page keeps the process of a test alive otherwise; in a browser the timer is a number)
+    document.addEventListener('visibilitychange', onVisible);
+    return page;
   }
 
   /** Fills the list "Shared with you" of the projects page. */
