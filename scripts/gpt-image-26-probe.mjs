@@ -4,8 +4,9 @@
 //
 //   OPENROUTER_API_KEY=... node scripts/gpt-image-26-probe.mjs                     OpenRouter, the cheap tests (list, png, gif, svg), flare model
 //   OPENAI_API_KEY=...     node scripts/gpt-image-26-probe.mjs --openai            OpenAI's own API, the same tests
-//   ... --tests list                                  only some tests: list, png, gif, frames, duration, svg, svgcount, refs   (default: list,png,gif,svg)
+//   ... --tests list                                  only some tests: list, png, gif, frames, duration, svg, svgcount, gifcount, refs   (default: list,png,gif,svg)
 //   ... --tests frames                                the most frames each endpoint takes (4, 16, 17, 32, 64): dearer, one GIF each
+//   ... --tests gifcount,svgcount                     does a request for 2 or 3 pictures (n) give that many GIFs / SVGs? (the pictures asked for are counted in the answer)
 //   ... --model openai/gpt-image-2.6-sunburst         another model (OpenAI: gpt-image-2.6-sunburst)
 //   ... --out probe-result.json                       where the result is written (default gpt-image-26-probe-result.json); the pictures go to a folder next to it (--pictures dir)
 //
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { buildOpenAiImageFields } from '../src/app/runtime/images/openai-image-generation.js';
 import { buildOpenRouterImagePayload } from '../src/app/runtime/images/openrouter-image-generation.js';
 
-export const TESTS = Object.freeze(['list', 'png', 'gif', 'frames', 'duration', 'svg', 'svgcount', 'refs']);
+export const TESTS = Object.freeze(['list', 'png', 'gif', 'frames', 'duration', 'svg', 'svgcount', 'gifcount', 'refs']);
 const DEFAULT_TESTS = ['list', 'png', 'gif', 'svg'];
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENAI_BASE = 'https://api.openai.com/v1';
@@ -97,6 +98,7 @@ export async function runProbe({ provider, key, model, tests, fetchImpl = fetch,
           }
           record.pictures.push(info);
         }
+        record.pictureCount = record.pictures.length;
         if (!record.pictures.length) record.note = 'the answer held no picture';
       }
     } catch (error) {
@@ -144,6 +146,9 @@ export async function runProbe({ provider, key, model, tests, fetchImpl = fetch,
   }
   if (tests.includes('svg')) await call('svg', fields({ outputFormat: 'svg' }), { kind: 'svg' });
   if (tests.includes('svgcount')) await call('svg-two-pictures', { ...fields({ outputFormat: 'svg' }), n: 2 }, { kind: 'svg' });
+  if (tests.includes('gifcount')) {
+    for (const count of [2, 3]) await call(`gif-n-${count}`, { ...fields({ outputFormat: 'gif', frameCount: 3, frameDuration: 200 }), n: count }, { kind: 'gif' });
+  }
   if (tests.includes('refs')) {
     await call('gif-with-reference', fields({ outputFormat: 'gif', frameCount: 3 }, [TINY_PNG]), { kind: 'gif' });
     await call('svg-with-reference', fields({ outputFormat: 'svg' }, [TINY_PNG]), { kind: 'svg' });
@@ -179,7 +184,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     writeFileSync(out, `${JSON.stringify(result, null, 2)}\n`);
     for (const record of Object.values(result.results)) {
       const first = record.pictures?.[0];
-      console.log(`${String(record.test).padEnd(22)} ${record.status ?? '-'} ${record.ms ? `${(record.ms / 1000).toFixed(1)}s` : ''} ${record.error ? `ERROR ${record.error.slice(0, 120)}` : first ? `${first.mediaType} ${first.bytes} bytes${first.gif ? ` ${first.gif.frames} frames` : ''}` : record.models ? `${record.models.length} model(s)` : ''}`);
+      console.log(`${String(record.test).padEnd(22)} ${record.status ?? '-'} ${record.ms ? `${(record.ms / 1000).toFixed(1)}s` : ''} ${record.error ? `ERROR ${record.error.slice(0, 120)}` : first ? `${record.pictureCount} picture(s), the first ${first.mediaType} ${first.bytes} bytes${first.gif ? ` ${first.gif.frames} frames` : ''}` : record.models ? `${record.models.length} model(s)` : ''}`);
     }
     console.log(`\nThe result is in ${out}; the pictures are in ${picturesDir}. Paste the JSON (it holds no key) to the one who asked.`);
   } catch (error) {
