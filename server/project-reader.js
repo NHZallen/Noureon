@@ -30,7 +30,17 @@ export function messageForMember(message, { sharedAt }) {
   return { id: message.id, role: message.role, parts, ...(metadata ? { metadata } : {}), createdAt: message.created_at, sequence: message.sequence };
 }
 
-export function createProjectReader({ db, pageSize = PAGE } = {}) {
+export function createProjectReader({ db, files = null, pageSize = PAGE } = {}) {
+  /** A file of the project for a member, as base64: only when the project holds it (supabase/migrations/20261106040000_add_project_asset_access.sql). */
+  async function asset({ userId, projectId, path }) {
+    let allowed = false;
+    try { allowed = (await db.rpc('server_project_asset_allowed', { p_user_id: userId, p_project_id: projectId, p_path: path })) === true; } catch { throw new ProjectReadError('The project could not be read.', 'database'); }
+    if (!allowed || !files?.loadPath) throw new ProjectReadError('That file is not in this project.', 'not_found');
+    try { return { data: Buffer.from(await files.loadPath(path)).toString('base64') }; } catch (error) {
+      throw new ProjectReadError(error?.message || 'The file could not be read.', error?.code === 'too_large' ? 'too_large' : error?.status === 404 ? 'not_found' : 'database');
+    }
+  }
+
   /** Resolves the page of the project from `since` on: { role, sharedAt, project, owner, conversations: [{ ..., messages }], hasMore, next }. */
   async function read({ userId, projectId, since = null, conversationId = null }) {
     let result;
@@ -60,5 +70,5 @@ export function createProjectReader({ db, pageSize = PAGE } = {}) {
       conversations, hasMore: Boolean(result.has_more), next: conversations.length ? conversations.at(-1).updatedAt : since
     };
   }
-  return { read };
+  return { read, asset };
 }

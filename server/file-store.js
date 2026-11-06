@@ -117,5 +117,21 @@ export function createFileStore({ url, serviceKey, db = null, quotaBytes = USER_
     return new Uint8Array(await response.arrayBuffer());
   }
 
-  return { save, load, usage, quotaBytes, removeAll };
+  /** The bytes of a file by its path, whoever's folder it is in. Only for a caller that has already checked that the reader may have it (a member of a shared project, server/project-reader.js). */
+  async function loadPath(path, { maxBytes = 25 * 1024 * 1024 } = {}) {
+    if (!SAFE_PATH.test(String(path || ''))) throw new FileStoreError('That is not the path of a file.');
+    let response;
+    try {
+      response = await fetchImpl(`${url}/storage/v1/object/${ASSET_BUCKET}/${encodePath(path)}`, { headers: authHeaders, signal: AbortSignal.timeout(timeoutMs) });
+    } catch {
+      throw new FileStoreError('The file could not be read.');
+    }
+    if (!response.ok) throw new FileStoreError(`The file could not be read (${response.status}).`, response.status);
+    if (Number(response.headers?.get?.('content-length') || 0) > maxBytes) throw new FileStoreError('The file is too large to show here.', 413, 'too_large');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > maxBytes) throw new FileStoreError('The file is too large to show here.', 413, 'too_large');
+    return bytes;
+  }
+
+  return { save, load, loadPath, usage, quotaBytes, removeAll };
 }

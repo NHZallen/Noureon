@@ -471,3 +471,19 @@ test('"Share conversation" in a shared project copies a link for members only an
   other.document.defaultView.dispatchEvent(new other.document.defaultView.CustomEvent('astra:share-conversation', { detail: { id: 'p' } }));
   assert.deepEqual(publicOpened, [2]);
 });
+
+test('the pictures in a conversation of someone else are asked from the server and drawn as they come; one that cannot be read stays as it was', async () => {
+  const PATH = `${ME}/${'a'.repeat(64)}`;
+  const withPicture = [{ id: 'p1', role: 'user', parts: [{ text: 'look' }, { inlineData: { mimeType: 'image/png', data: { __astraCloudAsset: { path: PATH } } } }], createdAt: '2026-11-06T00:00:00Z' }, { id: 'p2', role: 'model', parts: [{ text: 'nice' }], createdAt: '2026-11-06T00:00:01Z' }];
+  const asked = [];
+  const { document, root } = page();
+  const viewer = openProjectConversation({ document, root, text, texts: {}, language: 'en', chat: chat('c1', 'o', 'Pictures', 'x', withPicture), renderMarkdown: (value) => `<p>${value}</p>`, loadAsset: async (path) => { asked.push(path); return 'iVBORw0KGgo='; } });
+  await tick(); await tick();
+  assert.deepEqual(asked, [PATH]);
+  assert.ok(document.body.innerHTML.includes('iVBORw0KGgo=') || root.innerHTML.includes('iVBORw0KGgo='));
+  assert.ok(viewer);
+  const { reader } = (() => { const requests = []; const request = async (method, path, options) => { requests.push([method, path, options.body]); return { ok: true, data: { data: 'AAA=' } }; }; return { reader: createSharedProjectReader({ projectId: PROJECT, request }), requests }; })();
+  assert.equal(await reader.asset(PATH), 'AAA=');
+  const failing = createSharedProjectReader({ projectId: PROJECT, request: async () => ({ ok: false, status: 404 }) });
+  assert.equal(await failing.asset(PATH), '');
+});

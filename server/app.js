@@ -475,6 +475,26 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
       }
+      // A file of a shared project for a member (server/project-reader.js `asset`): a picture or a file in a conversation of the project or in its sources, as base64.
+      const projectAsset = /^\/v1\/projects\/([0-9a-f-]{36})\/asset$/i.exec(url.pathname);
+      if (request.method === 'POST' && projectAsset) {
+        const user = await authenticate(request);
+        if (!projectReader) throw new RequestError(ERROR_CODES.runsUnavailable, 'Shared projects are not set up on the server.');
+        if (!projectLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
+        const body = await readJson(request, 1024);
+        const path = String(body?.path || '').toLowerCase();
+        if (!/^[0-9a-f-]{36}\/[0-9a-f]{64}$/.test(path)) throw new RequestError(ERROR_CODES.badRequest, 'The file is not named right.');
+        try {
+          send(response, 200, await projectReader.asset({ userId: user.id, projectId: projectAsset[1].toLowerCase(), path }), origin);
+          status = 200;
+          return;
+        } catch (error) {
+          if (!(error instanceof ProjectReadError)) throw error;
+          if (error.code === 'not_found') throw new RequestError(ERROR_CODES.conversationNotFound, error.message);
+          if (error.code === 'too_large') throw new RequestError(ERROR_CODES.requestTooLarge, error.message, { reason: 'too_large' });
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
+      }
       // An invitation to a shared project by mail (server/project-invites.js): the mail is sent here, 20 an hour for each person; the quota says how many are left.
       if (route === 'GET /v1/project-invite-quota') {
         const user = await authenticate(request);

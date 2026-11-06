@@ -102,7 +102,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       } catch { showNotification(text('branchFailed'), 'error'); }
     };
     const openChat = (chat) => {
-      viewer = { chatId: chat.id, sheet: openProjectConversation({ document, root: host, text, texts, language, chat, renderMarkdown, onClose: () => { viewer = null; }, onBranch: (pick) => { void branch(chat, pick); } }) };
+      viewer = { chatId: chat.id, sheet: openProjectConversation({ document, root: host, text, texts, language, chat, renderMarkdown, loadAsset: (path) => reader.asset?.(path), onClose: () => { viewer = null; }, onBranch: (pick) => { void branch(chat, pick); } }) };
     };
     const apply = (project) => {
       sharedFolders.set({ ...project.project, id: projectId });

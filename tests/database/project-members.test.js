@@ -384,3 +384,26 @@ test('two people who are in the same shared project can see each other’s pictu
   assert.equal(await rpc(stranger, 'shares_project_with', ada), false);
   assert.equal(await rpc(A, 'shares_project_with', null), false);
 });
+
+const assetAllowed = async (userId, projectId, path) => (await database.service.query('select public.server_project_asset_allowed($1, $2, $3) as r', [userId, projectId, path]))[0].r;
+
+test('a member may have a file that the project holds (in a conversation of the project or in its sources) and nothing else; only the server can ask', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  await rpc(B, 'accept_project_invite', link.code);
+  const hash = (letter) => letter.repeat(64);
+  const marker = (path) => ({ inlineData: { mimeType: 'image/png', data: { __astraCloudAsset: { path } } } });
+  const mine = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  const bobFile = `${bob}/${hash('a')}`;
+  const adaFile = `${ada}/${hash('b')}`;
+  await callWith(B, 'upsert_workspace_messages', [{ id: id(), conversation_id: mine, role: 'user', parts: [marker(bobFile)], created_at: now(), sequence: 5 }]);
+  assert.equal(await assetAllowed(ada, projectId, bobFile), true);
+  assert.equal(await assetAllowed(bob, projectId, bobFile), true);
+  assert.equal(await assetAllowed(cy, projectId, bobFile), false);
+  assert.equal(await assetAllowed(bob, projectId, `${bob}/${hash('c')}`), false);
+  assert.equal(await assetAllowed(bob, projectId, adaFile), false);
+  assert.equal(await assetAllowed(bob, projectId, 'not-a-path'), false);
+  await rpc(A, 'update_shared_project', projectId, null, [{ id: 's1', kind: 'file', name: 'x.png', fileHash: hash('b') , path: adaFile }], null);
+  assert.equal(await assetAllowed(bob, projectId, adaFile), true);
+  assert.match((await B.error('select public.server_project_asset_allowed($1, $2, $3)', [bob, projectId, bobFile]))?.message || 'it worked', /permission denied/);
+});

@@ -87,7 +87,7 @@ if (config.runsConfigured) {
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }), projectVectors: createProjectVectorSearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
-    projectReader = createProjectReader({ db });
+    projectReader = createProjectReader({ db, files });
     projectInvites = createProjectInvites({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), appUrl: config.appUrl, log });
     shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log, reportMail: createShareReportMailer({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), to: config.reportTo, appUrl: config.appUrl, log }) });
   } catch (error) {

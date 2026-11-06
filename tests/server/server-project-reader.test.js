@@ -97,3 +97,26 @@ test('POST /v1/projects/:id/read gives the page to a signed-in person, and says 
   }, { projectReader });
   await withServer(async (base) => { assert.equal((await call(base, {})).status, 503); }, { projectReader: null });
 });
+
+test('a file of the project is given to a member as base64 only when the database says the project holds it', async () => {
+  const PATH = `${USER}/${'a'.repeat(64)}`;
+  const asked = [];
+  const files = { loadPath: async (path) => { asked.push(path); if (path.endsWith('f'.repeat(64))) { const error = new Error('big'); error.code = 'too_large'; throw error; } return new Uint8Array([104, 105]); } };
+  const db = { rpc: async (name, params) => (name === 'server_project_asset_allowed' ? params.p_path === PATH || params.p_path.endsWith('f'.repeat(64)) : null) };
+  const reader = createProjectReader({ db, files });
+  assert.deepEqual(await reader.asset({ userId: USER, projectId: PROJECT, path: PATH }), { data: 'aGk=' });
+  await assert.rejects(() => reader.asset({ userId: USER, projectId: PROJECT, path: `${USER}/${'b'.repeat(64)}` }), (error) => error.code === 'not_found');
+  assert.deepEqual(asked, [PATH]);
+  await assert.rejects(() => reader.asset({ userId: USER, projectId: PROJECT, path: `${USER}/${'f'.repeat(64)}` }), (error) => error.code === 'too_large');
+  await assert.rejects(() => createProjectReader({ db: { rpc: async () => { throw new Error('down'); } }, files }).asset({ userId: USER, projectId: PROJECT, path: PATH }), (error) => error.code === 'database');
+  await withServer(async (base) => {
+    const post = (body, token = TOKEN) => fetch(`${base}/v1/projects/${PROJECT}/asset`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+    const ok = await post({ path: PATH });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { data: 'aGk=' });
+    assert.equal((await post({ path: PATH }, '')).status, 401);
+    assert.equal((await post({ path: '../../etc/passwd' })).status, 400);
+    assert.equal((await post({ path: `${USER}/${'b'.repeat(64)}` })).status, 404);
+    assert.equal((await post({ path: `${USER}/${'f'.repeat(64)}` })).status, 413);
+  }, { projectReader: reader });
+});

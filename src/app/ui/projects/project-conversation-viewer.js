@@ -18,7 +18,7 @@ import { make, openSheet } from './project-parts.js';
  * `chat` is { id, title, authorName, messages }; `texts` the interface texts of the language (for the markup of the messages); `onBranch({ id, index })` is told which reply the reader chose
  * (`{ last: true }` for the button at the foot); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
  */
-export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, onClose = () => {} }) {
+export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, onClose = () => {} }) {
   const win = document.defaultView;
   const sheet = openSheet({ document, root, title: chat.title || '', close: text('psCancel'), className: 'psh-viewer', onClose });
   const lead = make(document, 'p', 'pj-note psh-viewer-lead', text('psReadOnly', { name: chat.authorName || '' }));
@@ -29,9 +29,24 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
   const previews = createMediaPreviewLifecycle({ document, navigator: win.navigator, fetch: win.fetch?.bind(win), File: win.File, escapeHTML, getInlineMediaSrc: mediaRenderer.getInlineMediaSrc, getUiLanguage: () => language });
   let current = chat;
   let go = null;
+  // The pictures and files of the people of the project are in their cloud storage: the server gives each one to a member (loadAsset), and the messages are drawn again as they come.
+  const assets = new Map();
+  const withAssets = (messages) => (!loadAsset ? messages : messages.map((message) => ({
+    ...message,
+    parts: (message.parts || []).map((part) => {
+      const path = part?.inlineData?.data?.__astraCloudAsset?.path;
+      if (!path) return part;
+      if (!assets.has(path)) {
+        assets.set(path, null);
+        Promise.resolve(loadAsset(path)).then((data) => { if (data) { assets.set(path, data); draw(); } }, () => {});
+      }
+      return assets.get(path) ? { ...part, inlineData: { ...part.inlineData, data: assets.get(path) } } : part;
+    })
+  })));
   const draw = () => {
+    const shown = withAssets(current.messages || []);
     const drawn = renderSharedMessages({
-      document, list, messages: current.messages || [], code: current.id, texts, language, renderUserText, renderModelText, buildMediaAttachmentView: mediaRenderer.buildMediaAttachmentView,
+      document, list, messages: shown, code: current.id, texts, language, renderUserText, renderModelText, buildMediaAttachmentView: mediaRenderer.buildMediaAttachmentView,
       bindMediaPreviewButtons: previews.bindMediaPreviewButtons, bindGeneratedImageAssets: async () => {}
     });
     try { installCodeHighlighting({ document: list, window: win }); } catch { /* the colours of code are a help */ }
