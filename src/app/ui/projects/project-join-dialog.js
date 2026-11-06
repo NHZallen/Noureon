@@ -1,5 +1,5 @@
 // What a person sees when they open an invitation to a project (docs/superpowers/specs/2026-11-06-project-sharing-design.md, §8): the project, who invited them, the role and what the role can do.
-// Resolves 'joined' | 'cancelled'. `client` is the one of runtime/project-sharing.
+// Resolves 'joined' | 'opened' | 'cancelled'. `client` is the one of runtime/project-sharing.
 
 import { make, openSheet } from './project-parts.js';
 import { personMark } from './project-members-panel.js';
@@ -10,11 +10,34 @@ const CROSS = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" strok
 /** The line to tell for a word the database raises when the invitation is not good. */
 export const joinFailureKey = (code) => ({ invite_removed: 'psJoinRemoved', invite_full: 'psJoinFull', invite_owner: 'psJoinOwner', no_cloud: 'psJoinNeedCloud' }[code] || 'psJoinInvalid');
 
-export function openJoinDialog({ document, root, text, client, code, invite, notify = () => {}, onJoined = () => {} }) {
+export function openJoinDialog({ document, root, text, client, code, invite, notify = () => {}, onJoined = () => {}, onOpen = () => {} }) {
   return new Promise((resolve) => {
     let result = 'cancelled';
     const title = invite.inviter_name ? text('psJoinTitle', { name: invite.inviter_name }) : text('psJoinTitleNoName');
     const roleName = text(invite.role === 'editor' ? 'psRoleEditor' : 'psRoleChat');
+    // The owner of the project, or a person who is already in it, has nothing to join: the page says so and offers to open the project.
+    if (invite.viewer) {
+      const owner = invite.viewer === 'owner';
+      openSheet({
+        document, root, title: text(owner ? 'psJoinOwnTitle' : 'psJoinInTitle'), dialog: true, close: text('psCancel'), onClose: () => resolve(result),
+        body: (content, { close }) => {
+          const who = make(document, 'div', 'psh-join-who');
+          who.append(personMark(document, { name: invite.project_name }), make(document, 'div', 'psh-join-project', invite.project_name || ''));
+          content.append(who, make(document, 'p', 'pj-note', text(owner ? 'psJoinOwnBody' : 'psJoinInBody', { name: invite.project_name || '', role: text(invite.viewer === 'editor' ? 'psRoleEditor' : 'psRoleChat') })));
+          const buttons = make(document, 'div', 'psh-buttons');
+          const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
+          cancel.type = 'button';
+          cancel.addEventListener('click', close);
+          const open = make(document, 'button', 'pj-button pj-primary psh-go', text('psJoinOpen'));
+          open.type = 'button';
+          open.setAttribute('data-join-open', '');
+          open.addEventListener('click', () => { result = 'opened'; close(); onOpen(invite.project_id); });
+          buttons.append(cancel, open);
+          content.appendChild(buttons);
+        }
+      });
+      return;
+    }
     openSheet({
       document, root, title, dialog: true, close: text('psCancel'), onClose: () => resolve(result),
       body: (content, { close }) => {

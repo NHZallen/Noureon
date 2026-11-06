@@ -16,7 +16,7 @@ html.pj-open { overflow: hidden; }
 .pj, .pj *, .pj-backdrop, .pj-backdrop * { transition: none; animation: none; }
 
 /* the head */
-.pj-head { flex: none; display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem; align-items: center; gap: 0.6rem; padding: max(0.7rem, env(safe-area-inset-top, 0px)) calc(var(--pj-gutter) - 0.5rem) 0.5rem; max-width: var(--pj-column); width: 100%; margin: 0 auto; box-sizing: border-box; }
+.pj-head { flex: none; display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) minmax(2.25rem, auto); align-items: center; gap: 0.6rem; padding: max(0.7rem, env(safe-area-inset-top, 0px)) calc(var(--pj-gutter) - 0.5rem) 0.5rem; max-width: var(--pj-column); width: 100%; margin: 0 auto; box-sizing: border-box; }
 .pj-head-gap { display: block; }
 .pj-title { margin: 0; text-align: center; font-size: var(--pj-title); font-weight: 500; }
 .pj-title.is-project { display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-width: 0; }

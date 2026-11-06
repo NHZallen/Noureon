@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
@@ -280,6 +281,33 @@ test('taking a person out asks whether the project keeps a copy of their convers
   await tick(); await tick();
   assert.equal(stopped.root.querySelector('[data-keep-retry]'), null, 'the question is closed');
   assert.deepEqual(fourth.calls, ['keep:u2'], 'stopped: the person is still in');
+});
+
+test('the owner of the project, or a person already in it, who opens an invitation is told so and is not offered to join; the button opens the project', async () => {
+  for (const [viewer, title, body] of [['owner', /This is your own project/, /You are the owner of “City plan”/], ['editor', /You are already in this project/, /already a member of “City plan” \(Editor\)/]]) {
+    const { document, root } = page();
+    const client = { accept: async () => { throw new Error('nobody joins from here'); } };
+    const opened = [];
+    const done = openJoinDialog({ document, root, text, client, code: CODE, invite: { project_id: 'p1', project_name: 'City plan', role: 'chat', inviter_name: 'Ada', kind: 'link', viewer }, onOpen: (id) => opened.push(id) });
+    await tick();
+    assert.match(root.textContent, title, viewer);
+    assert.match(root.textContent, body, viewer);
+    assert.equal(root.querySelector('[data-join-go]'), null, viewer);
+    assert.equal(root.querySelectorAll('.psh-line').length, 0, viewer);
+    root.querySelector('[data-join-open]').click();
+    assert.equal(await done, 'opened');
+    assert.deepEqual(opened, ['p1']);
+  }
+});
+
+test('the style keeps the pages of sharing inside the screen: the people page shrinks its boxes, the head leaves no room for an empty box, and a question keeps room under its buttons', () => {
+  const css = readFileSync(new URL('../src/styles/project-sharing.css', import.meta.url), 'utf8');
+  assert.match(css, /\.psh-card \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.psh-sheet \.pj-sheet-body > \*[^{]*\{[^}]*min-width: 0/);
+  assert.match(css, /\.pj-members-slot:empty \{ display: none; \}/);
+  assert.match(css, /\.pj-backdrop\.is-dialog \.psh-buttons \{ padding-bottom: 1\.25rem; \}/);
+  const projects = readFileSync(new URL('../src/styles/projects.css', import.meta.url), 'utf8');
+  assert.match(projects, /\.pj-head \{[^}]*grid-template-columns: 2\.25rem minmax\(0, 1fr\) minmax\(2\.25rem, auto\)/);
 });
 
 test('the head of a shared project shows a few pictures and the number of people; a project with nobody else shows nothing; a picture that is still coming shows the letter first', async () => {

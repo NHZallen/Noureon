@@ -442,7 +442,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       if (!invite.ok || !invite.data) { showNotification(text('psJoinInvalid'), 'error'); return; }
       await ensureStyles();
       const { openJoinDialog } = await import('../../ui/projects/project-join-dialog.js');
-      await openJoinDialog({ document, root: document.body, text, client: shareClient, code, invite: invite.data, notify: showNotification });
+      await openJoinDialog({ document, root: document.body, text, client: shareClient, code, invite: invite.data, notify: showNotification, onOpen: (projectId) => { if (projectId) document.dispatchEvent(new window.CustomEvent('noureon:open-project', { detail: { id: projectId } })); } });
     } catch {
       showNotification(text('psFailed'), 'error');
     } finally { joining = false; }

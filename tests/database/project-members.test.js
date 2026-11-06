@@ -626,3 +626,17 @@ test('a reader that asks from a time on is told which conversations were taken o
   const afterLeave = await read(ada, projectId, cursor2);
   assert.deepEqual(afterLeave.conversations.map((chat) => [chat.id === cys, Boolean(chat.deleted_at)]), [[true, true]]);
 });
+
+test('the page of an invitation knows who looks at it: the owner, a member with their role, or nobody in the project', async () => {
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  assert.equal((await rpc(A, 'get_project_invite', link.code)).viewer, 'owner');
+  assert.equal((await rpc(B, 'get_project_invite', link.code)).viewer, null);
+  assert.equal((await rpc(database.anon, 'get_project_invite', link.code)).viewer, null);
+  assert.equal((await rpc(database.anon, 'get_project_invite', link.code)).project_id, projectId);
+  await rpc(B, 'accept_project_invite', link.code);
+  assert.equal((await rpc(B, 'get_project_invite', link.code)).viewer, 'chat');
+  await rpc(A, 'set_project_member_role', projectId, bob, 'editor');
+  assert.equal((await rpc(B, 'get_project_invite', link.code)).viewer, 'editor');
+  assert.equal((await rpc(C, 'get_project_invite', link.code)).viewer, null);
+});
