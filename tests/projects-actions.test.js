@@ -241,6 +241,26 @@ test('the bytes of the file of a source come from the person’s own files, or, 
   setProjectFileDeps({ store: null });
 });
 
+test('the files of the own projects that are only on this device are sent to the cloud and the source keeps where they are; opening one that is only here does the same', async () => {
+  const sources = [
+    { id: 'a', kind: 'file', title: 'a.pdf', text: '', file: { name: 'a.pdf', mimeType: 'application/pdf', hash: 'a'.repeat(64) } },
+    { id: 'b', kind: 'file', title: 'b.pdf', text: '', file: { name: 'b.pdf', mimeType: 'application/pdf', hash: 'b'.repeat(64), asset: { __cloud: 'old' } } },
+    { id: 'c', kind: 'file', title: 'c.pdf', text: '', file: { name: 'c.pdf', mimeType: 'application/pdf', hash: 'c'.repeat(64) } }
+  ];
+  const { actions, state } = setup({ folders: [{ id: 'f1', name: 'Own', conversationIds: [], sources }] });
+  const kept = [];
+  setProjectFileDeps({ store: { load: async () => ({ mimeType: 'application/pdf', data: 'QUJD' }), keep: async (description) => { kept.push(description.hash[0]); return description.hash[0] === 'a' ? { __cloud: 'new-a' } : null; } } });
+  assert.equal(await actions.keepFilesInCloud(), 1);
+  assert.deepEqual(kept, ['a', 'c'], 'the one that has its place is left, the others are tried');
+  assert.deepEqual(state.folders[0].sources.map((source) => source.file.asset?.__cloud || null), ['new-a', 'old', null]);
+  kept.length = 0;
+  assert.deepEqual(await actions.sourceFile('f1', { id: 'c', file: sources[2].file }), { mimeType: 'application/pdf', data: 'QUJD' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(kept, ['c'], 'a file read from this device without a place in the cloud is sent');
+  setProjectFileDeps({ store: null });
+  assert.equal(await actions.keepFilesInCloud(), 0, 'no store: nothing to do');
+});
+
 test('a file that is not on this device and has no path kept with its source is had from where the files of the person are kept, `<person>/<hash>`', async () => {
   const { actions } = setup({ folders: [{ id: 'f1', name: 'Own', conversationIds: [], sources: [] }] });
   const file = { name: 'plan.pdf', mimeType: 'application/pdf', hash: 'c'.repeat(64) };

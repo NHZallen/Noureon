@@ -83,6 +83,16 @@ export function createProjectFileStore({ backend, getAssets = () => null, crypto
       }
       return null;
     },
+    /** A file kept on this device that the cloud does not have yet (its upload failed or the cloud was not ready when it was added) is sent now: gives its marker, or null when there is nothing to send or it fails again. */
+    async keep(description) {
+      if (!description?.hash || description.asset) return null;
+      const here = await backend.get(description.hash).catch(() => null);
+      if (!here?.bytes) return null;
+      try {
+        const kept = await getAssets()?.externalize?.({ mimeType: description.mimeType || here.mimeType || 'application/octet-stream', data: toBase64(here.bytes) });
+        return kept?.data && typeof kept.data === 'object' ? kept.data : null;
+      } catch { return null; }
+    },
     async drop(descriptions) {
       for (const description of descriptions || []) if (description?.hash) await backend.remove(description.hash).catch(() => {});
     }

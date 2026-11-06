@@ -56,7 +56,9 @@ test('a web address opens as a link and has no download; a file that cannot be r
   assert.deepEqual(t.opened, ['https://example.com/a'], 'only a web address is opened');
   assert.equal(await t.opener.download(PROJECT, { id: 'u', kind: 'url', url: 'https://example.com/a' }), false);
   assert.equal(await t.opener.download(PROJECT, FILE), false);
-  assert.deepEqual(t.notes, [['pjSourceOpenFailed', 'error']]);
+  assert.deepEqual(t.notes, [['pjSourceNotKept', 'error']], 'a file whose original is nowhere says so (not the general message)');
+  await t.opener.download(PROJECT, { id: 'x', kind: 'image', title: 'x' });
+  assert.equal(t.notes.at(-1)[0], 'pjSourceOpenFailed', 'a source with no file at all keeps the general message');
   await t.window.happyDOM.abort();
 });
 

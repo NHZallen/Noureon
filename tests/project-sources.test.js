@@ -132,6 +132,21 @@ test('the originals are kept by their hash, here and in the cloud, and found aga
   assert.equal((await offline.save(file('b.png', 'image/png', new Uint8Array([9])))).asset, undefined, 'kept here only when the cloud cannot be reached');
 });
 
+test('an original that is only on this device (the cloud was not ready when it was added) is sent later with `keep`, once', async () => {
+  let ready = false;
+  const sent = [];
+  const assets = { externalize: async (value) => { if (!ready) throw new Error('not ready'); sent.push(value.data); return { mimeType: value.mimeType, data: { __cloud: 'p/1' } }; } };
+  const store = createProjectFileStore({ backend: createMemoryFileBackend(), getAssets: () => assets });
+  const description = await store.save(file('a.pdf', 'application/pdf', new Uint8Array([1, 2, 3])));
+  assert.equal(description.asset, undefined);
+  assert.equal(await store.keep(description), null, 'the cloud still fails: nothing is kept, nothing is thrown');
+  ready = true;
+  assert.deepEqual(await store.keep(description), { __cloud: 'p/1' });
+  assert.equal(sent.length, 1);
+  assert.equal(await store.keep({ ...description, asset: { __cloud: 'p/1' } }), null, 'one that has its place in the cloud is not sent again');
+  assert.equal(await store.keep({ ...description, hash: 'f'.repeat(64) }), null, 'one that is not on this device cannot be sent');
+});
+
 test('an original is refused over 30 MB and over 200 MB together, and is forgotten with its source and its project', async () => {
   const dropped = [];
   const state = { folders: [{ id: 'f1', name: 'P', conversationIds: [] }, { id: 'f2', name: 'Q', conversationIds: [] }] };

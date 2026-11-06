@@ -50,10 +50,12 @@ export function createSourceOpener({ document, window = document.defaultView, la
     return kept.get(key);
   };
   const open = (url) => { try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* a blocked window */ } };
+  // A file whose original cannot be had (it is not on this device and not in the cloud) says so; anything else is the general "cannot be read now".
+  const failed = (source) => notify(text(source?.file ? 'pjSourceNotKept' : 'pjSourceOpenFailed'), 'error');
   const preview = async (project, source, trigger = null) => {
     if (source?.kind === 'url') { if (/^https?:\/\//i.test(source.url || '')) open(source.url); return true; }
     const file = await read(project, source);
-    if (!file) { notify(text('pjSourceOpenFailed'), 'error'); return false; }
+    if (!file) { failed(source); return false; }
     const { describeAttachment } = await import('../files/file-visual.js');
     const { family } = describeAttachment({ name: file.name, mimeType: file.type });
     if ((family === 'image' || family === 'video') && openMedia) { openMedia({ mimeType: file.type, data: file.base64.split(',')[1], name: file.name }, trigger); return true; }
@@ -66,7 +68,7 @@ export function createSourceOpener({ document, window = document.defaultView, la
   const download = async (project, source) => {
     if (source?.kind === 'url') return false;
     const file = await read(project, source);
-    if (!file) { notify(text('pjSourceOpenFailed'), 'error'); return false; }
+    if (!file) { failed(source); return false; }
     const [{ deliverFile }, { attachmentBlob }] = await Promise.all([import('../files/file-card-interactions.js'), import('../files/attachment-thumbnail.js')]);
     const result = await deliverFile({ window, document, blob: attachmentBlob(file, { window }), fileName: file.name });
     // The phone wants a tap for the share sheet and the file took too long to be read: it is ready now, one more tap.

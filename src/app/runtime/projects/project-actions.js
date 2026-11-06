@@ -312,13 +312,35 @@ export function createProjectActions({
     return { ok: true, conversationId: made.conversationId };
   }
 
+  // The files of the person's own projects that are only on this device (the upload to the cloud failed or the cloud was not ready when they were added) are sent now, and the source keeps where they are:
+  // without that, the server (a reply that goes on with the page shut) and the members of a shared project cannot read them (2026-11-06: a 9.6 MB PDF of a shared project was never in the cloud).
+  let keeping = null;
+  const keepFilesInCloud = () => {
+    const store = getProjectFileStore();
+    if (!store?.keep) return Promise.resolve(0);
+    keeping ||= (async () => {
+      let changed = 0;
+      for (const folder of folders()) {
+        if (folder.deletedAt || !Array.isArray(folder.sources)) continue;
+        for (const source of folder.sources) {
+          if (!source?.file?.hash || source.file.asset) continue;
+          const asset = await store.keep(source.file);
+          if (asset) { source.file = { ...source.file, asset }; changed += 1; }
+        }
+      }
+      if (changed) { dataStore.replaceFolders([...folders()]); await saveAppData(); }
+      return changed;
+    })().catch(() => 0).finally(() => { keeping = null; });
+    return keeping;
+  };
+
   // The bytes of the file of a source ({ mimeType, data (base64) } or null): from the person's own files, or, in a project of someone else, through the server that gives a member the files of the project.
   const sourceFile = async (id, source) => {
     if (!source?.file) return null;
     if (sharedHas(id) && sharedHook.fileOf) return sharedHook.fileOf(id, source);
     const store = getProjectFileStore();
     const here = await store?.load(source.file).catch(() => null);
-    if (here?.data) return here;
+    if (here?.data) { if (!source.file.asset) void keepFilesInCloud(); return here; }
     // Not on this device and no path kept with the source: the file is where the files of the person are kept (`<person>/<hash>`), as the server reads it for a reply.
     const person = getAnnouncedUser()?.supabaseUserId;
     if (!person || !source.file.hash) return null;
@@ -327,5 +349,5 @@ export function createProjectActions({
     return loaded?.data ? loaded : null;
   };
 
-  return { list, sharedList, chatsLoading, canModerate, moveChatOut, sourcesOf, sourceFile, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
+  return { list, sharedList, chatsLoading, canModerate, moveChatOut, sourcesOf, sourceFile, keepFilesInCloud, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
 }

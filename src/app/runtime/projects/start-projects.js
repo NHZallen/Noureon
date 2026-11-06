@@ -65,6 +65,10 @@ export function startProjects({
   transcripts = createProjectTranscripts({ getFolders: () => dataStore.getFolders(), getTranscription: () => getPageTranscription(), getStore: () => files, setTranscript: (projectId, sourceId, transcript) => actions.setTranscript(projectId, sourceId, transcript) });
   const first = win.setTimeout(() => { void transcripts.run(); }, 10_000);
   first?.unref?.();
+  // The originals that are only on this device are sent to the cloud once the workspace and the cloud are in (and again when the workspace is read again).
+  const keepLater = () => { const timer = win.setTimeout(() => { void actions.keepFilesInCloud(); }, 6_000); timer?.unref?.(); };
+  keepLater();
+  win.addEventListener('astra:cloud-workspace-committed', keepLater);
 
   // Google's own file picker (its tabs, search and folders), when the page has the keys for it (VITE_GOOGLE_PICKER_*, see .env.example); without them the choice is not shown.
   const drive = getDrivePicker({ document, getLanguage: () => configAccess.getUiLanguage() });
