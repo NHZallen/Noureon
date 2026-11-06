@@ -2,16 +2,15 @@
 // the SVG and it is shown and kept as a picture. Without the answer of the Decisions model (no key, slow, paused) nothing changes: the model answers in words, as before.
 
 import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
-import { SVG_WRITER_PROVIDERS } from './svg-writer.js';
 
 // A text reply turned into a picture is a bigger step than a tool: it needs a sure yes.
 export const SVG_CHAT_THRESHOLD = 0.8;
 
 const textOf = (parts = []) => parts.map((part) => (typeof part?.text === 'string' ? part.text : '')).filter(Boolean).join('\n').trim();
 
-/** Does the model of this chat write an SVG for this message? Only models of the providers that can be asked for one (OpenAI, OpenRouter) and that are not picture makers themselves. */
+/** Does the model of this chat write an SVG for this message? Any text model of any provider (a picture maker is not asked: it makes its own pictures). */
 export function chatWritesSvg({ modelInfo, userParts }) {
-  if (!SVG_WRITER_PROVIDERS.includes(modelInfo?.provider)) return false;
+  if (!modelInfo?.provider) return false;
   return verdictOf(decisionsFor(textOf(userParts)), 'svg', SVG_CHAT_THRESHOLD) === true;
 }
 

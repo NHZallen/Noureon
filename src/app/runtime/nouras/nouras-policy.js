@@ -6,6 +6,7 @@ export const NOURAS_REQUEST_PURPOSE = Object.freeze({
   BACKGROUND_SEARCH: 'background-search',
   BACKGROUND_ATTACHMENT_TRANSLATION: 'background-attachment-translation',
   BACKGROUND_MEMORY: 'background-memory',
+  BACKGROUND_SVG: 'background-svg',
   VISION_CHECK: 'vision-check'
 });
 

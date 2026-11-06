@@ -112,8 +112,8 @@ test('the Decisions model is asked whether a vector picture is wanted, and a cha
     rememberDecisions('draw a fox as an SVG', { svg: 0.93 });
     assert.equal(chat('openrouter'), true);
     assert.equal(chat('openai'), true);
-    assert.equal(chat('gemini'), false, 'a provider that cannot be asked for an SVG answers in words');
-    assert.equal(chat('nvidia'), false);
+    for (const provider of ['gemini', 'nvidia', 'opencode-go']) assert.equal(chat(provider), true, `${provider}: every provider's text models write it`);
+    assert.equal(chat(''), false, 'no provider, no route');
     rememberDecisions('draw a fox as an SVG', { svg: 0.7 });
     assert.equal(chat('openrouter'), false, 'a guess is not a yes');
     rememberDecisions('another message', { svg: 0.99 });
@@ -150,4 +150,32 @@ test('the Count is kept for an SVG a text model writes, and is 1 for the Images 
   const { settleImageFormatConfig } = await import('../src/app/runtime/images/image-formats.js');
   assert.equal(settleImageFormatConfig({ outputFormat: 'svg', n: 5, svgWriter: true }).n, 5);
   assert.equal(settleImageFormatConfig({ outputFormat: 'svg', n: 5 }).n, 1);
+});
+
+test('a text model of any other provider writes the SVG through the app\'s own request to it, with the pictures to start from', async () => {
+  const { createSvgTextAsker } = await import('../src/app/runtime/images/svg-text-ask.js');
+  const calls = [];
+  const streamApiCall = async (parts, onChunk, signal, _grounding, options) => { calls.push({ parts, options }); onChunk('Here: '); onChunk(SVG); };
+  const writer = createSvgWriter({ askText: createSvgTextAsker({ streamApiCall }) });
+  const modelInfo = { id: 'glm', provider: 'opencode-go' };
+  const result = await writer({ provider: 'opencode-go', apiKey: 'k', model: 'glm', modelInfo, prompt: 'a fox logo', config: { svgWriter: true, n: 2 }, inputReferences: [PICTURE] });
+  assert.equal(result.images.length, 2);
+  assert.equal(decode(result.images[0]), SVG);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].options.modelInfo, modelInfo);
+  assert.match(calls[0].parts[0].text, /^You draw vector graphics/);
+  assert.deepEqual(calls[0].parts[1], { inlineData: { mimeType: 'image/png', data: 'QUJD' } });
+  assert.equal(calls[0].options.requestPurpose, 'background-svg');
+  assert.equal(calls[0].options.skipMemoryContext, true);
+  // no way to ask: said, not guessed
+  await assert.rejects(() => createSvgWriter()({ provider: 'gemini', apiKey: 'k', model: 'm', prompt: 'p', config: {} }), /cannot be asked/);
+  // an answer with no drawing
+  await assert.rejects(() => createSvgWriter({ askText: async () => 'sorry' })({ provider: 'nvidia', apiKey: 'k', model: 'm', prompt: 'p', config: {} }), /did not write an SVG/);
+});
+
+test('the picture generator sends a text model of the chat to its own provider and keeps Luna for a picture maker\'s SVG', async () => {
+  const asked = [];
+  const generate = createImageGenerator({ fetchImpl: async () => json({ choices: [{ message: { content: SVG } }] }), askText: async (request) => { asked.push(request.provider); return SVG; } });
+  await generate({ provider: 'gemini', apiKey: 'k', model: 'gemini-x', modelInfo: { id: 'gemini-x', provider: 'gemini' }, prompt: 'p', config: { outputFormat: 'svg', svgWriter: true }, inputReferences: [] });
+  assert.deepEqual(asked, ['gemini']);
 });

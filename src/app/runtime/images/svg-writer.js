@@ -10,8 +10,8 @@ const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 /** The model that writes the SVG of a picture model, by provider (both already in the app's lists). */
 export const SVG_WRITER_MODELS = Object.freeze({ openai: 'gpt-6-luna', openrouter: 'openai/gpt-6-luna' });
-/** The providers whose models can write an SVG for a chat (the two that this file knows how to ask). */
-export const SVG_WRITER_PROVIDERS = Object.freeze(['openai', 'openrouter']);
+/** The two providers this file asks itself (their chat endpoints); a model of any other provider (Gemini, NVIDIA, OpenCode Go...) is asked through `askText`, the app's own request to that provider (svg-text-ask.js). */
+export const SVG_DIRECT_PROVIDERS = Object.freeze(['openai', 'openrouter']);
 
 export const SVG_WRITER_INSTRUCTION = 'You draw vector graphics. Answer with ONE complete SVG document and nothing else: it starts with <svg and ends with </svg>, has xmlns="http://www.w3.org/2000/svg" and a viewBox, '
   + 'no code fences, no explanation and no text outside the SVG. Draw with shapes, paths, gradients and text; do not link to anything outside the document. '
@@ -66,9 +66,22 @@ const chatText = (body) => {
   return Array.isArray(content) ? content.map((part) => part?.text || '').join('') : String(content ?? '');
 };
 
-export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...args), getSafetyIdentifier = async () => '' } = {}) {
-  const writeOne = async ({ provider, apiKey, model, prompt, config = {}, inputReferences = [], signal }) => {
+const dataUrlPart = (url) => {
+  const match = /^data:([^;,]+);base64,(.*)$/s.exec(String(url));
+  return match ? { inlineData: { mimeType: match[1], data: match[2] } } : null;
+};
+
+export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...args), getSafetyIdentifier = async () => '', askText = null } = {}) {
+  const writeOne = async ({ provider, apiKey, model, modelInfo, prompt, config = {}, inputReferences = [], signal }) => {
     const text = userText(prompt, config);
+    if (!SVG_DIRECT_PROVIDERS.includes(provider)) {
+      // Any other provider: the app's own request to it, as for a reply (the instruction goes in the message, with the pictures to start from).
+      if (!askText) throw new Error('The model of this provider cannot be asked for an SVG here.');
+      const answer = await askText({ provider, model, modelInfo, signal, parts: [{ text: `${SVG_WRITER_INSTRUCTION}\n\n${text}` }, ...inputReferences.map(dataUrlPart).filter(Boolean)] });
+      const written = extractSvg(answer);
+      if (!written) throw new Error('The model did not write an SVG.');
+      return { images: [{ b64Json: toBase64(written), mediaType: 'image/svg+xml' }] };
+    }
     let response;
     if (provider === 'openai') {
       const safetyIdentifier = await getSafetyIdentifier();

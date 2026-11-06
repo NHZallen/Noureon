@@ -27,6 +27,8 @@ const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assis
 const COUNCIL_MODES = ['consensus', 'deliberation'];
 const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai'];
 const IMAGE_PROVIDERS = ['openrouter', 'openai'];
+// The text models of the other providers write an SVG for a chat (images/svg-writer.js); they make no pictures of their own.
+const SVG_TEXT_PROVIDERS = ['gemini', 'nvidia', 'opencode-go'];
 // Where the models of OpenAI search the web (the page's `openaiWebSearch` setting): with OpenAI's own tool or with the search service.
 const OPENAI_WEB_SEARCH = ['official', 'provider'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
@@ -160,8 +162,8 @@ function validateImageSpec(input) {
   const model = input.model;
   if (!isObject(model)) fail('model', 'must be an object');
   else {
-    // Image models are OpenRouter's (the images endpoint) or OpenAI's own.
-    if (!IMAGE_PROVIDERS.includes(model.provider)) fail('model.provider', `an image is made with ${IMAGE_PROVIDERS.join(' or ')}`);
+    // Image models are OpenRouter's (the images endpoint) or OpenAI's own; a text model of any provider may write an SVG.
+    if (![...IMAGE_PROVIDERS, ...SVG_TEXT_PROVIDERS].includes(model.provider)) fail('model.provider', `an image is made with ${IMAGE_PROVIDERS.join(' or ')}, or an SVG is written by a text model`);
     if (!text(model.id, 200)) fail('model.id', 'must be a short text');
     if (!isObject(model.info)) fail('model.info', 'must be an object');
   }
@@ -203,6 +205,7 @@ function validateImageSpec(input) {
       if (given.seed !== undefined && !Number.isSafeInteger(given.seed)) fail('image.config.seed', 'must be a whole number');
       if (given.provider !== undefined && (!isObject(given.provider) || JSON.stringify(given.provider).length > 4096)) fail('image.config.provider', 'must be an object of at most 4 KB');
       config = Object.fromEntries(IMAGE_CONFIG_FIELDS.filter((name) => given[name] !== undefined && given[name] !== '').map((name) => [name, given[name]]));
+      if (SVG_TEXT_PROVIDERS.includes(model?.provider) && !(given.svgWriter === true && given.outputFormat === 'svg')) fail('model.provider', 'is for an SVG written by a text model only');
     }
     if (image.references !== undefined) {
       if (!Array.isArray(image.references) || image.references.length > LIMITS.maxImageReferences) fail('image.references', `must be a list of at most ${LIMITS.maxImageReferences} pictures`);

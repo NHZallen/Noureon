@@ -10,13 +10,14 @@ import { SVG_WRITER_MODELS, createSvgWriter } from './svg-writer.js';
 export const svgIsWrittenByTextModel = (request) => request?.config?.outputFormat === 'svg'
   && (Boolean(request.config.svgWriter) || request.provider !== 'openai' || (request.inputReferences?.length ?? 0) > 0);
 
-export function createImageGenerator({ fetchImpl, getSafetyIdentifier = () => getOpenAiSafetyIdentifier() } = {}) {
+export function createImageGenerator({ fetchImpl, getSafetyIdentifier = () => getOpenAiSafetyIdentifier(), askText = null } = {}) {
   const openRouter = createOpenRouterImageGenerator({ fetchImpl });
   const openAi = createOpenAiImageGenerator({ fetchImpl, getSafetyIdentifier });
-  const writer = createSvgWriter({ fetchImpl, getSafetyIdentifier });
+  const writer = createSvgWriter({ fetchImpl, getSafetyIdentifier, askText });
   return (request) => {
     if (svgIsWrittenByTextModel(request)) {
-      const provider = request.provider === 'openai' ? 'openai' : 'openrouter';
+      // A text model of the chat writes it with its own provider; a picture model's SVG is written by Luna of OpenAI or OpenRouter.
+      const provider = request.config.svgWriter ? request.provider : request.provider === 'openai' ? 'openai' : 'openrouter';
       return writer({ ...request, provider, model: request.config.svgWriter ? request.model : SVG_WRITER_MODELS[provider] });
     }
     return request?.provider === 'openai' ? openAi(request) : openRouter(request);

@@ -655,6 +655,7 @@ test('a text model that is asked for an SVG in a chat writes it: the format is S
   const request = requests[0];
   assert.deepEqual([request.model, request.provider, request.config.outputFormat, request.config.svgWriter, request.config.n, request.config.aspectRatio], ['openai/gpt-6-luna', 'openrouter', 'svg', true, 1, 'auto']);
   assert.deepEqual(request.inputReferences, [], 'an earlier picture is not carried into an SVG');
+  assert.equal(request.modelInfo, text, 'the model is given as the app knows it, for the request of its own provider');
 });
 
 test('a text model asked for several SVGs in a chat is asked for that many (the Count, or the number said in words)', async () => {

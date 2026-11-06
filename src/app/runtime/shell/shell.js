@@ -166,6 +166,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getActiveConversation: () => getActiveConversation(),
             buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
             getApiKeyForProvider: provider => getApiKeyForProvider(provider),
+            streamApiCall: (...args) => streamApiCall(...args),
             getModelReasoningConfig,
             normalizeReasoningEffort,
             getText,

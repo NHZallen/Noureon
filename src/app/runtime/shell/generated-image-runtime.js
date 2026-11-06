@@ -14,6 +14,7 @@ export function createGeneratedImageRuntimeLoader({
     getActiveConversation,
     buildSingleModelTranslatedRequestParts,
     getApiKeyForProvider,
+    streamApiCall,
     getModelReasoningConfig,
     normalizeReasoningEffort,
     getText,
@@ -40,7 +41,9 @@ export function createGeneratedImageRuntimeLoader({
                     getUserName,
                     shouldPersist: () => getActiveConversation()?.retentionMode !== 'ephemeral'
                 });
-                const generateImage = generatorsModule.createImageGenerator({ fetchImpl: fetch });
+                // A text model of a provider the SVG writer does not ask itself (Gemini, NVIDIA, OpenCode Go...) is asked with the app's own request to that provider.
+                const askText = async (request) => (await import('../images/svg-text-ask.js')).createSvgTextAsker({ streamApiCall })(request);
+                const generateImage = generatorsModule.createImageGenerator({ fetchImpl: fetch, askText });
                 const responseLifecycle = lifecycleModule.createImageGenerationResponseLifecycle({
                     buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
                     generateImage,

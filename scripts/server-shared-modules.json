@@ -124,6 +124,10 @@
       "note": "Reviewed 2026-11-06: no browser globals (the sheet of frames, the cut, and the putting back of only the places that changed, on plain arrays). Needs the owner's confirmation (a new module the server reaches)."
     },
     {
+      "path": "src/app/runtime/images/svg-text-ask.js",
+      "note": "Reviewed 2026-11-06: no browser globals (asks a text model of any provider for one answer through the streamApiCall it is given). Needs the owner's confirmation (a new module the server reaches)."
+    },
+    {
       "path": "src/app/runtime/images/picture-blob.js",
       "note": "Reviewed 2026-11-06: no browser globals in what the server uses (dataUrlToBlob: atob and Blob are also in Node); the rest only reads the navigator it is given. Needs the owner's confirmation."
     },

@@ -108,3 +108,16 @@ test('the sheet marked in the editor and the speed are accepted only in the righ
   assert.ok(paths(specFor({ gifEdit: { source: GIF_URL, edits, all: true, speed: 9 } })).includes('image.gifEdit.speed'));
   assert.ok(paths(specFor({ gifEdit: { source: GIF_URL, edits, all: true, speed: '2' } })).includes('image.gifEdit.speed'));
 });
+
+test('a text model of another provider is accepted for an SVG written for a chat, and for nothing else', () => {
+  const spec = (provider, config) => validateRunSpec({
+    protocol: PROTOCOL_VERSION, kind: 'image', clientVersion: '19.3.0', conversationId: '323e4567-e89b-12d3-a456-426614174002', assistantMessageId: '223e4567-e89b-12d3-a456-426614174001', sequence: 1,
+    model: { provider, id: 'glm-5', info: { name: 'GLM', provider } }, request: { language: 'zh-TW' }, image: { prompt: 'a fox logo', config: { aspectRatio: 'auto', ...config }, references: [] }, secrets: { providerKey: 'k-secret-secret' }
+  });
+  for (const provider of ['gemini', 'nvidia', 'opencode-go']) assert.equal(spec(provider, { outputFormat: 'svg', svgWriter: true, n: 3 }).ok, true, provider);
+  const refused = spec('opencode-go', { n: 2 });
+  assert.equal(refused.ok, false);
+  assert.ok(refused.errors.some((error) => error.path === 'model.provider'));
+  assert.equal(spec('gemini', { outputFormat: 'svg' }).ok, false, 'a picture is not made by a text model');
+  assert.equal(spec('anthropic', { outputFormat: 'svg', svgWriter: true }).ok, false);
+});

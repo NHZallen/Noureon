@@ -12,6 +12,9 @@ import { editGifFrames, editGifSheet } from '../src/app/runtime/images/gif-frame
 import { pictureToFrame, rgbaToPng } from './picture-frame.js';
 import { openAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { ReplyError, scrubMessage } from './executor.js';
+import { createModelAccess } from './model-access.js';
+import { createSvgTextAsker } from '../src/app/runtime/images/svg-text-ask.js';
+import { SVG_DIRECT_PROVIDERS } from '../src/app/runtime/images/svg-writer.js';
 import { ERROR_CODES } from './protocol.js';
 
 // A picture that cannot be kept is tried again this many times (a moment apart) before the image is given up.
@@ -25,12 +28,12 @@ const toDataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(by
  * kept). `keepPrompt` writes the prompt into each part, `title` a few words for the file name. `apiKey` is the picture model's key, `inputReferences` the pictures to start from as data addresses, `secrets` what the message of a failure must not show.
  * The same for an image of its own (executeImage) and for a picture a text model draws by itself (image-tool.js). `generate(request, makePictures)` stands in for the picture maker when it is given.
  */
-export async function drawPictures({ apiKey, model, provider = 'openrouter', safetyIdentifier = '', prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, generate = null, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
+export async function drawPictures({ apiKey, model, provider = 'openrouter', safetyIdentifier = '', prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, generate = null, askText = null, modelInfo = null, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
   let result;
   try {
     // `generate` makes the pictures some other way (the frames of a GIF edited and put back, below); it is given what the picture maker gets.
-    const request = { apiKey, model, provider, prompt, config, inputReferences, groups, signal };
-    result = generate ? await generate(request, createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier })) : await createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier })(request);
+    const request = { apiKey, model, provider, prompt, config, inputReferences, groups, signal, ...(modelInfo ? { modelInfo } : {}) };
+    result = generate ? await generate(request, createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier, askText })) : await createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier, askText })(request);
   } catch (error) {
     if (signal?.aborted) return { stopped: true };
     throw new ReplyError(scrubMessage(error?.message, secrets), ERROR_CODES.providerError);
@@ -158,7 +161,9 @@ export async function executeImage({
       toPng: rgbaToPng
     });
   }
-  const drawn = await drawPictures({ generate, apiKey: secrets.providerKey, model: spec.model.id, provider: spec.model.provider, safetyIdentifier, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
+  // A text model of a provider the SVG writer does not ask itself (Gemini, NVIDIA, OpenCode Go...): the request code of a reply, with the model and the key of this run.
+  const askText = SVG_DIRECT_PROVIDERS.includes(spec.model.provider) ? null : createSvgTextAsker({ streamApiCall: createModelAccess({ spec: { ...spec, tools: spec.tools || {} }, secrets, fetchImpl, userId, signal }).streamApiCall });
+  const drawn = await drawPictures({ generate, askText, modelInfo: spec.model.info, apiKey: secrets.providerKey, model: spec.model.id, provider: spec.model.provider, safetyIdentifier, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
   if (drawn.stopped) return stopped();
   const parts = drawn.parts;
   return { parts, status: 'done', run: { elapsedMs: now() - startedAt }, toolCalls: 0 };

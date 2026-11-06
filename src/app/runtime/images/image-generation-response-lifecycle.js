@@ -252,6 +252,8 @@ export function createImageGenerationResponseLifecycle({
       },
       inputReferences,
       ...(groups ? { groups } : {}),
+      // A text model that writes an SVG is asked through the app's own request to its provider, which needs the model as the app knows it.
+      ...(svgByTextModel ? { modelInfo } : {}),
       signal
     };
     // Quality, background and compression are sent only to a model that lists them (GPT Image); the others would be asked for what they do not take.
