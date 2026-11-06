@@ -25,6 +25,7 @@ export const ICONS = {
   rename: (size) => svg('<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4z"></path>', size),
   remove: (size) => svg('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="19"></line><line x1="15" y1="13" x2="9" y2="19"></line>', size),
   archive: (size) => svg('<polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>', size),
+  download: (size) => svg('<path d="M12 3v12"></path><path d="M7 11l5 5 5-5"></path><path d="M5 21h14"></path>', size),
   trash: (size) => svg('<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"></path>', size),
   edit: (size) => svg('<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4z"></path>', size),
   users: (size) => svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>', size),
@@ -183,7 +184,8 @@ export function openSheet({ document, root, title, label, body, footer = null, a
     close();
   };
   closeButton.addEventListener('click', () => { if (action) { close(); action.onClick(); } else close(); });
-  if (dialog) backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
+  // (A tap outside closes it on the click, not on the press: a close on the press lets the click that follows land on the button under it, which opens the same sheet again.)
+  if (dialog) backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
   win.addEventListener('keydown', onKey, true);
   viewport?.addEventListener('resize', fit);
   viewport?.addEventListener('scroll', fit);
@@ -234,7 +236,7 @@ export function openActionSheet({ document, root, title, items, onClose = () => 
     sheet.appendChild(row);
   }
   backdrop.appendChild(sheet);
-  backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
   win.addEventListener('keydown', onKey, true);
   root.appendChild(backdrop);
   sheet.querySelector('button')?.focus();

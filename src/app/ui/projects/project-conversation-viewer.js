@@ -14,17 +14,20 @@ import { installCodeHighlighting } from '../code/code-highlighting.js';
 import { branchButtonHTML } from '../../runtime/branch/branch-button.js';
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
-import { latestSources, timelineSnippet } from '../../runtime/shell/history-sidebar-helpers.js';
-import { fillSourceList } from '../citations/source-list.js';
+import { timelineSnippet } from '../../runtime/shell/history-sidebar-helpers.js';
+import { listableSources } from '../citations/citation-model.js';
+import { createSourcePanel } from '../citations/source-panel.js';
+import { liftSandboxRunBlock } from '../sandbox/sandbox-run-block.js';
+import { projectFilesOf } from '../../runtime/memory-store/reply-sources.js';
 import { colorOf, make, openSheet } from './project-parts.js';
 
 const SIDEBAR_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><line x1="15.5" y1="9.5" x2="15.5" y2="14.5"></line></svg>';
 
 /**
  * `chat` is { id, title, authorName, messages }; `texts` the interface texts of the language (for the markup of the messages); `onBranch({ id, index })` is told which reply the reader chose
- * (`{ last: true }` for the button at the foot); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
+ * (`{ last: true }` for the button at the foot); `onOpenSource(name, row)` and `onDownloadSource(name)` look at, or have, a file of the project that a reply looked into (a row of the Sources tab); `canBranch` is false when the person cannot make conversations here; `renderMarkdown` stands in for the renderer of the words (a test).
  */
-export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, project = null, onClose = () => {} }) {
+export function openProjectConversation({ document, root, text, texts = {}, language = 'zh-TW', chat, onBranch = () => {}, canBranch = true, renderMarkdown = null, loadAsset = null, project = null, onOpenSource = null, onDownloadSource = null, onClose = () => {} }) {
   const win = document.defaultView;
   const sheet = openSheet({ document, root, title: chat.title || '', close: text('pjBack'), className: 'psh-viewer', back: true, onClose });
   // The head is the one of a chat of the project (project-crumb.js): the arrow back at the left, the project's icon and name with "Chat" under it in the middle, the button of the menu at the right.
@@ -50,6 +53,17 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
   side.innerHTML = SIDEBAR_ICON;
   let tab = 'timeline';
   let open = false;
+  // The sources of one reply: the pages its search found and the files of the project it looked into (the notes and the past chats of the writer are theirs and are not here).
+  const groupsOf = (message) => ({ web: listableSources(liftSandboxRunBlock((message?.parts || []).map((part) => part.text || '').join('\n')).run?.sources), notes: [], conversations: [], files: projectFilesOf(message?.metadata) });
+  const sizeOf = (groups) => groups.web.length + groups.files.length;
+  // The reply whose button was tapped, or the newest one that has sources.
+  let sourcesOf = null;
+  const sourcesNow = () => {
+    const messages = current.messages || [];
+    if (sourcesOf !== null && messages[sourcesOf]) return groupsOf(messages[sourcesOf]);
+    for (let index = messages.length - 1; index >= 0; index -= 1) if (messages[index].role === 'model' && sizeOf(groupsOf(messages[index]))) return groupsOf(messages[index]);
+    return { web: [], notes: [], conversations: [], files: [] };
+  };
   let closing = null;
   const setPanel = (next) => {
     open = next;
@@ -58,7 +72,7 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
     side.classList.toggle('is-active', next);
     if (next) { drawPanel(); panel.classList.add('visible'); scrim.classList.add('visible'); } else { panel.classList.remove('visible'); scrim.classList.remove('visible'); }
   };
-  side.addEventListener('click', () => setPanel(!open));
+  side.addEventListener('click', () => { if (!open) sourcesOf = null; setPanel(!open); });
   scrim.addEventListener('click', () => setPanel(false));
   sheet.element.querySelector('.pj-sheet-head')?.appendChild(side);
   sheet.element.append(scrim, panel);
@@ -66,7 +80,7 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
   const list = make(document, 'section', 'psh-messages');
   sheet.body.append(lead, list);
   function drawPanel() {
-    const sources = latestSources(current);
+    const sources = sourcesNow();
     const head = make(document, 'header', 'history-sidebar-head');
     const tabs = make(document, 'div', 'history-tabs');
     tabs.setAttribute('role', 'tablist');
@@ -76,7 +90,7 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
       button.setAttribute('role', 'tab');
       button.dataset.historyTab = name;
       button.setAttribute('aria-selected', String(tab === name));
-      if (name === 'sources' && sources.length) button.appendChild(make(document, 'span', 'history-tab-count', String(sources.length)));
+      if (name === 'sources' && sizeOf(sources)) button.appendChild(make(document, 'span', 'history-tab-count', String(sizeOf(sources))));
       button.addEventListener('click', () => { tab = name; drawPanel(); });
       tabs.appendChild(button);
     }
@@ -104,12 +118,10 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
         });
         body.appendChild(item);
       });
-    } else if (!sources.length) {
+    } else if (!sizeOf(sources)) {
       body.appendChild(make(document, 'p', 'history-sources-empty', sandboxText(language, 'noSourcesInReply')));
     } else {
-      const rows = make(document, 'div');
-      fillSourceList(rows, sources, { language, detailed: true });
-      body.append(make(document, 'div', 'history-sources-count', sandboxText(language, 'sourcesPanelCount', { n: sources.length })), rows);
+      body.appendChild(createSourcePanel(document, sources, { language, ...(onOpenSource ? { onOpenFile: onOpenSource } : {}), ...(onDownloadSource ? { onDownloadFile: onDownloadSource } : {}) }));
     }
     panel.replaceChildren(head, body);
   }
@@ -147,6 +159,14 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
       if (go) go.hidden = !replies.length;
     }
   };
+  // The "Sources" button under a reply opens the panel on its Sources tab, for that reply.
+  list.addEventListener('click', (event) => {
+    if (!event.target.closest('[data-sources-button]')) return;
+    const index = Number(event.target.closest('[data-message-index]')?.dataset.messageIndex);
+    sourcesOf = Number.isInteger(index) ? index : null;
+    tab = 'sources';
+    setPanel(true);
+  });
   if (canBranch) {
     // A reply is named by its id, not by its place, so the branch is made of the reply the reader saw even when the conversation went on since.
     list.addEventListener('click', (event) => {

@@ -1183,3 +1183,49 @@ test('a project opened from the list comes in from the right, and one opened as 
   assert.ok(!back.$('.pj').classList.contains('is-coming-in'));
   await back.finish();
 });
+
+test('the list of what can be added closes with a tap outside it, on the click (the press that closes it must not let the click land on the row under it and open it again), and a second tap does not stack another', async () => {
+  const t = setup();
+  try {
+    t.open({ id: 'f2' }, { sourcesEnabled: true });
+    t.byText('.pj-tab', 'Sources').click();
+    t.$('.pj-source-add').click();
+    t.$('.pj-source-add').click();
+    assert.equal(t.$$('.pj-action-sheet').length, 1, 'one list, not two');
+    const backdrop = t.$('.pj-backdrop.is-bottom');
+    backdrop.dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true }));
+    assert.equal(t.$$('.pj-action-sheet').length, 1, 'the press alone does not close it');
+    backdrop.click();
+    assert.equal(t.$('.pj-action-sheet'), null, 'the click closes it');
+    t.$('.pj-source-add').click();
+    assert.equal(t.$$('.pj-action-sheet').length, 1, 'it opens again from the row');
+  } finally { await t.finish(); }
+});
+
+test('a source is tapped to be looked at and has a button to be had as a file; a web address only opens; a project that is being made has neither', async () => {
+  const t = setup({ folders: [{ id: 'f9', name: 'Files', icon: 'book', color: 'blue', conversationIds: [], instructions: '', sources: [
+    { id: 's1', kind: 'file', title: 'plan.pdf', mime: 'application/pdf', size: 3000, file: { name: 'plan.pdf', mimeType: 'application/pdf', hash: 'a'.repeat(64) }, addedAt: 'x' },
+    { id: 's2', kind: 'text', title: 'Notes', mime: 'text/plain', size: 5, text: 'words', addedAt: 'x' },
+    { id: 's3', kind: 'url', title: 'Site', url: 'https://example.com/a', size: 0, addedAt: 'x' }
+  ] }], conversations: [] });
+  try {
+    const calls = [];
+    const sourceOpener = { preview: async (project, source) => { calls.push(['preview', project.id, source.id]); return true; }, download: async (project, source) => { calls.push(['download', project.id, source.id]); return true; } };
+    t.open({ id: 'f9' }, { sourcesEnabled: true, sourceOpener });
+    t.byText('.pj-tab', 'Sources').click();
+    const rows = t.$$('.pj-source');
+    assert.equal(rows.length, 3);
+    assert.deepEqual(rows.map((row) => Boolean(row.querySelector('[data-source-download]'))), [true, true, false], 'a web address has nothing to download');
+    rows[0].click();
+    rows[2].click();
+    rows[0].querySelector('[data-source-download]').click();
+    rows[1].querySelector('[data-source-download]').click();
+    await t.tick();
+    assert.deepEqual(calls, [['preview', 'f9', 's1'], ['preview', 'f9', 's3'], ['download', 'f9', 's1'], ['download', 'f9', 's2']], 'the button does not also look at the file');
+    assert.equal(rows[0].querySelector('[data-source-download]').getAttribute('aria-label'), 'Download');
+    // the button that removes a source does not look at it
+    rows[1].querySelector('.pj-more[aria-label="Remove source"]').click();
+    await t.tick();
+    assert.equal(calls.filter((call) => call[0] === 'preview').length, 2);
+  } finally { await t.finish(); }
+});

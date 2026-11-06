@@ -4,3 +4,7 @@
 .pj.is-coming-in { animation: pj-come-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .pj.is-coming-back { animation: pj-come-back 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) { .pj.is-coming-in, .pj.is-coming-back { animation: none; } }
+
+/* A source of a project is tapped to be looked at; its button has it as a file. */
+.pj-source.is-openable { cursor: pointer; }
+.pj-source.is-openable:hover { background: var(--hover-bg); }

@@ -5,6 +5,7 @@ import { FOLDER_SVGS } from '../features/folder-metadata.js';
 import { FOLDER_COLORS } from '../shell/runtime-ui-colors.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
 import { PROJECT_INSTRUCTIONS_MAX } from './project-instructions.js';
+import { getProjectFileStore } from './project-source-files.js';
 import { normalizeSource, normalizeSources, normalizeTranscript, PROJECT_SOURCE_FILE_BYTES_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourceFilesBytesOf, sourcesCharsOf } from './project-source-model.js';
 
 export const PROJECT_NAME_MAX = 80;
@@ -12,7 +13,7 @@ export const PROJECT_NAME_MAX = 80;
 /**
  * The shared projects of someone else, as the page of the projects sees them (docs/superpowers/specs/2026-11-06-project-sharing-design.md): the code that runs them (runtime/project-sharing/) gives a
  * hook, and for a project the hook `has` these actions go through it instead of the person's own folders: { has(id), folderOf(id), chatsOf(id), countOf(id), update(id, patch), addSource(id, input),
- * removeSource(id, sourceId), link(id) -> { id, ownerId }, sent(conversationId) }. Without a hook everything is the person's own, as before.
+ * removeSource(id, sourceId), fileOf(id, source) -> { mimeType, data } | null, link(id) -> { id, ownerId }, sent(conversationId) }. Without a hook everything is the person's own, as before.
  */
 let sharedHook = null;
 export const setSharedProjectHook = (hook) => { sharedHook = hook || null; };
@@ -310,5 +311,13 @@ export function createProjectActions({
     return { ok: true, conversationId: made.conversationId };
   }
 
-  return { list, sharedList, chatsLoading, canModerate, moveChatOut, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
+  // The bytes of the file of a source ({ mimeType, data (base64) } or null): from the person's own files, or, in a project of someone else, through the server that gives a member the files of the project.
+  const sourceFile = async (id, source) => {
+    if (!source?.file) return null;
+    if (sharedHas(id) && sharedHook.fileOf) return sharedHook.fileOf(id, source);
+    const loaded = await getProjectFileStore()?.load(source.file).catch(() => null);
+    return loaded?.data ? loaded : null;
+  };
+
+  return { list, sharedList, chatsLoading, canModerate, moveChatOut, sourcesOf, sourceFile, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };
 }

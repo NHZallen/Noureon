@@ -49,7 +49,7 @@ const previewOf = (conversation) => {
  * vectors ({ status(sourceId), subscribe(listener) }: where the vectors of a source are, runtime/memory-store/page-vectors.js; none: no line about it), notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
  * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, composer = null, backOut = () => false, onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), sourceOpener = null, drive = null, vectors = null, composer = null, backOut = () => false, onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -416,6 +416,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
   // The list of what can be added (a phone's own choices, and on a computer the camera of the computer): shared by the tab of the sources and the settings of a project.
   const openAddSources = (project, onDone) => {
+    // (A second tap on the row while the list is open does not stack another list on it.)
+    if (root.querySelector('.pj-action-sheet')) return;
     closeMenu();
     // What is chosen below goes to this project, and `onDone` is told afterwards (set when a choice is made, so a list that was closed with no choice leaves nothing behind).
     const via = (run) => () => { addTarget = { project, onDone }; return run(); };
@@ -531,7 +533,28 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       if (result.ok) notify(text('pjSourceRemoved'), 'success');
       after();
     });
-    if (canEdit(project)) row.append(tile, meta, remove); else row.append(tile, meta);
+    // A source is looked at by tapping it and can be had as a file by its button (a phone too); a web address opens as a link. Not in the list of a project that is being made (its files are not kept yet).
+    const buttons = [];
+    if (sourceOpener && !project.staging) {
+      row.classList.add('is-openable');
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      const look = () => { void sourceOpener.preview(project, source, row); };
+      row.addEventListener('click', look);
+      row.addEventListener('keydown', (event) => { if (event.target === row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); look(); } });
+      if (source.kind !== 'url') {
+        const save = make(document, 'button', 'pj-more');
+        save.type = 'button';
+        save.dataset.sourceDownload = source.id;
+        save.setAttribute('aria-label', text('pjSourceDownload'));
+        save.title = text('pjSourceDownload');
+        save.innerHTML = ICONS.download(18);
+        save.addEventListener('click', (event) => { event.stopPropagation(); void sourceOpener.download(project, source); });
+        buttons.push(save);
+      }
+    }
+    if (canEdit(project)) { remove.addEventListener('click', (event) => event.stopPropagation()); buttons.push(remove); }
+    row.append(tile, meta, ...buttons);
     return row;
   };
   const sourcesView = (project) => {

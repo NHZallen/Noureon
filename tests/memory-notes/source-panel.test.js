@@ -97,3 +97,22 @@ test('the files of the project that the model looked into have a tab of their ow
   assert.deepEqual([...alone.querySelectorAll('.source-panel-tab')].map((tab) => tab.textContent), ['全部1', '檔案1']);
   window.happyDOM.abort();
 });
+
+test('a file of the project is tapped to be looked at, with a button to have it; without those two it is only a name', () => {
+  const window = new Window();
+  const { document } = window;
+  const calls = [];
+  const panel = createSourcePanel(document, { web: [], notes: [], conversations: [], files: [{ name: 'plan.pdf' }] }, { language: 'en', onOpenFile: (name, row) => calls.push(['open', name, row.dataset.fileName]), onDownloadFile: (name) => calls.push(['download', name]) });
+  document.body.append(panel);
+  const row = panel.querySelector('.is-file');
+  assert.ok(row.classList.contains('is-openable'));
+  row.click();
+  const save = row.querySelector('.is-download');
+  assert.equal(save.getAttribute('aria-label'), 'Download');
+  save.click();
+  assert.deepEqual(calls, [['open', 'plan.pdf', 'plan.pdf'], ['download', 'plan.pdf']], 'the button does not also look at it');
+  const plain = createSourcePanel(document, { web: [], notes: [], conversations: [], files: [{ name: 'plan.pdf' }] }, { language: 'en' });
+  assert.equal(plain.querySelector('.is-file .is-download'), null);
+  assert.ok(!plain.querySelector('.is-file').classList.contains('is-openable'));
+  window.happyDOM.abort();
+});

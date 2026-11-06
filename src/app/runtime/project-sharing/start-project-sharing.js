@@ -176,6 +176,12 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     } catch { /* it is read when the project is opened */ } finally { prefetching.delete(projectId); }
   }
   const sessionFor = (id) => sessions.get(id) || null;
+  // A file of a shared project as a member gets it: the server gives it from the owner's folder (a file that the project holds).
+  const sharedFile = async (id, source) => {
+    const path = source?.file?.asset?.__astraCloudAsset?.path;
+    const data = path ? await (sessionFor(id)?.reader || createReader({ projectId: id })).asset(path) : '';
+    return data ? { mimeType: source.file.mimeType, data } : null;
+  };
   setSharedProjectHook({
     has: (id) => sharedFolders.has(id),
     list: () => sharedFolders.list().map((folder) => shownFolder(folder.id)),
@@ -220,6 +226,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     },
     addSource: async (id, input) => { const session = sessionFor(id); return session ? addSourceTo(session, input) : { ok: false, code: 'gone' }; },
     removeSource: async (id, sourceId) => { const session = sessionFor(id); return session ? removeSourceFrom(session, sourceId) : { ok: false, code: 'gone' }; },
+    // A file of the project as a member gets it: the server gives it from the owner's folder (a file that the project holds).
+    fileOf: (id, source) => sharedFile(id, source),
     // (The owner is known from the list, from the read, or from the open session; a chat is never linked with none.)
     link: (id) => ({ id, ownerId: sharedFolders.ownerOf(id) || sessions.get(id)?.info?.owner?.id || '' }),
     sent: () => { void Promise.resolve(saveAppData({ immediateCloudSync: true })).catch(() => {}); }
@@ -370,8 +378,17 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   async function readChat(session, chat, host) {
     await ensureStyles();
     const language = configAccess.getUiLanguage();
-    const { openProjectConversation } = await import('../../ui/projects/project-conversation-viewer.js');
+    const [{ openProjectConversation }, { createSourceOpener }] = await Promise.all([import('../../ui/projects/project-conversation-viewer.js'), import('../../ui/projects/project-source-open.js')]);
+    // The files of the project that a reply looked into: looked at, or had, as the page of the sources does.
+    const opener = createSourceOpener({
+      document, language: () => configAccess.getUiLanguage(), text, notify: (message, type = 'success') => showNotification(message, type),
+      loadFile: ({ source }) => sharedFile(session.projectId, source),
+      openMedia: (media, trigger) => { void import('../projects/project-media-viewer.js').then(({ openProjectMedia }) => openProjectMedia({ document, language: configAccess.getUiLanguage(), media, trigger })); }
+    });
+    const named = (name) => { const wanted = String(name || '').trim().toLowerCase(); return (session.info?.project?.sources || []).find((item) => [item.title, item.file?.name].some((value) => String(value || '').trim().toLowerCase() === wanted)) || null; };
+    const withSource = (name, run) => { const source = named(name); if (!source) { showNotification(text('pjSourceOpenFailed'), 'error'); return false; } return run({ id: session.projectId }, source); };
     const sheet = openProjectConversation({
+      onOpenSource: (name, row) => withSource(name, (project, source) => opener.preview(project, source, row)), onDownloadSource: (name) => withSource(name, (project, source) => opener.download(project, source)),
       document, root: host || document.body, text, texts: i18n[language] || i18n['zh-TW'] || {}, language, chat, renderMarkdown, loadAsset: (path) => session.reader.asset?.(path), project: session.info?.project,
       onClose: () => { if (session.viewer?.sheet === sheet) session.viewer = null; }, onBranch: (pick) => { void branchOf(session, chat, pick); }
     });

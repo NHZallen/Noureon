@@ -16,6 +16,8 @@ import { getNotesMemory, getPageTranscription, getPageVectors, setProjectPieces 
 import { createProjectPieces } from './project-pieces.js';
 import { createProjectTranscripts } from './project-transcripts.js';
 import { setProjectsApi } from './projects-api.js';
+import { createSourceOpener } from '../../ui/projects/project-source-open.js';
+import { setProjectSourceAccess } from './project-source-registry.js';
 
 const ENTRY_ID = 'open-projects-btn';
 const folderIcon = '<svg class="cli-sidebar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
@@ -143,13 +145,20 @@ export function startProjects({
   };
   // A shared project of someone else (joined, or opened by a link) is shown by this page like any project.
   document.addEventListener('noureon:open-project', (event) => { if (event.detail?.id) void open({ id: event.detail.id }); });
+  // Looking at a source and having it as a file (ui/projects/project-source-open.js): the page of the sources uses it, and so does the panel of the sources of a reply (for the files the model looked into).
+  let sourceOpener = null;
+  const sourceOpenerOf = () => (sourceOpener ||= createSourceOpener({
+    document, language: () => configAccess.getUiLanguage(), text, notify: (message, type = 'success') => showNotification(message, type),
+    loadFile: ({ project, source }) => actions.sourceFile(project.id, source),
+    openMedia: (media, trigger) => { void import('./project-media-viewer.js').then(({ openProjectMedia }) => openProjectMedia({ document, language: configAccess.getUiLanguage(), media, trigger })); }
+  }));
   const open = async (route = { list: true }) => {
     // A second tap while the page is being loaded does not load it again.
     opening = opening || loadPage().finally(() => { opening = null; });
     const page = await opening;
     const opened = page.openProjectsPage({
       document, text, actions, route, sourcesEnabled: true, composer,
-      readFile: (file) => readProjectFile(file), drive,
+      readFile: (file) => readProjectFile(file), drive, sourceOpener: sourceOpenerOf(),
       vectors: { status: (sourceId) => getPageVectors()?.sourceStatus?.(sourceId) || 'off', subscribe: (listener) => getPageVectors()?.subscribe?.(listener) },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => { loadChat(id); closeDrawer(); },
@@ -228,6 +237,18 @@ export function startProjects({
     const id = conversation?.folderId || conversation?.sharedProject?.id || '';
     return id ? actions.folderOf(id) : null;
   };
+  // A file the model looked into during a reply, found in the project of the chat that is open by its name (the name the model was given is the title of the source).
+  const sourceNamed = (name) => {
+    const project = projectOfActiveChat();
+    const wanted = String(name || '').trim().toLowerCase();
+    const source = project ? actions.sourcesOf(project.id).find((item) => [item.title, item.file?.name].some((value) => String(value || '').trim().toLowerCase() === wanted)) : null;
+    return project && source ? { project, source } : null;
+  };
+  const withSource = (name, run) => { const found = sourceNamed(name); if (!found) { showNotification(text('pjSourceOpenFailed'), 'error'); return false; } return run(found); };
+  setProjectSourceAccess({
+    preview: (name, trigger) => withSource(name, ({ project, source }) => sourceOpenerOf().preview(project, source, trigger)),
+    download: (name) => withSource(name, ({ project, source }) => sourceOpenerOf().download(project, source))
+  });
   void import('../../../styles/project-crumb.css').catch(() => {});
   createProjectCrumb({ document, text, getProject: projectOfActiveChat, openProject: (id) => { void open({ id, back: true }); } });
   setProjectPlaceholder((conversation) => {

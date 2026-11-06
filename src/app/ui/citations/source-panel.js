@@ -4,6 +4,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { memoryIcon } from '../icons/memory-icons.js';
+import { getFileText } from '../files/file-texts.js';
 import { createSourceItem, formatSourceDate } from './source-list.js';
 
 const make = (document, tag, className, text) => {
@@ -15,9 +16,9 @@ const make = (document, tag, className, text) => {
 
 /**
  * `groups`: { web: [sources], notes: [{ id, text, kind, standing, gone }], conversations: [{ id, title, at, available }], files: [{ name }] } (the files of the project that the model looked into).
- * `options`: { language, kindLabel(kind), onNotRelevant(id) (async), onOpenChat(id), tab ('all' by default) }. Returns the element.
+ * `options`: { language, kindLabel(kind), onNotRelevant(id) (async), onOpenChat(id), onOpenFile(name, row) (look at a file of the project), onDownloadFile(name) (have it), tab ('all' by default) }. Returns the element.
  */
-export function createSourcePanel(document, groups, { language = 'zh-TW', kindLabel = () => '', onNotRelevant = null, onOpenChat = null, tab = 'all' } = {}) {
+export function createSourcePanel(document, groups, { language = 'zh-TW', kindLabel = () => '', onNotRelevant = null, onOpenChat = null, onOpenFile = null, onDownloadFile = null, tab = 'all' } = {}) {
   const text = (key, values) => sandboxText(language, key, values);
   const web = groups.web || [];
   const notes = groups.notes || [];
@@ -105,6 +106,23 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
     const main = make(document, 'div', 'source-row-main');
     main.append(make(document, 'p', 'source-row-title', file.name));
     row.append(main);
+    // Tapping the row looks at the file; its button has it (a phone too).
+    if (onOpenFile) {
+      row.classList.add('is-openable');
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.addEventListener('click', () => onOpenFile(file.name, row));
+      row.addEventListener('keydown', (event) => { if (event.target === row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpenFile(file.name, row); } });
+    }
+    if (onDownloadFile) {
+      const save = make(document, 'button', 'source-row-action is-download');
+      save.type = 'button';
+      save.setAttribute('aria-label', getFileText(language, 'download'));
+      save.title = getFileText(language, 'download');
+      save.append(memoryIcon(document, 'download', { size: 16 }));
+      save.addEventListener('click', (event) => { event.stopPropagation(); onDownloadFile(file.name); });
+      row.append(save);
+    }
     return row;
   };
 

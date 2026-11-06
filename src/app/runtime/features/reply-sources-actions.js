@@ -10,6 +10,7 @@ import { markNotRelevant } from '../memory-notes/standing.js';
 import { getNotesMemory, getPageHistory } from '../memory-store/memory-ref.js';
 import { collectReplySources } from '../memory-store/reply-sources.js';
 import { formatSourceDate } from '../../ui/citations/source-list.js';
+import { getProjectSourceAccess } from '../projects/project-source-registry.js';
 
 const KIND_KEY = { preference: 'mnKindPreference', fact: 'mnKindFact', project: 'mnKindProject', relationship: 'mnKindRelationship', routine: 'mnKindRoutine' };
 
@@ -27,6 +28,8 @@ export function replySourcePanelOptions({ window, document, language, i18n = {} 
   return {
     language,
     kindLabel: (kind) => i18n[language]?.[KIND_KEY[kind]] || '',
+    // The files of the project that the model looked into: tapped to be looked at, or had as a file (the open chat's project says how).
+    ...(getProjectSourceAccess() ? { onOpenFile: (name, row) => getProjectSourceAccess()?.preview(name, row), onDownloadFile: (name) => getProjectSourceAccess()?.download(name) } : {}),
     onNotRelevant: async (id) => { await store.commitNotes(store.getNotes().map((note) => (note.id === id ? markNotRelevant(note) : note))); },
     onOpenChat: (id) => {
       closeSourceSheet();

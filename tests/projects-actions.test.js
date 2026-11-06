@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { PROJECT_NAME_MAX, createProjectActions } from '../src/app/runtime/projects/project-actions.js';
+import { PROJECT_NAME_MAX, createProjectActions, setSharedProjectHook } from '../src/app/runtime/projects/project-actions.js';
 import { PROJECT_INSTRUCTIONS_MAX } from '../src/app/runtime/projects/project-instructions.js';
 import { setShares } from '../src/app/runtime/share/share-ref.js';
+import { setProjectFileDeps } from '../src/app/runtime/projects/project-source-files.js';
 
 // What the page of the projects does to the workspace: make, change and delete a project (the choice of what happens to its chats), take a chat out of it, start a chat in it.
 
@@ -222,4 +223,19 @@ test('the empty chat made for the box of the page is not in the list or the coun
   // A chat started on purpose (a new chat of the project) is in the list at once.
   const started = await actions.startChat('f1', '');
   assert.equal(actions.chatsOf('f1').some((entry) => entry.id === started.conversationId), true);
+});
+
+test('the bytes of the file of a source come from the person’s own files, or, in a project of someone else, through the hook that the sharing gives; a source with no file has none', async () => {
+  const { actions } = setup({ folders: [{ id: 'f1', name: 'Own', conversationIds: [], sources: [] }] });
+  const file = { name: 'plan.pdf', mimeType: 'application/pdf', hash: 'a'.repeat(64) };
+  setProjectFileDeps({ store: { load: async (description) => (description.hash === file.hash ? { mimeType: 'application/pdf', data: 'QUJD' } : null) } });
+  assert.deepEqual(await actions.sourceFile('f1', { id: 's', file }), { mimeType: 'application/pdf', data: 'QUJD' });
+  assert.equal(await actions.sourceFile('f1', { id: 's', file: { ...file, hash: 'b'.repeat(64) } }), null, 'a file that is not there');
+  assert.equal(await actions.sourceFile('f1', { id: 's', kind: 'text', text: 'words' }), null);
+  const asked = [];
+  setSharedProjectHook({ has: (id) => id === 'shared', folderOf: () => null, fileOf: async (id, source) => { asked.push([id, source.id]); return { mimeType: 'text/plain', data: 'eA==' }; } });
+  assert.deepEqual(await actions.sourceFile('shared', { id: 'x', file }), { mimeType: 'text/plain', data: 'eA==' });
+  assert.deepEqual(asked, [['shared', 'x']]);
+  setSharedProjectHook(null);
+  setProjectFileDeps({ store: null });
 });

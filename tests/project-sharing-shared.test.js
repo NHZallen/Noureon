@@ -344,3 +344,31 @@ test('the panel at the right of someone else’s chat is the app’s own side pa
   const shared = readFileSync(new URL('../src/styles/citations.css', import.meta.url), 'utf8');
   assert.match(shared, /\.psh-history \.psh-history-list \.history-sidebar-item \{/);
 });
+
+test('the "Sources" button under a reply of someone else’s chat opens the panel on its Sources tab, with the pages and the files of the project that reply looked into; a row of a file is looked at, or had', () => {
+  const { document, root } = page();
+  const messages = [
+    { id: 'a', role: 'user', parts: [{ text: 'question' }], createdAt: '2026-11-06T00:00:00Z' },
+    { id: 'b', role: 'model', parts: [{ text: 'answer one' }], createdAt: '2026-11-06T00:00:01Z', metadata: { projectFilesUsed: ['plan.pdf', 'budget.xlsx'] } },
+    { id: 'c', role: 'user', parts: [{ text: 'more' }], createdAt: '2026-11-06T00:00:02Z' },
+    { id: 'd', role: 'model', parts: [{ text: 'answer two' }], createdAt: '2026-11-06T00:00:03Z' }
+  ];
+  const calls = [];
+  openProjectConversation({ document, root, text, texts: {}, language: 'en', chat: chat('c1', 'o', 'Traffic', 'x', messages), project: { name: 'City plan', icon: 'book', color: 'blue' }, renderMarkdown: (value) => `<p>${value}</p>`, onOpenSource: (name) => calls.push(['open', name]), onDownloadSource: (name) => calls.push(['download', name]) });
+  const panel = root.querySelector('.psh-history');
+  const button = root.querySelector('[data-message-index="1"] [data-sources-button]');
+  assert.ok(button, 'the reply that looked into files has the button');
+  assert.equal(root.querySelector('[data-message-index="3"] [data-sources-button]'), null, 'the one that did not has none');
+  button.click();
+  assert.equal(panel.classList.contains('visible'), true);
+  assert.equal(panel.querySelector('.history-tab[aria-selected="true"]').dataset.historyTab, 'sources');
+  assert.deepEqual([...panel.querySelectorAll('.is-file')].map((row) => row.dataset.fileName), ['plan.pdf', 'budget.xlsx']);
+  panel.querySelector('.is-file').click();
+  panel.querySelector('.is-file .is-download').click();
+  assert.deepEqual(calls, [['open', 'plan.pdf'], ['download', 'plan.pdf']]);
+  // opened by the button at the right it shows the newest reply that has sources
+  panel.querySelector('.history-close').click();
+  root.querySelector('.pj-sheet-head').children[2].click();
+  assert.equal(panel.querySelector('.history-tab[aria-selected="true"]').dataset.historyTab, 'sources', 'the tab it was left on');
+  assert.deepEqual([...panel.querySelectorAll('.is-file')].map((row) => row.dataset.fileName), ['plan.pdf', 'budget.xlsx']);
+});

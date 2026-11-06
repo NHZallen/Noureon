@@ -354,3 +354,13 @@ Allen 的要求：別人對話頁右上角的側邊欄要像淺色那張，就�
 - **地球圖示變黑色填充**：別人對話頁頂列的專案圖示 `<svg>` 少了 `folder-icon-svg` 這個 class（`project-crumb.js` 有），圖示的線條樣式（無填色、細線）靠它，沒有就變成黑色填滿。補上。
 - **返回動畫方向**：從專案裡的對話按返回箭頭打開專案頁，原本當成「進入專案」從右邊滑入；返回應該從左邊滑入。`openProject` 現在帶 `back: true`（`start-projects.js`），`projects-page.js` 的 `go()` 遇到 `back` 用 `is-coming-back`。從清單進專案仍然從右邊滑入。
 - **模型讀到的專案檔案算進來源**：`createProjectFilesLoader` 本來就會用 `onUsed({ files })` 回報搜尋或讀取過哪些檔案，但沒有人接。現在頁面這條（`single-model-reply-prepare.js` → `memory-trace.js` 的 `recordFiles`）與伺服器那條（`executor.js` → `memoryOut.files` → `runs.js`）都把名稱記下來，存進回覆的 `metadata.projectFilesUsed`（檔名的陣列）（最多 20，同名一次；`cloud-sync-v2-codecs.js` 的保留清單加上它，才會跟著同步）。右側欄「來源」面板多一個「檔案」分頁（與網頁、記憶、對話並列，列出檔名與「專案的檔案」），回覆下方的來源鈕多一個檔案圖示。只記名稱，不記內容。理事會成員（`council-members-page.js`）讀的檔案這次還沒接。
+
+### 18.16 資料來源的下載與預覽、別人對話的來源鈕、關不掉的選單（2026-11-07，已在 `staging`，不需要新的 migration）
+
+Allen 的錄影與要求：別人對話底下的「來源」鈕點了沒反應、側欄來源是空的；資料來源頁點「+」後的底部選單重複點就關不掉；每個資料來源要能下載（手機也要），點了要能預覽（專案頁、側欄、手機底部開的來源都要）。
+
+- **關不掉的選單**：底部選單（與對話框式的面板）原本在 `pointerdown` 就關閉，手指抬起後的 `click` 落到下面的「+」那一列，又把同一個選單開起來，所以怎麼點都關不掉。改成在 `click`（點在背景上）才關；打開時如果已經有一個選單，不再疊第二個。
+- **開啟來源的共用模組**（`ui/projects/project-source-open.js`）：`sourceAsFile` 把來源變成檔案（文字來源是 `.txt`，研究報告是 `.md`，檔案用本身的名字與類型，網址沒有檔案）；`createSourceOpener` 給 `preview` 與 `download`。預覽重用附件的預覽視窗（`openUploadedFilePreview`：文字、markdown、CSV、PDF、Word、Excel、PowerPoint）與圖片、影片的燈箱（`project-media-viewer.js`）；沒有預覽的種類改成下載；網址用新分頁開。下載重用附件的 `deliverFile`（手機走分享選單，電腦直接下載）；手機要求「點一下」才能開分享選單，讀檔太久時會提示再點一次，讀好的檔案留著，第二下立刻給。
+- **檔案從哪裡讀**：`project-actions.js` 的 `sourceFile(id, source)`：自己的專案用本機檔案庫（沒有時從自己的雲端取回）；別人分享的專案走共享掛鉤的 `fileOf`，由伺服器從擁有者的資料夾給成員（只給專案真的有的檔案）。
+- **畫面**：專案頁的資料來源每一列可以點（預覽），列上多一個下載鈕（網址沒有；建立專案對話框裡還沒存的來源沒有這兩個）。右側欄與手機底部的「來源」面板，「檔案」分頁的每一列也可以點（預覽）並有下載鈕：面板用檔名在開著的對話所屬的專案裡找來源（`project-source-registry.js`，由 `start-projects.js` 登錄）。
+- **別人對話頁**：回覆下方的「來源」鈕現在有反應：打開右側面板的來源分頁，內容是那則回覆的網頁與它讀過的專案檔案（寫的人自己的記憶與過去對話不是你的，不列）；從右上角按鈕打開則顯示最新一則有來源的回覆。檔案列同樣可預覽、下載，檔案經由共享掛鉤由伺服器給成員。
