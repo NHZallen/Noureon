@@ -45,3 +45,9 @@
 .psh-choice[aria-pressed="true"] { border-color: var(--text-primary); }
 .psh-choice-label { color: var(--text-primary); }
 .psh-text { width: 100%; min-height: 10rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--input-field-bg); color: var(--text-primary); font: inherit; resize: vertical; }
+.pj-members-slot { display: inline-flex; align-items: center; }
+.psh-stack { display: inline-flex; align-items: center; gap: 0; padding: 0.15rem 0.6rem 0.15rem 0.25rem; border: 0; border-radius: 1.5rem; background: transparent; color: var(--text-primary); }
+.psh-stack:hover { background: var(--hover-bg); }
+.psh-stack .psh-avatar { width: 1.75rem; height: 1.75rem; margin-left: -0.5rem; border: 2px solid var(--modal-bg); font-size: var(--pj-small, 0.8125rem); }
+.psh-stack .psh-avatar:first-child { margin-left: 0; }
+.psh-stack-count { margin-left: 0.5rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }

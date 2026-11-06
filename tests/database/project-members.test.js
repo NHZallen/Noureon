@@ -370,3 +370,17 @@ test('taking a person out can take what they made in the project with them (to t
   assert.equal(await deleted(bobs), true);
   assert.equal(await deleted(cys), false);
 });
+
+test('two people who are in the same shared project can see each other’s picture; a stranger and oneself cannot', async () => {
+  const projectId = await sharedProject();
+  const inviteCode = (await rpc(A, 'create_project_link', projectId, 'chat', 'Ada')).code;
+  await rpc(B, 'accept_project_invite', inviteCode);
+  await rpc(C, 'accept_project_invite', inviteCode);
+  assert.equal(await rpc(A, 'shares_project_with', bob), true);
+  assert.equal(await rpc(B, 'shares_project_with', ada), true);
+  assert.equal(await rpc(B, 'shares_project_with', cy), true);
+  assert.equal(await rpc(A, 'shares_project_with', ada), false);
+  const stranger = database.asUser(await database.createUser(`dan-${id()}@example.test`));
+  assert.equal(await rpc(stranger, 'shares_project_with', ada), false);
+  assert.equal(await rpc(A, 'shares_project_with', null), false);
+});

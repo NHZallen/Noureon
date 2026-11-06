@@ -20,14 +20,16 @@ const initialOf = (name) => (Array.from(String(name || '').trim())[0] || '?').to
 /** The little round mark of a person: their picture when there is one, else the first letter of the name. */
 export function personMark(document, { name = '', avatarUrl = '' } = {}) {
   const mark = make(document, 'span', 'psh-avatar');
-  if (avatarUrl) {
+  mark.textContent = initialOf(name);
+  // The picture may still be on its way (a promise): the letter shows until it comes.
+  const show = (url) => {
+    if (!url || typeof url !== 'string') return;
     const image = make(document, 'img', 'psh-avatar-img');
     image.alt = '';
-    image.src = avatarUrl;
-    mark.appendChild(image);
-  } else {
-    mark.textContent = initialOf(name);
-  }
+    image.src = url;
+    mark.replaceChildren(image);
+  };
+  if (avatarUrl && typeof avatarUrl.then === 'function') avatarUrl.then(show, () => {}); else show(avatarUrl);
   return mark;
 }
 

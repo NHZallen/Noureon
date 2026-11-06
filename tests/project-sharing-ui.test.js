@@ -271,3 +271,24 @@ test('taking a person out asks whether to keep their conversations (kept by defa
   await tick(); await tick();
   assert.deepEqual(state.calls, ['remove:u2:true']);
 });
+
+test('the head of a shared project shows a few pictures and the number of people; a project with nobody else shows nothing; a picture that is still coming shows the letter first', async () => {
+  const { drawMemberButton } = await import('../src/app/ui/projects/project-head-members.js');
+  const window = new Window();
+  const document = window.document;
+  const text = (key, values = {}) => String(sharing.en[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? '');
+  const slot = document.createElement('span');
+  assert.equal(drawMemberButton({ document, slot, text, members: [{ user_id: 'a', name: 'Ada' }] }), null);
+  assert.equal(slot.children.length, 0);
+  const opened = [];
+  const members = [{ user_id: 'a', name: 'Ada', avatar_version: 1 }, { user_id: 'b', name: 'Bob', avatar_version: 0 }, { user_id: 'c', name: 'Cy' }, { user_id: 'd', name: 'Dan' }];
+  const button = drawMemberButton({ document, slot, text, members, avatarOf: (id, version) => (version ? Promise.resolve('data:image/webp;base64,AAAA') : ''), onOpen: () => opened.push(1) });
+  assert.equal(button.querySelectorAll('.psh-avatar').length, 3);
+  assert.equal(button.querySelector('.psh-avatar').textContent, 'A');
+  assert.equal(button.querySelector('.psh-stack-count').textContent, '4');
+  assert.equal(button.getAttribute('aria-label'), 'Project members (4)');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.ok(button.querySelector('.psh-avatar img'));
+  button.click();
+  assert.deepEqual(opened, [1]);
+});

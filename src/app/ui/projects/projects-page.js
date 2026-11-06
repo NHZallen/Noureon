@@ -665,9 +665,14 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const title = headingOf(document, 'pj-title is-project');
     title.append(projectMark(document, project, 'is-small'), make(document, 'span', 'pj-title-text', project.name || ''));
     const more = round('dots', text('pjMore'), () => projectMenu(project, more, null, { fromPage: true }));
+    // A shared project shows its people here: the sharing code fills this box (psh-stack) when the project has members.
+    const slot = make(document, 'span', 'pj-members-slot');
+    document.dispatchEvent(new document.defaultView.CustomEvent('noureon:project-members-slot', { detail: { projectId: project.id, slot, root } }));
+    const headActions = make(document, 'div', 'pj-head-actions');
+    headActions.append(slot, more);
     if (wide) {
       const main = make(document, 'main', 'pj-main');
-      const head = header({ title, right: more });
+      const head = header({ title, right: headActions });
       chatsBody = make(document, 'div', 'pj-chats');
       // The box of the chat is under the list, outside what scrolls (its menus open upward over the list). The plain box, when there is none, stays above the list.
       if (composer) {
@@ -684,7 +689,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       drawChats();
       return;
     }
-    const head = header({ left: round('back', text('pjBack'), () => back()), title, right: more });
+    const head = header({ left: round('back', text('pjBack'), () => back()), title, right: headActions });
     const body = make(document, 'main', 'pj-body');
     const choose = (key) => { state.tab = key; drawProject(); };
     if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));

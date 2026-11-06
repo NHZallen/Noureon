@@ -6,6 +6,7 @@ import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
 import { createProjectShareClient } from './project-share-client.js';
+import { createAvatarLoader } from './avatar-loader.js';
 import { PENDING_CHAT_KEY, chatLinkUrl, clearPendingChatLink, clearPendingJoin, readPendingChatLink, readPendingJoin } from './join-route.js';
 import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
@@ -24,6 +25,7 @@ const nameOf = (user) => {
 
 export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar = () => {}, openConversation = () => {}, supabase = null, client = null, storage = null, copyText = null, createReader = (args) => createSharedProjectReader(args), pollMs = 3000, defaultsOf = null, renderMarkdown = null }) {
   const getSupabase = () => { if (supabase) return supabase; try { return getSupabaseClient(); } catch { return null; } };
+  const avatarOf = createAvatarLoader({ getSupabase });
   const shareClient = client || createProjectShareClient({ getSupabase });
   const text = (key, values = {}) => {
     const table = i18n[configAccess.getUiLanguage()] || i18n['zh-TW'] || {};
@@ -48,7 +50,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       document, root: root || document.body, text, client: shareClient, project: { id: folder.id, name: folder.name },
       inviterName: nameOf(getAnnouncedUser()), origin: window.location?.origin || '', copy, notify: showNotification,
       // The folder the page keeps has the memory the database has now (a stale copy written back could not undo it: the database keeps it, but the page should show it too).
-      onNotes: (list) => sharedFolders.setOwnNotes(folder.id, list),
+      onNotes: (list) => sharedFolders.setOwnNotes(folder.id, list), avatarUrl: avatarOf,
       onShared: async () => { folder.memoryScope = 'project'; try { await saveAppData({ immediateCloudSync: true }); } catch { /* the next save carries it */ } }
     });
   }
@@ -246,6 +248,19 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   };
   window.addEventListener(SHARE_CONVERSATION_EVENT, (event) => { void shareHere(event); }, true);
   document.addEventListener(SHARED_EVENT, (event) => { if (event.detail?.box) void drawSharedList({ box: event.detail.box, root: event.detail.root || null }); });
+  // The head of a shared project shows its people (the box comes from the page of the project); the pictures are read from the bucket once for each version.
+  const MEMBERS_SLOT_EVENT = 'noureon:project-members-slot';
+  document.addEventListener(MEMBERS_SLOT_EVENT, (event) => {
+    const { projectId, slot, root } = event.detail || {};
+    if (!projectId || !slot || !cloudOn()) return;
+    void (async () => {
+      const answer = await shareClient.members(projectId);
+      if (!answer.ok || !slot.isConnected) return;
+      await ensureStyles();
+      const { drawMemberButton } = await import('../../ui/projects/project-head-members.js');
+      drawMemberButton({ document, slot, text, members: answer.data?.members || answer.data, avatarOf, onOpen: () => { void openMembers({ projectId, root }); } });
+    })();
+  });
   document.addEventListener(MEMBERS_EVENT, (event) => { void openMembers({ projectId: String(event.detail?.projectId || ''), root: event.detail?.root || null }); });
   document.addEventListener(USER_READY_EVENT, () => { const area = pendingStorage(); if (area && readPendingJoin(area)) lookForPending(); if (area && readPendingChatLink(area)) lookForChat(); lookToRefresh(); });
   void PENDING_CHAT_KEY;
