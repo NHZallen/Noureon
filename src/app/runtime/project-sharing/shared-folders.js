@@ -9,7 +9,7 @@ const INSTRUCTIONS_MAX = 8000;
 
 export const sharedFolderOf = (project = {}) => ({
   id: String(project.id || ''), name: String(project.name || '').slice(0, NAME_MAX), instructions: String(project.instructions || '').slice(0, INSTRUCTIONS_MAX),
-  icon: project.icon || 'default', color: project.color || 'gray', role: String(project.role || ''), memoryScope: 'project', sources: Array.isArray(project.sources) ? project.sources : [], shared: true
+  icon: project.icon || 'default', color: project.color || 'gray', role: String(project.role || ''), ownerId: String(project.ownerId || ''), ownerName: String(project.ownerName || '').slice(0, 80), memoryScope: 'project', sources: Array.isArray(project.sources) ? project.sources : [], shared: true
 });
 
 export function createSharedFolders({ storage = null } = {}) {
@@ -25,6 +25,10 @@ export function createSharedFolders({ storage = null } = {}) {
   load();
   return {
     list: () => [...folders.values()],
+    has: (id) => folders.has(id),
+    /** The project as the page of the projects shows a project: a folder that is not the person's own ('shared', with the role). */
+    folderOf: (id) => (folders.has(id) ? { ...folders.get(id), conversationIds: [], shared: true } : null),
+    ownerOf: (id) => folders.get(id)?.ownerId || '',
     set(project) { const folder = sharedFolderOf(project); if (folder.id) { folders.set(folder.id, folder); save(); } return folder; },
     /** The role of the person in the project ('owner' | 'editor' | 'chat'), '' when it is not known yet. */
     roleOf: (id) => folders.get(id)?.role || '',

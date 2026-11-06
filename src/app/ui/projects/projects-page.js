@@ -65,6 +65,12 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   let menu = null;
 
   const projectOrNull = (id) => actions.folderOf(id);
+  // Which project the page shows is told (a shared project is read and kept live while it is shown: runtime/project-sharing/); `refresh({ full })` draws it again: its chats, or all of it.
+  const announceView = (projectId) => {
+    try { document.dispatchEvent(new win.CustomEvent('noureon:project-view', { detail: { projectId, root, refresh: ({ full = false } = {}) => { if (closed || state.view !== 'project' || state.projectId !== projectId) return; if (full) drawProject(); else drawChats(); } } })); } catch { /* nothing listens */ }
+  };
+  // A shared project of someone else (runtime/project-sharing/): everyone reads it, only an editor changes its instructions and sources; the project itself is not the person's to rename, pin or delete.
+  const canEdit = (project) => !project?.shared || project.role === 'editor';
   const openSheets = () => root.querySelectorAll('.pj-backdrop').length;
   const closeMenu = () => { menu?.close(); menu = null; };
 
@@ -122,6 +128,15 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     closeMenu();
     const refresh = () => { if (state.view === 'project') drawProject(); else drawList(); };
     const items = [];
+    if (project.shared) {
+      // A project of someone else: a new chat in it, the instructions for an editor, and leaving.
+      if (!fromPage) items.push({ label: text('pjMenuNewChat'), icon: 'plus', action: async () => { const result = await actions.startChat(project.id, '').catch(() => ({ ok: false })); if (result.ok) close(); else notify(text('pjFailed'), 'error'); } });
+      if (canEdit(project) && fromPage && !isWide(document)) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
+      items.push({ label: text('psLeave'), icon: 'remove', danger: true, action: () => document.dispatchEvent(new document.defaultView.CustomEvent('noureon:project-leave', { detail: { projectId: project.id, root, onLeft: () => go({ list: true }, false) } })) });
+      anchor?.setAttribute?.('aria-expanded', 'true');
+      menu = openMenu({ document, root, anchor, point, items, onClose: () => { anchor?.removeAttribute?.('aria-expanded'); menu = null; } });
+      return;
+    }
     if (!fromPage) items.push({ label: text('pjMenuNewChat'), icon: 'plus', action: async () => { const result = await actions.startChat(project.id, '').catch(() => ({ ok: false })); if (result.ok) close(); else notify(text('pjFailed'), 'error'); } });
     items.push(
       { label: project.pinned ? text('pjMenuUnpin') : text('pjMenuPin'), icon: 'pin', action: async () => { await actions.togglePinProject(project.id); refresh(); } },
@@ -142,7 +157,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (state.listTab === 'shared') {
       listBody.appendChild(emptyState(text('pjSharedEmpty'), text('pjSharedEmptyHint')));
       // The projects shared with the person are put here by runtime/project-sharing (the empty state stays when there are none).
-      document.dispatchEvent(new document.defaultView.CustomEvent('noureon:shared-projects', { detail: { box: listBody, root } }));
+      document.dispatchEvent(new document.defaultView.CustomEvent('noureon:shared-projects', { detail: { box: listBody, root, go: (id) => go({ id }, true) } }));
       return;
     }
     const all = actions.list();
@@ -196,6 +211,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     composer?.park();
     closeMenu();
     state.view = 'list';
+    announceView(null);
     const wide = isWide(document);
     root.classList.toggle('is-wide', wide);
     const title = headingOf(document, 'pj-title');
@@ -267,8 +283,10 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       more.setAttribute('aria-label', text('pjMore'));
       more.innerHTML = ICONS.dots(18);
       more.addEventListener('click', (event) => { event.stopPropagation(); chatMenu(conversation, more); });
-      row.append(words, more);
-      const open = () => { close(); openChat(conversation.id); };
+      // In a shared project the chats of the others have no menu (they are theirs) and are read in a page of their own; the person's own open in the chat.
+      const others = conversation.shared && !conversation.mine;
+      if (others) row.append(words); else row.append(words, more);
+      const open = () => { if (others) { document.dispatchEvent(new win.CustomEvent('noureon:shared-chat', { detail: { projectId: project.id, chat: conversation, root } })); return; } close(); openChat(conversation.id); };
       row.addEventListener('click', open);
       row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
       row.addEventListener('contextmenu', (event) => { event.preventDefault(); chatMenu(conversation, null, { x: event.clientX, y: event.clientY }); });
@@ -477,7 +495,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       if (result.ok) notify(text('pjSourceRemoved'), 'success');
       after();
     });
-    row.append(tile, meta, remove);
+    if (canEdit(project)) row.append(tile, meta, remove); else row.append(tile, meta);
     return row;
   };
   const sourcesView = (project) => {
@@ -495,7 +513,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const openAdd = () => openAddSources(project, drawProject);
     add.addEventListener('click', openAdd);
     add.addEventListener('keydown', (event) => { if (event.target === add && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openAdd(); } });
-    box.appendChild(add);
+    if (canEdit(project)) box.appendChild(add);
     for (const source of list) box.appendChild(sourceRow(project, source, drawProject));
     return box;
   };
@@ -627,7 +645,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     instructionsEdit.innerHTML = ICONS.edit(16);
     instructionsEdit.addEventListener('click', () => openInstructionsSheet({ document, root, text, actions, project: actions.folderOf(project.id) || project, notify, onSaved: drawProject, advanced: true }));
     const instructionsToggle = foldTitle('instructions', text('pjInstructionsTitle'));
-    instructionsHead.append(instructionsToggle, instructionsEdit);
+    if (canEdit(project)) instructionsHead.append(instructionsToggle, instructionsEdit); else instructionsHead.append(instructionsToggle);
     foldable(instructions, instructionsToggle, 'instructions');
     const written = String(project.instructions || '').trim();
     instructions.append(instructionsHead, make(document, 'p', `pj-card-text${written ? '' : ' is-empty'}`, written || text('pjInstructionsNone')));
@@ -642,7 +660,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       add.innerHTML = ICONS.plus(16);
       add.addEventListener('click', () => openAddSources(project, drawProject));
       const sourcesToggle = foldTitle('sources', text('pjTabSources'), text('pjSourcesCount', { n: list.length, max: PROJECT_SOURCES_MAX }));
-      head.append(sourcesToggle, add);
+      if (canEdit(project)) head.append(sourcesToggle, add); else head.append(sourcesToggle);
       foldable(card, sourcesToggle, 'sources');
       const rows = make(document, 'div', 'pj-sources');
       for (const source of list) rows.appendChild(sourceRow(project, source, drawProject));
@@ -660,6 +678,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const project = projectOrNull(state.projectId);
     if (!project) { go({ list: true }, false); return; }
     state.view = 'project';
+    announceView(project.id);
     const wide = isWide(document);
     root.classList.toggle('is-wide', wide);
     const title = headingOf(document, 'pj-title is-project');
@@ -764,8 +783,10 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (closed) return;
     closed = true;
     closeMenu();
+    announceView(null);
     win.removeEventListener('popstate', onPopState);
     win.removeEventListener('keydown', onKey);
+    document.removeEventListener('noureon:project-gone', onGone);
     media?.removeEventListener?.('change', onMedia);
     unsubscribeVectors?.();
     // The box of the chat goes home before the page is taken away (the chat it made for the project is given up there if it was not used).
@@ -789,6 +810,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   (document.getElementById('app-container') || document.body).appendChild(root);
   win.addEventListener('popstate', onPopState);
   win.addEventListener('keydown', onKey);
+  // The person was taken out of the shared project that is shown (or it was deleted): back to the list.
+  const onGone = (event) => { if (!closed && state.view === 'project' && state.projectId === event.detail?.projectId) go({ list: true }, false); };
+  document.addEventListener('noureon:project-gone', onGone);
   const first = route?.id && projectOrNull(route.id) ? route : { list: true, ...(route?.create ? { create: true } : {}) };
   // The page opened by its address starts where the address says; opened by a tap it adds an entry to the history.
   const addressRoute = projectsRouteFromPath(win.location.pathname);

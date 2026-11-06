@@ -77,14 +77,15 @@ export function openShareConfirm({ document, root, text, preview }) {
  * Opens the page. `project` is { id, name }; `me` the id of the signed-in person; `ownerName` and `inviterName` are the name shown on a link. `onShared(projectId)` is told when the project has
  * just been shared (the page makes the memory of its own copy of the folder `project`). `avatarUrl(userId, version)` may give the picture of a person.
  */
-export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, avatarUrl = () => '', confirm = null }) {
+export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, avatarUrl = () => '', confirm = null, onClosed = () => {} }) {
   let role = 'chat';
   let data = null;
   let links = [];
   let pending = [];
   let mailLeft = null;
   let busy = false;
-  const sheet = openSheet({ document, root, title: text('psTitle'), action: { label: text('psDone'), onClick: () => {} }, body: () => {}, className: 'psh-sheet' });
+  let closed = false;
+  const sheet = openSheet({ document, root, title: text('psTitle'), action: { label: text('psDone'), onClick: () => {} }, body: () => {}, className: 'psh-sheet', onClose: () => { closed = true; onClosed(); } });
   const body = sheet.body;
   const fail = (code) => notify(errorText(text, code), 'error');
 
@@ -311,5 +312,16 @@ export async function openMembersPanel({ document, root, text, client, project, 
   }
 
   if (await load()) draw();
-  return sheet;
+  // The window follows the people of the project while it is open (a person joined, left, or had their role changed): it is drawn again, unless the person is typing in it or is in the middle of something.
+  async function refresh() {
+    if (closed || busy || !data?.shared_at) return;
+    const active = document.activeElement;
+    if (active && body.contains(active) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return;
+    const now = await client.members(project.id);
+    if (closed || busy) return;
+    if (!now.ok) { if (now.code === 'not_a_member' || now.code === 'not_allowed') sheet.close(); return; }
+    if (JSON.stringify(now.data?.members) === JSON.stringify(data?.members) && now.data?.role === data?.role) return;
+    if (await load()) draw();
+  }
+  return { ...sheet, refresh };
 }

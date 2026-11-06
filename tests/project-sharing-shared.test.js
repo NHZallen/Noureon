@@ -4,10 +4,9 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 import { createSharedProjectReader, readSharedProject } from '../src/app/runtime/project-sharing/project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from '../src/app/runtime/project-sharing/branch-from-mirror.js';
-import { startProjectSharing, SHARED_EVENT } from '../src/app/runtime/project-sharing/start-project-sharing.js';
+import { startProjectSharing } from '../src/app/runtime/project-sharing/start-project-sharing.js';
 import { announceUser } from '../src/app/runtime/features/user-ready.js';
 import { provideService, SERVICES } from '../src/app/runtime/services.js';
-import { drawSharedProjects, openSharedProjectPage } from '../src/app/ui/projects/shared-project-page.js';
 import { openProjectConversation } from '../src/app/ui/projects/project-conversation-viewer.js';
 import { memoryScopeOf, projectIdOf, projectInstructionTextFor } from '../src/app/runtime/projects/project-instructions.js';
 import { PENDING_CHAT_KEY, chatLinkOf, chatLinkUrl, isChatLinkRoute, readPendingChatLink } from '../src/app/runtime/project-sharing/join-route.js';
@@ -70,28 +69,6 @@ const page = () => {
   return { window, document, root: document.getElementById('root') };
 };
 
-test('the page of a shared project lists everyone’s conversations with the name of who made them; one’s own open in the chat, the others are read; a new chat can be made', async () => {
-  const { document, root } = page();
-  const opened = [];
-  openSharedProjectPage({
-    document, root, text, language: 'en', meId: ME,
-    shared: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'Traffic', '2026-11-02T00:00:00Z'), chat('c2', ME, 'My chat', '2026-11-03T00:00:00Z')] },
-    onOpenChat: (entry) => opened.push(['read', entry.id]), onOpenOwn: (entry) => opened.push(['own', entry.id]), onNewChat: () => opened.push(['new'])
-  });
-  assert.match(root.textContent, /Project shared by Ada/);
-  assert.deepEqual([...root.querySelectorAll('.psh-chat .pj-row-meta')].map((node) => node.textContent.split(' · ')[0]), ['Ada', 'You']);
-  assert.equal(root.querySelector('.psh-chat img, .psh-chat .psh-avatar'), null);
-  root.querySelector('[data-chat-id="c1"]').click();
-  assert.deepEqual(opened, [['read', 'c1']]);
-  const { document: second, root: other } = page();
-  openSharedProjectPage({ document: second, root: other, text, meId: ME, shared: { project: { name: 'P' }, owner: { name: 'A' }, conversations: [chat('c2', ME, 'My chat', 'x')] }, onOpenChat: () => {}, onOpenOwn: (entry) => opened.push(['own', entry.id]), onNewChat: () => opened.push(['new']) });
-  other.querySelector('[data-chat-id="c2"]').click();
-  const { document: third, root: empty } = page();
-  openSharedProjectPage({ document: third, root: empty, text, meId: ME, shared: { project: { name: 'P' }, owner: { name: 'A' }, conversations: [] }, onOpenChat: () => {}, onNewChat: () => opened.push(['new']) });
-  assert.match(empty.textContent, /no conversations in the project yet/);
-  empty.querySelector('[data-new-chat]').click();
-  assert.deepEqual(opened, [['read', 'c1'], ['own', 'c2'], ['new']]);
-});
 
 test('the conversation of someone else is read as a page; the button under a reply and the one at the foot branch it', async () => {
   const { window, document, root } = page();
@@ -117,7 +94,8 @@ test('the conversation of someone else is read as a page; the button under a rep
 const readerOf = (read, live = {}) => ({
   load: async () => (typeof read === 'function' ? read() : read),
   refresh: async () => (live.refresh ? live.refresh() : { ok: true, changed: false, project: (typeof read === 'function' ? await read() : read).project }),
-  conversation: async (id) => (live.conversation ? live.conversation(id) : { ok: false, code: 'gone' })
+  conversation: async (id) => (live.conversation ? live.conversation(id) : { ok: false, code: 'gone' }),
+  info: async () => { const answer = typeof read === 'function' ? await read() : read; return answer.ok ? { ok: true, project: { role: answer.project.role, project: answer.project.project, owner: answer.project.owner } } : answer; }
 });
 
 const started = ({ read, conversations = [], items = [], live = {}, copyText = null } = {}) => {
@@ -133,49 +111,7 @@ const started = ({ read, conversations = [], items = [], live = {}, copyText = n
   return { api, document, root, events, conversations };
 };
 
-test('opening a shared project reads it and shows it; a branch and a new chat are put at the top of the reader’s conversations and opened', async () => {
-  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'Traffic', 'x', MESSAGES)] } });
-  const env = started({ read });
-  await env.api.openShared({ project_id: PROJECT, root: env.root });
-  assert.match(env.root.textContent, /City plan/);
-  env.root.querySelector('[data-chat-id="c1"]').click();
-  await tick();
-  env.root.querySelector('[data-branch-last]').click();
-  await tick(); await tick();
-  assert.equal(env.conversations.length, 1);
-  assert.deepEqual(env.conversations[0].sharedProject, { id: PROJECT, ownerId: 'o' });
-  assert.equal(env.conversations[0].title, 'Traffic (branch)');
-  assert.equal(env.conversations[0].messages.length, 4);
-  assert.deepEqual(env.events.opened, [env.conversations[0].id]);
-  assert.deepEqual(env.events.notes.at(-1), [texts.psBranched, 'success']);
-  assert.equal(env.events.saved, 1);
-  await env.api.openShared({ project_id: PROJECT, root: env.root });
-  [...env.root.querySelectorAll('[data-new-chat]')].at(-1).click();
-  await tick(); await tick();
-  assert.equal(env.conversations.length, 2);
-  assert.equal(env.conversations[0].messages.length, 0);
-  assert.deepEqual(env.conversations[0].sharedProject, { id: PROJECT, ownerId: 'o' });
-});
 
-test('a project that cannot be read says so, and the list "Shared with you" is drawn into the box the page of the projects gives', async () => {
-  const gone = started({ read: async () => ({ ok: false, code: 'gone' }) });
-  assert.equal(await gone.api.openShared({ project_id: PROJECT, root: gone.root }), null);
-  assert.deepEqual(gone.events.notes.at(-1), [texts.psSharedGone, 'error']);
-  const failed = started({ read: async () => ({ ok: false, code: 'generic' }) });
-  await failed.api.openShared({ project_id: PROJECT });
-  assert.deepEqual(failed.events.notes.at(-1), [texts.psSharedLoadFailed, 'error']);
-  const env = started({ read: async () => ({ ok: false }), items: [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', icon: 'book', color: 'blue', owner_name: 'Ada', role: 'editor' }] });
-  const box = env.document.createElement('div');
-  env.document.body.appendChild(box);
-  env.document.dispatchEvent(new env.document.defaultView.CustomEvent(SHARED_EVENT, { detail: { box } }));
-  await tick(); await tick();
-  assert.equal(box.querySelectorAll('.psh-shared-row').length, 1);
-  assert.match(box.textContent, /City plan/);
-  assert.match(box.textContent, /Ada · Editor/);
-  const direct = page();
-  drawSharedProjects({ document: direct.document, box: direct.root, text, items: [{ project_id: 'p', name: 'X', owner_name: 'O', role: 'chat' }], onOpen: () => {} });
-  assert.match(direct.root.textContent, /O · Chat member/);
-});
 
 test('a conversation made in a shared project is answered with the instructions of the project and the memory of the project only', async () => {
   const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Answer like a planner.' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
@@ -210,34 +146,7 @@ test('the shared projects are kept in the browser between visits', () => {
   assert.equal(first.list().length, 1);
 });
 
-test('a member leaves a shared project after being asked; the page forgets the project', async () => {
-  const left = [];
-  const { document, root } = page();
-  openSharedProjectPage({ document, root, text, meId: ME, shared: { project: { name: 'City plan' }, owner: { name: 'Ada' }, conversations: [] }, onOpenChat: () => {}, onNewChat: () => {}, onLeave: () => left.push('left') });
-  root.querySelector('[data-leave-open]').click();
-  await tick();
-  assert.match(root.textContent, /Leave the project “City plan”\?/);
-  root.querySelector('[data-leave-go]').click();
-  assert.deepEqual(left, ['left']);
-  const none = page();
-  openSharedProjectPage({ document: none.document, root: none.root, text, meId: ME, shared: { project: { name: 'P' }, owner: { name: 'A' }, conversations: [] }, onOpenChat: () => {}, onNewChat: () => {} });
-  assert.equal(none.root.querySelector('[data-leave-open]'), null);
-});
 
-test('leaving through the page tells the database and drops the shared project from the replies', async () => {
-  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Be brief.' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
-  const env = started({ read });
-  const inShared = { id: 'k9', sharedProject: { id: PROJECT, ownerId: 'o' } };
-  await env.api.openShared({ project_id: PROJECT, root: env.root });
-  assert.match(projectInstructionTextFor(inShared), /Be brief\./);
-  env.root.querySelector('[data-leave-open]').click();
-  await tick();
-  env.root.querySelector('[data-leave-go]').click();
-  await tick(); await tick();
-  assert.deepEqual(env.events.left, [PROJECT]);
-  assert.deepEqual(env.events.notes.at(-1), [text('psLeft', { name: 'City plan' }), 'success']);
-  assert.equal(projectInstructionTextFor(inShared), '');
-});
 
 test('the reader reads all of a project, then only what changed; a conversation can be read alone', async () => {
   const sent = [];
@@ -265,49 +174,11 @@ test('the reader reads all of a project, then only what changed; a conversation 
   assert.equal((await createSharedProjectReader({ projectId: PROJECT, request: async () => ({ ok: true, status: 200, data: { ...answers[1], conversations: [] } }) }).conversation('c1')).code, 'gone');
 });
 
-test('what others write shows while the page is open: the list and the conversation that is read are drawn again, and a branch is made of the conversation as it is now', async () => {
-  const old = chat('c1', 'o', 'Traffic', '2026-11-01T00:00:00Z', MESSAGES);
-  const newer = chat('c1', 'o', 'Traffic', '2026-11-05T00:00:00Z', [...MESSAGES, { id: 'e', role: 'user', parts: [{ text: 'a later question' }] }, { id: 'f', role: 'model', parts: [{ text: 'a later answer' }] }]);
-  const added = chat('c9', 'bob', 'Fresh idea', '2026-11-06T00:00:00Z', MESSAGES.slice(0, 2));
-  const live = {};
-  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [old] } });
-  const env = started({ read, live });
-  await env.api.openShared({ project_id: PROJECT, root: env.root });
-  env.root.querySelector('[data-chat-id="c1"]').click();
-  await tick();
-  assert.doesNotMatch(env.root.textContent, /a later answer/);
-  live.refresh = async () => ({ ok: true, changed: true, project: { role: 'chat', project: { name: 'City plan', instructions: 'Now with rules.' }, owner: { id: 'o', name: 'Ada' }, conversations: [added, newer] } });
-  await new Promise((resolve) => setTimeout(resolve, 120));
-  assert.match(env.root.textContent, /a later answer/);
-  assert.match(env.root.textContent, /Fresh idea/);
-  assert.match(projectInstructionTextFor({ id: 'k', sharedProject: { id: PROJECT, ownerId: 'o' } }), /Now with rules\./);
-  // a branch from the first reply is made of the conversation as it is now (it is read again for that), and the reply is found by its id
-  live.conversation = async () => ({ ok: true, chat: { ...newer, messages: [...newer.messages, { id: 'g', role: 'model', parts: [{ text: 'the very latest' }] }] } });
-  live.refresh = null;
-  env.root.querySelector('[data-branch-last]').click();
-  await tick(); await tick();
-  assert.equal(env.conversations.length, 1);
-  assert.equal(env.conversations[0].messages.at(-1).parts[0].text, 'the very latest');
-  assert.equal(env.conversations[0].messages.length, 7);
-});
 
-test('the page stops reading when it is closed', async () => {
-  let refreshes = 0;
-  const live = { refresh: async () => { refreshes += 1; return { ok: true, changed: false, project: {} }; } };
-  const env = started({ read: async () => ({ ok: true, project: { role: 'chat', project: { name: 'P' }, owner: { id: 'o', name: 'A' }, conversations: [] } }), live });
-  const page = await env.api.openShared({ project_id: PROJECT, root: env.root });
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.ok(refreshes >= 1);
-  page.close();
-  const after = refreshes;
-  await new Promise((resolve) => setTimeout(resolve, 120));
-  assert.equal(refreshes, after);
-});
 
 // ---------- the content of a shared project in the replies, editing, leaving into a project of one's own
 
 import { ownProjectFrom } from '../src/app/runtime/project-sharing/own-project.js';
-import { openInstructionsEditor } from '../src/app/ui/projects/shared-project-page.js';
 
 test('the instructions and the sources reach the replies of a conversation made in the project, and they are read again when the page starts', async () => {
   const items = [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'chat' }];
@@ -325,43 +196,6 @@ test('the instructions and the sources reach the replies of a conversation made 
   assert.match(answer, /The brief says blue\./);
 });
 
-test('an editor writes the instructions; a stale change reads the project again and tells the person; others cannot edit', async () => {
-  const read = async () => ({ ok: true, project: { role: 'editor', project: { name: 'City plan', instructions: 'Old.', updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] } });
-  const calls = [];
-  const updates = [{ ok: true, data: { updated_at: 't2' } }, { ok: false, code: 'stale' }];
-  const env = started({ read, live: {} });
-  const api = startProjectSharing({
-    document: env.document, window: env.document.defaultView, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
-    saveAppData: async () => {}, showNotification: (message, kind) => env.events.notes.push([message, kind]), client: { updateProject: async (id, args) => { calls.push([id, args]); return updates.shift(); } },
-    storage: env.document.defaultView.localStorage, createReader: () => readerOf(read, {}), pollMs: 50
-  });
-  await api.openShared({ project_id: PROJECT, root: env.root });
-  env.root.querySelector('[data-edit-instructions]').click();
-  await tick();
-  env.root.querySelector('#psh-instructions').value = 'New rules.';
-  env.root.querySelector('[data-instructions-save]').click();
-  await tick(); await tick();
-  assert.deepEqual(calls[0], [PROJECT, { instructions: 'New rules.', expected: 't1' }]);
-  assert.deepEqual(env.events.notes.at(-1), [texts.psInstructionsSaved, 'success']);
-  assert.match(projectInstructionTextFor({ id: 'k', sharedProject: { id: PROJECT, ownerId: 'o' } }), /New rules\./);
-  env.root.querySelector('[data-edit-instructions]').click();
-  await tick();
-  env.root.querySelector('#psh-instructions').value = 'Late.';
-  env.root.querySelector('[data-instructions-save]').click();
-  await tick(); await tick(); await tick();
-  assert.deepEqual(calls[1], [PROJECT, { instructions: 'Late.', expected: 't2' }]);
-  assert.deepEqual(env.events.notes.at(-1), [texts.psStale, 'error']);
-  const chat = started({ read: async () => ({ ok: true, project: { role: 'chat', project: { name: 'P' }, owner: { id: 'o', name: 'A' }, conversations: [] } }) });
-  await chat.api.openShared({ project_id: PROJECT, root: chat.root });
-  assert.equal(chat.root.querySelector('[data-edit-instructions]'), null);
-  const direct = page();
-  const saved = [];
-  openInstructionsEditor({ document: direct.document, root: direct.root, text, value: 'x', onSave: async (value) => { saved.push(value); return false; } });
-  direct.root.querySelector('[data-instructions-save]').click();
-  await tick();
-  assert.deepEqual(saved, ['x']);
-  assert.ok(direct.root.querySelector('#psh-instructions'));
-});
 
 test('leaving can make a project of one’s own from the conversations one made there: copies in a new folder, the originals stay', async () => {
   const mine = { id: 'a1', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: [{ id: 'm1', role: 'user', parts: [{ text: 'q' }] }, { id: 'm2', role: 'model', parts: [{ text: 'a' }] }], model: 'm', provider: 'p' };
@@ -382,33 +216,6 @@ test('leaving can make a project of one’s own from the conversations one made 
   assert.equal(ownProjectFrom({ conversations: [], sharedId: PROJECT, name: '' }).folder.name, 'Project');
 });
 
-test('leaving with the option puts the copies in a new project of the person and tells them', async () => {
-  const mine = { id: 'a1', title: 'Mine', sharedProject: { id: PROJECT, ownerId: 'o' }, messages: [{ id: 'm1', role: 'user', parts: [{ text: 'q' }] }, { id: 'm2', role: 'model', parts: [{ text: 'a' }] }], model: 'm', provider: 'p' };
-  const folders = [];
-  const conversations = [mine];
-  const { window, document, root } = page();
-  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
-  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
-  const notes = [];
-  const api = startProjectSharing({
-    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => conversations, getFolders: () => folders, replaceFolders: (next) => { folders.splice(0, folders.length, ...next); } },
-    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {}, client: { leave: async () => ({ ok: true }) }, storage: window.localStorage,
-    createReader: () => readerOf(async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('x', ME, 'Mine', 'x')] } })), pollMs: 50
-  });
-  await api.openShared({ project_id: PROJECT, root });
-  root.querySelector('[data-leave-open]').click();
-  await tick();
-  assert.match(root.textContent, /Make my own project/);
-  assert.equal(root.querySelector('#psh-own-name').value, 'City plan (my copy)');
-  root.querySelector('[data-leave-go]').click();
-  await tick(); await tick();
-  assert.equal(folders.length, 1);
-  assert.equal(folders[0].name, 'City plan (my copy)');
-  assert.equal(conversations.length, 2);
-  assert.equal(conversations[0].folderId, folders[0].id);
-  assert.deepEqual(notes.at(-1), [text('psLeaveOwnDone', { name: 'City plan (my copy)' }), 'success']);
-  assert.equal(conversations[1].id, 'a1');
-});
 
 const CHAT = '323e4567-e89b-12d3-a456-426614174002';
 
@@ -425,17 +232,6 @@ test('the address of a conversation of a shared project is told apart, kept for 
   assert.equal(readPendingChatLink(area), null);
 });
 
-test('a link to a conversation opens it for a member: someone else’s as a page, one’s own in the chat; a person who is not in the project is told so', async () => {
-  const project = { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat(CHAT, 'o', 'Traffic', 'x', MESSAGES), chat('mine', ME, 'Mine', 'x')] };
-  const env = started({ read: async () => ({ ok: true, project }), conversations: [{ id: 'mine', title: 'Mine', messages: [] }] });
-  await env.api.openShared({ project_id: PROJECT, root: env.root, openChatId: CHAT });
-  assert.match(env.root.textContent, /answer two/);
-  await env.api.openShared({ project_id: PROJECT, root: env.root, openChatId: 'mine' });
-  assert.deepEqual(env.events.opened, ['mine']);
-  const out = started({ read: async () => ({ ok: false, code: 'gone' }) });
-  await out.api.openShared({ project_id: PROJECT, root: out.root, openChatId: CHAT, notMemberText: 'psChatLinkNotMember' });
-  assert.deepEqual(out.events.notes.at(-1), [texts.psChatLinkNotMember, 'error']);
-});
 
 test('"Share conversation" in a shared project copies a link for members only and does not open the public sharing', async () => {
   const copied = [];
@@ -505,147 +301,8 @@ test('the page joins the private channel of the project, hears the pings and say
   assert.deepEqual(none, [false]);
 });
 
-test('with the channel joined a ping reads the project at once and the timer only reads now and then; without it the timer reads as before', async () => {
-  let reads = 0;
-  const live = {};
-  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'Traffic', 'x', MESSAGES)] } });
-  const rt = fakeRealtime();
-  const { window, document, root } = page();
-  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
-  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
-  const api = startProjectSharing({
-    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
-    saveAppData: async () => {}, showNotification: () => {}, renderSidebar: () => {}, supabase: rt.client, client: { sharedWithMe: async () => ({ ok: true, data: [] }) }, storage: window.localStorage,
-    createReader: () => ({ ...readerOf(read, live), refresh: async () => { reads += 1; return { ok: true, changed: false, project: (await read()).project }; } }), pollMs: 40
-  });
-  const page1 = await api.openShared({ project_id: PROJECT, root });
-  await new Promise((resolve) => setTimeout(resolve, 90));
-  const withoutChannel = reads;
-  assert.ok(withoutChannel >= 1, 'the timer reads while the channel is not joined');
-  rt.status('SUBSCRIBED');
-  await tick();
-  const joined = reads;
-  await tick(); await tick(); await tick();
-  assert.equal(reads, joined, 'joined: the timer leaves the project alone');
-  rt.ping();
-  await tick();
-  assert.equal(reads, joined + 1, 'a ping reads at once');
-  page1?.close?.();
-  assert.equal(rt.calls.removed, 1, 'closing the page leaves the channel');
-});
 
-const SOURCE_FILE = { id: 's-file', kind: 'file', title: 'plan.pdf', mime: 'application/pdf', size: 3000, file: { name: 'plan.pdf', mimeType: 'application/pdf', size: 3000, hash: 'a'.repeat(64) }, addedAt: 'x' };
-const SOURCE_TEXT = { id: 's-text', kind: 'text', title: 'Brief', mime: 'text/plain', size: 20, text: 'The brief says blue.', addedAt: 'x' };
 
-function withSources({ role = 'editor', sources = [SOURCE_FILE, SOURCE_TEXT], reader = {}, client = {} } = {}) {
-  const info = { role, project: { name: 'City plan', sources, updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
-  const saved = [];
-  const env = started({ read: async () => ({ ok: true, project: info }) });
-  const { window } = env.document.defaultView ? { window: env.document.defaultView } : {};
-  void window;
-  return { env, info, saved, reader, client };
-}
 
-test('the page of a shared project lists its sources; the owner and the editors can add and remove, a chat member can only take', async () => {
-  for (const role of ['editor', 'chat']) {
-    const { env } = withSources({ role });
-    await env.api.openShared({ project_id: PROJECT, root: env.root });
-    assert.equal(env.root.querySelectorAll('.psh-source').length, 2, role);
-    assert.match(env.root.textContent, /plan\.pdf/);
-    assert.equal(env.root.querySelectorAll('[data-source-remove]').length, role === 'editor' ? 2 : 0, role);
-    assert.equal(Boolean(env.root.querySelector('[data-source-add]')), role === 'editor', role);
-  }
-});
 
-test('an editor adds a text file as a text source and removes a source; the project is written with the time it was read at, and a stale write reads it again', async () => {
-  const written = [];
-  const info = { role: 'editor', project: { name: 'City plan', sources: [SOURCE_TEXT], updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
-  const { window, document, root } = page();
-  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
-  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
-  const notes = [];
-  let stale = false;
-  const api = startProjectSharing({
-    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
-    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {},
-    client: { sharedWithMe: async () => ({ ok: true, data: [] }), updateProject: async (id, args) => { written.push(args); return stale ? { ok: false, code: 'stale' } : { ok: true, data: { updated_at: `t${written.length + 1}` } }; } },
-    storage: window.localStorage, createReader: () => ({ ...readerOf(async () => ({ ok: true, project: info })), refresh: async () => ({ ok: true, changed: false, project: info }) }), pollMs: 1e9
-  });
-  await api.openShared({ project_id: PROJECT, root });
-  const input = root.querySelector('[data-source-file]');
-  const file = new window.File(['Deadline is Friday.'], 'deadline.md', { type: 'text/markdown' });
-  Object.defineProperty(input, 'files', { value: [file], configurable: true });
-  input.dispatchEvent(new window.Event('change'));
-  await tick(); await tick();
-  assert.equal(written.length, 1);
-  assert.equal(written[0].expected, 't1');
-  assert.deepEqual(written[0].sources.map((source) => [source.title, source.kind, source.text]), [['Brief', 'text', 'The brief says blue.'], ['deadline.md', 'text', 'Deadline is Friday.']]);
-  assert.deepEqual(notes.at(-1), [texts.psSourceAdded, 'success']);
-  assert.equal(root.querySelectorAll('.psh-source').length, 2);
-  root.querySelector('[data-source-remove="s-text"]').click();
-  await tick(); await tick();
-  assert.equal(written[1].expected, 't2', 'the next write carries the time the last one gave');
-  assert.deepEqual(written[1].sources.map((source) => source.title), ['deadline.md']);
-  stale = true;
-  root.querySelector('[data-source-remove]').click();
-  await tick(); await tick();
-  assert.deepEqual(notes.at(-1), [texts.psStale, 'error']);
-});
 
-test('a file that is not text is uploaded to the server first, then written as a source; a refusal says why and writes nothing', async () => {
-  const written = [];
-  const uploads = [];
-  const info = { role: 'editor', project: { name: 'City plan', sources: [], updated_at: 't1' }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
-  const { window, document, root } = page();
-  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
-  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
-  const notes = [];
-  let answer = { ok: true, data: { hash: 'b'.repeat(64), mimeType: 'application/pdf', size: 4, asset: { __astraCloudAsset: { path: `o/${'b'.repeat(64)}` } } } };
-  const api = startProjectSharing({
-    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
-    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {},
-    client: { sharedWithMe: async () => ({ ok: true, data: [] }), updateProject: async (id, args) => { written.push(args); return { ok: true, data: { updated_at: 't2' } }; } },
-    storage: window.localStorage, createReader: () => ({ ...readerOf(async () => ({ ok: true, project: info })), upload: async (file) => { uploads.push(file.name); return answer; } }), pollMs: 1e9
-  });
-  await api.openShared({ project_id: PROJECT, root });
-  const send = async (name) => { const input = root.querySelector('[data-source-file]'); Object.defineProperty(input, 'files', { value: [new window.File(['%PDF'], name, { type: 'application/pdf' })], configurable: true }); input.dispatchEvent(new window.Event('change')); await tick(); await tick(); };
-  await send('plan.pdf');
-  assert.deepEqual(uploads, ['plan.pdf']);
-  assert.equal(written[0].sources[0].kind, 'file');
-  assert.equal(written[0].sources[0].file.hash, 'b'.repeat(64));
-  assert.equal(written[0].sources[0].file.asset.__astraCloudAsset.path, `o/${'b'.repeat(64)}`);
-  answer = { ok: false, code: 'too_big' };
-  await send('big.pdf');
-  assert.equal(written.length, 1);
-  assert.deepEqual(notes.at(-1), [texts.psSourceTooBig, 'error']);
-  answer = { ok: false, code: 'forbidden' };
-  await send('x.pdf');
-  assert.deepEqual(notes.at(-1), [texts.psNotAllowed, 'error']);
-});
-
-test('a person who was taken out of the project is told on the next read, and the page closes and forgets the project', async () => {
-  const info = { role: 'chat', project: { name: 'City plan', sources: [] }, owner: { id: 'o', name: 'Ada' }, conversations: [] };
-  const { window, document, root } = page();
-  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
-  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
-  const notes = [];
-  let gone = false;
-  const rt = fakeRealtime();
-  const api = startProjectSharing({
-    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
-    saveAppData: async () => {}, showNotification: (message, kind) => notes.push([message, kind]), renderSidebar: () => {}, supabase: rt.client,
-    client: { sharedWithMe: async () => ({ ok: true, data: [] }) }, storage: window.localStorage,
-    createReader: () => ({ ...readerOf(async () => ({ ok: true, project: info })), refresh: async () => (gone ? { ok: false, code: 'gone' } : { ok: true, changed: false, project: info }) }), pollMs: 1e9
-  });
-  await api.openShared({ project_id: PROJECT, root });
-  assert.ok(root.querySelector('.psh-project'));
-  assert.equal(api.sharedFolders.list().length, 1);
-  gone = true;
-  rt.status('SUBSCRIBED');
-  rt.ping();
-  await tick(); await tick();
-  assert.deepEqual(notes.at(-1), [texts.psSharedGone, 'error']);
-  assert.equal(api.sharedFolders.list().length, 0);
-  assert.equal(root.querySelector('.psh-project'), null);
-  assert.equal(rt.calls.removed, 1, 'the channel is left');
-});

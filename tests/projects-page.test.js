@@ -941,3 +941,81 @@ test('the back button of the overview asks backOut first: when it takes the back
     assert.equal(getProjectsPage(), null);
   } finally { await t.finish(); }
 });
+
+// ----- a shared project of someone else, shown by the same page (runtime/project-sharing/ gives the hook the actions answer through)
+import { setSharedProjectHook } from '../src/app/runtime/projects/project-actions.js';
+
+const sharedHook = (role, extra = {}) => {
+  const folder = { id: 'sp1', name: 'City plan', icon: 'book', color: 'blue', instructions: 'Be brief.', role, shared: true, conversationIds: [], sources: [{ id: 's1', kind: 'text', title: 'Brief', mime: 'text/plain', size: 20, text: 'The brief says blue.', addedAt: 'x' }] };
+  const chats = [
+    { id: 'o1', title: 'Traffic by Ada', lastUpdatedAt: '2026-11-05T00:00:00Z', messages: [{ role: 'user', parts: [{ text: 'q' }] }], shared: true, mine: false, authorName: 'Ada' },
+    { id: 'm1', title: 'My question', lastUpdatedAt: '2026-11-06T00:00:00Z', messages: [{ role: 'user', parts: [{ text: 'q' }] }], shared: true, mine: true }
+  ];
+  return { has: (id) => id === 'sp1', folderOf: (id) => (id === 'sp1' ? folder : null), chatsOf: () => chats, countOf: () => chats.length, update: async () => ({ ok: true }), addSource: async () => ({ ok: true }), removeSource: async () => ({ ok: true }), link: (id) => ({ id, ownerId: 'o' }), sent: () => {}, ...extra };
+};
+
+test('a shared project opens in the page like any project: its chats of everyone, the chats of the others read in a page of their own, the person’s own in the chat', async () => {
+  setSharedProjectHook(sharedHook('chat'));
+  const env = setup({ wide: true });
+  const views = [];
+  env.document.addEventListener('noureon:project-view', (event) => views.push(event.detail.projectId));
+  const shared = [];
+  env.document.addEventListener('noureon:shared-chat', (event) => shared.push([event.detail.projectId, event.detail.chat.id]));
+  env.open({ id: 'sp1' }, { sourcesEnabled: true });
+  await env.tick();
+  assert.equal(env.$('.pj-title-text').textContent, 'City plan');
+  assert.deepEqual(views, ['sp1']);
+  assert.equal(env.$$('.pj-chat').length, 2);
+  const others = env.$('[data-conversation-id="o1"]');
+  assert.equal(others.querySelector('.pj-more'), null, 'the chats of the others have no menu');
+  assert.ok(env.$('[data-conversation-id="m1"] .pj-more'));
+  others.click();
+  assert.deepEqual(shared, [['sp1', 'o1']]);
+  assert.deepEqual(env.state.opened, []);
+  env.$('[data-conversation-id="m1"]').click();
+  await env.tick();
+  assert.deepEqual(env.state.opened, ['m1']);
+  await env.finish();
+  setSharedProjectHook(null);
+});
+
+test('in a shared project only an editor changes the instructions and the sources; a chat member sees them without the buttons; the menu is leaving, not renaming or deleting', async () => {
+  for (const [role, editable] of [['chat', false], ['editor', true]]) {
+    setSharedProjectHook(sharedHook(role));
+    const env = setup({ wide: true });
+    env.open({ id: 'sp1' }, { sourcesEnabled: true });
+    await env.tick();
+    const panel = env.$('.pj-panel');
+    assert.match(panel.textContent, /Be brief\./, role);
+    assert.match(panel.textContent, /Brief/, role);
+    assert.equal(Boolean(env.$('.pj-panel [aria-label="' + text('pjMenuInstructions') + '"]')), editable, role);
+    assert.equal(Boolean(env.$('.pj-panel [aria-label="' + text('pjSourcesAdd') + '"]')), editable, role);
+    assert.equal(Boolean(env.$('.pj-panel .pj-source .pj-more')), editable, role);
+    env.$('.pj-main [aria-label="' + text('pjMore') + '"]').click();
+    await env.tick();
+    const labels = env.$$('.pj-menu-item').map((node) => node.textContent.trim());
+    assert.ok(labels.includes(text('psLeave')), role);
+    assert.equal(labels.includes(text('pjMenuDelete')), false, role);
+    assert.equal(labels.includes(text('pjMenuEdit')), false, role);
+    await env.finish();
+    setSharedProjectHook(null);
+  }
+});
+
+test('leaving is asked from the menu with the page’s own words, and the page goes back to its list when the project is gone', async () => {
+  setSharedProjectHook(sharedHook('chat'));
+  const env = setup({ wide: true });
+  const asked = [];
+  env.document.addEventListener('noureon:project-leave', (event) => asked.push(event.detail.projectId));
+  env.open({ id: 'sp1' }, { sourcesEnabled: true });
+  await env.tick();
+  env.$('.pj-main [aria-label="' + text('pjMore') + '"]').click();
+  await env.tick();
+  env.$$('.pj-menu-item').find((node) => node.textContent.trim() === text('psLeave'))?.click();
+  assert.deepEqual(asked, ['sp1']);
+  env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-gone', { detail: { projectId: 'sp1' } }));
+  await env.tick();
+  assert.equal(getProjectsPage().state.view, 'list');
+  await env.finish();
+  setSharedProjectHook(null);
+});

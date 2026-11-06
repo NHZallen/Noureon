@@ -48,8 +48,3 @@
 .psh-stack .psh-avatar { width: 1.75rem; height: 1.75rem; margin-left: -0.5rem; border: 2px solid var(--modal-bg); font-size: var(--pj-small, 0.8125rem); }
 .psh-stack .psh-avatar:first-child { margin-left: 0; }
 .psh-stack-count { margin-left: 0.5rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
-.psh-sources { display: grid; gap: 0.25rem; margin-top: 0.75rem; }
-.psh-source { display: flex; align-items: center; gap: 0.5rem; }
-.psh-source-open { flex: 1; min-width: 0; text-align: left; }
-.psh-source-remove { flex: none; color: var(--text-secondary); }
-.psh-source-add { justify-self: start; margin-top: 0.25rem; }

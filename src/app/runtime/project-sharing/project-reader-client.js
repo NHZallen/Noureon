@@ -74,7 +74,13 @@ export function createSharedProjectReader({ projectId, request = serverRequest }
         const bytes = new Uint8Array(await file.arrayBuffer());
         let binary = '';
         for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
-        const result = await request('POST', `/v1/projects/${projectId}/upload`, { body: JSON.stringify({ mimeType: file.type || 'application/octet-stream', data: btoa(binary) }) });
+        return await this.uploadData({ data: btoa(binary), mimeType: file.type });
+      } catch { return { ok: false, code: 'generic' }; }
+    },
+    /** The same for a file that is already base64 (a source that the page read and kept). */
+    async uploadData({ data, mimeType }) {
+      try {
+        const result = await request('POST', `/v1/projects/${projectId}/upload`, { body: JSON.stringify({ mimeType: mimeType || 'application/octet-stream', data }) });
         if (result?.ok && result.data?.hash) return { ok: true, data: result.data };
         return { ok: false, code: result?.status === 413 ? 'too_big' : result?.status === 404 ? 'forbidden' : 'generic' };
       } catch { return { ok: false, code: 'generic' }; }

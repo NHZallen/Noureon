@@ -141,6 +141,8 @@ export function startProjects({
     };
     side.addEventListener('click', onPick, true);
   };
+  // A shared project of someone else (joined, or opened by a link) is shown by this page like any project.
+  document.addEventListener('noureon:open-project', (event) => { if (event.detail?.id) void open({ id: event.detail.id }); });
   const open = async (route = { list: true }) => {
     // A second tap while the page is being loaded does not load it again.
     opening = opening || loadPage().finally(() => { opening = null; });

@@ -9,6 +9,15 @@ import { normalizeSource, normalizeSources, normalizeTranscript, PROJECT_SOURCE_
 
 export const PROJECT_NAME_MAX = 80;
 
+/**
+ * The shared projects of someone else, as the page of the projects sees them (docs/superpowers/specs/2026-11-06-project-sharing-design.md): the code that runs them (runtime/project-sharing/) gives a
+ * hook, and for a project the hook `has` these actions go through it instead of the person's own folders: { has(id), folderOf(id), chatsOf(id), countOf(id), update(id, patch), addSource(id, input),
+ * removeSource(id, sourceId), link(id) -> { id, ownerId }, sent(conversationId) }. Without a hook everything is the person's own, as before.
+ */
+let sharedHook = null;
+export const setSharedProjectHook = (hook) => { sharedHook = hook || null; };
+const sharedHas = (id) => Boolean(sharedHook?.has?.(id));
+
 const cleanName = (value) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, PROJECT_NAME_MAX);
 const stamp = (conversation) => Date.parse(conversation?.lastUpdatedAt || conversation?.stateUpdatedAt || conversation?.createdAt || '') || 0;
 
@@ -37,7 +46,7 @@ export function createProjectActions({
 } = {}) {
   const folders = () => dataStore.getFolders();
   const conversations = () => dataStore.getConversations();
-  const folderOf = (id) => folders().find((folder) => folder.id === id && !folder.deletedAt) || null;
+  const folderOf = (id) => (sharedHas(id) ? sharedHook.folderOf(id) : folders().find((folder) => folder.id === id && !folder.deletedAt) || null);
 
   /** The projects, the pinned ones first, then the one with the newest chat first (a project without a chat after them, newest made first). */
   const list = () => {
@@ -57,11 +66,13 @@ export function createProjectActions({
   const prepared = new Set();
 
   /** The conversations of a project: the pinned first, then the newest; none that is in the trash, archived or temporary. */
-  const chatsOf = (id) => conversations()
+  const chatsOf = (id) => (sharedHas(id) ? sharedHook.chatsOf(id) : ownChatsOf(id));
+  const ownChatsOf = (id) => conversations()
     .filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && !conversation.archived && conversation.retentionMode !== 'ephemeral')
     .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stamp(right) - stamp(left));
 
-  const countOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
+  const countOf = (id) => (sharedHas(id) ? sharedHook.countOf(id) : ownCountOf(id));
+  const ownCountOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !prepared.has(conversation.id) && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
 
   async function create({ name, icon, color, memoryScope } = {}) {
     const title = cleanName(name);
@@ -84,6 +95,7 @@ export function createProjectActions({
   }
 
   async function update(id, patch = {}) {
+    if (sharedHas(id)) return sharedHook.update(id, patch);
     const folder = folderOf(id);
     if (!folder) return { ok: false, code: 'gone' };
     if ('name' in patch) {
@@ -124,6 +136,7 @@ export function createProjectActions({
    * together would pass 400 000 characters), 'too_big' / 'files_too_much' (an original over 30 MB, or the originals of the project over 200 MB), 'empty' or 'gone'.
    */
   async function addSource(id, input = {}) {
+    if (sharedHas(id)) return sharedHook.addSource(id, input);
     const folder = folderOf(id);
     if (!folder) return { ok: false, code: 'gone' };
     const current = sourcesOf(id);
@@ -142,6 +155,7 @@ export function createProjectActions({
   }
 
   async function removeSource(id, sourceId) {
+    if (sharedHas(id)) return sharedHook.removeSource(id, sourceId);
     const folder = folderOf(id);
     if (!folder) return { ok: false, code: 'gone' };
     const current = sourcesOf(id);
@@ -206,6 +220,8 @@ export function createProjectActions({
   /** The conversation goes back to the ones outside any project. */
   async function removeChat(conversationId) {
     const conversation = conversations().find((entry) => entry.id === conversationId);
+    // A chat made in a shared project of someone else is taken out of it by dropping the link (the others keep seeing it only while it is linked).
+    if (conversation?.sharedProject) { delete conversation.sharedProject; await saveAppData({ immediateCloudSync: true }); renderSidebar(); return { ok: true }; }
     if (!conversation?.folderId) return { ok: false, code: 'gone' };
     const folder = folders().find((entry) => entry.id === conversation.folderId);
     if (folder) folder.conversationIds = (folder.conversationIds || []).filter((entry) => entry !== conversationId);
@@ -243,6 +259,13 @@ export function createProjectActions({
     await startNewChat({ keepSidebarOpen: false });
     const conversation = conversations().find((entry) => entry.id === getCurrentConversationId());
     if (!conversation) return { ok: false, code: 'failed' };
+    if (sharedHas(projectId)) {
+      // A shared project of someone else: the chat is linked to it by its `sharedProject` (the folder is not the person's).
+      conversation.sharedProject = sharedHook.link(projectId);
+      conversation.folderId = null;
+      prepared.add(conversation.id);
+      return { ok: true, conversationId: conversation.id };
+    }
     conversation.folderId = projectId;
     if (!(folder.conversationIds || []).includes(conversation.id)) folder.conversationIds = [...(folder.conversationIds || []), conversation.id];
     prepared.add(conversation.id);
@@ -254,6 +277,7 @@ export function createProjectActions({
     const conversation = conversations().find((entry) => entry.id === conversationId);
     prepared.delete(conversationId);
     if (!conversation || (conversation.messages || []).length > 0) return false;
+    if (conversation.sharedProject) { delete conversation.sharedProject; return true; }
     const folder = folderOf(conversation.folderId);
     if (folder) folder.conversationIds = (folder.conversationIds || []).filter((id) => id !== conversationId);
     conversation.folderId = null;
@@ -263,6 +287,7 @@ export function createProjectActions({
   /** Something was sent in the chat made by prepareChat: the cloud is told it is in the project. */
   function sentChat(conversationId) {
     prepared.delete(conversationId);
+    if (conversations().find((entry) => entry.id === conversationId)?.sharedProject) { sharedHook?.sent?.(conversationId); return; }
     deferConversationFolderSync(conversationId);
   }
 
@@ -272,7 +297,7 @@ export function createProjectActions({
     const made = await prepareChat(projectId);
     if (!made.ok) return made;
     prepared.delete(made.conversationId);
-    deferConversationFolderSync(made.conversationId);
+    if (sharedHas(projectId)) sharedHook.sent?.(made.conversationId); else deferConversationFolderSync(made.conversationId);
     if (message) sendText(message);
     return { ok: true, conversationId: made.conversationId };
   }
