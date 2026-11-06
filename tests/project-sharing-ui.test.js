@@ -103,6 +103,10 @@ test('a project that is not shared offers to be shared, and sharing tells the pa
   const told = [];
   await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {}, onShared: (id) => told.push(id) });
   assert.match(root.textContent, /Share this project with others/);
+  // the page of the members has the arrow back at the left, as the pages of the projects have, and no button at the right
+  const head = root.querySelector('.pj-sheet-head');
+  assert.ok(head.children[0].classList.contains('is-back'));
+  assert.equal(head.querySelector('.pj-pill'), null);
   root.querySelector('[data-share-open]').click();
   await tick();
   root.querySelector('[data-share-start]').click();

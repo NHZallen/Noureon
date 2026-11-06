@@ -14,6 +14,7 @@ import { PENDING_CHAT_KEY, chatLinkUrl, clearPendingChatLink, clearPendingJoin, 
 import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror } from './branch-from-mirror.js';
 import { createSharedFolders } from './shared-folders.js';
+import { createProjectSnapshots, lightSource } from './project-snapshots.js';
 import { ownProjectFrom } from './own-project.js';
 import { setProjectFoldersReader } from '../projects/project-instructions.js';
 import { setSharedProjectHook } from '../projects/project-actions.js';
@@ -28,7 +29,7 @@ const nameOf = (user) => {
   return candidate && !candidate.includes('@') ? candidate : '';
 };
 
-export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar = () => {}, openConversation = () => {}, supabase = null, client = null, storage = null, copyText = null, createReader = (args) => createSharedProjectReader(args), pollMs = 3000, defaultsOf = null, renderMarkdown = null }) {
+export function startProjectSharing({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, renderSidebar = () => {}, openConversation = () => {}, supabase = null, client = null, storage = null, copyText = null, createReader = (args) => createSharedProjectReader(args), pollMs = 3000, retryMs = 3000, defaultsOf = null, renderMarkdown = null }) {
   const getSupabase = () => { if (supabase) return supabase; try { return getSupabaseClient(); } catch { return null; } };
   const avatarOf = createAvatarLoader({ getSupabase });
   const shareClient = client || createProjectShareClient({ getSupabase });
@@ -54,10 +55,11 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   });
   const cloudOn = () => getService(SERVICES.cloudSync)?.getStatus?.()?.enabled === true;
   // The cloud account may still be starting when the person opens the list or a project (the page is quick): what needs it waits for it, a little while, then runs.
-  const whenCloudOn = (run, { tries = 40, every = 1500 } = {}) => {
-    if (cloudOn()) { run(); return; }
+  const whenCloudOn = (run, { tries = 40, every = Math.min(1500, retryMs), need = () => true, giveUp = () => {} } = {}) => {
+    const ready = () => cloudOn() && need();
+    if (ready()) { run(); return; }
     let waited = 0;
-    const timer = setInterval(() => { waited += 1; if (cloudOn()) { clearInterval(timer); run(); } else if (waited >= tries) clearInterval(timer); }, every);
+    const timer = setInterval(() => { waited += 1; if (ready()) { clearInterval(timer); run(); } else if (waited >= tries) { clearInterval(timer); giveUp(); } }, every);
     timer?.unref?.();
   };
   const pendingStorage = () => { try { return storage || window.localStorage; } catch { return null; } };
@@ -104,16 +106,22 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   const chatsByProject = new Map();
   const sessions = new Map();
   const me = () => getAnnouncedUser()?.supabaseUserId || '';
+  // What the page drew the last time (the chats and the files of each shared project), so a project opens at once while the server is asked again; and the projects whose reading failed (their own chats are drawn, not "loading").
+  const snapshots = createProjectSnapshots({ storage: pendingStorage(), user: me });
+  const failedReads = new Set();
+  const keptChats = (projectId) => (snapshots.get(projectId)?.chats || []).filter((entry) => entry.authorId !== me());
   const stampOf = (chat) => Date.parse(chat?.lastUpdatedAt || chat?.updatedAt || chat?.createdAt || '') || 0;
   const rowOf = (chat) => ({ id: chat.id, title: chat.title || '', lastUpdatedAt: chat.updatedAt, createdAt: chat.createdAt, messages: chat.messages || [], pinned: false, shared: true, mine: chat.authorId === me(), authorId: chat.authorId, authorName: chat.authorName });
   // The chats of a shared project: the person's own (the copies they keep, which are newer than what the cloud has) and everybody else's (as the server gave them).
   const chatsOf = (projectId) => {
     const own = (dataStore.getConversations() || []).filter((entry) => entry.sharedProject?.id === projectId && !entry.deletedAt && !entry.archived && (entry.messages || []).length > 0).map((entry) => ({ ...entry, shared: true, mine: true }));
     const ids = new Set(own.map((entry) => entry.id));
-    const others = (chatsByProject.get(projectId) || []).filter((entry) => !ids.has(entry.id)).map(rowOf);
+    const others = (chatsByProject.has(projectId) ? chatsByProject.get(projectId) : keptChats(projectId)).filter((entry) => !ids.has(entry.id)).map(rowOf);
     return [...own, ...others].sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stampOf(right) - stampOf(left));
   };
-  const remember = (projectId, info) => sharedFolders.set({ ...info.project, id: projectId, role: info.role, ownerId: info.owner?.id, ownerName: info.owner?.name });
+  const remember = (projectId, info) => sharedFolders.set({ ...info.project, id: projectId, role: info.role, ownerId: info.owner?.id, ownerName: info.owner?.name, ...(Array.isArray(info.conversations) ? { chatCount: info.conversations.length } : {}) });
+  // The folder as the page draws it: its files come from what was read, or, until then, from the cards that were kept.
+  const shownFolder = (id) => { const folder = sharedFolders.folderOf(id); if (!folder) return null; return folder.sources?.length ? folder : { ...folder, sources: snapshots.get(id)?.sources || [] }; };
 
   async function saveInstructionsOf(session, value) {
     const saved = await shareClient.updateProject(session.projectId, { instructions: value, expected: session.readAt });
@@ -164,18 +172,18 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     prefetching.add(projectId);
     try {
       const read = await createReader({ projectId }).load();
-      if (read.ok && !chatsByProject.has(projectId)) chatsByProject.set(projectId, read.project.conversations || []);
+      if (read.ok && !chatsByProject.has(projectId)) { chatsByProject.set(projectId, read.project.conversations || []); failedReads.delete(projectId); snapshots.set(projectId, { chats: read.project.conversations || [], sources: read.project.project?.sources || [] }); }
     } catch { /* it is read when the project is opened */ } finally { prefetching.delete(projectId); }
   }
   const sessionFor = (id) => sessions.get(id) || null;
   setSharedProjectHook({
     has: (id) => sharedFolders.has(id),
-    list: () => sharedFolders.list().map((folder) => sharedFolders.folderOf(folder.id)),
-    folderOf: (id) => sharedFolders.folderOf(id),
+    list: () => sharedFolders.list().map((folder) => shownFolder(folder.id)),
+    folderOf: (id) => shownFolder(id),
     chatsOf,
     // (The number comes from the list until the chats are read.)
-    countOf: (id) => (chatsByProject.has(id) ? chatsOf(id).length : sharedFolders.folderOf(id)?.chatCount || 0),
-    chatsLoading: (id) => sharedFolders.has(id) && !chatsByProject.has(id),
+    countOf: (id) => (chatsByProject.has(id) || snapshots.get(id) ? chatsOf(id).length : sharedFolders.folderOf(id)?.chatCount || 0),
+    chatsLoading: (id) => sharedFolders.has(id) && !chatsByProject.has(id) && !snapshots.get(id) && !failedReads.has(id),
     update: async (id, patch = {}) => {
       const session = sessionFor(id);
       if (!session) return { ok: false, code: 'gone' };
@@ -192,10 +200,16 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       return { ok: true };
     },
     // The owner of a project that is shared: the chats of the others come with the person's own, and the owner may take one out of the project (never delete it).
-    othersOf: (id) => { const held = sessions.get(id); return held?.owned ? (chatsByProject.get(id) || []).filter((entry) => entry.authorId !== me()).map(rowOf) : []; },
+    othersOf: (id) => (sharedFolders.isOwned(id) && !sharedFolders.has(id) ? (chatsByProject.has(id) ? chatsByProject.get(id).filter((entry) => entry.authorId !== me()) : keptChats(id)).map(rowOf) : []),
     canModerate: (id) => sharedFolders.isOwned(id) && !sharedFolders.has(id),
     // A project of the person's own that is shared: how many chats it has, of everybody (from the list until its chats are read).
-    ownedCount: (id) => { if (!sharedFolders.isOwned(id) || sharedFolders.has(id)) return null; const held = sessions.get(id); if (held?.owned && chatsByProject.has(id)) { const mine = (dataStore.getConversations() || []).filter((entry) => entry.folderId === id && !entry.deletedAt && !entry.archived && (entry.messages || []).length > 0).length; return mine + (chatsByProject.get(id) || []).filter((entry) => entry.authorId !== me()).length; } return sharedFolders.ownedCount(id); },
+    ownedCount: (id) => {
+      if (!sharedFolders.isOwned(id) || sharedFolders.has(id)) return null;
+      const others = chatsByProject.has(id) ? chatsByProject.get(id).filter((entry) => entry.authorId !== me()) : snapshots.get(id) ? keptChats(id) : null;
+      if (!others) return sharedFolders.ownedCount(id);
+      const mine = (dataStore.getConversations() || []).filter((entry) => entry.folderId === id && !entry.deletedAt && !entry.archived && (entry.messages || []).length > 0).length;
+      return mine + others.length;
+    },
     moveOut: async (id, conversationId) => {
       const result = await shareClient.moveOut(id, conversationId);
       if (!result.ok) return result;
@@ -227,27 +241,34 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   // What the server gave is put where the page looks: the folder the replies use, the chats of the project, and the page itself (its chats, or all of it when the project's own parts changed).
   function applyInfo(session, info) {
     // (What the page shows is what it knows from the list until this first read: only a difference from it draws the whole page again.)
-    const shown = session.info ? { project: session.info.project, role: session.info.role } : { project: sharedFolders.folderOf(session.projectId) || {}, role: sharedFolders.roleOf(session.projectId) };
-    const before = JSON.stringify([shown.project?.sources, shown.project?.instructions, shown.project?.name, shown.role]);
+    const shown = session.info ? { project: session.info.project, role: session.info.role } : { project: shownFolder(session.projectId) || {}, role: sharedFolders.roleOf(session.projectId) };
+    // What of the project changed (the page draws again only what shows it): the files, the instructions, the head (name, icon, colour) or the person's role.
+    const parts = (project, role) => ({ sources: JSON.stringify((project?.sources || []).map(lightSource)), instructions: project?.instructions || '', head: JSON.stringify([project?.name, project?.icon, project?.color]), role });
+    const before = parts(shown.project, shown.role);
     session.info = info;
     if (info.project?.updated_at) session.readAt = info.project.updated_at;
     if (!session.owned) remember(session.projectId, info);
     chatsByProject.set(session.projectId, info.conversations || []);
+    failedReads.delete(session.projectId);
+    snapshots.set(session.projectId, { chats: info.conversations || [], sources: session.owned ? [] : info.project?.sources || [] });
     const fresh = session.viewer ? (info.conversations || []).find((entry) => entry.id === session.viewer.chatId) : null;
     if (fresh) session.viewer.sheet.update(fresh);
     // (An owner's own page keeps the project itself by its own sync: only the chats are drawn again.)
-    session.refresh?.({ full: !session.owned && before !== JSON.stringify([info.project?.sources, info.project?.instructions, info.project?.name, info.role]) });
+    const after = parts(info.project, info.role);
+    const what = session.owned ? [] : Object.keys(after).filter((key) => before[key] !== after[key]);
+    session.refresh?.(what.length ? { full: true, what } : { full: false });
   }
   // The person was taken out of the project (or it was deleted): say so, forget it, and let the page of the projects go back to its list.
   function removedFrom(session) {
     if (!sessions.has(session.projectId)) return;
-    if (session.owned) { stopSession(session); chatsByProject.delete(session.projectId); return; }
+    if (session.owned) { stopSession(session); chatsByProject.delete(session.projectId); snapshots.forget(session.projectId); return; }
     showNotification(text('psSharedGone'), 'error');
     stopSession(session);
     // What the person made in the project is theirs again (the database gave it back): their page forgets the link too.
     releaseConversations((conversation) => conversation.sharedProject?.id === session.projectId);
     sharedFolders.forget(session.projectId);
     chatsByProject.delete(session.projectId);
+    snapshots.forget(session.projectId);
     memoryStores.get(session.projectId)?.stop();
     memoryStores.delete(session.projectId);
     document.dispatchEvent(new window.CustomEvent('noureon:project-gone', { detail: { projectId: session.projectId } }));
@@ -296,7 +317,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     if (sessions.has(projectId)) { const held = sessions.get(projectId); if (refresh) held.refresh = refresh; return held; }
     const session = { projectId, owned, reader: createReader({ projectId }), info: null, readAt: null, refresh, live: false, lastRead: 0, reading: false, again: false, timer: null, channel: null, viewer: null, off: null };
     const read = await session.reader.load();
-    if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); if (!chatsByProject.has(projectId)) chatsByProject.set(projectId, []); return null; }
+    if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); failedReads.add(projectId); try { refresh?.(); } catch { /* the page may be gone */ } return null; }
     if (sessions.has(projectId)) return sessions.get(projectId);
     sessions.set(projectId, session);
     applyInfo(session, read.project);
@@ -307,10 +328,18 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   // listened to: when the people of it change something (an editor adds a file), the person's own cloud is asked for the change, and the page draws it.
   // The project the page shows now: when the page learns later (it asks when it starts) that this one is shared, its session is started then.
   let viewing = null;
+  // A read that fails (the server is waking up, the network is weak) is asked again a few times while the project is shown, so the person is not left with an empty project.
+  async function startWithRetry(projectId, refresh, options = {}, attempt = 0) {
+    const session = await startSession(projectId, refresh, { ...options, quiet: options.quiet || attempt > 0 });
+    if (session || attempt >= 4 || viewing?.projectId !== projectId) return session;
+    await new Promise((resolve) => { later(resolve, retryMs * (attempt + 1)); });
+    if (viewing?.projectId !== projectId || sessions.has(projectId)) return sessions.get(projectId) || null;
+    return startWithRetry(projectId, refresh, options, attempt + 1);
+  }
   const startViewed = () => {
     if (!viewing?.projectId || !cloudOn() || sessions.has(viewing.projectId)) return;
-    if (sharedFolders.has(viewing.projectId)) void startSession(viewing.projectId, viewing.refresh);
-    else if (sharedFolders.isOwned(viewing.projectId)) void startSession(viewing.projectId, viewing.refresh, { owned: true, quiet: true });
+    if (sharedFolders.has(viewing.projectId)) void startWithRetry(viewing.projectId, viewing.refresh);
+    else if (sharedFolders.isOwned(viewing.projectId)) void startWithRetry(viewing.projectId, viewing.refresh, { owned: true, quiet: true });
   };
   document.addEventListener('noureon:project-view', (event) => {
     const { projectId, refresh } = event.detail || {};
@@ -318,9 +347,9 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     for (const session of [...sessions.values()]) if (session.projectId !== projectId) stopSession(session);
     if (!projectId) return;
     if (!cloudOn()) { whenCloudOn(() => { void refreshShared().then(startViewed); }); return; }
-    if (sharedFolders.has(projectId)) { void startSession(projectId, refresh); return; }
+    if (sharedFolders.has(projectId)) { void startWithRetry(projectId, refresh); return; }
     // A project of the person's own that is shared: the chats of the others are read with it, and when the people of it change something else (an editor adds a file) the person's own cloud is asked for it.
-    if (sharedFolders.isOwned(projectId)) void startSession(projectId, refresh, { owned: true, quiet: true });
+    if (sharedFolders.isOwned(projectId)) void startWithRetry(projectId, refresh, { owned: true, quiet: true });
   });
 
   // Someone else's chat of the project is read as a page, with the way on: a branch (a conversation of the reader's, made of it up to the last reply or the reply they chose).
@@ -351,9 +380,14 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   }
   document.addEventListener('noureon:shared-chat', (event) => {
     const { projectId, chat, root } = event.detail || {};
-    const session = sessions.get(projectId);
-    const full = (chatsByProject.get(projectId) || []).find((entry) => entry.id === chat?.id);
-    if (session && full) void readChat(session, full, root);
+    void (async () => {
+      // (A chat that is only a line kept from the last time is read as it is now, then opened.)
+      const session = sessions.get(projectId) || await startSession(projectId, null, { quiet: true });
+      if (!session) return;
+      let full = (chatsByProject.get(projectId) || []).find((entry) => entry.id === chat?.id);
+      if (!full) { const fresh = await session.reader.conversation(chat?.id); full = fresh.ok ? fresh.chat : null; }
+      if (full) void readChat(session, full, root);
+    })();
   });
   // Leaving: asked from the menu of the project; the person may keep the conversations they made there as a project of their own.
   document.addEventListener('noureon:project-leave', (event) => {
@@ -380,6 +414,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
           stopSession(session);
           sharedFolders.forget(projectId);
           chatsByProject.delete(projectId);
+          snapshots.forget(projectId);
           memoryStores.get(projectId)?.stop();
           memoryStores.delete(projectId);
           onLeft?.();
@@ -453,10 +488,11 @@ export function startProjectSharing({ document, window = globalThis.window, conf
 
   // What the replies need of the shared projects is read again when the page starts (and the account is ready): which of the person's own projects are shared, and the instructions and sources of the others.
   let refreshing = false;
+  let refreshWaiting = false;
   async function refreshShared() {
     if (refreshing) return;
-    if (!cloudOn()) { whenCloudOn(() => { void refreshShared(); }); return; }
-    if (!getAnnouncedUser()?.supabaseUserId) return;
+    // (The cloud account and the person may not be known yet when the page starts: wait for them, a little while, instead of giving up.)
+    if (!cloudOn() || !getAnnouncedUser()?.supabaseUserId) { if (!refreshWaiting) { refreshWaiting = true; whenCloudOn(() => { refreshWaiting = false; void refreshShared(); }, { need: () => Boolean(getAnnouncedUser()?.supabaseUserId), tries: 80, giveUp: () => { refreshWaiting = false; } }); } return; }
     refreshing = true;
     try {
       const mine = await shareClient.mine();
@@ -466,6 +502,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       if (exits?.ok) { const gone = new Set((exits.data || []).map((item) => item.conversation_id)); if (gone.size) releaseConversations((conversation) => gone.has(conversation.id)); }
       const others = await shareClient.sharedWithMe();
       if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id, role: info.project.role, ownerId: info.project.owner?.id || item.owner_id, ownerName: info.project.owner?.name, chatCount: item.chat_count }); }
+      // Their chats and files are read in the background and kept, so each of them opens at once (a few of them: the ones the person has just used are the first).
+      [...(mine.ok ? mine.data || [] : []), ...(others.ok ? others.data || [] : [])].slice(0, 6).forEach((item) => { void prefetch(String(item?.project_id || '')); });
     } catch { /* the next start tries again */ } finally { refreshing = false; startViewed(); }
   }
   const later = (run, wait) => { const timer = setTimeout(run, wait); timer?.unref?.(); };

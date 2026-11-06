@@ -37,9 +37,10 @@ function infoOf({ role = 'editor', sources = [SOURCE_TEXT], conversations = [cha
   return { role, project: { name: 'City plan', icon: 'book', color: 'blue', instructions: 'Be brief.', sources, updated_at: 't1', ...extra }, owner: { id: 'o', name: 'Ada' }, conversations };
 }
 
-function setup({ info = infoOf(), local = [], client = {}, readerOver = {}, items = [] } = {}) {
+function setup({ info = infoOf(), local = [], client = {}, readerOver = {}, items = [], stored = {}, retryMs = 3000 } = {}) {
   const window = new Window();
   const document = window.document;
+  for (const [key, value] of Object.entries(stored)) window.localStorage.setItem(key, value);
   document.body.innerHTML = '<div id="root"></div>';
   announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
   provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
@@ -62,7 +63,7 @@ function setup({ info = infoOf(), local = [], client = {}, readerOver = {}, item
       keepConversations: async (id, member) => { state.kept = [...(state.kept || []), [id, member]]; return state.keepFails ? { ok: false, code: 'failed' } : { ok: true, data: {} }; },
       moveOut: async (id, conversation) => { state.movedOut = [...(state.movedOut || []), [id, conversation]]; return { ok: true }; },
       updateProject: async (id, args) => { state.written.push(args); return state.write ? state.write(args) : { ok: true, data: { updated_at: `t${state.written.length + 1}` } }; }, ...client },
-    storage: window.localStorage, createReader: () => reader, pollMs: 40, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
+    storage: window.localStorage, createReader: () => reader, pollMs: 40, retryMs, defaultsOf: async () => ({ model: 'm', provider: 'p', genConfig: {}, council: null }), renderMarkdown: (value) => `<p>${value}</p>`
   });
   const root = document.getElementById('root');
   const view = (projectId) => document.dispatchEvent(new window.CustomEvent('noureon:project-view', { detail: { projectId, root, refresh: (options) => state.refreshes.push(options) } }));
@@ -101,7 +102,7 @@ test('what others write is drawn as it comes: the chats of the page when a conve
   env.state.info = infoOf({ sources: [SOURCE_TEXT, SOURCE_FILE], conversations: env.state.info.conversations });
   env.rt.ping();
   await tick();
-  assert.deepEqual(env.state.refreshes.at(-1), { full: true });
+  assert.deepEqual(env.state.refreshes.at(-1), { full: true, what: ['sources'] }, 'it is told what changed');
   assert.deepEqual(env.actions.sourcesOf(PROJECT).map((entry) => entry.id), ['s-text', 's-file']);
   env.view(OTHER);
   assert.equal(env.rt.calls.removed, 1, 'the channel of the project is left');
@@ -462,4 +463,71 @@ test('a person who opens a shared project before the cloud account is ready gets
   assert.equal(env.actions.chatsLoading(PROJECT), false);
   assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), ['c-ada']);
   provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
+});
+
+const kept = (env) => Object.fromEntries(['noureon:shared-project-folders', 'noureon:shared-project-snapshots'].map((key) => [key, env.window.localStorage.getItem(key)]).filter(([, value]) => value));
+
+test('a shared project that was read before opens at once the next time, with its chats, its files and its count, while the server is asked again', async () => {
+  const first = setup({ local: [], info: infoOf({ sources: [SOURCE_TEXT, SOURCE_FILE], conversations: [chat('c-ada', 'o', 'Traffic', '2026-11-05T00:00:00Z'), chat('c-two', 'o', 'Parks', '2026-11-04T00:00:00Z')] }) });
+  first.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'editor', ownerId: 'o', ownerName: 'Ada' });
+  first.view(PROJECT);
+  await tick();
+  const stored = kept(first);
+  assert.ok(stored['noureon:shared-project-snapshots'], 'what was read is kept');
+  // (a new page: the server has not answered yet)
+  const next = setup({ stored, readerOver: { load: () => new Promise(() => {}) } });
+  next.view(PROJECT);
+  await tick();
+  assert.equal(next.actions.chatsLoading(PROJECT), false, 'nothing to wait for: the kept chats are drawn');
+  assert.deepEqual(next.actions.chatsOf(PROJECT).map((row) => row.id), ['c-ada', 'c-two']);
+  assert.equal(next.actions.countOf(PROJECT), 2);
+  assert.deepEqual(next.actions.sourcesOf(PROJECT).map((source) => source.id), ['s-text', 's-file'], 'the files are listed');
+  assert.ok(next.actions.chatsOf(PROJECT)[0].messages.length > 0, 'the line has its last words');
+  // another person of the same browser gets none of it
+  const other = setup({ stored });
+  announceUser(other.document, { supabaseUserId: 'someone-else', displayName: 'X' });
+  assert.deepEqual(other.actions.chatsOf(PROJECT).map((row) => row.id), [], 'the chats of the person before are not drawn');
+  assert.deepEqual(other.actions.sourcesOf(PROJECT), [], 'nor their files');
+  assert.equal(other.actions.chatsLoading(PROJECT), true);
+});
+
+test('a read that fails is asked again while the project is shown, and the person is not left with "loading"', async () => {
+  let attempts = 0;
+  const env = setup({ retryMs: 30, readerOver: { load: async () => { attempts += 1; return attempts < 3 ? { ok: false, code: 'generic' } : { ok: true, project: infoOf() }; } } });
+  env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'editor', ownerId: 'o', chatCount: 4 });
+  env.view(PROJECT);
+  await tick();
+  assert.equal(env.actions.chatsLoading(PROJECT), false, 'a failure shows what is known, not an endless wait');
+  assert.equal(env.actions.countOf(PROJECT), 4, 'and the number from the list, not 0');
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  assert.ok(attempts >= 3);
+  assert.deepEqual(env.actions.chatsOf(PROJECT).map((row) => row.id), ['c-ada']);
+  assert.equal(env.state.notes.filter(([message]) => message === texts.psSharedLoadFailed).length, 1, 'the person is told once');
+});
+
+test('the shared projects are read when the cloud account and the person are both known, not given up when the person is not known yet', async () => {
+  const env = setup({ retryMs: 20, items: [{ project_id: PROJECT, owner_id: 'o', name: 'City plan', role: 'editor', owner_name: 'Ada', chat_count: 4 }] });
+  announceUser(env.document, null);
+  void env.api.refreshShared();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(env.api.sharedFolders.has(PROJECT), false, 'nobody is signed in yet');
+  announceUser(env.document, { supabaseUserId: ME, displayName: 'Me' });
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(env.api.sharedFolders.has(PROJECT), true);
+  assert.equal(env.actions.countOf(PROJECT), 1, 'its chats were read at once and are counted as they are');
+  assert.equal(env.actions.chatsLoading(PROJECT), false);
+});
+
+test('a chat that is only a line kept from the last time is read as it is now, and opened', async () => {
+  const first = setup();
+  first.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'editor', ownerId: 'o', ownerName: 'Ada' });
+  first.view(PROJECT);
+  await tick();
+  const next = setup({ stored: kept(first), readerOver: { load: () => new Promise((resolve) => setTimeout(() => resolve({ ok: true, project: infoOf() }), 40)) } });
+  next.view(PROJECT);
+  await tick();
+  const row = next.actions.chatsOf(PROJECT)[0];
+  next.document.dispatchEvent(new next.window.CustomEvent('noureon:shared-chat', { detail: { projectId: PROJECT, chat: row, root: next.root } }));
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.ok(next.root.querySelector('.psh-viewer'), 'the chat is open');
 });

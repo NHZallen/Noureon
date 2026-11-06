@@ -90,7 +90,7 @@ export async function openMembersPanel({ document, root, text, client, project, 
   let mailLeft = null;
   let busy = false;
   let closed = false;
-  const sheet = openSheet({ document, root, title: text('psTitle'), action: { label: text('psDone'), onClick: () => {} }, body: () => {}, className: 'psh-sheet', onClose: () => { closed = true; onClosed(); } });
+  const sheet = openSheet({ document, root, title: text('psTitle'), close: text('pjBack'), back: true, body: () => {}, className: 'psh-sheet', onClose: () => { closed = true; onClosed(); } });
   const body = sheet.body;
   const fail = (code) => notify(errorText(text, code), 'error');
 

@@ -65,9 +65,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   let menu = null;
 
   const projectOrNull = (id) => actions.folderOf(id);
+  // The whole project is drawn again only when what changed is on the screen: the head and the role always; the files on their tab (or beside the chats on a computer); the instructions beside the chats on a computer.
+  const showsChange = (what) => !Array.isArray(what) || what.includes('head') || what.includes('role') || (what.includes('sources') && (state.tab === 'sources' || isWide(document))) || (what.includes('instructions') && isWide(document));
   // Which project the page shows is told (a shared project is read and kept live while it is shown: runtime/project-sharing/); `refresh({ full })` draws it again: its chats, or all of it.
   const announceView = (projectId) => {
-    try { document.dispatchEvent(new win.CustomEvent('noureon:project-view', { detail: { projectId, root, refresh: ({ full = false } = {}) => { if (closed || state.view !== 'project' || state.projectId !== projectId) return; if (full) drawProject(); else drawChats(); } } })); } catch { /* nothing listens */ }
+    try { document.dispatchEvent(new win.CustomEvent('noureon:project-view', { detail: { projectId, root, refresh: ({ full = false, what = null } = {}) => { if (closed || state.view !== 'project' || state.projectId !== projectId) return; if (full && showsChange(what)) drawProject(); else drawChats(); } } })); } catch { /* nothing listens */ }
   };
   // A shared project of someone else (runtime/project-sharing/): everyone reads it, only an editor changes its instructions and sources; the project itself is not the person's to rename, pin or delete.
   const canEdit = (project) => !project?.shared || project.role === 'editor';
@@ -155,7 +157,6 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   let listBody = null;
   const drawListBody = () => {
     if (!listBody) return;
-    listBody.replaceChildren();
     // "All" has the projects of the person and, after them, the ones shared with them; "Made by you" only the first, "Shared with you" only the second. They are drawn alike.
     const own = state.listTab === 'shared' ? [] : actions.list();
     const shared = state.listTab === 'mine' ? [] : (actions.sharedList?.() || []);
@@ -167,6 +168,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       const known = shared.map((folder) => `${folder.id}:${folder.chatCount || 0}`).join();
       document.dispatchEvent(new document.defaultView.CustomEvent('noureon:shared-projects', { detail: { box: null, root, done: () => { if (!closed && state.view === 'list' && state.listTab !== 'mine' && (actions.sharedList?.() || []).map((folder) => `${folder.id}:${folder.chatCount || 0}`).join() !== known) drawListBody(); } } }));
     }
+    // The list is asked about again and again while it is shown; what shows is only drawn again when it is not the same (so nothing flashes for nothing).
+    const sign = `${state.listTab}|${query}|${shown.map((folder) => [folder.id, folder.name, folder.icon, folder.color, folder.pinned ? 1 : 0, folder.shared ? folder.ownerName : '', actions.countOf(folder.id)].join('\u0001')).join('\u0002')}`;
+    if (listBody.dataset.sign === sign && listBody.childElementCount) return;
+    listBody.dataset.sign = sign;
+    listBody.replaceChildren();
     if (state.listTab === 'shared' && !shared.length) { listBody.appendChild(emptyState(text('pjSharedEmpty'), text('pjSharedEmptyHint'))); return; }
     if (!own.length && !shared.length) { listBody.appendChild(emptyState(text('pjEmpty'), text('pjEmptyHint'))); return; }
     if (!shown.length) { listBody.appendChild(make(document, 'p', 'pj-none', text('pjNoMatch'))); return; }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import { Window } from 'happy-dom';
 import { createSharedProjectReader, readSharedProject } from '../src/app/runtime/project-sharing/project-reader-client.js';
@@ -325,4 +326,10 @@ test('the page of someone else’s chat has the head of a chat of the project: t
   // the arrow closes the page
   head.children[0].click();
   assert.equal(root.querySelector('.psh-viewer'), null);
+});
+
+test('the panel at the right of someone else’s chat is hidden by the hidden attribute (a class that sets display does not undo it)', () => {
+  const css = readFileSync(new URL('../src/styles/project-sharing.css', import.meta.url), 'utf8');
+  assert.match(css, /\.psh-side\[hidden\][^{]*\{\s*display:\s*none/);
+  assert.match(css, /\.psh-side-scrim\[hidden\]/);
 });

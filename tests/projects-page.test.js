@@ -1123,3 +1123,50 @@ test('"All" lists the projects of the person and then the ones shared with them,
   await env.finish();
   setSharedProjectHook(null);
 });
+
+test('a shared project is drawn again as a whole only when what changed is on the screen, and the list only when it is not the same', async () => {
+  setSharedProjectHook(sharedHook('editor'));
+  const env = setup();
+  let refresh = null;
+  env.document.addEventListener('noureon:project-view', (event) => { if (event.detail.refresh) refresh = event.detail.refresh; });
+  env.open({ id: 'sp1' }, { sourcesEnabled: true });
+  await env.tick();
+  const head = env.$('.pj-title');
+  // the files changed while the chats are shown (a phone): nothing is drawn again but the chats
+  refresh({ full: true, what: ['sources'] });
+  assert.equal(env.$('.pj-title'), head, 'the head is the same one');
+  refresh({ full: true, what: ['instructions'] });
+  assert.equal(env.$('.pj-title'), head, 'the instructions are not on this screen');
+  // the head or the role changed: all of it
+  refresh({ full: true, what: ['head'] });
+  assert.notEqual(env.$('.pj-title'), head);
+  const again = env.$('.pj-title');
+  refresh({ full: true, what: ['role'] });
+  assert.notEqual(env.$('.pj-title'), again);
+  // on the tab of the files a change of the files is on the screen
+  env.byText('.pj-tab', text('pjTabSources'))?.click();
+  const sources = env.$('.pj-title');
+  refresh({ full: true, what: ['sources'] });
+  assert.notEqual(env.$('.pj-title'), sources);
+  // (an old caller that does not say what changed gets all of it)
+  const last = env.$('.pj-title');
+  refresh({ full: true });
+  assert.notEqual(env.$('.pj-title'), last);
+  setSharedProjectHook(null);
+  await env.finish();
+});
+
+test('the list is not drawn again when what it shows is the same (a letter typed and taken back, or the shared projects asked about again), so nothing flashes', async () => {
+  const env = setup();
+  env.open({ list: true });
+  await env.tick();
+  const row = env.$('.pj-row');
+  const input = env.$('.pj-search-input');
+  env.type(input, 'T');
+  env.type(input, '');
+  assert.notEqual(env.$('.pj-row'), row, 'a different list was drawn between');
+  const same = env.$('.pj-row');
+  env.type(input, '');
+  assert.equal(env.$('.pj-row'), same, 'the same list is kept');
+  await env.finish();
+});

@@ -93,3 +93,4 @@
 .psh-side-title { margin: 0 0 0.5rem; padding: 0 0.5rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
 .psh-side-item { padding: 0.6rem 0.5rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-primary); text-align: left; font-size: var(--pj-body, 0.9375rem); }
 .psh-side-item:hover { background: var(--hover-bg); }
+.psh-side[hidden], .psh-side-scrim[hidden] { display: none; }
