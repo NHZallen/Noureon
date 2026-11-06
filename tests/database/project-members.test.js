@@ -382,3 +382,43 @@ test('a member may have a file that the project holds (in a conversation of the 
   assert.equal(await assetAllowed(bob, projectId, adaFile), true);
   assert.match((await B.error('select public.server_project_asset_allowed($1, $2, $3)', [bob, projectId, bobFile]))?.message || 'it worked', /permission denied/);
 });
+
+test('the people of a shared project are pinged when something in it changes: new and finished messages always, a growing reply at most every 700 ms, nothing for a project that is not shared', async () => {
+  await database.db.exec(`create schema if not exists realtime;
+    create table if not exists public.live_log (topic text, event text, payload jsonb, is_private boolean);
+    create or replace function realtime.send(payload jsonb, event text, topic text, private boolean default true) returns void language sql as $$ insert into public.live_log values (topic, event, payload, private) $$;`);
+  const log = async (projectId) => (await database.db.query('select topic, event, payload, is_private from public.live_log where topic = $1', ['project:' + projectId])).rows;
+  const projectId = await sharedProject();
+  const link = await rpc(A, 'create_project_link', projectId, 'chat', 'Ada');
+  const before = (await log(projectId)).length;
+  await rpc(B, 'accept_project_invite', link.code);
+  assert.equal((await log(projectId)).length, before + 1);
+  assert.deepEqual((await log(projectId)).at(-1).payload, { c: null });
+  const mine = await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+  const rows = await log(projectId);
+  assert.ok(rows.length > before + 1);
+  assert.deepEqual(rows.at(-1), { topic: `project:${projectId}`, event: 'changed', payload: { c: mine }, is_private: true });
+  // a reply that is still being written: the first write pings, the ones right after it do not, the finished one always does
+  const messageId = id();
+  const write = (text, status) => callWith(B, 'upsert_workspace_messages', [{ id: messageId, conversation_id: mine, role: 'model', parts: [{ text }], sequence: 9, status, created_at: now() }]);
+  await write('a', 'streaming');
+  const first = (await log(projectId)).length;
+  await write('ab', 'streaming');
+  await write('abc', 'streaming');
+  await write('abcd', 'streaming');
+  assert.equal((await log(projectId)).length, first + 1);
+  await write('abcde', 'complete');
+  assert.equal((await log(projectId)).length, first + 2);
+  // a project that is not shared, and a conversation that is in no project, send nothing
+  const plain = await projectOf(A);
+  await conversationIn(A, { folderId: plain });
+  await conversationIn(A);
+  assert.equal((await log(plain)).length, 0);
+  // the instructions of a shared project ping too
+  const beforeEdit = (await log(projectId)).length;
+  await rpc(A, 'update_shared_project', projectId, 'New rules.', null, null);
+  assert.ok((await log(projectId)).length > beforeEdit);
+  await database.db.query('drop function realtime.send(jsonb, text, text, boolean)');
+  // and without Realtime nothing fails
+  await conversationIn(B, { sharedProject: { id: projectId, ownerId: ada } });
+});

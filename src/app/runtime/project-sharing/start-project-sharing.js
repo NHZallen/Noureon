@@ -7,6 +7,7 @@ import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
 import { createProjectShareClient } from './project-share-client.js';
 import { createAvatarLoader } from './avatar-loader.js';
+import { subscribeProjectLive } from './project-live.js';
 import { PENDING_CHAT_KEY, chatLinkUrl, clearPendingChatLink, clearPendingJoin, readPendingChatLink, readPendingJoin } from './join-route.js';
 import { createSharedProjectReader } from './project-reader-client.js';
 import { branchFromMirror, newSharedConversation } from './branch-from-mirror.js';
@@ -17,6 +18,7 @@ import { setProjectFoldersReader } from '../projects/project-instructions.js';
 export const MEMBERS_EVENT = 'noureon:project-members';
 export const SHARED_EVENT = 'noureon:shared-projects';
 const SHARE_CONVERSATION_EVENT = 'astra:share-conversation';
+const LIVE_NET_MS = 15000;
 
 const nameOf = (user) => {
   const candidate = String(user?.displayName || user?.username || '').trim();
@@ -112,13 +114,26 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       const fresh = viewer ? project.conversations.find((entry) => entry.id === viewer.chatId) : null;
       if (fresh) viewer.sheet.update(fresh);
     };
+    // Live: while the Realtime channel of the project is joined the page reads when it is pinged (at most once in 300 ms, and one more read right after if pings came meanwhile) and, as a net, every
+    // LIVE_NET_MS; while it is not joined the page reads every `pollMs`.
+    let live = false;
+    let lastRead = 0;
+    let reading = false;
+    let again = false;
     const tick = async () => {
       if (document.hidden) return;
-      const result = await reader.refresh();
-      if (result.ok && result.changed) apply(result.project);
+      if (reading) { again = true; return; }
+      reading = true;
+      try {
+        lastRead = Date.now();
+        const result = await reader.refresh();
+        if (result.ok && result.changed) apply(result.project);
+      } finally { reading = false; }
+      if (again) { again = false; later(() => { void tick(); }, 300); }
     };
     const onVisible = () => { if (!document.hidden) void tick(); };
-    const stop = () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+    const liveChannel = subscribeProjectLive({ getSupabase, projectId, onPing: () => { void tick(); }, onState: (joined) => { live = joined; if (joined) void tick(); } });
+    const stop = () => { clearInterval(timer); liveChannel.stop(); document.removeEventListener('visibilitychange', onVisible); };
     // An editor changes the instructions: written with the time the project was read at; when someone changed it since, the project is read again and the person is told.
     const editInstructions = async () => {
       const { openInstructionsEditor } = await import('../../ui/projects/shared-project-page.js');
@@ -163,7 +178,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const wanted = openChatId ? read.project.conversations.find((entry) => entry.id === openChatId) : null;
     if (wanted) { if (wanted.authorId === me && (dataStore.getConversations() || []).some((entry) => entry.id === wanted.id)) { page.close(); openConversation(wanted.id); } else openChat(wanted); }
     else if (openChatId) showNotification(text('psSharedGone'), 'error');
-    timer = setInterval(() => { void tick(); }, pollMs);
+    timer = setInterval(() => { if (!live || Date.now() - lastRead >= LIVE_NET_MS) void tick(); }, pollMs);
     timer?.unref?.(); // (a page keeps the process of a test alive otherwise; in a browser the timer is a number)
     document.addEventListener('visibilitychange', onVisible);
     return page;

@@ -471,3 +471,65 @@ test('the pictures in a conversation of someone else are asked from the server a
   const failing = createSharedProjectReader({ projectId: PROJECT, request: async () => ({ ok: false, status: 404 }) });
   assert.equal(await failing.asset(PATH), '');
 });
+
+import { subscribeProjectLive } from '../src/app/runtime/project-sharing/project-live.js';
+
+const fakeRealtime = () => {
+  const calls = { channel: [], removed: 0, auth: 0 };
+  let handler = null;
+  let onStatus = null;
+  const channel = { on: (type, filter, callback) => { calls.on = [type, filter]; handler = callback; return channel; }, subscribe: (callback) => { onStatus = callback; return channel; } };
+  const client = { realtime: { setAuth: async () => { calls.auth += 1; } }, channel: (name, config) => { calls.channel.push([name, config]); return channel; }, removeChannel: () => { calls.removed += 1; } };
+  return { client, calls, ping: () => handler?.({ payload: { c: 'x' } }), status: (value) => onStatus?.(value) };
+};
+
+test('the page joins the private channel of the project, hears the pings and says when it is joined or lost; stopping leaves the channel', async () => {
+  const rt = fakeRealtime();
+  const pings = [];
+  const states = [];
+  const live = subscribeProjectLive({ getSupabase: () => rt.client, projectId: PROJECT, onPing: () => pings.push(1), onState: (joined) => states.push(joined) });
+  await tick();
+  assert.deepEqual(rt.calls.channel, [[`project:${PROJECT}`, { config: { private: true } }]]);
+  assert.deepEqual(rt.calls.on, ['broadcast', { event: 'changed' }]);
+  assert.equal(rt.calls.auth, 1);
+  rt.status('SUBSCRIBED'); rt.ping(); rt.ping(); rt.status('CHANNEL_ERROR');
+  assert.deepEqual(pings, [1, 1]);
+  assert.deepEqual(states, [true, false]);
+  live.stop();
+  assert.equal(rt.calls.removed, 1);
+  rt.ping();
+  assert.equal(pings.length, 2);
+  const none = [];
+  subscribeProjectLive({ getSupabase: () => null, projectId: PROJECT, onState: (joined) => none.push(joined) });
+  await tick();
+  assert.deepEqual(none, [false]);
+});
+
+test('with the channel joined a ping reads the project at once and the timer only reads now and then; without it the timer reads as before', async () => {
+  let reads = 0;
+  const live = {};
+  const read = async () => ({ ok: true, project: { role: 'chat', project: { name: 'City plan' }, owner: { id: 'o', name: 'Ada' }, conversations: [chat('c1', 'o', 'Traffic', 'x', MESSAGES)] } });
+  const rt = fakeRealtime();
+  const { window, document, root } = page();
+  announceUser(document, { supabaseUserId: ME, displayName: 'Me' });
+  provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }) });
+  const api = startProjectSharing({
+    document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, i18n: { en: texts }, dataStore: { getConversations: () => [], getFolders: () => [] },
+    saveAppData: async () => {}, showNotification: () => {}, renderSidebar: () => {}, supabase: rt.client, client: { sharedWithMe: async () => ({ ok: true, data: [] }) }, storage: window.localStorage,
+    createReader: () => ({ ...readerOf(read, live), refresh: async () => { reads += 1; return { ok: true, changed: false, project: (await read()).project }; } }), pollMs: 40
+  });
+  const page1 = await api.openShared({ project_id: PROJECT, root });
+  await new Promise((resolve) => setTimeout(resolve, 90));
+  const withoutChannel = reads;
+  assert.ok(withoutChannel >= 1, 'the timer reads while the channel is not joined');
+  rt.status('SUBSCRIBED');
+  await tick();
+  const joined = reads;
+  await tick(); await tick(); await tick();
+  assert.equal(reads, joined, 'joined: the timer leaves the project alone');
+  rt.ping();
+  await tick();
+  assert.equal(reads, joined + 1, 'a ping reads at once');
+  page1?.close?.();
+  assert.equal(rt.calls.removed, 1, 'closing the page leaves the channel');
+});
