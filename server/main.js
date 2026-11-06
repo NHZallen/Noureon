@@ -25,6 +25,7 @@ import { createDerivedPdfStore } from './derived-pdf-store.js';
 import { createOfficePdfConverter, setOfficePdfConverter } from './office-pdf.js';
 import { createServiceClient } from './supabase-rest.js';
 import { createShares } from './shares.js';
+import { createProjectReader } from './project-reader.js';
 import { createShareReportMailer } from './share-reports.js';
 import { createShareStore } from './share-store.js';
 import { canDrawSlides } from './slides/available.js';
@@ -45,6 +46,7 @@ let credentials = null;
 let connectors = null;
 let memoryRebuild = null;
 let shares = null;
+let projectReader = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -83,6 +85,7 @@ if (config.runsConfigured) {
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }), projectVectors: createProjectVectorSearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
+    projectReader = createProjectReader({ db });
     shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log, reportMail: createShareReportMailer({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), to: config.reportTo, appUrl: config.appUrl, log }) });
   } catch (error) {
     log('config_error', { message: error.message });
@@ -90,7 +93,7 @@ if (config.runsConfigured) {
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares, projectReader }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;

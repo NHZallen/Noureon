@@ -9,6 +9,7 @@ import { CREDENTIAL_NAME, CredentialError } from './cli-credentials.js';
 import { ConnectorError } from './mcp/connections.js';
 import { TOOL_STATES } from '../src/data/connector-catalog.js';
 import { ShareError } from './shares.js';
+import { ProjectReadError } from './project-reader.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -73,7 +74,7 @@ export function clientAddress(request) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -81,6 +82,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
   const callbackLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const memoryLimiter = createRateLimiter({ limit: 10, windowMs: 60_000, now });
   const shareLimiter = createRateLimiter({ limit: 20, windowMs: 60_000, now });
+  const projectLimiter = createRateLimiter({ limit: 120, windowMs: 60_000, now });
   const startedAt = now();
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
@@ -448,6 +450,25 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           if (error.code === 'bad_request') throw new RequestError(ERROR_CODES.badRequest, error.message);
           if (error.code === 'limit' || error.code === 'not_active' || error.code === 'removed') throw new RequestError(ERROR_CODES.wrongPhase, error.message, { reason: error.code, ...error.extra });
           if (error.code === 'too_large') throw new RequestError(ERROR_CODES.requestTooLarge, error.message, { reason: 'too_large', ...error.extra });
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
+      }
+      // A member reads a shared project (server/project-reader.js): the project and the conversations of everyone in it, a page at a time (`since` is the `next` of the page before).
+      const projectRead = /^\/v1\/projects\/([0-9a-f-]{36})\/read$/i.exec(url.pathname);
+      if (request.method === 'POST' && projectRead) {
+        const user = await authenticate(request);
+        if (!projectReader) throw new RequestError(ERROR_CODES.runsUnavailable, 'Shared projects are not set up on the server.');
+        if (!projectLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
+        const body = await readJson(request, 1024);
+        const since = body?.since ? String(body.since) : null;
+        if (since !== null && Number.isNaN(Date.parse(since))) throw new RequestError(ERROR_CODES.badRequest, 'The time is not right.');
+        try {
+          send(response, 200, await projectReader.read({ userId: user.id, projectId: projectRead[1].toLowerCase(), since }), origin);
+          status = 200;
+          return;
+        } catch (error) {
+          if (!(error instanceof ProjectReadError)) throw error;
+          if (error.code === 'not_found') throw new RequestError(ERROR_CODES.conversationNotFound, error.message);
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
       }
