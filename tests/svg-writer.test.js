@@ -12,7 +12,7 @@ import { buildDecisionRequest, parseDecisionResponse } from '../src/app/runtime/
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>';
 // What the writer gives back: the same drawing with the size it was missing (withIntrinsicSize).
-const SIZED = '<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>';
+const SIZED = '<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const PICTURE = 'data:image/png;base64,QUJD';
 const decode = (image) => Buffer.from(image.b64Json, 'base64').toString('utf8');
@@ -182,16 +182,41 @@ test('the picture generator sends a text model of the chat to its own provider a
   assert.deepEqual(asked, ['gemini']);
 });
 
-test('a drawing with only a viewBox gets a size of its own (a card as wide as its picture showed it 0 by 0)', async () => {
+test('every drawing comes at the size of a picture: the longer side 1024 pixels in its own shape', async () => {
   const { withIntrinsicSize } = await import('../src/app/runtime/images/svg-writer.js');
-  assert.match(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><g/></svg>'), /^<svg width="512" height="307" xmlns=/);
-  assert.match(withIntrinsicSize('<svg viewBox="0 0 24 48"></svg>'), /width="256" height="512"/);
-  assert.match(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>'), /width="512" height="512" viewBox="0 0 1024 1024"/);
-  const sized = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 8 8"/>';
-  assert.equal(withIntrinsicSize(sized), sized, 'a size of its own is kept');
-  assert.equal(withIntrinsicSize('<svg width="10" viewBox="0 0 1 1"/>'), '<svg width="10" viewBox="0 0 1 1"/>');
+  assert.match(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><g/></svg>'), /^<svg width="1024" height="614" xmlns=/);
+  assert.match(withIntrinsicSize('<svg viewBox="0 0 24 48"></svg>'), /width="512" height="1024"/);
+  assert.match(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>'), /width="1024" height="1024" viewBox="0 0 1024 1024"/);
+  // a size of its own (512, or 1920 by 1080) is brought to the same size, and a size without a viewBox gets one so that the drawing scales
+  assert.equal(withIntrinsicSize('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 8 8"/>'), '<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"/>');
+  assert.equal(withIntrinsicSize('<svg width="1920px" height="1080"><g/></svg>'), '<svg width="1024" height="576" viewBox="0 0 1920 1080"><g/></svg>');
+  assert.match(withIntrinsicSize('<svg width="10" viewBox="0 0 1 1"/>'), /width="1024" height="1024"/);
   assert.equal(withIntrinsicSize('not a drawing'), 'not a drawing');
   const writer = createSvgWriter({ fetchImpl: async () => json({ choices: [{ message: { content: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>' } }] }) });
   const result = await writer({ provider: 'openrouter', apiKey: 'k', model: 'm', prompt: 'p', config: {} });
-  assert.match(decode(result.images[0]), /width="512" height="512"/);
+  assert.match(decode(result.images[0]), /width="1024" height="1024"/);
+});
+
+test('a drawing sent back from the editor is changed by the text model with its code, whatever the words say', async () => {
+  const { svgEditSource, svgEditPrompt, svgTextOfDataUrl } = await import('../src/app/runtime/images/svg-chat-route.js');
+  const parts = [{ text: 'make the circle orange' }, { inlineData: { mimeType: 'image/png', data: 'QUJD', targetedEdit: { svg: 'drawing-1' } } }];
+  assert.equal(svgEditSource(parts), 'drawing-1');
+  assert.equal(svgEditSource([{ text: 'hi' }, { inlineData: { mimeType: 'image/png', data: 'QUJD', targetedEdit: true } }]), '');
+  forgetDecisions();
+  assert.equal(chatWritesSvg({ modelInfo: { provider: 'nvidia' }, userParts: parts }), true, 'no sure yes of the Decisions model is needed');
+  assert.equal(chatWritesSvg({ modelInfo: { provider: 'nvidia' }, userParts: [{ text: 'make the circle orange' }] }), false);
+  assert.match(svgEditPrompt('<svg/>'), /marks drawn on it[\s\S]*complete new SVG[\s\S]*<svg\/>$/);
+  assert.equal(svgTextOfDataUrl(`data:image/svg+xml;base64,${Buffer.from('<svg>é</svg>').toString('base64')}`), '<svg>é</svg>');
+  assert.equal(svgTextOfDataUrl('nonsense'), '');
+});
+
+test('only a text model that looks at pictures has Edit on a drawing', async () => {
+  const { syncSvgEditGate } = await import('../src/app/runtime/images/svg-edit-gate.js');
+  const root = { attrs: new Set(), toggleAttribute(name, on) { if (on) this.attrs.add(name); else this.attrs.delete(name); } };
+  assert.equal(syncSvgEditGate(root, { provider: 'gemini', id: 'gemini-3.8-flash' }), true);
+  assert.ok(root.attrs.has('data-model-vision'));
+  assert.equal(syncSvgEditGate(root, { provider: 'openrouter', id: 'nvidia/nemotron-3.5-lightning' }), false);
+  assert.ok(!root.attrs.has('data-model-vision'));
+  assert.equal(syncSvgEditGate(root, { provider: 'openai', id: 'gpt-image-2.6-flare', outputModality: 'image' }), false, 'a picture maker is not asked to change a drawing');
+  assert.equal(syncSvgEditGate(root, null), false);
 });

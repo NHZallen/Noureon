@@ -38,19 +38,26 @@ export function extractSvg(text) {
 }
 
 /**
- * The SVG with a size of its own when it has none. A drawing with only a `viewBox` has no size that a browser can give to an <img>: on a card whose width follows its picture it came to 0 by 0 and the
- * reply showed nothing (seen on staging with an NVIDIA model, 2026-11-06). The longer side is made 512 pixels, the shape is the viewBox's; a drawing with no viewBox gets 1024 by 1024 (the canvas the model is told).
+ * The SVG at the size every picture has on the page: the longer side 1024 pixels in the shape of the drawing, as a picture of the picture makers. A drawing with only a `viewBox` has no size that a browser can give to
+ * an <img> (on a card whose width follows its picture it came to 0 by 0 and the reply showed nothing: seen on staging with an NVIDIA model, 2026-11-06), and one that declares its own size (512, 300, 1920)
+ * would be shown at that size, so a 1:1 picture came in three sizes (Allen, the same day). The shape is the declared width and height, or else the viewBox's; a drawing with neither is 1024 by 1024 (the canvas
+ * the model is told), and one with a size but no viewBox gets the viewBox that goes with it so that it scales. Nothing else of the drawing is touched.
  */
 export function withIntrinsicSize(svg) {
   const open = /<svg\b[^>]*>/i.exec(svg);
   if (!open) return svg;
   const tag = open[0];
-  if (/\swidth\s*=/i.test(tag) || /\sheight\s*=/i.test(tag)) return svg;
+  const number = (name) => {
+    const match = new RegExp(`\\s${name}\\s*=\\s*["']\\s*([\\d.]+)(?:px)?\\s*["']`, 'i').exec(tag);
+    return match ? Number(match[1]) : 0;
+  };
   const box = /\sviewBox\s*=\s*["']\s*[-\d.eE]+[\s,]+[-\d.eE]+[\s,]+([\d.eE]+)[\s,]+([\d.eE]+)\s*["']/i.exec(tag);
-  const [wide, high] = box ? [Number(box[1]), Number(box[2])] : [1024, 1024];
-  const scale = wide > 0 && high > 0 ? 512 / Math.max(wide, high) : 0;
-  const size = scale ? ` width="${Math.round(wide * scale)}" height="${Math.round(high * scale)}"` : ' width="512" height="512"';
-  const sized = tag.replace(/<svg\b/i, `<svg${size}${box ? '' : ' viewBox="0 0 1024 1024"'}`);
+  let [wide, high] = [number('width'), number('height')];
+  if (!(wide > 0 && high > 0)) [wide, high] = box ? [Number(box[1]), Number(box[2])] : [1024, 1024];
+  if (!(wide > 0 && high > 0)) [wide, high] = [1024, 1024];
+  const scale = 1024 / Math.max(wide, high);
+  const stripped = tag.replace(/\s(?:width|height)\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  const sized = stripped.replace(/<svg\b/i, `<svg width="${Math.round(wide * scale)}" height="${Math.round(high * scale)}"${box ? '' : ` viewBox="0 0 ${wide} ${high}"`}`);
   return svg.replace(tag, sized);
 }
 

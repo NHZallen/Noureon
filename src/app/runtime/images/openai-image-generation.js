@@ -10,6 +10,7 @@
 
 import { OPENAI_BASE_URL } from '../shell/openai-models.js';
 import { IMAGE_MEDIA_TYPES, settleImageFormatConfig, sniffImageType } from './image-formats.js';
+import { withIntrinsicSize } from './svg-writer.js';
 
 // How many pixels each tier means (the nearest the rules allow is taken); a shape is a ratio of width to height.
 const TIER_PIXELS = Object.freeze({ '512': 262_144, '768': 589_824, '1K': 1_048_576, '1.5K': 2_359_296, '2K': 4_194_304, '4K': 8_294_400 });
@@ -128,7 +129,18 @@ export function createOpenAiImageGenerator({ fetchImpl = (...args) => globalThis
     const body = await response.json();
     const asked = MEDIA_TYPES[body.output_format] || MEDIA_TYPES[fields.output_format] || 'image/png';
     // What the picture is comes from its bytes; the format asked for is the guess when they are none we know.
-    return (body.data || []).filter((image) => image?.b64_json).map((image) => ({ b64Json: image.b64_json, mediaType: sniffImageType(image.b64_json) || asked }));
+    return (body.data || []).filter((image) => image?.b64_json).map((image) => {
+      const mediaType = sniffImageType(image.b64_json) || asked;
+      // A drawing with no size of its own would be 0 by 0 on a card (svg-writer.js).
+      if (mediaType !== 'image/svg+xml') return { b64Json: image.b64_json, mediaType };
+      const bytes = Uint8Array.from(atob(image.b64_json), (character) => character.charCodeAt(0));
+      const text = new TextDecoder().decode(bytes);
+      const sized = withIntrinsicSize(text);
+      if (sized === text) return { b64Json: image.b64_json, mediaType };
+      let binary = '';
+      new TextEncoder().encode(sized).forEach((byte) => { binary += String.fromCharCode(byte); });
+      return { b64Json: btoa(binary), mediaType };
+    });
   };
 
   return async function generateOpenAiImage({

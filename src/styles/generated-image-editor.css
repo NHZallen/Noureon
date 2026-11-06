@@ -88,6 +88,10 @@
     z-index: 1;
 }
 
+.generated-image-editor.is-svg .generated-image-editor-photo {
+    background: var(--paper-bg);
+}
+
 .generated-image-editor-canvas {
     position: absolute;
     inset: 0;

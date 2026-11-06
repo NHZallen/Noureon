@@ -162,7 +162,18 @@ export function createImageGenerationResponseLifecycle({
       targetElement.querySelector?.('.generated-image-skeleton')?.insertAdjacentHTML?.('afterend', imageThumbsPlaceholder(spoken.count));
     }
     const hasTargetedEditReference = requestParts.some(part => part.inlineData?.targetedEdit);
-    const editedPrompt = hasTargetedEditReference
+    // A drawing marked in the editor goes back to the text model with its code (the marked picture goes along as the picture to look at).
+    let svgEditCode = '';
+    let svgRoute = null;
+    const svgEditId = svgByTextModel ? requestParts.map(part => part.inlineData?.targetedEdit?.svg).find(Boolean) : '';
+    if (svgEditId) {
+      svgRoute = await import('./svg-chat-route.js');
+      const source = (conversation.messages || []).flatMap(message => message.parts || []).map(part => part.generatedImage).find(picture => picture?.id === svgEditId);
+      svgEditCode = source ? svgRoute.svgTextOfDataUrl(await getStoredImageDataUrl(source)) : '';
+    }
+    const editedPrompt = svgEditCode
+      ? `${basePrompt}\n\n${svgRoute.svgEditPrompt(svgEditCode)}`
+      : hasTargetedEditReference
       ? `${basePrompt}\n\nThe colored hand-drawn marks indicate the exact target area to edit. Apply the requested change only where indicated, preserve the rest of the image, and remove all annotation marks from the final image.`
       : basePrompt;
     // The count and the shape are sent as parameters; the picture model must not take the words that ask for them for something to draw (two pictures as two panels of one).
@@ -265,6 +276,7 @@ export function createImageGenerationResponseLifecycle({
     if (spoken.frameDuration && modelInfo.supportedImageOptions?.includes('frameDuration')) generationRequest.config.frameDuration = spoken.frameDuration;
     // What was said about the count wins for this message; a count saved with another model must not ask a one-picture model for more.
     if (spoken.count) generationRequest.config.n = spoken.count;
+    if (svgEditCode) generationRequest.config.n = 1;
     if (groups) generationRequest.config.n = groups.length;
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     // The format, put right for the model; then for the format (a GIF has its frames and no compression, an SVG is one picture).

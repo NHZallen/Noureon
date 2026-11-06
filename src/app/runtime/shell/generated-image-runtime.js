@@ -66,7 +66,7 @@ export function createGeneratedImageRuntimeLoader({
                             size: dataUrlToBlob(entry.dataUrl)?.size || 0,
                             base64: entry.dataUrl,
                             // true for a picture; for a frame of a GIF, which frame of how many, and which GIF it came from
-                            targetedEdit: entry.count ? { index: entry.index, count: entry.count, source: entry.source, ...(entry.sheet ? { sheet: true } : {}), ...(entry.speed ? { speed: entry.speed } : {}) } : true
+                            targetedEdit: !entry.count ? (descriptor.mediaType === 'image/svg+xml' ? { svg: descriptor.id } : true) : { index: entry.index, count: entry.count, source: entry.source, ...(entry.sheet ? { sheet: true } : {}), ...(entry.speed ? { speed: entry.speed } : {}) }
                         })));
                         renderFilePreviews();
                         focusMessageInput();

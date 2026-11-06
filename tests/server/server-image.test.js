@@ -434,6 +434,7 @@ test('an image request for a GIF carries its frames and their time (whole number
   assert.equal(asked[0].body.model, 'openai/gpt-6-luna');
   assert.equal(saved.length, 1);
   assert.equal(saved[0].mimeType, 'image/svg+xml');
-  assert.equal(saved[0].text, '<svg width="4" height="4"><rect width="4" height="4"/></svg>');
+  // kept as it came, but at the size every picture has (withIntrinsicSize: the longer side 1024)
+  assert.equal(saved[0].text, '<svg width="1024" height="1024" viewBox="0 0 4 4"><rect width="4" height="4"/></svg>');
   assert.equal(done.parts[0].generatedImage.mediaType, 'image/svg+xml');
 });

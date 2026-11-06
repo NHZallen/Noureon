@@ -113,7 +113,8 @@ export function createGeneratedImageInteractions({
     const texts = getEditorTexts(getUiLanguage());
     const actionLabels = { undo: texts.undo, redo: texts.redo, clear: texts.clear };
     const overlay = document.createElement('div');
-    overlay.className = `generated-image-editor${gif ? ' has-frames' : ''}`;
+    const svgPicture = descriptor?.mediaType === 'image/svg+xml';
+    overlay.className = `generated-image-editor${gif ? ' has-frames' : ''}${svgPicture ? ' is-svg' : ''}`;
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', texts.title);
@@ -501,6 +502,8 @@ export function createGeneratedImageInteractions({
         output.width = canvas.width;
         output.height = canvas.height;
         const outputContext = output.getContext('2d');
+        // A drawing (SVG) has no background of its own: it is sent on white, as it is shown.
+        if (svgPicture) { outputContext.fillStyle = '#fff'; outputContext.fillRect(0, 0, output.width, output.height); }
         outputContext.drawImage(image, 0, 0, output.width, output.height);
         outputContext.drawImage(canvas, 0, 0);
         await attachAnnotatedImage({
@@ -561,6 +564,17 @@ export function createGeneratedImageInteractions({
               link.retimedUrl = blob ? URL.createObjectURL(blob) : '';
               link.href = link.retimedUrl || link.dataset.originalHref;
             })
+          }));
+        });
+      }
+      // An SVG has a button that switches its card between the picture and its code.
+      if (descriptor.mediaType === 'image/svg+xml') {
+        root.querySelectorAll(`[data-generated-image-card="${descriptor.id}"]`).forEach(card => {
+          if (card.querySelector('.svg-view-btn')) return;
+          const text = getRuntimeTexts(getUiLanguage());
+          void import('./svg-view.js').then(({ attachSvgView }) => attachSvgView({
+            document, card, getSource: () => getImageDataUrl(descriptor), name: () => downloadNameOf(descriptor, card),
+            texts: { code: text.svgCode, picture: text.svgPicture, copy: text.svgCopy, copied: text.svgCopied, download: text.svgDownload }
           }));
         });
       }

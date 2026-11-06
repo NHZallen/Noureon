@@ -4,6 +4,7 @@ import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { getResearchMode } from '../research/research-bridge.js';
 import { projectPlaceholder } from '../projects/project-placeholder.js';
 import { replySteering } from '../features/reply-steering.js';
+import { syncSvgEditGate } from '../images/svg-edit-gate.js';
 
 export function createSettingsUpdateInputStateHelper({
     elements,
@@ -59,6 +60,7 @@ export function createSettingsUpdateInputStateHelper({
             return;
         }
         const modelInfo = normalizeConversationModel(conv);
+        syncSvgEditGate(globalThis.document?.documentElement, modelInfo);
         const provider = modelInfo?.provider;
         const councilValidation = getCouncilValidation(conv);
         const hasTavilyKey = !conversationNeedsTavilySearch(conv) || !!getApiKeyForProvider(getSearchProvider(config));

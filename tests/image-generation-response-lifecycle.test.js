@@ -827,3 +827,26 @@ test('the grid marked in the editor goes to the server as the sheet, with the sp
   assert.equal(sent.gifEdit.speed, 2);
   assert.deepEqual(sent.references, ['data:image/png;base64,SHEET']);
 });
+
+test('a drawing marked in the editor goes to the text model with its code and the marked picture, one SVG', async () => {
+  const requests = [];
+  const code = '<svg width="1024" height="1024" viewBox="0 0 8 8"><circle r="3"/></svg>';
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => { requests.push(value); return { images: [{ b64Json: 'PHN2Zy8+', mediaType: 'image/svg+xml' }] }; },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/svg+xml', size: 5 }),
+    getStoredImageDataUrl: async (descriptor) => (descriptor.id === 'drawing-1' ? `data:image/svg+xml;base64,${btoa(code)}` : ''),
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const text = { id: 'glm', provider: 'nvidia', supportedImageFormats: ['svg'], supportedImageOptions: [], maxImageCount: 10, maxImageReferences: 16 };
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { outputFormat: 'png', n: 4 }, messages: [{ role: 'model', parts: [{ generatedImage: { id: 'drawing-1', mediaType: 'image/svg+xml' } }] }] };
+  await lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'make the circle orange' }, { inlineData: { mimeType: 'image/png', data: 'QUJD', targetedEdit: { svg: 'drawing-1' } } }], modelInfo: text, conversation, svgByTextModel: true });
+  const request = requests[0];
+  assert.match(request.prompt, /^make the circle orange/);
+  assert.ok(request.prompt.includes(code), 'the code of the drawing is in the words');
+  assert.match(request.prompt, /marks drawn on it/);
+  assert.deepEqual(request.inputReferences, ['data:image/png;base64,QUJD'], 'the marked picture goes along');
+  assert.equal(request.config.n, 1, 'one SVG is changed, not as many as the Count says');
+  assert.equal(request.config.outputFormat, 'svg');
+});
