@@ -20,7 +20,7 @@ const getEditorTexts = (language) => {
     eraser: text.eraser, size: text.size, confirm: text.confirmSelection,
     drawingArea: text.drawableArea, undo: text.undo, redo: text.redo, clear: text.clearAll,
     colors: { red: text.red, blue: text.blue, green: text.green, yellow: text.yellow, white: text.white },
-    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames
+    frame: text.gifFrame, play: text.gifPlay, pause: text.gifPause, frames: text.gifFrames, all: text.gifAll
   };
 };
 
@@ -154,6 +154,7 @@ export function createGeneratedImageInteractions({
           <svg class="pause-icon" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
         </button>
         <div class="generated-image-editor-frame-list">${gif.frames.map((frame, index) => `<button type="button" class="generated-image-editor-frame" data-editor-frame="${index}" aria-label="${texts.frame.replace('{n}', index + 1)}"><img src="${frame.dataUrl}" alt="" draggable="false"><span>${index + 1}</span></button>`).join('')}</div>
+        <button type="button" class="generated-image-editor-all" aria-pressed="false">${texts.all}</button>
       </div>` : ''}
       <footer class="generated-image-editor-toolbar">
         <label class="generated-image-editor-size">
@@ -201,6 +202,9 @@ export function createGeneratedImageInteractions({
     let playbackTimer = null;
     const playbackImage = overlay.querySelector('.generated-image-editor-playback');
     const playButton = overlay.querySelector('.generated-image-editor-play');
+    // "All frames": the change that is asked for is made in every frame, not only in the marked ones (the marked ones say where to look).
+    const allButton = overlay.querySelector('.generated-image-editor-all');
+    allButton?.addEventListener('click', () => allButton.setAttribute('aria-pressed', String(allButton.getAttribute('aria-pressed') !== 'true')));
     const frameButtons = [...overlay.querySelectorAll('.generated-image-editor-frame')];
 
     const updateBrushCursorStyle = () => {
@@ -459,7 +463,7 @@ export function createGeneratedImageInteractions({
           // The frames that have marks, in their order, each with its marks on it; which GIF they came from, which frame of how many each is, goes with them (the edited frames are put back there).
           const frames = [];
           for (const [index, marked] of markedFrames().entries()) {
-            if (marked) frames.push({ dataUrl: await frameComposite(index), index, count: gif.frames.length, source: descriptor.id });
+            if (marked) frames.push({ dataUrl: await frameComposite(index), index, count: gif.frames.length, source: descriptor.id, ...(allButton.getAttribute('aria-pressed') === 'true' ? { all: true } : {}) });
           }
           await attachAnnotatedImage({ dataUrl: frames[0].dataUrl, frames, descriptor });
           close();

@@ -31,6 +31,7 @@ const questionsFor = (limits) => ({
   animated: 'The person asks for a picture that moves: a GIF, an animation, an animated image, 動圖, 動畫, 會動的圖, un GIF animé, анимация, una animación.',
   vector: 'The person asks for a vector picture: an SVG, a vector graphic, a picture drawn in scalable lines and shapes, 向量圖, 矢量圖, une image vectorielle, векторная графика, un gráfico vectorial.',
   frames_stated: 'The person says how many frames the animation has, with a number (8 frames, 6 格, 12 cadres, 10 кадров). How many frames per second does not count.',
+  all_frames: 'The person wants the change made in EVERY frame of the animation (all the frames, the whole GIF, the same change everywhere, 每一格都, 整個動圖, 全部格, toutes les images, все кадры, todos los fotogramas), not in one frame only.',
   frame_time_stated: 'The person says how long each single frame of the animation shows, with a number and a unit of time (200 ms per frame, half a second each, 每格 100 毫秒, 0,5 s par image). The length of the whole animation does not count.'
 });
 
@@ -53,7 +54,7 @@ const probability = (answer) => {
   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
 };
 
-/** The answers as { collage, countSaid, count, more, ratioStated, portrait, landscape, square, animated, vector, framesStated, frameTimeStated }: count is the N of the "exactly N" question that answered yes (the surest one), or null. null when there are no answers. */
+/** The answers as { collage, countSaid, count, more, ratioStated, portrait, landscape, square, animated, vector, framesStated, allFrames, frameTimeStated }: count is the N of the "exactly N" question that answered yes (the surest one), or null. null when there are no answers. */
 export function parseImageDecisionResponse(body, threshold = DECISION_THRESHOLD) {
   const answers = body?.answers;
   if (!answers || typeof answers !== 'object') return null;
@@ -77,6 +78,7 @@ export function parseImageDecisionResponse(body, threshold = DECISION_THRESHOLD)
     animated: named.animated,
     vector: named.vector,
     framesStated: named.frames_stated,
+    allFrames: named.all_frames,
     frameTimeStated: named.frame_time_stated
   };
 }

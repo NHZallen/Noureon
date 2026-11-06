@@ -82,3 +82,18 @@ test('the GIF may be read from the cloud space, and one that cannot be read is s
   // a GIF of another number of frames than the editor said: nothing is made
   await assert.rejects(() => executeImage({ spec: specFor({ gifEdit: { source: GIF_URL, edits: [{ index: 0, count: 5 }] } }).spec, secrets: { providerKey: 'k' }, signal: new AbortController().signal, userId: USER, files, fetchImpl }), /no longer in this conversation/);
 });
+
+test('"every frame" is asked of the model once, with the sheet of the frames, and the GIF keeps all its frames', async () => {
+  assert.equal(specFor({ gifEdit: { source: GIF_URL, edits: [{ index: 3, count: 16 }], all: true } }).spec.image.gifEdit.all, true);
+  assert.ok(specFor({ gifEdit: { source: GIF_URL, edits: [{ index: 3, count: 16 }], all: false } }).errors.some((error) => error.path === 'image.gifEdit.all'));
+  const asked = [];
+  const saved = [];
+  const fetchImpl = async (url, init) => { asked.push(JSON.parse(init.body)); return new Response(JSON.stringify({ data: [{ b64_json: answerPicture() }] }), { status: 200, headers: { 'content-type': 'application/json' } }); };
+  const files = { save: async ({ bytes, mimeType }) => { saved.push({ bytes: Buffer.from(bytes), mimeType }); return { __astraCloudAsset: { path: `${USER}/z`, mimeType, encoding: 'blob' } }; }, load: async () => GIF };
+  const done = await executeImage({ spec: specFor({ gifEdit: { source: GIF_URL, edits: [{ index: 3, count: 16 }], all: true } }).spec, secrets: { providerKey: 'k' }, signal: new AbortController().signal, userId: USER, files, fetchImpl });
+  assert.equal(done.status, 'done');
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].input_references.length, 2, 'the sheet and the marked frame');
+  assert.match(asked[0].prompt, /contact sheet of the 16 frames/);
+  assert.equal(decodeGif(saved[0].bytes).frames.length, 16);
+});

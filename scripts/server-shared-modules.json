@@ -120,6 +120,10 @@
       "note": "Reviewed 2026-11-06: no browser globals (edits the marked frames of a GIF through the picture model and puts them back; the pixels of an answer are read by a function the caller gives). Needs the owner's confirmation (a new module the server reaches)."
     },
     {
+      "path": "src/app/runtime/images/gif-sheet.js",
+      "note": "Reviewed 2026-11-06: no browser globals (the sheet of frames, the cut, and the putting back of only the places that changed, on plain arrays). Needs the owner's confirmation (a new module the server reaches)."
+    },
+    {
       "path": "src/app/runtime/images/picture-blob.js",
       "note": "Reviewed 2026-11-06: no browser globals in what the server uses (dataUrlToBlob: atob and Blob are also in Node); the rest only reads the navigator it is given. Needs the owner's confirmation."
     },

@@ -71,7 +71,8 @@ export function readSpokenRequest({ decision, message, modelInfo = {}, attached 
   // The frames and their time: said with a number (the yes says it was said, the number is read from the words); they are for a GIF, so they are read only when one is asked for.
   const frameCount = format === 'gif' && yes(decision.framesStated) ? readWrittenFrames(message) : null;
   const frameDuration = format === 'gif' && yes(decision.frameTimeStated) ? readWrittenFrameTime(message) : null;
-  return { count: Number.isInteger(count) ? count : null, aspectRatio, collage, format, frameCount, frameDuration, problem: null };
+  // "In every frame" (only matters for frames marked in the editor: the same change is made in the whole GIF).
+  return { count: Number.isInteger(count) ? count : null, aspectRatio, collage, format, frameCount, frameDuration, problem: null, ...(yes(decision.allFrames) ? { allFrames: true } : {}) };
 }
 
 /** The words for a problem, in the language of the page (`getText(key, fallback)`). */

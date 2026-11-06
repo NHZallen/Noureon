@@ -486,6 +486,21 @@
     -webkit-overflow-scrolling: touch;
 }
 
+.generated-image-editor-all {
+    flex: none;
+    padding: .45rem .8rem;
+    border: 1px solid rgba(255, 255, 255, .35);
+    border-radius: 999px;
+    color: #fff;
+    background: transparent;
+    font-size: .85rem;
+}
+
+.generated-image-editor-all[aria-pressed="true"] {
+    color: #000;
+    background: #fff;
+}
+
 .generated-image-editor-frame-list::-webkit-scrollbar {
     display: none;
 }

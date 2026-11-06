@@ -730,3 +730,53 @@ test('frames of a GIF marked in the editor go to the server when it can make the
   await run({ id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' }, { ...serverReply, startImage: async () => ({ ok: false, reason: 'busy', notify: false }) });
   assert.equal(edited.length, 1);
 });
+
+test('"all frames" chosen in the editor goes to the server with the frames', async () => {
+  const started = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async () => ({ images: [] }),
+    saveImageAsset: async () => ({ id: 'new', storageKey: 'k', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/gif;base64,R0lGODlh',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const serverReply = {
+    planImage: () => ({ ok: true }),
+    startImage: async (args) => { started.push(args); return { ok: true, run: { followImage: async () => ({ parts: [{ generatedImage: { id: 'made', mediaType: 'image/gif' } }] }) } }; },
+    notify: () => {}
+  };
+  const frame = (index, all) => ({ inlineData: { mimeType: 'image/png', data: `F${index}`, targetedEdit: { index, count: 9, source: 'gif-1', ...(all ? { all: true } : {}) } } });
+  const run = (all) => lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts: [{ text: 'make the nose blue' }, frame(2, all)], modelInfo: { id: 'gpt-image-2.6-flare', provider: 'openai', maxImageReferences: 16 },
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: {}, messages: [{ role: 'model', parts: [{ generatedImage: { id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' } }] }] },
+    serverReply, assistantMessageId: 'message-1', sequence: 1, uiLanguage: 'en'
+  });
+  await run(true);
+  assert.equal(started.at(-1).gifEdit.all, true);
+  await run(false);
+  assert.equal('all' in started.at(-1).gifEdit, false);
+});
+
+test('"in every frame" said in words, with frames marked in the editor, makes the same change in the whole GIF', async () => {
+  const started = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async () => ({ images: [] }),
+    saveImageAsset: async () => ({ id: 'new', storageKey: 'k', mediaType: 'image/gif', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/gif;base64,R0lGODlh',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const serverReply = {
+    planImage: () => ({ ok: true }),
+    startImage: async (args) => { started.push(args); return { ok: true, run: { followImage: async () => ({ parts: [{ generatedImage: { id: 'made', mediaType: 'image/gif' } }] }) } }; },
+    notify: () => {}
+  };
+  await lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts: [{ text: 'make the nose blue in every frame' }, { inlineData: { mimeType: 'image/png', data: 'F2', targetedEdit: { index: 2, count: 9, source: 'gif-1' } } }], modelInfo: { id: 'gpt-image-2.6-flare', provider: 'openai', maxImageReferences: 16 },
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: {}, messages: [{ role: 'model', parts: [{ generatedImage: { id: 'gif-1', mediaType: 'image/gif', storageKey: 'k' } }] }] },
+    serverReply, assistantMessageId: 'message-1', sequence: 1, uiLanguage: 'en', requestImageDecisions: async () => ({ allFrames: 0.95 })
+  });
+  assert.equal(started.at(-1).gifEdit.all, true);
+});

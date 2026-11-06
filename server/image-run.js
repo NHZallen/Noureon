@@ -8,8 +8,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { createImageGenerator } from '../src/app/runtime/images/image-generators.js';
-import { editGifFrames } from '../src/app/runtime/images/gif-frame-edit.js';
-import { pictureToFrame } from './picture-frame.js';
+import { editGifFrames, editGifSheet } from '../src/app/runtime/images/gif-frame-edit.js';
+import { pictureToFrame, rgbaToPng } from './picture-frame.js';
 import { openAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { ReplyError, scrubMessage } from './executor.js';
 import { ERROR_CODES } from './protocol.js';
@@ -146,7 +146,7 @@ export async function executeImage({
       onProblem('image_reference_unreadable', error);
       throw new ReplyError('The GIF these frames came from could not be read from your cloud space.', ERROR_CODES.providerError);
     }
-    generate = (request, makePictures) => editGifFrames({
+    generate = (request, makePictures) => (image.gifEdit.all ? editGifSheet : editGifFrames)({
       edits: image.gifEdit.edits.map((edit, at) => ({ ...edit, dataUrl: request.inputReferences[at] })),
       gifDataUrl,
       prompt: request.prompt,
@@ -154,7 +154,8 @@ export async function executeImage({
       apiKey: request.apiKey,
       generateImage: makePictures,
       signal: request.signal,
-      toFrame: pictureToFrame
+      toFrame: pictureToFrame,
+      toPng: rgbaToPng
     });
   }
   const drawn = await drawPictures({ generate, apiKey: secrets.providerKey, model: spec.model.id, provider: spec.model.provider, safetyIdentifier, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });

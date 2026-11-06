@@ -219,7 +219,7 @@ function validateImageSpec(input) {
       const edit = image.gifEdit;
       if (!isObject(edit)) fail('image.gifEdit', 'must be an object');
       else {
-        for (const name of Object.keys(edit)) if (!['source', 'edits'].includes(name)) fail(`image.gifEdit.${name}`, 'is not a known field');
+        for (const name of Object.keys(edit)) if (!['source', 'edits', 'all'].includes(name)) fail(`image.gifEdit.${name}`, 'is not a known field');
         if (!isDataImage(edit.source) && !isImageMarker(edit.source)) fail('image.gifEdit.source', 'must be a picture (a data address or a file of the cloud space)');
         if (!Array.isArray(edit.edits) || edit.edits.length < 1 || edit.edits.length > 16) fail('image.gifEdit.edits', 'must be a list of 1 to 16 frames');
         else {
@@ -228,7 +228,8 @@ function validateImageSpec(input) {
           });
           if (references.length !== edit.edits.length) fail('image.gifEdit.edits', 'must have one frame for each of the references');
         }
-        if (!errors.length) gifEdit = { source: edit.source, edits: edit.edits.map((frame) => ({ index: frame.index, count: frame.count })) };
+        if (edit.all !== undefined && edit.all !== true) fail('image.gifEdit.all', 'must be true when given');
+        if (!errors.length) gifEdit = { source: edit.source, edits: edit.edits.map((frame) => ({ index: frame.index, count: frame.count })), ...(edit.all ? { all: true } : {}) };
       }
     }
     // The pictures of an earlier reply, each built on by the picture at its place: one request for each group (server/image-run.js).

@@ -280,18 +280,19 @@ export function createImageGenerationResponseLifecycle({
     // Frames of a GIF that were marked in the editor: each goes to the model on its own and the edited frame is put back in the GIF (here, in the page: the GIF is written again from the frames).
     const frameEdits = requestParts.filter(part => part.inlineData?.targetedEdit?.count).map(part => ({ ...part.inlineData.targetedEdit, dataUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` }));
     if (frameEdits.length) {
+      if (spoken.allFrames) frameEdits[0].all = true;
       const source = (conversation.messages || []).flatMap(message => message.parts || []).map(part => part.generatedImage).find(picture => picture?.id === frameEdits[0].source);
       const gifDataUrl = source ? await getStoredImageDataUrl(source) : '';
       // The server does it when it can (the page may be closed meanwhile): it is given the frames, which GIF they came from (its file in the cloud, or the GIF itself) and the words.
       if (source && gifDataUrl && serverReply && assistantMessageId && serverReply.planImage({ conversation }).ok) {
         const started = await serverReply.startImage({
           conversation, modelInfo, prompt: editedPrompt, config: { aspectRatio: source.aspectRatio || normalizedConfig.aspectRatio, n: 1 },
-          references: frameEdits.map(edit => edit.dataUrl), gifEdit: { source: source.cloudAsset || gifDataUrl, edits: frameEdits.map(({ index, count }) => ({ index, count })) }, assistantMessageId, sequence, uiLanguage
+          references: frameEdits.map(edit => edit.dataUrl), gifEdit: { source: source.cloudAsset || gifDataUrl, edits: frameEdits.map(({ index, count }) => ({ index, count })), ...(frameEdits[0].all ? { all: true } : {}) }, assistantMessageId, sequence, uiLanguage
         });
         if (started.ok) return followServerImage(started.run, { signal, serverReply, uiLanguage });
         if (started.notify) serverReply.notify(started.notify, uiLanguage);
       }
-      const edit = editGifFrames || ((input) => Promise.all([import('./gif-frame-edit.js'), import('./gif-frame-edit-page.js')]).then(([module, page]) => module.editGifFrames({ ...input, toFrame: page.pictureToFrame })));
+      const edit = editGifFrames || ((input) => Promise.all([import('./gif-frame-edit.js'), import('./gif-frame-edit-page.js')]).then(([module, page]) => (frameEdits[0].all ? module.editGifSheet : module.editGifFrames)({ ...input, toFrame: page.pictureToFrame, toPng: page.rgbaToPng })));
       const edited = await edit({ edits: frameEdits, gifDataUrl, prompt: editedPrompt, modelInfo, apiKey: generationRequest.apiKey, generateImage, signal, getText });
       const savedFrames = await Promise.all(edited.images.map(image => saveImageAsset({ ...image, title: spokenMessage })));
       return { parts: savedFrames.map(generatedImage => ({ generatedImage })), descriptors: savedFrames };
