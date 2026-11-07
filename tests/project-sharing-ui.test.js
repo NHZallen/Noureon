@@ -357,3 +357,36 @@ test('a person is drawn with their own picture, else the photo of their account 
   assert.ok(root.querySelector('.psh-join-who .pj-mark, .psh-join-who svg'), 'the mark of the project');
   assert.equal(root.querySelector('.pj-sheet :focus'), null, 'no button takes the focus when the question opens');
 });
+
+test('taking a person out may take the files they added with them: ticked when their conversations are not kept, the owner may change it; none of theirs: no choice', async () => {
+  const open = async (state, filesOf) => {
+    const { document, root } = page();
+    const dropped = [];
+    await openMembersPanel({ document, root, text, client: fakeClient(state), project: { id: 'p1', name: 'City' }, origin: 'https://noureon.test', copy: async () => true, notify: () => {}, filesOf, dropFiles: async (ids) => { dropped.push(ids); } });
+    root.querySelector('[data-user-id="u2"] .pj-round').click();
+    await tick();
+    [...document.querySelectorAll('.pj-menu button, [role="menuitem"]')].find((node) => node.textContent.includes('Remove member')).click();
+    await tick();
+    return { root, dropped };
+  };
+  const theirs = (id) => (id === 'u2' ? [{ id: 's1' }, { id: 's2' }] : []);
+  const a = await open({ role: 'owner', shared: true, links: [], calls: [] }, theirs);
+  const box = () => a.root.querySelector('[data-drop-files]');
+  assert.equal(box().getAttribute('aria-pressed'), 'false', 'their conversations are kept: their files stay');
+  a.root.querySelector('.psh-choice[data-keep="false"]').click();
+  assert.equal(box().getAttribute('aria-pressed'), 'true', 'nothing of theirs is kept: their files go');
+  a.root.querySelector('[data-remove-go]').click();
+  await tick(); await tick();
+  assert.deepEqual(a.dropped, [['s1', 's2']]);
+  // the owner changed it by hand: the choice of the conversations no longer moves it
+  const b = await open({ role: 'owner', shared: true, links: [], calls: [] }, theirs);
+  b.root.querySelector('.psh-choice[data-keep="false"]').click();
+  b.root.querySelector('[data-drop-files]').click();
+  b.root.querySelector('.psh-choice[data-keep="true"]').click();
+  assert.equal(b.root.querySelector('[data-drop-files]').getAttribute('aria-pressed'), 'false');
+  b.root.querySelector('[data-remove-go]').click();
+  await tick(); await tick();
+  assert.deepEqual(b.dropped, []);
+  const c = await open({ role: 'owner', shared: true, links: [], calls: [] }, () => []);
+  assert.equal(c.root.querySelector('[data-drop-files]'), null, 'they added no file: nothing to ask');
+});

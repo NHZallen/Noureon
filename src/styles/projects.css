@@ -59,6 +59,7 @@ html.pj-open { overflow: hidden; }
 .pj-empty-icon { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 0.9rem; background: var(--hover-bg); color: var(--text-secondary); }
 .pj-empty-title { margin: 0.4rem 0 0; font-size: var(--pj-title); font-weight: 500; }
 .pj-empty-hint { margin: 0; max-width: 24rem; color: var(--text-secondary); }
+.pj-gone .pj-button { width: auto; min-width: 12rem; margin-top: 0.8rem; }
 
 /* the chats of a project */
 .pj-chats { display: grid; }

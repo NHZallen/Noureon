@@ -1014,7 +1014,13 @@ test('leaving is asked from the menu with the page’s own words, and the page g
   await env.tick();
   env.$$('.pj-menu-item').find((node) => node.textContent.trim() === text('psLeave'))?.click();
   assert.deepEqual(asked, ['sp1']);
-  env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-gone', { detail: { projectId: 'sp1' } }));
+  env.document.dispatchEvent(new env.window.CustomEvent('noureon:project-gone', { detail: { projectId: 'sp1', name: 'City plan' } }));
+  await env.tick();
+  // The person was taken out: the project is not shown, a notice is, with a button to the list.
+  assert.equal(getProjectsPage().state.view, 'gone');
+  assert.equal(env.$('.pj-gone .pj-empty-title').textContent, text('psGoneTitle', { name: 'City plan' }));
+  assert.equal(env.$('.pj-chats'), null, 'nothing of the project is drawn');
+  env.$('.pj-gone .pj-button').click();
   await env.tick();
   assert.equal(getProjectsPage().state.view, 'list');
   await env.finish();

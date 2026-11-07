@@ -171,13 +171,16 @@ test('a person who was taken out of the project is told on the next read; the pr
   env.view(PROJECT);
   await tick();
   const gone = [];
-  env.document.addEventListener('noureon:project-gone', (event) => gone.push(event.detail.projectId));
+  const names = [];
+  env.document.addEventListener('noureon:project-gone', (event) => { gone.push(event.detail.projectId); names.push(event.detail.name); });
+  const notes = env.state.notes.length;
   env.state.gone = true;
   env.rt.status('SUBSCRIBED');
   env.rt.ping();
   await tick(); await tick();
-  assert.deepEqual(env.state.notes.at(-1), [texts.psSharedGone, 'error']);
+  assert.equal(env.state.notes.length, notes, 'no toast: the page shows the notice of it');
   assert.deepEqual(gone, [PROJECT]);
+  assert.deepEqual(names, ['City plan'], 'the notice says which project');
   assert.equal(env.actions.folderOf(PROJECT), null);
   assert.equal(env.api.sharedFolders.list().length, 0);
   assert.equal(env.rt.calls.removed, 1);
@@ -573,4 +576,17 @@ test('a file of a shared project that has no path kept with its source is asked 
   assert.deepEqual(await env.actions.sourceFile(PROJECT, { id: 's2', file: { ...file, asset: { __astraCloudAsset: { path: `o/${'e'.repeat(64)}` } } } }), { mimeType: 'application/pdf', data: 'QUJD' });
   assert.deepEqual(asked, [`o/${hash}`, `o/${'e'.repeat(64)}`], 'the path of the source when it has one');
   assert.equal(await env.actions.sourceFile(PROJECT, { id: 's3' }), null, 'a source with no file');
+});
+
+test('a project that the person was taken out of while the page was closed: the first read says so, nothing of it is kept or drawn, and the page is told with its name', async () => {
+  const env = setup();
+  env.api.sharedFolders.set({ id: PROJECT, name: 'City plan', role: 'chat', ownerId: 'o' });
+  const gone = [];
+  env.document.addEventListener('noureon:project-gone', (event) => gone.push([event.detail.projectId, event.detail.name]));
+  env.state.gone = true;
+  env.view(PROJECT);
+  await tick(); await tick();
+  assert.deepEqual(gone, [[PROJECT, 'City plan']]);
+  assert.equal(env.api.sharedFolders.list().length, 0, 'the project is not in the list any more');
+  assert.equal(env.actions.folderOf(PROJECT), null);
 });

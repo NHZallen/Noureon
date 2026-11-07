@@ -78,6 +78,21 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     const heard = subscribeProjectLive({ getSupabase, projectId, onPing: (ping) => { if (!ping?.c) void panel?.refresh?.(); } });
     panel = await openMembersPanel({
       document, root: root || document.body, text, client: shareClient, project: { id: folder.id, name: folder.name },
+      // The files a member added (the sources that name them) may be taken away with them: only from the project of the person's own (the owner's folder is the one that holds them).
+      filesOf: (memberId) => (dataStore.getFolders() || []).find((entry) => entry.id === projectId)?.sources?.filter((source) => source?.addedBy?.id === memberId) || [],
+      dropFiles: async (ids) => {
+        const own = (dataStore.getFolders() || []).find((entry) => entry.id === projectId);
+        if (!own || !Array.isArray(own.sources)) return;
+        const gone = new Set(ids);
+        const removed = own.sources.filter((source) => gone.has(source.id));
+        own.sources = own.sources.filter((source) => !gone.has(source.id));
+        dataStore.replaceFolders([...dataStore.getFolders()]);
+        await saveAppData({ immediateCloudSync: true });
+        // The originals kept on this device go too, unless another source (of any project) is the same file.
+        const used = new Set((dataStore.getFolders() || []).flatMap((entry) => (Array.isArray(entry.sources) ? entry.sources : []).map((source) => source?.file?.hash).filter(Boolean)));
+        void import('../projects/project-source-files.js').then(({ getProjectFileStore }) => getProjectFileStore()?.drop(removed.map((source) => source.file).filter((file) => file?.hash && !used.has(file.hash)))).catch(() => {});
+        void import('../memory-store/memory-ref.js').then(({ getPageVectors }) => getPageVectors()?.sync?.({ rerun: true })).catch(() => {});
+      },
       inviterName: nameOf(getAnnouncedUser()), origin: window.location?.origin || '', copy, notify: showNotification,
       // The folder the page keeps has the memory the database has now (a stale copy written back could not undo it: the database keeps it, but the page should show it too).
       avatarUrl: avatarOf, onClosed: () => heard.stop(),
@@ -305,16 +320,21 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   function removedFrom(session) {
     if (!sessions.has(session.projectId)) return;
     if (session.owned) { stopSession(session); chatsByProject.delete(session.projectId); snapshots.forget(session.projectId); return; }
-    showNotification(text('psSharedGone'), 'error');
     stopSession(session);
+    forgetShared(session.projectId);
+  }
+  // A shared project the person is not in any more (taken out, left, or deleted): what the page kept of it goes, and the page of the projects shows the notice of it instead of the project.
+  function forgetShared(projectId) {
+    const name = sharedFolders.folderOf(projectId)?.name || '';
     // What the person made in the project is theirs again (the database gave it back): their page forgets the link too.
-    releaseConversations((conversation) => conversation.sharedProject?.id === session.projectId);
-    sharedFolders.forget(session.projectId);
-    chatsByProject.delete(session.projectId);
-    snapshots.forget(session.projectId);
-    memoryStores.get(session.projectId)?.stop();
-    memoryStores.delete(session.projectId);
-    document.dispatchEvent(new window.CustomEvent('noureon:project-gone', { detail: { projectId: session.projectId } }));
+    releaseConversations((conversation) => conversation.sharedProject?.id === projectId);
+    sharedFolders.forget(projectId);
+    chatsByProject.delete(projectId);
+    snapshots.forget(projectId);
+    unwatch(projectId);
+    memoryStores.get(projectId)?.stop();
+    memoryStores.delete(projectId);
+    document.dispatchEvent(new window.CustomEvent('noureon:project-gone', { detail: { projectId, name } }));
   }
   async function loadSession(session) {
     const read = await session.reader.load();
@@ -361,6 +381,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     unwatch(projectId);
     const session = { projectId, owned, reader: createReader({ projectId }), info: null, readAt: null, refresh, live: false, lastRead: 0, reading: false, again: false, timer: null, channel: null, viewer: null, off: null };
     const read = await session.reader.load();
+    // (Not in the project any more: the notice page replaces the project, nothing of it is kept or drawn.)
+    if (!read.ok && read.code === 'gone' && !owned && sharedFolders.has(projectId)) { forgetShared(projectId); return null; }
     if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); failedReads.add(projectId); try { refresh?.(); } catch { /* the page may be gone */ } return null; }
     if (sessions.has(projectId)) return sessions.get(projectId);
     sessions.set(projectId, session);

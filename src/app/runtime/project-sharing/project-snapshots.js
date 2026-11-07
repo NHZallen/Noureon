@@ -8,7 +8,15 @@ const CHATS_MAX = 100;
 const SAID_MAX = 400;
 const SOURCE_TEXT_MAX = 200;
 
-const said = (message) => (message?.parts || []).map((part) => part?.text || '').join('\n');
+import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { stripCitationMarkers } from '../../ui/citations/citation-model.js';
+
+// What a message says, without the record of what the model did (the ```noureon-run block at the start of a reply): it is taken away before the words are cut short, since a cut block has no end and
+// would show as its JSON in the list of the chats.
+const said = (message) => {
+  const { run, text } = liftSandboxRunBlock((message?.parts || []).map((part) => part?.text || '').join('\n'));
+  return stripCitationMarkers(text, run?.sources);
+};
 
 /** A chat as a line of the list: the title, who wrote it and the last two things said (only their first words). */
 export const lightChat = (chat = {}) => ({

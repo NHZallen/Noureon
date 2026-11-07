@@ -739,6 +739,28 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return panel;
   };
 
+  // The person is not in the shared project any more (taken out by the owner, or the project was deleted): the project is not shown, a notice is, with the way back to the list.
+  const drawGone = (name) => {
+    closeMenu();
+    composer?.park();
+    announceView(null);
+    state.view = 'gone';
+    root.classList.remove('is-list');
+    root.classList.add('is-project');
+    root.classList.toggle('is-wide', isWide(document));
+    const title = headingOf(document, 'pj-title is-project');
+    title.textContent = name || text('pjTitle');
+    const notice = make(document, 'div', 'pj-empty pj-gone');
+    const icon = make(document, 'span', 'pj-empty-icon');
+    icon.innerHTML = ICONS.users ? ICONS.users(22) : '';
+    const toList = make(document, 'button', 'pj-button pj-primary', text('psGoneBack'));
+    toList.type = 'button';
+    toList.addEventListener('click', () => go({ list: true }, false));
+    notice.append(icon, make(document, 'div', 'pj-empty-title', text('psGoneTitle', { name: name || text('pjTitle') })), make(document, 'p', 'pj-empty-hint', text('psGoneBody')), toList);
+    const body = make(document, 'main', 'pj-body');
+    body.appendChild(notice);
+    root.replaceChildren(header({ left: round('back', text('pjBack'), () => go({ list: true }, false)), title }), body);
+  };
   const drawProject = () => {
     root.classList.remove('is-list');
     root.classList.add('is-project');
@@ -896,7 +918,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   win.addEventListener('popstate', onPopState);
   win.addEventListener('keydown', onKey);
   // The person was taken out of the shared project that is shown (or it was deleted): back to the list.
-  const onGone = (event) => { if (!closed && state.view === 'project' && state.projectId === event.detail?.projectId) go({ list: true }, false); };
+  const onGone = (event) => { if (!closed && state.view === 'project' && state.projectId === event.detail?.projectId) drawGone(event.detail?.name || ''); };
   document.addEventListener('noureon:project-gone', onGone);
   const first = route?.id && projectOrNull(route.id) ? route : { list: true, ...(route?.create ? { create: true } : {}) };
   // The page opened by its address starts where the address says; opened by a tap it adds an entry to the history.

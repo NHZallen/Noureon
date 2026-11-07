@@ -82,7 +82,7 @@ export function openShareConfirm({ document, root, text, preview }) {
  * Opens the page. `project` is { id, name }; `me` the id of the signed-in person; `ownerName` and `inviterName` are the name shown on a link. `onShared(projectId)` is told when the project has
  * just been shared (the page makes the memory of its own copy of the folder `project`). `avatarUrl(userId, version)` may give the picture of a person.
  */
-export async function openMembersPanel({ document, root, text, client, project, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, avatarUrl = () => '', confirm = null, onClosed = () => {} }) {
+export async function openMembersPanel({ document, root, text, client, project, filesOf = () => [], dropFiles = async () => {}, inviterName = '', origin = '', copy = async () => false, notify = () => {}, onShared = () => {}, avatarUrl = () => '', confirm = null, onClosed = () => {} }) {
   let role = 'chat';
   let data = null;
   let links = [];
@@ -249,6 +249,10 @@ export async function openMembersPanel({ document, root, text, client, project, 
 
   async function removeMember(member) {
     let keep = true;
+    // The files this person added to the project (its sources they are named on): they may go with them. Ticked when nothing of theirs is kept, as the choice of the conversations is.
+    const theirs = (filesOf(member.user_id) || []).map((source) => source.id);
+    let dropTheirs = false;
+    let touched = false;
     const dialog = openSheet({
       document, root, title: text('psRemoveTitle', { name: member.name }), dialog: true, close: text('psCancel'),
       body: (content, { close }) => {
@@ -266,6 +270,19 @@ export async function openMembersPanel({ document, root, text, client, project, 
           boxes.push(option);
           content.appendChild(option);
         }
+        let fileBox = null;
+        const syncFiles = () => { if (fileBox && !touched) { dropTheirs = !keep; fileBox.setAttribute('aria-pressed', String(dropTheirs)); } };
+        if (theirs.length) {
+          fileBox = make(document, 'button', 'psh-choice');
+          fileBox.type = 'button';
+          fileBox.dataset.dropFiles = '';
+          fileBox.setAttribute('aria-pressed', String(dropTheirs));
+          fileBox.append(make(document, 'span', 'psh-choice-label', text('psRemoveFiles', { count: theirs.length })), make(document, 'span', 'pj-note', text('psRemoveFilesHint')));
+          fileBox.addEventListener('click', () => { touched = true; dropTheirs = !dropTheirs; fileBox.setAttribute('aria-pressed', String(dropTheirs)); });
+          content.appendChild(fileBox);
+          boxes.forEach((box) => box.addEventListener('click', syncFiles));
+          syncFiles();
+        }
         const buttons = make(document, 'div', 'psh-buttons');
         const cancel = make(document, 'button', 'pj-text-button', text('psCancel'));
         cancel.type = 'button';
@@ -281,7 +298,10 @@ export async function openMembersPanel({ document, root, text, client, project, 
               const done = await keepConversationsOrAsk({ client, projectId: project.id, memberId: member.user_id, ask: () => askKeepFailed({ document, root, text }) });
               if (!done.ok) return { ok: true, stopped: true };
             }
-            return client.remove(project.id, member.user_id);
+            const removed = await client.remove(project.id, member.user_id);
+            // The files go after the person is out (a person who is still in could add more); one that cannot be taken away does not undo the removal.
+            if (removed?.ok && dropTheirs && theirs.length) { try { await dropFiles(theirs); } catch { /* the owner can remove them from the sources */ } }
+            return removed;
           });
         });
         buttons.append(cancel, go);

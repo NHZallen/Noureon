@@ -376,3 +376,11 @@ test('the "Sources" button under a reply of someone else’s chat opens the pane
   assert.equal(panel.querySelector('.history-tab[aria-selected="true"]').dataset.historyTab, 'sources', 'the tab it was left on');
   assert.deepEqual([...panel.querySelectorAll('.is-file')].map((row) => row.dataset.fileName), ['plan.pdf', 'budget.xlsx']);
 });
+
+import { lightChat } from '../src/app/runtime/project-sharing/project-snapshots.js';
+test('the line of a chat kept for the list has the words of the last reply, not the record of what the model did (a long one is cut after it is taken away, not before)', () => {
+  const run = JSON.stringify({ v: 1, status: 'done', steps: [], elapsedMs: 9630, thought: 'x'.repeat(900) });
+  const reply = { id: 'm', role: 'model', parts: [{ text: `\`\`\`noureon-run\n${run}\n\`\`\`\n\nThe laptop costs 30,000.` }] };
+  const light = lightChat({ id: 'c', title: 'Laptop', messages: [reply] });
+  assert.equal(light.messages[0].parts[0].text.trim(), 'The laptop costs 30,000.');
+});
