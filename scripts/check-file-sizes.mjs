@@ -165,7 +165,7 @@ const buildBudgetDefinitions = existsSync(join(root, 'dist'))
   ? [
       { label: 'largest JS chunk', file: topFiles(startupJsFiles, 1)[0], transitionalLimit: bytes(300), v5Target: bytes(300), gzipTransitionalLimit: bytes(110), gzipV5Target: bytes(110) },
       { label: 'startup interface texts (i18n chunk)', file: i18nChunk, transitionalLimit: bytes(300), v5Target: bytes(80), gzipTransitionalLimit: bytes(90), gzipV5Target: bytes(25) },
-      { label: 'largest update notes translation', file: topFiles(updateNotesFiles, 1)[0], transitionalLimit: bytes(380), v5Target: bytes(380), gzipTransitionalLimit: bytes(80), gzipV5Target: bytes(80) },
+      { label: 'largest update notes translation', file: topFiles(updateNotesFiles, 1)[0], transitionalLimit: bytes(420), v5Target: bytes(420), gzipTransitionalLimit: bytes(90), gzipV5Target: bytes(90) },
       { label: 'largest on-demand file library chunk', file: topFiles(onDemandJsFiles, 1)[0], transitionalLimit: bytes(1100), v5Target: bytes(1000), gzipTransitionalLimit: bytes(380), gzipV5Target: bytes(360) },
       { label: 'PDF formula typesetter', file: mathChunk, transitionalLimit: bytes(1700), v5Target: bytes(1650), gzipTransitionalLimit: bytes(580), gzipV5Target: bytes(560) },
       { label: 'PDF preview worker', file: pdfWorker, transitionalLimit: bytes(1400), v5Target: bytes(1300), gzipTransitionalLimit: bytes(420), gzipV5Target: bytes(400) },
