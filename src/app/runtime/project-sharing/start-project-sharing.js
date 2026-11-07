@@ -171,9 +171,39 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     if (!projectId || chatsByProject.has(projectId) || prefetching.has(projectId) || !cloudOn()) return;
     prefetching.add(projectId);
     try {
-      const read = await createReader({ projectId }).load();
+      const reader = createReader({ projectId });
+      const read = await reader.load();
       if (read.ok && !chatsByProject.has(projectId)) { chatsByProject.set(projectId, read.project.conversations || []); failedReads.delete(projectId); snapshots.set(projectId, { chats: read.project.conversations || [], sources: read.project.project?.sources || [] }); }
+      if (read.ok) watch(projectId, reader);
     } catch { /* it is read when the project is opened */ } finally { prefetching.delete(projectId); }
+  }
+  // A project that nobody has open is still listened to (the same ping the open page hears) and its chats are read again when something changes, so the next time it is opened the list is already
+  // right (a chat that someone else wrote an hour ago is there at once, not after the first read). The open project has its own session and takes over; the first few projects only.
+  const watched = new Map();
+  const unwatch = (projectId) => { const entry = watched.get(projectId); if (!entry) return; entry.channel?.stop(); clearInterval(entry.timer); watched.delete(projectId); };
+  function watch(projectId, reader = null) {
+    if (!projectId || watched.has(projectId) || sessions.has(projectId) || watched.size >= 6) return;
+    const entry = { reader: reader || createReader({ projectId }), busy: false, channel: null, timer: null };
+    watched.set(projectId, entry);
+    const tick = async () => {
+      if (document.hidden || entry.busy || sessions.has(projectId) || !watched.has(projectId)) return;
+      entry.busy = true;
+      try {
+        const result = await entry.reader.refresh();
+        if (!watched.has(projectId) || sessions.has(projectId)) return;
+        if (result.ok && result.changed) {
+          const owned = sharedFolders.isOwned(projectId) && !sharedFolders.has(projectId);
+          chatsByProject.set(projectId, result.project.conversations || []);
+          failedReads.delete(projectId);
+          snapshots.set(projectId, { chats: result.project.conversations || [], sources: owned ? [] : result.project.project?.sources || [] });
+          if (!owned) remember(projectId, result.project);
+        } else if (!result.ok && result.code === 'gone') unwatch(projectId);
+      } catch { /* the next ping or the net reads again */ } finally { entry.busy = false; }
+    };
+    entry.channel = subscribeProjectLive({ getSupabase, projectId, onPing: () => { void tick(); }, onState: (joined) => { if (joined) void tick(); } });
+    entry.timer = setInterval(() => { void tick(); }, Math.max(pollMs, LIVE_NET_MS));
+    entry.timer?.unref?.();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) void tick(); });
   }
   const sessionFor = (id) => sessions.get(id) || null;
   // A file of a shared project as a member gets it: the server gives it from the owner's folder (a file that the project holds).
@@ -328,6 +358,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   /** Reads a shared project of the person and keeps it live (the page of the projects shows it). Resolves the session, or null when the person is not in the project. */
   async function startSession(projectId, refresh = null, { notMemberText = 'psSharedGone', quiet = false, owned = false } = {}) {
     if (sessions.has(projectId)) { const held = sessions.get(projectId); if (refresh) held.refresh = refresh; return held; }
+    unwatch(projectId);
     const session = { projectId, owned, reader: createReader({ projectId }), info: null, readAt: null, refresh, live: false, lastRead: 0, reading: false, again: false, timer: null, channel: null, viewer: null, off: null };
     const read = await session.reader.load();
     if (!read.ok) { if (!quiet) showNotification(text(read.code === 'gone' ? notMemberText : 'psSharedLoadFailed'), 'error'); failedReads.add(projectId); try { refresh?.(); } catch { /* the page may be gone */ } return null; }
@@ -357,7 +388,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   document.addEventListener('noureon:project-view', (event) => {
     const { projectId, refresh } = event.detail || {};
     viewing = projectId ? { projectId, refresh } : null;
-    for (const session of [...sessions.values()]) if (session.projectId !== projectId) stopSession(session);
+    for (const session of [...sessions.values()]) if (session.projectId !== projectId) { stopSession(session); if (sharedFolders.has(session.projectId) || sharedFolders.isOwned(session.projectId)) watch(session.projectId); }
     if (!projectId) return;
     if (!cloudOn()) { whenCloudOn(() => { void refreshShared().then(startViewed); }); return; }
     if (sharedFolders.has(projectId)) { void startWithRetry(projectId, refresh); return; }
@@ -518,14 +549,14 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     refreshing = true;
     try {
       const mine = await shareClient.mine();
-      if (mine.ok) sharedFolders.setOwned(mine.data || []);
+      if (mine.ok) { sharedFolders.setOwned(mine.data || []); (mine.data || []).slice(0, 6).forEach((item) => { void prefetch(String(item?.project_id || '')); }); }
       // What the owner of a project took out of it while this page was away: the link it still holds is forgotten.
       const exits = await shareClient.exits?.();
       if (exits?.ok) { const gone = new Set((exits.data || []).map((item) => item.conversation_id)); if (gone.size) releaseConversations((conversation) => gone.has(conversation.id)); }
       const others = await shareClient.sharedWithMe();
       if (others.ok) for (const item of others.data || []) { const info = await createReader({ projectId: item.project_id }).info(); if (info.ok) sharedFolders.set({ ...info.project.project, id: item.project_id, role: info.project.role, ownerId: info.project.owner?.id || item.owner_id, ownerName: info.project.owner?.name, chatCount: item.chat_count }); }
       // Their chats and files are read in the background and kept, so each of them opens at once (a few of them: the ones the person has just used are the first).
-      [...(mine.ok ? mine.data || [] : []), ...(others.ok ? others.data || [] : [])].slice(0, 6).forEach((item) => { void prefetch(String(item?.project_id || '')); });
+      (others.ok ? others.data || [] : []).slice(0, 6).forEach((item) => { void prefetch(String(item?.project_id || '')); });
     } catch { /* the next start tries again */ } finally { refreshing = false; startViewed(); }
   }
   const later = (run, wait) => { const timer = setTimeout(run, wait); timer?.unref?.(); };
