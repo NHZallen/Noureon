@@ -10,6 +10,7 @@
 import { formatCellValue } from '../generators/sheet-layout.js';
 import { cellAddress } from '../generators/spreadsheet-spec.js';
 import { drawChart } from './slide-chart-preview.js';
+import { lockAxisScroll } from './axis-lock-scroll.js';
 
 const MAX_ROWS = 500;
 // Excel's column width unit is about 7 px for its default 11 pt font.
@@ -357,6 +358,8 @@ export async function renderXlsxPreview(blob, host, { document = globalThis.docu
   const grid = element(document, 'div', 'grid');
   const tabs = element(document, 'div', 'tabs');
   tabs.setAttribute('role', 'tablist');
+  // A finger moves the sheet up and down or left and right, one at a time (not every way at once).
+  const unlockAxis = lockAxisScroll(grid);
   const limit = element(document, 'p', 'limit');
   root.append(grid, limit, tabs);
   shadow.replaceChildren(style, root);
@@ -542,6 +545,7 @@ export async function renderXlsxPreview(blob, host, { document = globalThis.docu
     pageCount: layout.sheets.length,
     show,
     dispose() {
+      unlockAxis();
       closeMenu();
       root.removeEventListener('click', onOutside);
       document.removeEventListener('scroll', onMove, true);

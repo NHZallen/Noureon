@@ -393,3 +393,7 @@ Allen 的截圖：點加密卡 xlsx 出現 §18.18 的「原檔沒有存到雲�
 - 伺服器 `POST /v1/projects/:id/asset` 除了 `{ path }` 也接受 `{ hash }`：用 `server_project_memory_access` 找出專案擁有者，組出 `<擁有者>/<hash>`，再走原本的 `server_project_asset_allowed` 檢查（所以仍然只給專案真的有的檔案）。舊的 `{ path }` 照常。
 - 頁面：`sharedFile` 沒有路徑時改用雜湊問伺服器；擁有者自己的共享專案多一個 `ownFileOf` 掛鉤，當本機、自己的雲端都找不到時，最後問伺服器（成員加的檔案本機沒有）。
 - 也移除來源列點擊後出現的選取框（`:focus-visible` 外框，§18.19 加的反而被手機畫出來）：名稱列與來源面板檔案列一律 `outline: none`。
+
+### 18.21 試算表預覽的手指滑動一次只走一個方向（2026-11-07，已在 `staging`）
+
+手機上滑動試算表預覽時，瀏覽器原生的觸控捲動是「全方位」，很難只往上下或只往左右。新增 `ui/files/previews/axis-lock-scroll.js`（`lockAxisScroll(grid)`）：手指移動超過 6 px 時，依先走的方向決定軸（上下或左右），之後只動那一軸（手動改 `scrollTop`／`scrollLeft`，並停掉瀏覽器自己的捲動），放開後依速度慣性滑行；那個軸沒有可捲的內容時交還給瀏覽器（視窗仍可捲）。兩指、滑鼠、鍵盤不受影響。`xlsx-sheet-preview.js` 在建立表格時掛上，`dispose` 時拿掉。
