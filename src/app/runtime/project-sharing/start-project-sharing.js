@@ -181,7 +181,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     // The file is named by its path when the source has it, else by where the files of a person are kept: `<person>/<hash>` (as the server reads them for a reply). Most sources have no path: the page keeps the original here first.
     const owner = sharedFolders.ownerOf(id) || sessionFor(id)?.info?.owner?.id || '';
     const path = source?.file?.asset?.__astraCloudAsset?.path || (owner && source?.file?.hash ? `${owner}/${source.file.hash}` : '');
-    const data = path ? await (sessionFor(id)?.reader || createReader({ projectId: id })).asset(path) : '';
+    // With no path known the server finds the owner by the project and is asked by the hash.
+    const data = path || source?.file?.hash ? await (sessionFor(id)?.reader || createReader({ projectId: id })).asset(path, source?.file?.hash || '') : '';
     return data ? { mimeType: source.file.mimeType, data } : null;
   };
   setSharedProjectHook({
@@ -230,6 +231,8 @@ export function startProjectSharing({ document, window = globalThis.window, conf
     removeSource: async (id, sourceId) => { const session = sessionFor(id); return session ? removeSourceFrom(session, sourceId) : { ok: false, code: 'gone' }; },
     // A file of the project as a member gets it: the server gives it from the owner's folder (a file that the project holds).
     fileOf: (id, source) => sharedFile(id, source),
+    // The same for a project of the person's own that is shared (a file a member added is not on this device): the last place to look.
+    ownFileOf: (id, source) => (sharedFolders.isOwned(id) && !sharedFolders.has(id) ? sharedFile(id, source) : null),
     // (The owner is known from the list, from the read, or from the open session; a chat is never linked with none.)
     link: (id) => ({ id, ownerId: sharedFolders.ownerOf(id) || sessions.get(id)?.info?.owner?.id || '' }),
     sent: () => { void Promise.resolve(saveAppData({ immediateCloudSync: true })).catch(() => {}); }

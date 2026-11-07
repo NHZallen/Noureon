@@ -343,10 +343,15 @@ export function createProjectActions({
     if (here?.data) { if (!source.file.asset) void keepFilesInCloud(); return here; }
     // Not on this device and no path kept with the source: the file is where the files of the person are kept (`<person>/<hash>`), as the server reads it for a reply.
     const person = getAnnouncedUser()?.supabaseUserId;
-    if (!person || !source.file.hash) return null;
-    const marker = { __astraCloudAsset: { path: `${person}/${source.file.hash}`, mimeType: source.file.mimeType || '', encoding: 'base64' } };
-    const loaded = await store?.load({ ...source.file, asset: marker }).catch(() => null);
-    return loaded?.data ? loaded : null;
+    if (!source.file.hash) return null;
+    if (person) {
+      const marker = { __astraCloudAsset: { path: `${person}/${source.file.hash}`, mimeType: source.file.mimeType || '', encoding: 'base64' } };
+      const loaded = await store?.load({ ...source.file, asset: marker }).catch(() => null);
+      if (loaded?.data) return loaded;
+    }
+    // A file a member of the person's shared project added is in the cloud under the owner (the person); the server gives it when the project holds it.
+    const given = await sharedHook?.ownFileOf?.(id, source);
+    return given?.data ? given : null;
   };
 
   return { list, sharedList, chatsLoading, canModerate, moveChatOut, sourcesOf, sourceFile, keepFilesInCloud, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat, prepareChat, abandonChat, sentChat };

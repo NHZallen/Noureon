@@ -270,7 +270,7 @@ main.flex-1 > header { z-index: 11; }
 .source-row-open { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.55rem; align-items: start; min-width: 0; padding: 0.25rem 0.3rem; border-radius: 0.6rem; }
 .source-row-open.is-openable { cursor: pointer; }
 @media (hover: hover) { .source-row-open.is-openable:hover { background: var(--hover-bg); } }
-.source-row-open.is-openable:focus-visible { outline: 2px solid var(--border-color); outline-offset: -2px; }
+.source-row-open, .source-row-open:focus, .source-row-open:focus-visible { outline: none; -webkit-tap-highlight-color: transparent; }
 .source-row-action.is-download { width: 2.25rem; height: 2.25rem; padding: 0; justify-content: center; border-color: transparent; }
 .source-row-action { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.1rem 0.6rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.75rem; cursor: pointer; }
 .source-row-action:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }

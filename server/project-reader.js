@@ -32,7 +32,14 @@ export function messageForMember(message, { sharedAt }) {
 
 export function createProjectReader({ db, files = null, pageSize = PAGE } = {}) {
   /** A file of the project for a member, as base64: only when the project holds it (supabase/migrations/20261106040000_add_project_asset_access.sql). */
-  async function asset({ userId, projectId, path }) {
+  async function asset({ userId, projectId, path, hash = '' }) {
+    // A file named by its hash alone is in the folder of the owner of the project (the page may not know the owner yet: a project opened from what was kept on the device).
+    if (!path && /^[0-9a-f]{64}$/.test(String(hash))) {
+      let access = null;
+      try { access = await db.rpc('server_project_memory_access', { p_user_id: userId, p_project_id: projectId }); } catch { throw new ProjectReadError('The project could not be read.', 'database'); }
+      if (!access?.owner_id) throw new ProjectReadError('That file is not in this project.', 'not_found');
+      path = `${access.owner_id}/${hash}`;
+    }
     let allowed = false;
     try { allowed = (await db.rpc('server_project_asset_allowed', { p_user_id: userId, p_project_id: projectId, p_path: path })) === true; } catch { throw new ProjectReadError('The project could not be read.', 'database'); }
     if (!allowed || !files?.loadPath) throw new ProjectReadError('That file is not in this project.', 'not_found');

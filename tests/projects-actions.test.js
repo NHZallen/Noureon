@@ -271,5 +271,12 @@ test('a file that is not on this device and has no path kept with its source is 
   assert.deepEqual(loads, [null, `person-1/${'c'.repeat(64)}`], 'first here, then where the files are kept');
   announceUser(null, null);
   assert.equal(await actions.sourceFile('f1', { id: 's', file }), null, 'nobody is signed in: nowhere to look');
+  // a file a member added to the person's own shared project: not here, not found directly, the server gives it (the hook of the sharing)
+  setSharedProjectHook({ has: () => false, folderOf: () => null, ownFileOf: async (id, source) => (source.file.hash === file.hash ? { mimeType: 'application/pdf', data: 'ZZZ=' } : null) });
+  assert.deepEqual(await actions.sourceFile('f1', { id: 's', file }), { mimeType: 'application/pdf', data: 'ZZZ=' }, 'with nobody signed in here it still asks the server');
+  announceUser(null, { supabaseUserId: 'person-1' });
+  assert.deepEqual(await actions.sourceFile('f1', { id: 's', file }), { mimeType: 'application/pdf', data: 'QUJD' }, 'found directly first');
+  setSharedProjectHook(null);
+  announceUser(null, null);
   setProjectFileDeps({ store: null });
 });

@@ -109,6 +109,12 @@ test('a file of the project is given to a member as base64 only when the databas
   assert.deepEqual(asked, [PATH]);
   await assert.rejects(() => reader.asset({ userId: USER, projectId: PROJECT, path: `${USER}/${'f'.repeat(64)}` }), (error) => error.code === 'too_large');
   await assert.rejects(() => createProjectReader({ db: { rpc: async () => { throw new Error('down'); } }, files }).asset({ userId: USER, projectId: PROJECT, path: PATH }), (error) => error.code === 'database');
+  // Named by its hash alone: the owner of the project is found by the server (the page may not know it).
+  const OWNER = '9f9f9f9f-9f9f-49f9-89f9-9f9f9f9f9f9f';
+  const byHash = createProjectReader({ db: { rpc: async (name, params) => (name === 'server_project_memory_access' ? { owner_id: OWNER, role: 'editor' } : params.p_path === `${OWNER}/${'a'.repeat(64)}`) }, files });
+  assert.deepEqual(await byHash.asset({ userId: USER, projectId: PROJECT, hash: 'a'.repeat(64) }), { data: 'aGk=' });
+  await assert.rejects(() => byHash.asset({ userId: USER, projectId: PROJECT, hash: 'b'.repeat(64) }), (error) => error.code === 'not_found');
+  await assert.rejects(() => createProjectReader({ db: { rpc: async () => null }, files }).asset({ userId: USER, projectId: PROJECT, hash: 'a'.repeat(64) }), (error) => error.code === 'not_found');
   await withServer(async (base) => {
     const post = (body, token = TOKEN) => fetch(`${base}/v1/projects/${PROJECT}/asset`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
     const ok = await post({ path: PATH });
@@ -116,6 +122,7 @@ test('a file of the project is given to a member as base64 only when the databas
     assert.deepEqual(await ok.json(), { data: 'aGk=' });
     assert.equal((await post({ path: PATH }, '')).status, 401);
     assert.equal((await post({ path: '../../etc/passwd' })).status, 400);
+    assert.equal((await post({ hash: 'xyz' })).status, 400);
     assert.equal((await post({ path: `${USER}/${'b'.repeat(64)}` })).status, 404);
     assert.equal((await post({ path: `${USER}/${'f'.repeat(64)}` })).status, 413);
   }, { projectReader: reader });

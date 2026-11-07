@@ -260,6 +260,10 @@ test('the pictures in a conversation of someone else are asked from the server a
   assert.ok(viewer);
   const { reader } = (() => { const requests = []; const request = async (method, path, options) => { requests.push([method, path, options.body]); return { ok: true, data: { data: 'AAA=' } }; }; return { reader: createSharedProjectReader({ projectId: PROJECT, request }), requests }; })();
   assert.equal(await reader.asset(PATH), 'AAA=');
+  const sent = [];
+  const byHash = createSharedProjectReader({ projectId: PROJECT, request: async (method, path, options) => { sent.push(options.body); return { ok: true, data: { data: 'AAA=' } }; } });
+  assert.equal(await byHash.asset('', 'b'.repeat(64)), 'AAA=');
+  assert.deepEqual(sent, [JSON.stringify({ hash: 'b'.repeat(64) })], 'with no path the file is asked by its hash');
   const failing = createSharedProjectReader({ projectId: PROJECT, request: async () => ({ ok: false, status: 404 }) });
   assert.equal(await failing.asset(PATH), '');
 });

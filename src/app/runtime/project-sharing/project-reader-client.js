@@ -64,9 +64,9 @@ export function createSharedProjectReader({ projectId, request = serverRequest }
       return result.ok ? { ok: true, project: { role: result.first.role, project: result.first.project, owner: result.first.owner } } : result;
     },
     /** A file of the project as base64 ('' when it cannot be read): the server gives it only for a file that the project holds. */
-    async asset(path) {
+    async asset(path, hash = '') {
       try {
-        const result = await request('POST', `/v1/projects/${projectId}/asset`, { body: JSON.stringify({ path }) });
+        const result = await request('POST', `/v1/projects/${projectId}/asset`, { body: JSON.stringify(path ? { path } : { hash }) });
         return result?.ok && typeof result.data?.data === 'string' ? result.data.data : '';
       } catch { return ''; }
     },

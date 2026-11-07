@@ -483,9 +483,10 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (!projectLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
         const body = await readJson(request, 1024);
         const path = String(body?.path || '').toLowerCase();
-        if (!/^[0-9a-f-]{36}\/[0-9a-f]{64}$/.test(path)) throw new RequestError(ERROR_CODES.badRequest, 'The file is not named right.');
+        const hash = String(body?.hash || '').toLowerCase();
+        if (!(/^[0-9a-f-]{36}\/[0-9a-f]{64}$/.test(path) || (!path && /^[0-9a-f]{64}$/.test(hash)))) throw new RequestError(ERROR_CODES.badRequest, 'The file is not named right.');
         try {
-          send(response, 200, await projectReader.asset({ userId: user.id, projectId: projectAsset[1].toLowerCase(), path }), origin);
+          send(response, 200, await projectReader.asset({ userId: user.id, projectId: projectAsset[1].toLowerCase(), path, hash }), origin);
           status = 200;
           return;
         } catch (error) {
