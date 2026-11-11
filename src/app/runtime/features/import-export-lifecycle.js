@@ -361,10 +361,7 @@ export function createImportExportLifecycle({
       }
 
       const shareFile = new File([blob], fileName, { type: 'application/zip' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] }) && /Mobi|Android/i.test(navigator.userAgent)) {
-        // Only the file: a title or a text beside it is put into the message as words by the apps that take it.
-        await navigator.share({ files: [shareFile] });
-      } else {
+      const saveByLink = () => {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.style.display = 'none';
@@ -372,8 +369,23 @@ export function createImportExportLifecycle({
         anchor.download = fileName;
         document.body.appendChild(anchor);
         anchor.click();
-        URL.revokeObjectURL(url);
         document.body.removeChild(anchor);
+        // (Not let go at once: a phone's browser may still be reading the file when the click returns.)
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      };
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] }) && /Mobi|Android/i.test(navigator.userAgent)) {
+        // Only the file: a title or a text beside it is put into the message as words by the apps that take it.
+        try {
+          await navigator.share({ files: [shareFile] });
+        } catch (error) {
+          // The person closed the sheet: nothing failed. A phone only lets a page share within a few seconds of a tap, and a big backup takes longer to make
+          // (NotAllowedError): the file is then saved as a download instead of the export failing.
+          if (error?.name === 'AbortError') return;
+          if (error?.name !== 'NotAllowedError') throw error;
+          saveByLink();
+        }
+      } else {
+        saveByLink();
       }
 
       toggleModal(elements.exportDataModal, false);

@@ -628,3 +628,44 @@ body svg {
 /* The store of the Nouras: black and white like the rest of the app (the accent colour and the black outline of the other pills are not used here). */
 #store-container .store-category-btn:not(.active) { border-color: var(--border-color) !important; color: var(--text-secondary) !important; }
 #store-container .store-category-btn.active { background: var(--gpt-primary-action-bg) !important; border-color: transparent !important; color: var(--gpt-primary-action-text) !important; }
+
+/* The ticks of the dialogs that ask what to export or import: a plain filled square, no outline; ticked, it is filled with the text colour and carries a tick. */
+#export-data-modal input[type="checkbox"],
+#custom-dialog-modal input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    margin: 0;
+    border: 0 !important;
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--text-primary) 16%, transparent);
+    outline: none;
+    cursor: pointer;
+    transition: background-color 120ms var(--ease-out);
+}
+
+#export-data-modal input[type="checkbox"]:checked,
+#custom-dialog-modal input[type="checkbox"]:checked {
+    background: var(--text-primary);
+}
+
+#export-data-modal input[type="checkbox"]:checked::after,
+#custom-dialog-modal input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 0.42rem;
+    top: 0.2rem;
+    width: 0.3rem;
+    height: 0.6rem;
+    border: solid var(--modal-bg);
+    border-width: 0 0.15rem 0.15rem 0;
+    transform: rotate(45deg);
+}
+
+#export-data-modal input[type="checkbox"]:focus-visible,
+#custom-dialog-modal input[type="checkbox"]:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-primary) 35%, transparent);
+}
