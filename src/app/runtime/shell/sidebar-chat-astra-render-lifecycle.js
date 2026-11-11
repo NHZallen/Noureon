@@ -122,8 +122,10 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
   const getEditingAstrasId = () => editingAstrasId;
   const setEditingAstrasId = (nextId) => { editingAstrasId = nextId; };
   const getIsSelectionMode = () => selection.isSelectionMode();
+  // (A conversation kept only as a stub says it in its flags: its messages are not in memory.)
   const isCouncilConversation = (conversation) => (
     isCouncilEnabled(conversation) ||
+    (conversation?.__stub && Boolean(conversation.__flags?.council)) ||
     (conversation?.messages || []).some((message) => (
       (message?.role === 'model' && Boolean(message?.council)) || messageIsCouncilTurn(message)
     ))

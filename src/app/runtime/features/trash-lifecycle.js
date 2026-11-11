@@ -1,3 +1,4 @@
+import { ensureConversationsLoaded, isConversationUnloaded } from '../kernel/on-demand-loading.js';
 import { createMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createConversationViewRenderer } from '../messages/conversation-view-renderer.js';
@@ -193,11 +194,24 @@ export function createTrashLifecycle({
     }
   };
 
+  // What a deletion has to know of a conversation (its files, in the cloud) is in its messages: the ones kept only as stubs are read first (a no-op when conversations are not loaded on demand).
+  const readWhole = async (ids) => {
+    try {
+      await ensureConversationsLoaded(ids);
+      return true;
+    } catch (error) {
+      console.error('The conversations could not be read.', error);
+      showNotification(getTexts().conversationReadFailed || 'This conversation could not be opened. Please try again.', 'error');
+      return false;
+    }
+  };
+
   const handleDeleteTrashItemPermanently = guarded(async (conversationId) => {
     if (!(await showCustomConfirm(
       getTexts().confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？',
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
+    if (!await readWhole([conversationId])) return;
     const conversation = getConversations().find(item => item.id === conversationId);
     if (!await confirmCloudDeletion([conversationId], conversation ? [conversation] : [])) return;
     await invalidateConversationMemory({ conversationId });
@@ -210,9 +224,10 @@ export function createTrashLifecycle({
     showNotification(getTexts().itemPermanentlyDeleted || '項目已永久刪除。', 'success');
   });
 
-  const showTrashItemInViewModal = (conversationId) => {
+  const showTrashItemInViewModal = async (conversationId) => {
     const conversation = getConversations().find(item => item.id === conversationId);
     if (!conversation) return;
+    if (isConversationUnloaded(conversationId) && !await readWhole([conversationId])) return;
     elements.trashViewTitle.textContent = conversation.title;
     trashConversationViewRenderer.renderConversationMessages({
       conversation,
@@ -278,6 +293,7 @@ export function createTrashLifecycle({
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
     const ids = [...selectedTrashIds];
+    if (!await readWhole(ids)) return;
     const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id));
     if (!await confirmCloudDeletion(ids, selectedSnapshots)) return;
     for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
@@ -298,6 +314,7 @@ export function createTrashLifecycle({
       getTexts().confirmEmptyTrash || '您確定要清空垃圾桶嗎？此操作無法復原。',
       getTexts().emptyTrashConfirmationTitle || '清空垃圾桶確認'
     ))) return;
+    if (!await readWhole(getConversations().filter(conversation => conversation.deletedAt).map(conversation => conversation.id))) return;
     const conversations = getConversations();
     const count = conversations.filter(conversation => conversation.deletedAt).length;
     const trashSnapshots = conversations.filter(conversation => conversation.deletedAt);
