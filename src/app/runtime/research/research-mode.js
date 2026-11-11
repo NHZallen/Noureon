@@ -2,6 +2,7 @@
 // editing of a plan (a chip with the plan's name: what is written next changes that plan), and what sending does then. The rest (starting,
 // following, the cards) is loaded when it is needed (research-run.js, ui/research/).
 
+import { hasCloudAccount, isAccountKnown } from '../features/user-ready.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
@@ -59,11 +60,11 @@ export function createResearchMode({
     }
   });
   const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), skillStore, logger })
+    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: hasCloudAccount, getAccountKnown: isAccountKnown, skillStore, logger })
     : null;
   // The skills share it too: "/" in the box, and the chip of a skill (a temporary chat has them as well, those that are only words: not those with a script).
   const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
+    ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: hasCloudAccount, logger })
     : null;
   const getSync = () => getService(SERVICES.cloudSync);
   const warn = (...args) => logger?.warn?.(...args);

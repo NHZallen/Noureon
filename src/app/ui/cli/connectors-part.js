@@ -19,7 +19,7 @@ const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" str
  * `t(key, values)` gives the words; `getLanguage()` the language; `redraw()` asks the page to draw its list again; `showNotification(text, kind)` says something.
  * Returns { draw(view) -> nodes, load(), handleReturn(search) -> { goMine }, state }.
  */
-export function createConnectorsPart({ document, win, t, getLanguage, getAccountReady = () => true, redraw = () => {}, showNotification = () => {} }) {
+export function createConnectorsPart({ document, win, t, getLanguage, getAccountReady = () => true, getAccountKnown = () => true, redraw = () => {}, showNotification = () => {} }) {
   const make = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -496,7 +496,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
    * The connections are read when they are first needed and the tab is drawn again by `redraw` when they have come.
    */
   const permissionNodes = () => {
-    if (!getAccountReady()) return [make('p', 'pm-empty', t('connectorNeedAccount'))];
+    if (!getAccountReady()) return getAccountKnown() ? [make('p', 'pm-empty', t('connectorNeedAccount'))] : [];
     if (state.status === 'idle') void load();
     if (state.status === 'loading' || state.status === 'idle') return [make('p', 'pm-empty', t('connectorLoading'))];
     if (state.status === 'failed') {

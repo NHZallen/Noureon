@@ -233,6 +233,20 @@ test('without a cloud account the store says CLI tools need one, and the page ca
   assert.equal(t.document.querySelector('.cs'), null);
 });
 
+test('nothing is said about the account until the page knows who is signed in (a signed-in person is never told to sign in)', () => {
+  const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
+  const t = setup({ config, account: false });
+  let known = false;
+  openCliStore({ kind: 'cli', document: t.document, getConfig: () => config, getLanguage: () => 'en', getAccountReady: () => false, getAccountKnown: () => known });
+  const root = t.document.querySelector('.cs');
+  assert.equal(root.querySelector('.cs-note').hidden, true);
+  known = true;
+  closeCliStore();
+  openCliStore({ kind: 'cli', document: t.document, getConfig: () => config, getLanguage: () => 'en', getAccountReady: () => false, getAccountKnown: () => known });
+  assert.equal(t.document.querySelector('.cs .cs-note').hidden, false);
+  closeCliStore();
+});
+
 test('the page has its own address: /skill or /cli while open, / after, the back button closes it, and the address opens it', async () => {
   const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
   const t = setup({ config });

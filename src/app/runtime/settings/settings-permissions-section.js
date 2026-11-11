@@ -2,6 +2,7 @@
 // credentials). Added next to the Privacy tab, like it (settings-privacy-section.js); what is drawn is ui/cli/permissions-view.js.
 // The choices are saved as soon as they are made (not with the Save button of the settings).
 
+import { hasCloudAccount } from '../features/user-ready.js';
 import { permissionText } from '../cli/permission-texts.js';
 import { onSettingsSectionBack } from './settings-section-back.js';
 import { CREDENTIALS_CHANGED, deleteCredential, listCredentials, saveCredential } from '../cli/credentials-client.js';
@@ -59,7 +60,7 @@ export function ensurePermissionsSettingsSection({ document, elements, config, s
       getConfig: () => config,
       saveConfig,
       credentials: { list: listCredentials, save: saveCredential, remove: deleteCredential },
-      hasAccount: () => getSync()?.getStatus?.()?.enabled === true,
+      hasAccount: hasCloudAccount,
       openStore: async () => {
         const { getCliMode } = await import('../cli/cli-bridge.js');
         getCliMode()?.openStore?.('cli');

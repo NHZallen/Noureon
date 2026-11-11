@@ -8,10 +8,16 @@ export const USER_READY_EVENT = 'noureon:user-ready';
 
 // The last person announced: a part that is loaded after the page has started asks for it, because it missed the event.
 let announced = null;
+let known = false;
 export const getAnnouncedUser = () => announced;
+/** Whether the page has told yet who is signed in (before that, "nobody" means "not known yet", not "signed out"). */
+export const isAccountKnown = () => known;
+/** Whether a cloud account is signed in: the person's sign-in, whatever the state of the conversation sync (it is starting, retrying or stopped for a moment without the person being signed out). */
+export const hasCloudAccount = () => Boolean(announced?.supabaseUserId);
 
 export function announceUser(document, user) {
   announced = user || null;
+  known = true;
   // OpenAI's anonymous identifier is made from the account (reply/openai-request.js).
   setOpenAiUserId(user?.supabaseUserId || user?.username || '');
   try {

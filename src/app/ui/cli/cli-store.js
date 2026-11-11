@@ -53,7 +53,7 @@ export const closeCliStore = () => current?.close();
  * Opens the page (once; opened again it only turns to `kind`). Returns { close, element, setKind }. `kind` is the part to show ('skills', the
  * first, or 'cli'); when the page is opened by its address the address says which. `onChange` is told when the tools the person has changed.
  */
-export function openCliStore({ document = globalThis.document, kind = DEFAULT_STORE_KIND, getConfig, saveConfig = async () => {}, getLanguage, showNotification = () => {}, getAccountReady = () => true, onChange = () => {}, skillStore = null }) {
+export function openCliStore({ document = globalThis.document, kind = DEFAULT_STORE_KIND, getConfig, saveConfig = async () => {}, getLanguage, showNotification = () => {}, getAccountReady = () => true, getAccountKnown = () => true, onChange = () => {}, skillStore = null }) {
   if (current) {
     current.setKind(kind);
     return current;
@@ -395,7 +395,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   // Whether the account is ready is known a little after the page starts (when the page is opened by its address, or right after signing in): it is looked at again while the page is open.
   const marks = new Map();
   // The note about the account is for the CLI tools (they run on the server); the skills have nothing to say about it yet.
-  const syncNote = () => { note.hidden = state.kind === 'skills' || Boolean(getAccountReady()); };
+  // (Nothing is said before the page knows who is signed in: a signed-in person is not told to sign in.)
+  const syncNote = () => { note.hidden = state.kind === 'skills' || !getAccountKnown() || Boolean(getAccountReady()); };
   // The connectors are listed from the server, which needs the account: when it becomes ready (the page was opened by its address, and the account is known a moment
   // later, as when the person comes back from a service's login) the list is drawn again, not only the note.
   let wasReady = Boolean(getAccountReady());
@@ -475,7 +476,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   };
 
   // ----- the connectors: the services the person logs in to (the part is its own file)
-  const connectorsPart = createConnectorsPart({ document, win, t, getLanguage, getAccountReady, redraw: () => draw(), showNotification });
+  const connectorsPart = createConnectorsPart({ document, win, t, getLanguage, getAccountReady, getAccountKnown, redraw: () => draw(), showNotification });
 
   // ----- the skills: the official ones the person may add, and the ones they have (their own pasted ones come from the cloud, skill-store.js)
   const skillMatches = (skill) => {
