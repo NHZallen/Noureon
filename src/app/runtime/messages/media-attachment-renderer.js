@@ -1,5 +1,6 @@
 import { attachedPictureNumbers } from '../../../data/conversation-pictures.js';
 import { pictureNumberHTML } from '../../ui/files/picture-number.js';
+import { pictureSizeOfBase64 } from '../../ui/files/picture-size.js';
 import { describeAttachment, fileFamilyLabel, fileKindIconHTML } from '../../ui/files/file-visual.js';
 
 export function createMediaAttachmentRenderer({ escapeHTML, getUiLanguage = () => 'zh-TW' }) {
@@ -14,14 +15,24 @@ export function createMediaAttachmentRenderer({ escapeHTML, getUiLanguage = () =
         }
         const pictureNumbers = attachedPictureNumbers(previewMediaParts);
         const isVisual = (media) => /^(image|video)\//.test(media.mimeType || '');
+        const visualCount = previewMediaParts.filter(isVisual).length;
+        const singleVisual = visualCount === 1;
         const visualItems = previewMediaParts.map((media, mediaIndex) => {
             const mimeType = media.mimeType || 'application/octet-stream';
             const src = getInlineMediaSrc(media);
             const name = media.name || mimeType || 'attachment';
             if (mimeType.startsWith('image/')) {
+                // The picture's own size, so that its place is the right size before it is decoded (a picture the browser has not drawn yet is nothing, and the message
+                // grows by it when it is, moving what is read).
+                const size = pictureSizeOfBase64(media.data);
+                const sizeAttributes = size ? ` width="${size.width}" height="${size.height}"` : '';
+                // A lone picture takes the size it will have: its own, no wider than the box may be and no taller (the same limits the style gives the drawn picture).
+                const reserved = size && singleVisual
+                    ? ` style="aspect-ratio: ${size.width} / ${size.height}; width: min(${size.width}px, 32rem, 82vw, calc(min(30rem, 58vh) * ${size.width / size.height}))"`
+                    : '';
                 return `
-                    <button type="button" class="message-media-thumb" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                        <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">${pictureNumberHTML(pictureNumbers[mediaIndex])}
+                    <button type="button" class="message-media-thumb"${reserved} data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
+                        <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}"${sizeAttributes} loading="lazy">${pictureNumberHTML(pictureNumbers[mediaIndex])}
                     </button>
                 `;
             }
@@ -50,9 +61,6 @@ export function createMediaAttachmentRenderer({ escapeHTML, getUiLanguage = () =
                 ? `<button type="button" class="message-file-row" data-media-index="${mediaIndex}" data-file-family="${family}" title="${escapeHTML(name)}">${content}</button>`
                 : `<div class="message-file-row" data-file-family="${family}" title="${escapeHTML(name)}">${content}</div>`;
         }).join('');
-        const visualCount = previewMediaParts.filter(isVisual).length;
-        const singleVisual = visualCount === 1
-            && previewMediaParts.filter(isVisual).every((media) => (media.mimeType || '').match(/^(image|video)\//));
         return {
             html: `${visualCount ? `<div class="message-media-grid ${singleVisual ? 'message-media-grid-single' : ''}">${visualItems}</div>` : ''}${fileItems ? `<div class="message-file-list">${fileItems}</div>` : ''}`,
             previewMediaParts

@@ -56,6 +56,8 @@
 
 .generated-image-preview-btn {
     display: inline-block;
+    /* On the line's baseline it left a gap below the picture (6px at the page's line height) that the card did not have while it waited: the card grew by it when the picture came. */
+    vertical-align: top;
     width: auto;
     max-width: 100%;
     padding: 0;

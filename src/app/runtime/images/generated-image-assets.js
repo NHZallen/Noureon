@@ -1,3 +1,4 @@
+import { pictureSizeOfBlob } from '../../ui/files/picture-size.js';
 import { createImageFileName } from '../../ui/files/file-name-policy.js';
 import { settlePicture, settlePictures } from '../../ui/files/picture-loading.js';
 import { saveWithShareSheet } from './picture-blob.js';
@@ -54,6 +55,40 @@ const rememberPictureSize = (descriptor, width, height) => {
   if (!descriptor || !(width > 0) || !(height > 0)) return;
   descriptor.width = width;
   descriptor.height = height;
+};
+
+// The nearest box around the card that scrolls (the chat).
+const scrollerOf = (element) => {
+  for (let node = element?.parentElement; node && node.nodeType === 1; node = node.parentElement) {
+    const overflowY = node.ownerDocument?.defaultView?.getComputedStyle?.(node)?.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+  }
+  return null;
+};
+
+// Puts the cards in the shape of their pictures before the pictures are drawn, all at once, and keeps the person where they are: the chat stays at its end if it was there,
+// otherwise the first thing on the screen stays where it was (a browser with no scroll anchoring, Safari, would move what is read as the cards above it change).
+const shapeCards = (cards) => {
+  const todo = cards.filter(({ card, width, height }) => card && width > 0 && height > 0 && card.style.aspectRatio !== `${width} / ${height}`);
+  if (!todo.length) return;
+  const scroller = scrollerOf(todo[0].card);
+  const atEnd = scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop <= 4 : false;
+  let anchor = null;
+  let anchorTop = 0;
+  if (scroller && !atEnd) {
+    const top = scroller.getBoundingClientRect().top;
+    // The first thing that begins on the screen (one that begins above it and reaches in does not tell where the content under it went).
+    anchor = [...scroller.querySelectorAll('*')].find((node) => node.getBoundingClientRect().top >= top && node.getBoundingClientRect().height > 0) || null;
+    anchorTop = anchor ? anchor.getBoundingClientRect().top : 0;
+  }
+  for (const { card, width, height } of todo) {
+    card.style.aspectRatio = `${width} / ${height}`;
+    card.style.setProperty('--picture-ratio', String(width / height));
+    // (Not marked as natural yet: that frees the card from the shape and leaves it as tall as the picture is, which is nothing until the picture is drawn.)
+  }
+  if (!scroller) return;
+  if (atEnd) scroller.scrollTop = scroller.scrollHeight;
+  else if (anchor) scroller.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
 };
 
 const applyNaturalImageAspect = (imageElement) => {
@@ -141,8 +176,19 @@ export function createGeneratedImageAssetStore({
   };
 
   const bind = async (root, descriptors = []) => {
-    await Promise.all(descriptors.map(async descriptor => {
+    // The shape of every picture from its file first, and every card put in that shape at once.
+    const blobs = new Map(await Promise.all(descriptors.map(async descriptor => {
       const blob = await getBlob(descriptor);
+      if (blob && !(descriptor.width > 0 && descriptor.height > 0)) {
+        const size = await pictureSizeOfBlob(blob);
+        if (size) rememberPictureSize(descriptor, size.width, size.height);
+      }
+      return [descriptor, blob];
+    })));
+    shapeCards(descriptors.flatMap(descriptor => [...root.querySelectorAll(`[data-generated-image-id="${descriptor.id}"]`)]
+      .map(element => ({ card: element.closest?.('.generated-image-card'), width: descriptor.width, height: descriptor.height }))));
+    await Promise.all(descriptors.map(async descriptor => {
+      const blob = blobs.get(descriptor);
       if (!blob) {
         settlePictures(root, descriptor.id);
         return;
