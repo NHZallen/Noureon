@@ -34,6 +34,15 @@ export function defaultStubOf(conversation, extra = null) {
 /** The object the app holds for a stored stub record (messages frozen empty, marked). */
 export const stubObjectFrom = record => ({ ...record, messages: EMPTY_MESSAGES, __stub: true });
 
+// The same text for the same content whatever the order of the keys: what tells that the fields of a stub were changed since it was stored.
+const canonical = value => {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().filter(key => value[key] !== undefined).map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+  return JSON.stringify(value) ?? 'null';
+};
+/** The fields of a conversation as a stub holds them, whatever the object that carries it: not its messages, and not what the page adds for its own use (the keys that start with two underscores). */
+const stubShape = conversation => Object.fromEntries(Object.entries(conversation || {}).filter(([key]) => key !== 'messages' && !key.startsWith('__')));
+
 const LOAD_BATCH_SIZE = 16;
 const ATTACHMENT_BATCH_SIZE = 4;
 // How long the frozen old item is kept after the migration: days AND good loads, both.
@@ -268,6 +277,8 @@ export function createWorkspaceStoreV2({
   };
 
   // Records that could not be read at the last load: a save keeps them (and their index entries) instead of treating them as deleted.
+  // What each stub looked like when it was stored or read (canonical text): a stub that looks otherwise when it is saved had its fields changed (renamed, pinned, archived, moved, put in the trash).
+  const storedStubShapes = new Map();
   let unreadable = new Set();
 
   async function readMeta() {
@@ -384,13 +395,32 @@ export function createWorkspaceStoreV2({
           entries[id] = known;
           continue;
         }
-        // A conversation that is only a stub (its messages are not in memory) is never written: what is stored stays as it is.
+        // A conversation that is only a stub (its messages are not in memory) is never written as it is: what is stored stays as it is, except for its own fields.
+        // A stub whose fields were changed (renamed, pinned, archived, moved, put in the trash or taken out) is written as the stored conversation with those fields.
+        let toWrite = conversation;
         if (isStub(conversation)) {
           if (!known) throw new WorkspaceStoreError('stub-without-record', `Conversation ${id} is a stub and has no stored record.`, { id });
-          entries[id] = known;
-          continue;
+          const shape = canonical(stubShape(conversation));
+          if (!storedStubShapes.has(id)) storedStubShapes.set(id, shape);
+          if (storedStubShapes.get(id) === shape) {
+            entries[id] = known;
+            continue;
+          }
+          const { conversations: stored, problems: unreadableStub } = await readAllRecords(previous, [id]);
+          const record = stored.get(id);
+          if (!record || unreadableStub.some(problem => !problem.usable)) {
+            // Not lost: the change stays in memory and is tried again at the next save.
+            logger.warn?.(`The changed fields of conversation ${id} could not be saved now: its record cannot be read.`);
+            entries[id] = known;
+            continue;
+          }
+          const fields = stubShape(conversation);
+          const merged = { ...record };
+          for (const key of Object.keys(merged)) if (key !== 'messages' && !key.startsWith('__') && !(key in fields)) delete merged[key];
+          Object.assign(merged, fields);
+          toWrite = merged;
         }
-        const { json, attachments } = encodeConversation(conversation, `Conversation ${id}`);
+        const { json, attachments } = encodeConversation(toWrite, `Conversation ${id}`);
         const fp = fingerprintText(json);
         if (known && known.fp === fp) {
           entries[id] = known;
@@ -399,9 +429,13 @@ export function createWorkspaceStoreV2({
         puts.push({ key: keys.conversation(id), value: json });
         // Its stub goes in the same transaction; `stubFp` says which version of the conversation the stub is of (a stub that is not of the
         // stored version is not used, so every other way of writing a conversation stays correct without knowing about stubs).
-        if (stubs) puts.push({ key: keys.stub(id), value: serialize(defaultStubOf(conversation, stubFlags), `The stub of conversation ${id}`) });
+        if (stubs) {
+          const stubRecord = defaultStubOf(toWrite, stubFlags);
+          puts.push({ key: keys.stub(id), value: serialize(stubRecord, `The stub of conversation ${id}`) });
+          storedStubShapes.set(id, canonical(stubShape(stubRecord)));
+        }
         const atts = [...attachments.keys()];
-        entries[id] = { fp, size: json.length, updatedAt: conversation.lastUpdatedAt || conversation.createdAt || null, ...(stubs ? { stubFp: fp } : {}), ...(atts.length ? { atts } : {}) };
+        entries[id] = { fp, size: json.length, updatedAt: toWrite.lastUpdatedAt || toWrite.createdAt || null, ...(stubs ? { stubFp: fp } : {}), ...(atts.length ? { atts } : {}) };
         for (const [attachmentId, data] of attachments) added.set(attachmentId, data);
         changedIds.push(id);
       }
@@ -602,7 +636,10 @@ export function createWorkspaceStoreV2({
         const values = await readMany(batch.map(id => keys.stub(id)));
         for (const [offset, id] of batch.entries()) {
           const parsed = parseJson(values[offset]);
-          if (parsed.ok && isPlainObject(parsed.value) && parsed.value.id === id) stubs.set(id, stubObjectFrom(parsed.value));
+          if (parsed.ok && isPlainObject(parsed.value) && parsed.value.id === id) {
+            stubs.set(id, stubObjectFrom(parsed.value));
+            storedStubShapes.set(id, canonical(stubShape(parsed.value)));
+          }
           else needFull.push(id);
         }
       }
@@ -658,7 +695,11 @@ export function createWorkspaceStoreV2({
         const raw = values[offset];
         const parsed = parseJson(raw);
         if (!parsed.ok || !isPlainObject(parsed.value) || fingerprintText(raw) !== meta.conversations[id].fp) continue;
-        puts.push({ key: keys.stub(id), value: serialize(defaultStubOf(parsed.value, stubFlags), `The stub of conversation ${id}`) });
+        {
+          const backfilled = defaultStubOf(parsed.value, stubFlags);
+          puts.push({ key: keys.stub(id), value: serialize(backfilled, `The stub of conversation ${id}`) });
+          storedStubShapes.set(id, canonical(stubShape(backfilled)));
+        }
         entries[id] = { ...meta.conversations[id], stubFp: meta.conversations[id].fp };
         written += 1;
       }

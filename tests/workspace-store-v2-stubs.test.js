@@ -219,3 +219,63 @@ test('a record that cannot be read in full still leaves the others usable, and i
   const meta = JSON.parse(storage.values.get(`${P}meta`));
   assert.deepEqual(meta.order, ['c2', 'c1']);
 });
+
+test('the fields of a stub that were changed (renamed, pinned, put in the trash and restored) are saved into the stored conversation; its messages stay as they were', async () => {
+  const storage = createFakeStorage();
+  const store = make(storage);
+  await store.save(workspace(conversation('a'), conversation('b', { deletedAt: '2026-11-10T00:00:00.000Z', folderId: 'f1' })));
+  const loaded = await store.loadStubs();
+  const [a, b] = loaded.workspace.conversations;
+  assert.equal(isStub(a) && isStub(b), true);
+
+  // Nothing changed: nothing is written.
+  storage.log.applies.length = 0;
+  await store.save(loaded.workspace);
+  assert.equal(storage.log.applies.length, 0, 'an unchanged mixed workspace writes nothing');
+
+  // The person renames a, pins it and takes b out of the trash and out of its folder (a field removed).
+  a.title = 'Renamed';
+  a.pinned = true;
+  b.deletedAt = null;
+  delete b.folderId;
+  await store.save(loaded.workspace);
+
+  const again = make(storage);
+  const whole = (await again.load()).workspace.conversations;
+  const [fullA, fullB] = whole;
+  assert.equal(fullA.title, 'Renamed');
+  assert.equal(fullA.pinned, true);
+  assert.equal(fullA.messages.length, 2, 'the messages of a stub are as they were');
+  assert.equal(fullA.messages[0].parts[0].text, '你好 hello');
+  assert.equal(fullB.deletedAt, null);
+  assert.equal('folderId' in fullB, false, 'a field taken out of the stub is taken out of the conversation');
+  // The stubs of the next start say the same, and a save of them changes nothing more.
+  const next = await again.loadStubs();
+  assert.equal(next.workspace.conversations[0].title, 'Renamed');
+  assert.equal(next.workspace.conversations[1].deletedAt, null);
+  storage.log.applies.length = 0;
+  await again.save(next.workspace);
+  assert.equal(storage.log.applies.length, 0);
+  // And the same store that saved them does not write them again.
+  storage.log.applies.length = 0;
+  await store.save(loaded.workspace);
+  assert.equal(storage.log.applies.length, 0, 'the change was written once');
+});
+
+test('a changed stub whose record cannot be read now is kept and saved at the next save, not lost and not refused', async () => {
+  const storage = createFakeStorage();
+  const store = make(storage);
+  await store.save(workspace(conversation('a'), conversation('b')));
+  const loaded = await store.loadStubs();
+  const [a] = loaded.workspace.conversations;
+  a.title = 'Renamed while unreadable';
+  const key = `${P}conv:a`;
+  const kept = storage.values.get(key);
+  storage.values.delete(key);
+  await store.save(loaded.workspace); // does not throw: the other conversations are saved
+  storage.values.set(key, kept);
+  await store.save(loaded.workspace);
+  const whole = (await make(storage).load()).workspace.conversations;
+  assert.equal(whole[0].title, 'Renamed while unreadable');
+  assert.equal(whole[0].messages.length, 2);
+});
