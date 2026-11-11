@@ -18,6 +18,22 @@
 
 export const WS2_VERSION = 2;
 
+// ---- the stub of a conversation (see conversation-stub.js, which adds what the app does with one) ----
+export const EMPTY_MESSAGES = Object.freeze([]);
+export const isStub = conversation => Boolean(conversation) && conversation.__stub === true;
+
+/** What is stored of a conversation as its stub: every field but the messages, and the number of messages. `extra(conversation)` adds more (flags). */
+export function defaultStubOf(conversation, extra = null) {
+  const { messages, ...rest } = conversation || {};
+  const stub = { ...rest, __count: Array.isArray(messages) ? messages.length : 0 };
+  const flags = typeof extra === 'function' ? extra(conversation) : null;
+  if (flags && typeof flags === 'object' && Object.keys(flags).length) stub.__flags = flags;
+  return stub;
+}
+
+/** The object the app holds for a stored stub record (messages frozen empty, marked). */
+export const stubObjectFrom = record => ({ ...record, messages: EMPTY_MESSAGES, __stub: true });
+
 const LOAD_BATCH_SIZE = 16;
 const ATTACHMENT_BATCH_SIZE = 4;
 // How long the frozen old item is kept after the migration: days AND good loads, both.
@@ -88,7 +104,8 @@ export function getWorkspaceV2Keys(username) {
     failed: `${prefix}failed`,
     disabled: `${prefix}disabled`,
     conversation: id => `${prefix}conv:${id}`,
-    attachment: id => `${prefix}att:${id}`
+    attachment: id => `${prefix}att:${id}`,
+    stub: id => `${prefix}stub:${id}`
   };
 }
 
@@ -229,7 +246,10 @@ export function createWorkspaceStoreV2({
   storage,
   username,
   now = () => new Date().toISOString(),
-  logger = console
+  logger = console,
+  stubFlags = null,
+  // Whether a save also writes the stub of every conversation it writes (off until the on-demand loading is switched on).
+  stubs = false
 } = {}) {
   for (const method of ['getItem', 'applyAtomic', 'getKeys']) {
     if (typeof storage?.[method] !== 'function') throw new TypeError(`The split workspace needs storage.${method}.`);
@@ -284,11 +304,11 @@ export function createWorkspaceStoreV2({
     return { ok: true, value: parsed.value };
   }
 
-  async function readAllRecords(meta) {
+  async function readAllRecords(meta, wanted = meta.order) {
     const records = { conversations: new Map(), problems: [] };
     const cache = new Map();
-    for (let start = 0; start < meta.order.length; start += LOAD_BATCH_SIZE) {
-      const ids = meta.order.slice(start, start + LOAD_BATCH_SIZE);
+    for (let start = 0; start < wanted.length; start += LOAD_BATCH_SIZE) {
+      const ids = wanted.slice(start, start + LOAD_BATCH_SIZE);
       const values = await readMany(ids.map(id => keys.conversation(id)));
       for (const [offset, id] of ids.entries()) {
         const raw = values[offset];
@@ -364,6 +384,12 @@ export function createWorkspaceStoreV2({
           entries[id] = known;
           continue;
         }
+        // A conversation that is only a stub (its messages are not in memory) is never written: what is stored stays as it is.
+        if (isStub(conversation)) {
+          if (!known) throw new WorkspaceStoreError('stub-without-record', `Conversation ${id} is a stub and has no stored record.`, { id });
+          entries[id] = known;
+          continue;
+        }
         const { json, attachments } = encodeConversation(conversation, `Conversation ${id}`);
         const fp = fingerprintText(json);
         if (known && known.fp === fp) {
@@ -371,8 +397,11 @@ export function createWorkspaceStoreV2({
           continue;
         }
         puts.push({ key: keys.conversation(id), value: json });
+        // Its stub goes in the same transaction; `stubFp` says which version of the conversation the stub is of (a stub that is not of the
+        // stored version is not used, so every other way of writing a conversation stays correct without knowing about stubs).
+        if (stubs) puts.push({ key: keys.stub(id), value: serialize(defaultStubOf(conversation, stubFlags), `The stub of conversation ${id}`) });
         const atts = [...attachments.keys()];
-        entries[id] = { fp, size: json.length, updatedAt: conversation.lastUpdatedAt || conversation.createdAt || null, ...(atts.length ? { atts } : {}) };
+        entries[id] = { fp, size: json.length, updatedAt: conversation.lastUpdatedAt || conversation.createdAt || null, ...(stubs ? { stubFp: fp } : {}), ...(atts.length ? { atts } : {}) };
         for (const [attachmentId, data] of attachments) added.set(attachmentId, data);
         changedIds.push(id);
       }
@@ -388,6 +417,7 @@ export function createWorkspaceStoreV2({
           order.push(id);
         } else {
           removes.push(keys.conversation(id));
+          if (stubs || previous?.conversations[id]?.stubFp) removes.push(keys.stub(id));
           removedIds.push(id);
         }
       }
@@ -537,6 +567,104 @@ export function createWorkspaceStoreV2({
         removes: []
       });
       return result;
+    });
+  }
+
+  // ---- stubs (docs/superpowers/specs/2026-11-12-on-demand-loading-design.md) ----
+
+  const hasValidStub = (meta, id) => meta.conversations[id].stubFp === meta.conversations[id].fp;
+
+  // Like load(), but a conversation whose stub is stored (and is of the stored version) comes as a stub: no messages, no attachments read.
+  // The others come in full, as load() gives them (a stub is made for them later, see backfillStubs).
+  function loadStubs() {
+    return exclusive(async () => {
+      const result = await readMeta();
+      if (result.state !== 'ok') {
+        unreadable = new Set();
+        return result;
+      }
+      const { meta } = result;
+      const [sharedRaw, memoryRaw] = await readMany([keys.shared, keys.memory]);
+      const shared = parseJson(sharedRaw);
+      if (!shared.ok || !isPlainObject(shared.value)) return { state: 'corrupt', reason: 'shared-unreadable' };
+      let memoryState;
+      if (meta.memory !== null) {
+        const memory = parseJson(memoryRaw);
+        if (!memory.ok) return { state: 'corrupt', reason: 'memory-unreadable' };
+        memoryState = memory.value;
+      }
+      const stubs = new Map();
+      const needFull = [];
+      const withStub = meta.order.filter(id => hasValidStub(meta, id));
+      for (const id of meta.order) if (!hasValidStub(meta, id)) needFull.push(id);
+      for (let start = 0; start < withStub.length; start += LOAD_BATCH_SIZE) {
+        const batch = withStub.slice(start, start + LOAD_BATCH_SIZE);
+        const values = await readMany(batch.map(id => keys.stub(id)));
+        for (const [offset, id] of batch.entries()) {
+          const parsed = parseJson(values[offset]);
+          if (parsed.ok && isPlainObject(parsed.value) && parsed.value.id === id) stubs.set(id, stubObjectFrom(parsed.value));
+          else needFull.push(id);
+        }
+      }
+      const { conversations: full, problems } = await readAllRecords(meta, needFull);
+      const lost = problems.filter(problem => !problem.usable);
+      const warnings = problems.filter(problem => problem.usable);
+      unreadable = new Set(lost.map(problem => problem.id));
+      const bodies = id => stubs.get(id) || full.get(id);
+      const workspace = { conversations: meta.order.filter(id => bodies(id)).map(id => bodies(id)), ...shared.value };
+      if (meta.memory !== null) workspace.memoryState = memoryState;
+      return { state: lost.length ? 'degraded' : 'ready', workspace, meta, problems: lost, warnings, stubCount: stubs.size, fullCount: full.size };
+    });
+  }
+
+  // The full conversations (attachments back in place) for these ids, read now: { found: Map(id -> record), problems }. Nothing is changed.
+  function readConversations(ids) {
+    return exclusive(async () => {
+      const result = await readMeta();
+      if (result.state !== 'ok') return { found: new Map(), problems: [{ reason: result.state }] };
+      const known = [...new Set(ids)].filter(id => result.meta.conversations[id]);
+      const { conversations, problems } = await readAllRecords(result.meta, known);
+      for (const id of ids) if (!result.meta.conversations[id]) problems.push({ id, reason: 'not-indexed' });
+      return { found: conversations, problems };
+    });
+  }
+
+  // Whether the conversation as the app holds it is what is stored (nothing unsaved), so it may be emptied back to a stub.
+  function isUnchanged(conversation) {
+    return exclusive(async () => {
+      const result = await readMeta();
+      const known = result.state === 'ok' ? result.meta.conversations[conversation?.id] : null;
+      if (!known) return false;
+      return fingerprintText(encodeConversation(conversation, `Conversation ${conversation.id}`).json) === known.fp;
+    });
+  }
+
+  // Makes the stubs that are missing (or of an older version of their conversation), a few at a time, in the background: the records are
+  // read, the stubs written and the index told in ONE transaction, and only for a record that is still the one the index describes.
+  // Returns { written, remaining }.
+  function backfillStubs({ limit = 8 } = {}) {
+    return exclusive(async () => {
+      const result = await readMeta();
+      if (result.state !== 'ok') return { written: 0, remaining: 0 };
+      const { meta } = result;
+      const missing = meta.order.filter(id => !hasValidStub(meta, id));
+      const batch = missing.slice(0, Math.max(1, limit));
+      if (!batch.length) return { written: 0, remaining: 0 };
+      const values = await readMany(batch.map(id => keys.conversation(id)));
+      const puts = [];
+      const entries = { ...meta.conversations };
+      let written = 0;
+      for (const [offset, id] of batch.entries()) {
+        const raw = values[offset];
+        const parsed = parseJson(raw);
+        if (!parsed.ok || !isPlainObject(parsed.value) || fingerprintText(raw) !== meta.conversations[id].fp) continue;
+        puts.push({ key: keys.stub(id), value: serialize(defaultStubOf(parsed.value, stubFlags), `The stub of conversation ${id}`) });
+        entries[id] = { ...meta.conversations[id], stubFp: meta.conversations[id].fp };
+        written += 1;
+      }
+      if (written) await storage.applyAtomic({ puts: [...puts, { key: keys.meta, value: JSON.stringify({ ...meta, conversations: entries }) }] });
+      // A record that could not be used stays missing; the caller stops when a round writes nothing.
+      return { written, remaining: missing.length - written };
     });
   }
 
@@ -798,7 +926,7 @@ export function createWorkspaceStoreV2({
       return {
         state: 'ok',
         missing: meta.order.filter(id => !stored.has(keys.conversation(id))),
-        orphans: [...stored].filter(name => (name.startsWith(`${keys.prefix}conv:`) && !expected.has(name)) || (name.startsWith(`${keys.prefix}att:`) && !expectedAttachments.has(name))),
+        orphans: [...stored].filter(name => (name.startsWith(`${keys.prefix}conv:`) && !expected.has(name)) || (name.startsWith(`${keys.prefix}att:`) && !expectedAttachments.has(name)) || (name.startsWith(`${keys.prefix}stub:`) && !expected.has(name.replace(`${keys.prefix}stub:`, `${keys.prefix}conv:`)))),
         missingAttachments: [...expectedAttachments].filter(name => !stored.has(name))
       };
     });
@@ -864,6 +992,10 @@ export function createWorkspaceStoreV2({
   return {
     keys,
     load,
+    loadStubs,
+    readConversations,
+    isUnchanged,
+    backfillStubs,
     save,
     rewrite,
     readMemoryState,
