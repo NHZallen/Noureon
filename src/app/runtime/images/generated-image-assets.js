@@ -49,6 +49,13 @@ const encodeBase64 = (bytes) => {
   return btoa(binary);
 };
 
+// The size the picture really has, kept with the picture (`width`, `height`) so that the next time its card is drawn the place is already the right shape.
+const rememberPictureSize = (descriptor, width, height) => {
+  if (!descriptor || !(width > 0) || !(height > 0)) return;
+  descriptor.width = width;
+  descriptor.height = height;
+};
+
 const applyNaturalImageAspect = (imageElement) => {
   const width = Number(imageElement?.naturalWidth);
   const height = Number(imageElement?.naturalHeight);
@@ -95,6 +102,10 @@ export function createGeneratedImageAssetStore({
     };
     if (title) descriptor.title = String(title).replace(/\s+/g, ' ').trim().slice(0, 80);
     if (aspectRatio) descriptor.aspectRatio = aspectRatio;
+    try {
+      const bitmap = typeof createImageBitmap === 'function' && mediaType !== 'image/svg+xml' ? await createImageBitmap(blob) : null;
+      if (bitmap) { rememberPictureSize(descriptor, bitmap.width, bitmap.height); bitmap.close?.(); }
+    } catch { /* the size is learned when the picture is first drawn */ }
     await put(descriptor, blob);
     return descriptor;
   };
@@ -141,6 +152,7 @@ export function createGeneratedImageAssetStore({
         .forEach(element => {
           if (typeof element.addEventListener === 'function') {
             element.addEventListener('load', () => {
+              rememberPictureSize(descriptor, Number(element.naturalWidth), Number(element.naturalHeight));
               applyNaturalImageAspect(element);
               settlePicture(element);
             }, { once: true });

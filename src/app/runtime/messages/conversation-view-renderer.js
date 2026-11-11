@@ -52,7 +52,7 @@ export function createConversationViewRenderer({
     const renderGeneratedImages = (assets) => renderGeneratedImageSet({ cards: assets.map(asset => {
         const labels = getLabels() || {};
         const label = (value) => String(value || '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
-        const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
+        const imageAspectRatio = (asset.width > 0 && asset.height > 0) ? `${asset.width} / ${asset.height}` : resolveImageAspectRatio(asset.aspectRatio); // the real shape when it is known
         return `
             <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
                 <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${label(labels.imagePreview)}">

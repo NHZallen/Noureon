@@ -426,3 +426,36 @@ test('the history sidebar helpers stay read-only and free of runtime bindings an
     /^import\s+[\s\S]*?from\s+['"][^'"]*(?:runtime-entry|app-bootstrap|startup-lifecycle|settings|input|submit|provider)[^'"]*['"]/m
   );
 });
+
+test('the history list is drawn a page at a time: the next page comes when the end of what is drawn comes into view, and stays after a redraw', () => {
+  const observers = [];
+  globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; this.target = null; observers.push(this); }
+    observe(target) { this.target = target; }
+    disconnect() { this.disconnected = true; }
+  };
+  const conversations = Array.from({ length: 75 }, (_, index) => ({ id: `c${index}`, createdAt: new Date(Date.UTC(2026, 5, 1) - index * 60000).toISOString() }));
+  const harness = createHarness({ conversations });
+  try {
+    harness.helpers.renderHistorySidebar();
+    const historyList = harness.document.getElementById('history-list');
+    const rows = () => historyList.querySelectorAll('.rendered-conversation').length;
+    assert.equal(rows(), 30, 'the first page only');
+    assert.ok(historyList.querySelector('.history-more-sentinel'), 'a mark at the end of what is drawn');
+
+    const reach = () => { const current = observers.filter((observer) => !observer.disconnected).at(-1); current.callback([{ isIntersecting: true }]); };
+    reach();
+    assert.equal(rows(), 60, 'the next page when the end is reached');
+    reach();
+    assert.equal(rows(), 75, 'and the rest');
+    assert.equal(historyList.querySelector('.history-more-sentinel'), null, 'no mark when everything is drawn');
+    assert.equal(historyList.querySelectorAll('.rendered-conversation')[74].dataset.conversationId, 'c74');
+
+    harness.renderedConversations.length = 0;
+    harness.helpers.renderHistorySidebar();
+    assert.equal(rows(), 75, 'drawn again, the pages that were reached stay');
+  } finally {
+    delete globalThis.IntersectionObserver;
+    harness.window.close();
+  }
+});

@@ -317,6 +317,12 @@ export function createHistorySidebarHelpers({
     && !conversation.deletedAt
     && conversation.retentionMode !== 'ephemeral';
 
+  // How many chats of the list are drawn (a page more each time the end is reached) and how many are on the page now.
+  const HISTORY_PAGE = 30;
+  let historyShown = HISTORY_PAGE;
+  let historyDrawn = 0;
+  let historyMoreObserver = null;
+
   function renderHistorySidebar(conversations = getConversations()) {
     const historyList = getRequiredElement('historyList');
     historyList.innerHTML = '';
@@ -332,8 +338,8 @@ export function createHistorySidebarHelpers({
         return new Date(dateB) - new Date(dateA);
       });
 
-    sortedConversations.forEach((conversation) => {
-      if (conversation.isTemporary) return;
+    const rows = sortedConversations.filter((conversation) => !conversation.isTemporary);
+    const drawRow = (conversation) => {
       if (conversation.isNaming) {
         const thinkingPlaceholder = document.createElement('div');
         thinkingPlaceholder.className = 'sidebar-item p-3 rounded-lg flex items-center gap-3 text-[var(--text-secondary)] italic';
@@ -348,7 +354,37 @@ export function createHistorySidebarHelpers({
         return;
       }
       historyList.appendChild(createConversationElement(conversation));
-    });
+    };
+
+    // The list is drawn a page at a time: the next page comes when the person scrolls to the end of what is drawn (and stays drawn while the list is drawn again).
+    // Where the browser cannot tell what is in view, everything is drawn at once.
+    historyMoreObserver?.disconnect();
+    historyMoreObserver = null;
+    if (typeof globalThis.IntersectionObserver !== 'function') {
+      rows.forEach(drawRow);
+      return;
+    }
+    rows.slice(0, historyShown).forEach(drawRow);
+    historyDrawn = Math.min(historyShown, rows.length);
+    const watchEnd = () => {
+      if (historyDrawn >= rows.length) return;
+      const sentinel = document.createElement('div');
+      sentinel.className = 'history-more-sentinel';
+      sentinel.setAttribute('aria-hidden', 'true');
+      sentinel.style.height = '1px';
+      historyList.appendChild(sentinel);
+      historyMoreObserver = new globalThis.IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        historyMoreObserver.disconnect();
+        sentinel.remove();
+        historyShown += HISTORY_PAGE;
+        rows.slice(historyDrawn, historyShown).forEach(drawRow);
+        historyDrawn = Math.min(historyShown, rows.length);
+        watchEnd();
+      }, { rootMargin: '600px 0px' });
+      historyMoreObserver.observe(sentinel);
+    };
+    watchEnd();
   }
 
   return {
