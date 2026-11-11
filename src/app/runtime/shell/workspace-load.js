@@ -4,6 +4,7 @@
 import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '../kernel/app-data-normalization.js';
 import { loadSplitWorkspace } from '../kernel/workspace-loading.js';
+import { startOnDemandLoading } from '../kernel/on-demand-loading.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
 import { applyLoginLanguage } from '../features/login-language.js';
 import { COUNCIL_MAX_MODELS, MODELS } from './model-registry.js';
@@ -53,7 +54,12 @@ export function createWorkspaceLoad({
     const loadAppData = async () => {
         if (!getCurrentUser()) return;
         const split = await loadSplit({ storage, user: getCurrentUser(), context: { getDefaultFolder, getDefaultGenConfig, runtimeConfigAccess: configAccess, normalizeCouncilConfig, normalizeConversationModel } });
-        if (split) { appDataStore.replaceAll(split.data); await (await getFolderUiStatePersistence()).restore(appDataStore.getFolders()); return; }
+        if (split) {
+            appDataStore.replaceAll(split.data);
+            if (split.onDemand) startOnDemandLoading({ appDataStore, ...split.onDemand });
+            await (await getFolderUiStatePersistence()).restore(appDataStore.getFolders());
+            return;
+        }
         const saved = await getItem(getAppDataKey());
         if (saved) {
             try {

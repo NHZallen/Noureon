@@ -179,3 +179,20 @@ P2（`load()` 實際回傳存根、`ensureConversationsLoaded`、LRU 收回、�
 1. 先做 P2 到 P5（本機存根與按需讀取）：對本機帳號立即有效，也是「從雲端拉」的前提（沒有存根就談不上按需）。
 2. 同時獨立做「同步基準瘦身」：把 `uploadBaseline` 改成指紋、不保留整份列。這一步不依賴存根，對已登入使用者的記憶體收益最直接，風險集中在同步層，可以在 `staging` 用 Allen 的帳號驗證。
 3. 最後才做「本機只留最近的、其餘從雲端拉」，且只對已確認同步完成的對話收回。
+
+### 13.4 做完的：P2 載入器與同步安全（旗標 `?ws3=1`，預設關；2026-11-12，同日）
+
+**P2：存根實際生效**
+- `kernel/conversation-loader.js`：`ensureLoaded(ids)`（同一對話同時多次要求只讀一次）、`trim()` 只留最近 5 個（使用中、讀取中、還沒存好的不收）。
+- `kernel/on-demand-loading.js`：載入器的單一入口（`ensureConversationsLoaded`、`isConversationUnloaded`、`registerConversationInUse`、`startOnDemandLoading`），每 60 秒收回一次，閒置時在鎖內背景補寫存根。
+- `workspace-storage-selection.js`：旗標 `?ws3=1`（localStorage `noureon_ws3`）開啟時用 `loadStubs()` 載入；`workspace-loading.js` 正規化後 `refreezeStubs`；`workspace-load.js` 載完後啟動載入器。
+- `features/cloud-live-stub-merge.js` ＋ 接進 `cloud-workspace-live-lifecycle.js`：雲端工作空間套回頁面時，遠端是存根的對話保留頁面自己的物件，被碰到的才完整合併。
+
+**同步對存根的處理（`cloud-sync-v2-*`）**
+- 上傳前把存根從工作空間拿掉（`withoutStubs`）：存根不上傳，也不會因為「訊息被截斷」的標記而讓雲端訊息被刪。
+- `local-runtime` 只完整讀「需要的對話」：日誌標為有變動的、雲端這次動過的（delta 讀取新增 `touchedConversationIds`）、雲端沒有的、訊息數與雲端不同的。日誌不知道改了什麼、要全部重傳、雲端基準遺失、delta 不支援、或有舊式 id 要修時，一律完整讀。
+- `acknowledgeCapture` 與啟動時不再為了「驗證本機可讀」而讀整份。
+- 已知限制：基準是在讀雲端時就存起來、本機提交在後；兩者之間若當掉，存根可能停在舊內容直到該對話下次被雲端更動。以「訊息數與雲端不同就讀完整」緩解，編輯但訊息數不變的情況不在內。
+- 測試：`tests/cloud-sync-v2-journal.test.js` 新增 4 項（沒變動不讀任何對話、只讀有變動的那一個且存根不被上傳或刪除、基準遺失時完整讀且不丟資料），`tests/cloud-live-stub-merge.test.js`、`tests/conversation-loader.test.js`。全部 5171 項測試、lint、build、各項檢查通過。
+
+**還沒做**：P3 到 P5（讀 `.messages` 的各處改成存根安全）、同步基準瘦身（`uploadBaseline` 改指紋）、「本機只留最近的、其餘從雲端拉」。在 P3 到 P5 完成前**不要對真實帳號開 `?ws3=1`**（會有畫面讀到空訊息）。

@@ -99,8 +99,21 @@ export function createPersistentWorkspaceRemoteReader({
         throw error;
       }
       let rowCount = 0;
+      // The conversations the cloud changed since the baseline (a row of it, one of its messages, or its deletion): the ones a device that keeps
+      // some of its conversations as stubs has to read in full to put the cloud's change in. Unknown (null) when the baseline was not trusted.
+      const touchedConversationIds = baselineTrusted ? new Set() : null;
       for (const page of delta.pages) {
         rowCount += Array.isArray(page?.changes) ? page.changes.length : 0;
+        if (touchedConversationIds) {
+          for (const change of Array.isArray(page?.changes) ? page.changes : []) {
+            const row = change?.row || {};
+            const id = change?.collection === 'conversations' ? row.id
+              : change?.collection === 'messages' ? row.conversation_id
+              : change?.collection === 'tombstones' && row.entity_type === 'conversation' ? row.entity_id
+              : null;
+            if (id) touchedConversationIds.add(id);
+          }
+        }
         baseline = applyRemoteDeltaPage(baseline, page);
       }
       if (normalizeWatermark(delta.nextSeq) !== baseline.watermark) {
@@ -124,6 +137,7 @@ export function createPersistentWorkspaceRemoteReader({
         deltaSupported: true,
         snapshotFallback: false,
         baselineReset: !baselineTrusted,
+        touchedConversationIds: touchedConversationIds ? [...touchedConversationIds] : null,
         pageCount: delta.pages.length,
         rowCount,
         watermark: baseline.watermark

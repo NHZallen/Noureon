@@ -1,3 +1,5 @@
+import { mergeRemoteWithStubs } from './cloud-live-stub-merge.js';
+import { refreezeStubs } from '../kernel/conversation-stub.js';
 import { normalizeLoadedLegacyAppData } from '../kernel/app-data-normalization.js';
 import { normalizeLoadedLegacyConfig } from '../kernel/config-normalization.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
@@ -277,6 +279,7 @@ export function createCloudWorkspaceLiveLifecycle({
       normalizeCouncilConfig,
       normalizeConversationModel
     });
+    refreezeStubs(normalizedRemote.conversations);
     const liveSnapshot = appDataStore.getSnapshot?.() || {};
     const priorTrashedConversationIds = new Set((liveSnapshot.conversations || [])
       .filter(conversation => conversation?.id && conversation.deletedAt)
@@ -287,9 +290,10 @@ export function createCloudWorkspaceLiveLifecycle({
       astraTombstoneIds
     );
     const remoteWithLocalUi = preserveLocalFolderUiState(current, normalizedRemote);
+    // (Some conversations may be stubs, their messages not in memory: cloud-live-stub-merge.js.)
     const protectedRemote = options.recordLevel
-      ? mergeWorkspaceAppData(current, remoteWithLocalUi)
-      : mergeRemoteWorkspaceAppData(current, remoteWithLocalUi, protectedConversation);
+      ? mergeRemoteWithStubs(current, remoteWithLocalUi, null, mergeWorkspaceAppData, { keepLiveOnly: true })
+      : mergeRemoteWithStubs(current, remoteWithLocalUi, protectedConversation, mergeRemoteWorkspaceAppData);
     protectedConversation = null;
     // A normal cloud update represents moving a chat to the trash by setting deletedAt,
     // whereas a permanent deletion arrives as a tombstone below. Compare the committed

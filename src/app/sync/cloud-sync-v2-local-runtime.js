@@ -21,6 +21,8 @@ import {
 } from './cloud-sync-journal.js';
 import { createPersistentWorkspaceRemoteReader } from './cloud-sync-v2-remote-state.js';
 import { SERVICES, provideService } from '../runtime/services.js';
+import { getConversationLoader } from '../runtime/kernel/on-demand-loading.js';
+import { hydrateInPlace, isStub } from '../runtime/kernel/conversation-stub.js';
 
 function exposeConversationShadowSync(window, sync) {
   provideService(SERVICES.cloudSync, sync);
@@ -54,13 +56,67 @@ export function initializeConversationShadowSync({
   const journalNow = typeof now === 'function' ? now : Date.now;
   // The stored workspace as an object. From the split store it is put together from its records; a store that cannot give the whole
   // workspace (a record missing or damaged) is refused like a damaged old item, so that the sync never uploads a partial workspace.
-  const readStoredWorkspace = async workspaceStore => {
+  const readStoredWorkspace = async (workspaceStore, ids = null, { cloudCounts = null, cloudIds = null } = {}) => {
+    // With on-demand loading only what the sync needs is read in full (`ids`; null is all of it) and the rest comes as stubs, which a save never writes.
+    if (ids !== null && getConversationLoader() && typeof workspaceStore.loadStubs === 'function') {
+      const stubbed = await workspaceStore.loadStubs();
+      if (stubbed.state === 'absent') return null;
+      if (stubbed.state !== 'ready') {
+        throw new LocalWorkspaceDataError('Local split workspace is not readable.', { cause: new Error(stubbed.reason || stubbed.state) });
+      }
+      const wanted = new Set(ids);
+      // Read in full: those asked for, those the cloud does not have (they have to go up), and those whose message count is not the cloud's.
+      const toRead = stubbed.workspace.conversations.filter(conversation => isStub(conversation) && (
+        wanted.has(conversation.id)
+        || (cloudIds && !cloudIds.has(conversation.id))
+        || (cloudCounts && (cloudCounts.get(conversation.id) ?? 0) !== conversation.__count)
+      ));
+      if (toRead.length) {
+        const { found, problems } = await workspaceStore.readConversations(toRead.map(conversation => conversation.id));
+        if (problems.length || found.size !== toRead.length) {
+          throw new LocalWorkspaceDataError('A local conversation the sync needs is not readable.', { cause: new Error(problems[0]?.reason || 'unreadable') });
+        }
+        for (const conversation of toRead) hydrateInPlace(conversation, found.get(conversation.id));
+      }
+      return stubbed.workspace;
+    }
     const loaded = await workspaceStore.load();
     if (loaded.state === 'absent') return null;
     if (loaded.state !== 'ready') {
       throw new LocalWorkspaceDataError('Local split workspace is not readable.', { cause: new Error(loaded.reason || loaded.state) });
     }
     return loaded.workspace;
+  };
+  // Which conversations a step needs in full: those with a change not uploaded yet (the journal), those the cloud brought (`extra`); all of them when the
+  // journal does not know what changed, a full upload is due, or the page does not load on demand.
+  const idsNeeded = (journal, { extra = [], needsFull = false } = {}) => {
+    if (!getConversationLoader() || needsFull || journal.fullResyncRequired || journal.dirtyEntities?.unknown) return null;
+    return [...new Set([...(journal.dirty ? journal.dirtyEntities?.conversations || [] : []), ...extra])];
+  };
+  // The stored workspace and journal read for a step, with the legacy ids repaired. Without on-demand loading it is the one atomic read of before. With it
+  // only the conversations the step needs are read; a repair touches conversations that may be stubs, so when it finds something to repair the whole
+  // workspace is read and the repair is made on that.
+  const readStoredRepaired = async (options = {}) => {
+    const workspaceStore = getWorkspaceStore();
+    const partial = Boolean(workspaceStore && getConversationLoader());
+    const repair = workspace => repairWorkspaceEntityIds({ workspace, userId: user.id, cryptoProvider });
+    let workspaceRaw;
+    let journalRaw;
+    let ids = null;
+    if (partial) {
+      journalRaw = await storage.getItem(journalKey);
+      ids = idsNeeded(normalizeCloudSyncJournal(journalRaw, { username }), options);
+      workspaceRaw = await readStoredWorkspace(workspaceStore, ids, options);
+    } else {
+      [workspaceRaw, journalRaw] = await readWorkspaceAndJournal();
+    }
+    let storedWorkspace = parseLocalWorkspace(workspaceRaw);
+    let repaired = await repair(storedWorkspace);
+    if (repaired.changed && ids !== null) {
+      storedWorkspace = parseLocalWorkspace(await readStoredWorkspace(workspaceStore, null));
+      repaired = await repair(storedWorkspace);
+    }
+    return { storedWorkspace, repaired, journal: normalizeCloudSyncJournal(journalRaw, { username }) };
   };
   const writeWorkspaceAndJournal = async (workspace, journal) => {
     const workspaceStore = getWorkspaceStore();
@@ -130,16 +186,16 @@ export function initializeConversationShadowSync({
       const raw = workspaceStore ? await readStoredWorkspace(workspaceStore) : await storage.getItem(storageKey);
       return hydrateLocalAstraAssets(parseLocalWorkspace(raw));
     },
-    commitWorkspace: ({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
-      const [workspaceRaw, journalRaw] = await readWorkspaceAndJournal();
-      const storedWorkspace = parseLocalWorkspace(workspaceRaw);
-      const repaired = await repairWorkspaceEntityIds({
-        workspace: storedWorkspace,
-        userId: user.id,
-        cryptoProvider
+    commitWorkspace: ({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent, touchedConversationIds, remoteMessageCounts }) => withWorkspaceStorageExclusive(async () => {
+      const { storedWorkspace, repaired, journal: storedJournal } = await readStoredRepaired({
+        // The cloud's changes are put in the conversations it touched; when it does not say which, everything is read.
+        needsFull: touchedConversationIds === null || touchedConversationIds === undefined,
+        extra: touchedConversationIds || [],
+        cloudIds: new Set((remoteWorkspace?.conversations || []).map(conversation => conversation?.id).filter(Boolean)),
+        cloudCounts: remoteMessageCounts
       });
+      let journal = storedJournal;
       const latestWorkspace = await hydrateLocalAstraAssets(repaired.workspace);
-      let journal = normalizeCloudSyncJournal(journalRaw, { username });
       if (repaired.changed) {
         journal = markJournalForUpload(
           journal,
@@ -174,16 +230,10 @@ export function initializeConversationShadowSync({
     cryptoProvider,
     normalizeWorkspace,
     fetchRemoteState: options => remoteStateReader.read(options),
-    readCaptureState: ({ assertCurrent }) => withWorkspaceStorageExclusive(async () => {
-      const [workspaceRaw, journalRaw] = await readWorkspaceAndJournal();
-      const storedWorkspace = parseLocalWorkspace(workspaceRaw);
-      const repaired = await repairWorkspaceEntityIds({
-        workspace: storedWorkspace,
-        userId: user.id,
-        cryptoProvider
-      });
+    readCaptureState: ({ assertCurrent, needsFull = false, knownIds = null }) => withWorkspaceStorageExclusive(async () => {
+      const { storedWorkspace, repaired, journal: storedJournal } = await readStoredRepaired({ needsFull, cloudIds: knownIds });
+      let journal = storedJournal;
       const hydratedWorkspace = await hydrateLocalAstraAssets(repaired.workspace);
-      let journal = normalizeCloudSyncJournal(journalRaw, { username });
       const needsRecoveryRevision = journal.fullResyncRequired
         && (!journal.dirty || !journal.workspaceRevision);
       if (repaired.changed || needsRecoveryRevision) {
@@ -206,7 +256,8 @@ export function initializeConversationShadowSync({
       };
     }),
     acknowledgeCapture: ({ attemptedRevision, assertCurrent }) => withWorkspaceStorageExclusive(async () => {
-      const [, journalRaw] = await readWorkspaceAndJournal();
+      // Only the journal is needed here: with the split store the workspace is not read at all.
+      const journalRaw = getWorkspaceStore() ? await storage.getItem(journalKey) : (await readWorkspaceAndJournal())[1];
       const current = normalizeCloudSyncJournal(journalRaw, { username });
       const result = acknowledgeCloudSyncJournal(current, attemptedRevision, {
         username,

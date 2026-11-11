@@ -27,6 +27,8 @@ export function createRemoteApply(ctx) {
         throw error;
       }
       if (remoteState.snapshotFallback === true) state.fullSnapshotFallbackCount += 1;
+      // Which conversations the cloud changed since the last read (null: not known); the commit that follows takes it.
+      state.touchedConversationIds = Array.isArray(remoteState.touchedConversationIds) ? remoteState.touchedConversationIds : null;
       ctx.setStatus({
         deltaSupported: typeof remoteState.deltaSupported === 'boolean' ? remoteState.deltaSupported : state.status.deltaSupported,
         deltaPages: Number.isInteger(remoteState.pageCount) ? remoteState.pageCount : 0,
@@ -40,6 +42,7 @@ export function createRemoteApply(ctx) {
       });
       return remoteState;
     }
+    state.touchedConversationIds = null;
     const tombstones = await repository.fetchTombstones();
     assertCurrent();
     const rows = await repository.fetchWorkspace();
@@ -119,7 +122,15 @@ export function createRemoteApply(ctx) {
     let committedWorkspace;
     let changed = true;
     if (options.commitWorkspace) {
-      const commitResult = await options.commitWorkspace({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent });
+      // For a device that keeps some conversations as stubs: what it needs to know to read only the conversations the cloud's state could change.
+      const remoteMessageCounts = new Map();
+      for (const message of rows.messages || []) {
+        if (message?.deleted_at || !message?.conversation_id) continue;
+        remoteMessageCounts.set(message.conversation_id, (remoteMessageCounts.get(message.conversation_id) || 0) + 1);
+      }
+      const touchedConversationIds = state.touchedConversationIds ?? null;
+      state.touchedConversationIds = null;
+      const commitResult = await options.commitWorkspace({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent, touchedConversationIds, remoteMessageCounts });
       ({ workspace: committedWorkspace, changed } = normalizeWorkspaceCommitResult(commitResult));
     } else {
       const local = localWorkspace || await options.normalizeWorkspace(await options.readWorkspace() || {});

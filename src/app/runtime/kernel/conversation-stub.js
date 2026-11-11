@@ -30,3 +30,9 @@ export function evictInPlace(conversation, extra = null) {
   if (isStub(conversation)) return conversation;
   return replaceContents(conversation, stubObjectFrom(defaultStubOf(conversation, extra)));
 }
+
+/** After a workspace was normalized (which gives every conversation a new list of messages): the stubs get the frozen empty list back. */
+export function refreezeStubs(conversations) {
+  for (const conversation of conversations || []) if (isStub(conversation)) conversation.messages = EMPTY_MESSAGES;
+  return conversations;
+}

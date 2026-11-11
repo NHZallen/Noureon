@@ -734,3 +734,128 @@ eachBackend('a remote tombstone wins over a same-entity local edit during fetch'
   assert.equal(storage.workspace().conversations.some(item => item.id === conversationId), false);
   assert.deepEqual(storage.workspace().folders[0].conversationIds, []);
 });
+
+// ---- With on-demand loading (docs/superpowers/specs/2026-11-12-on-demand-loading-design.md): the sync reads only what it needs and never sends a stub. ----
+
+const secondId = '55555555-5555-4555-8555-555555555555';
+const thirdId = '66666666-6666-4666-8666-666666666666';
+const bigText = 'x'.repeat(2000);
+const manyConversations = () => {
+  const base = createWorkspace();
+  const extra = id => ({ id, title: `Chat ${id.slice(0, 4)}`, model: 'model-1', provider: 'provider-1', folderId: null, createdAt: '2026-07-15T00:00:00.000Z', genConfig: {}, messages: [{ role: 'user', parts: [{ text: bigText }] }, { role: 'model', parts: [{ text: 'ok' }] }] });
+  base.folders = [];
+  base.conversations = [{ ...base.conversations[0], folderId: null }, extra(secondId), extra(thirdId)];
+  return base;
+};
+
+// The fake cloud answering the delta RPC like the real one: every row written gets the next sequence, and a read gives the rows after a watermark.
+function installDelta(remote) {
+  const tables = { workspace_folders: 'folders', workspace_conversations: 'conversations', workspace_messages: 'messages', workspace_astras: 'astras', workspace_tombstones: 'tombstones' };
+  let sequence = 0;
+  const original = remote.supabase.rpc.bind(remote.supabase);
+  const stamp = () => {
+    for (const table of Object.keys(tables)) {
+      for (const row of remote.data[table] || []) {
+        if (row.sync_seq == null) row.sync_seq = String(++sequence);
+      }
+    }
+  };
+  remote.supabase.rpc = async (name, args = {}) => {
+    if (name === 'fetch_workspace_delta') {
+      stamp();
+      const after = BigInt(args.p_after_seq ?? 0);
+      const changes = [];
+      for (const [table, collection] of Object.entries(tables)) {
+        for (const row of remote.data[table] || []) if (BigInt(row.sync_seq) > after) changes.push({ collection, sync_seq: row.sync_seq, row: structuredClone(row) });
+      }
+      changes.sort((left, right) => (BigInt(left.sync_seq) < BigInt(right.sync_seq) ? -1 : 1));
+      const next = changes.length ? changes[changes.length - 1].sync_seq : String(after);
+      return { data: { changes, has_more: false, next_seq: next }, error: null };
+    }
+    const result = await original(name, args);
+    stamp();
+    return result;
+  };
+  return remote;
+}
+
+// A first session without stubs puts everything in the cloud and acknowledges it; the next session starts with every conversation as a stub.
+async function withOnDemand(run, { beforeSecond } = {}) {
+  const { startOnDemandLoading, stopOnDemandLoading } = await import('../src/app/runtime/kernel/on-demand-loading.js');
+  const { isStub } = await import('../src/app/runtime/kernel/conversation-stub.js');
+  const storage = createStorage(manyConversations(), undefined, 'split store');
+  const remote = installDelta(createSupabase());
+  assert.equal((await initialize({ storage, remote }).ready).state, 'ready');
+  assert.equal(remote.data.workspace_conversations.length, 3, 'the first session put every conversation in the cloud');
+  // (A session reads its own uploads back as the cloud's changes once; the second one settles that.)
+  assert.equal((await initialize({ storage, remote }).ready).state, 'ready');
+  const uploadsBefore = remote.calls.uploads.length;
+  const store = createWorkspaceStoreV2({ storage, username, stubs: true, logger: { warn() {}, info() {} } });
+  storage.getWorkspaceStore = () => store;
+  await store.backfillStubs({ limit: 100 });
+  const calls = { load: 0, read: [] };
+  const originalLoad = store.load;
+  const originalRead = store.readConversations;
+  store.load = async (...args) => { calls.load += 1; return originalLoad(...args); };
+  store.readConversations = async ids => { calls.read.push([...ids]); return originalRead(ids); };
+  const loaded = await store.loadStubs();
+  assert.equal(loaded.state, 'ready');
+  assert.equal(loaded.workspace.conversations.every(isStub), true, 'the test starts with every conversation as a stub');
+  startOnDemandLoading({ store, appDataStore: { getConversations: () => loaded.workspace.conversations }, normalizeRecord: conversation => conversation, trimEveryMs: 0 });
+  try {
+    if (beforeSecond) await beforeSecond({ storage, store, remote, loaded });
+    await run({ storage, store, remote, calls, loaded, uploadsBefore });
+  } finally {
+    stopOnDemandLoading();
+  }
+}
+
+test('on-demand: a session that finds nothing to send or bring in reads no conversation in full', async () => {
+  await withOnDemand(async ({ storage, remote, calls, uploadsBefore }) => {
+    const status = await initialize({ storage, remote }).ready;
+    assert.equal(status.state, 'ready');
+    assert.equal(remote.calls.uploads.length, uploadsBefore, 'nothing was uploaded');
+    assert.equal(calls.load, 0, 'the whole workspace was not read');
+    assert.deepEqual(calls.read, [], 'no conversation was read in full');
+    assert.deepEqual(storage.workspace().conversations.map(conversation => conversation.messages.length), [1, 2, 2], 'nothing was lost from the stored workspace');
+  });
+});
+
+test('on-demand: only the conversation with a change is read and uploaded; the stubs are neither deleted nor sent', async () => {
+  await withOnDemand(async ({ storage, remote, calls }) => {
+    remote.calls.uploads.length = 0;
+    const status = await initialize({ storage, remote }).ready;
+    assert.equal(status.state, 'ready');
+    assert.equal(calls.load, 0, 'the whole workspace was not read');
+    assert.deepEqual([...new Set(calls.read.flat())], [secondId], 'only the changed conversation was read in full');
+    assert.equal(remote.data.workspace_messages.filter(row => row.conversation_id === thirdId && !row.deleted_at).length, 2, 'a stub kept its messages in the cloud');
+    assert.equal(remote.data.workspace_messages.filter(row => row.conversation_id === conversationId && !row.deleted_at).length, 1);
+    assert.deepEqual(storage.workspace().conversations.map(conversation => conversation.messages.length), [1, 3, 2], 'the change is stored and the others kept their messages');
+  }, {
+    beforeSecond: async ({ storage, store, loaded }) => {
+      // The second conversation gets a message while the others stay stubs: it is read, changed and saved, the journal says which.
+      const { hydrateInPlace } = await import('../src/app/runtime/kernel/conversation-stub.js');
+      const { found } = await store.readConversations([secondId]);
+      const target = loaded.workspace.conversations.find(conversation => conversation.id === secondId);
+      hydrateInPlace(target, found.get(secondId));
+      target.messages = [...target.messages, { role: 'user', parts: [{ text: 'a new message' }] }];
+      const dirty = markCloudSyncJournalDirty(storage.journal(), { username, revision: 'dirty-revision', now: () => '2026-07-15T00:03:00.000Z', dirtyEntities: { conversations: [secondId] } });
+      await store.save(loaded.workspace, { beforeWrite: () => ({ extraPuts: [{ key: journalKey, value: JSON.stringify(dirty) }] }) });
+      assert.equal(await store.isUnchanged(target), true);
+    }
+  });
+});
+
+test('on-demand: when the record of the cloud is lost, everything is read in full and nothing is lost', async () => {
+  await withOnDemand(async ({ storage, remote, calls }) => {
+    const status = await initialize({ storage, remote }).ready;
+    assert.equal(status.state, 'ready');
+    assert.equal(calls.load >= 1, true, 'the whole workspace was read, as the cloud cannot say what changed');
+    assert.deepEqual(storage.workspace().conversations.map(conversation => conversation.messages.length), [1, 2, 2], 'every conversation kept its messages');
+    assert.equal(remote.data.workspace_messages.filter(row => !row.deleted_at).length, 5, 'and none was cut in the cloud');
+  }, {
+    beforeSecond: async ({ storage }) => {
+      storage.values.delete(`chatCloudSyncRemoteBaseline_v1_${username}`);
+    }
+  });
+});

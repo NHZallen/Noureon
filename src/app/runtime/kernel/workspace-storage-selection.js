@@ -12,6 +12,8 @@
 import { createWorkspaceStoreV2 } from './workspace-store-v2.js';
 
 export const WS2_FLAG_KEY = 'noureon_ws2';
+// On-demand loading (docs/superpowers/specs/2026-11-12-on-demand-loading-design.md): off unless asked for. ?ws3=1 turns it on in this browser, ?ws3=0 off.
+export const WS3_FLAG_KEY = 'noureon_ws3';
 export const MAX_MIGRATION_ATTEMPTS = 3;
 
 // What the address asks for: 'enable', 'disable', 'rollback', or nothing.
@@ -37,6 +39,17 @@ export function isWorkspaceV2Enabled({ location = globalThis.location, localStor
   }
 }
 
+export function isOnDemandLoadingEnabled({ location = globalThis.location, localStorage = globalThis.localStorage } = {}) {
+  try {
+    const requested = new URLSearchParams(location?.search || '').get('ws3');
+    if (requested === '1') localStorage?.setItem(WS3_FLAG_KEY, '1');
+    else if (requested === '0') localStorage?.removeItem(WS3_FLAG_KEY);
+    return localStorage?.getItem(WS3_FLAG_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export async function selectWorkspaceStorage({
   storage,
   username,
@@ -44,12 +57,16 @@ export async function selectWorkspaceStorage({
   enabled = false,
   request = null,
   createStore = createWorkspaceStoreV2,
-  logger = console
+  logger = console,
+  onDemand = false,
+  stubFlags = null
 } = {}) {
   const legacy = reason => ({ mode: 'legacy', reason });
   let store;
   try {
-    store = createStore({ storage, username, logger });
+    store = createStore({ storage, username, logger, ...(onDemand ? { stubs: true, stubFlags } : {}) });
+    // With on-demand loading the conversations come as stubs (their messages are read when something needs them).
+    const read = () => (onDemand && typeof store.loadStubs === 'function' ? store.loadStubs() : store.load());
     let rollback = null;
     if (request === 'rollback' && !(await store.isDisabled())) {
       rollback = await store.exportToLegacy({ legacyKey });
@@ -62,7 +79,7 @@ export async function selectWorkspaceStorage({
       await store.removeAll();
     }
 
-    let loaded = await store.load();
+    let loaded = await read();
     let migration = null;
     if (loaded.state === 'absent') {
       if (!enabled) return legacy('not-enabled');
@@ -70,7 +87,7 @@ export async function selectWorkspaceStorage({
       if (failure && failure.attempts >= MAX_MIGRATION_ATTEMPTS) return legacy('migration-gave-up');
       migration = await store.migrateFromLegacy({ legacyKey });
       if (migration.state === 'migrated') {
-        loaded = await store.load();
+        loaded = await read();
       } else if (migration.state === 'no-legacy') {
         // A new account: start in the split store; the first save creates it.
         return { mode: 'v2', store, loaded: { state: 'absent' }, migration };
@@ -88,7 +105,7 @@ export async function selectWorkspaceStorage({
     if (loaded.meta?.migratedFrom && legacyKey) {
       try {
         const merged = await store.mergeStaleLegacy({ legacyKey });
-        if (merged.state === 'merged' && (merged.added.length || merged.replaced.length)) loaded = await store.load();
+        if (merged.state === 'merged' && (merged.added.length || merged.replaced.length)) loaded = await read();
       } catch (error) {
         logger.warn?.('What an older tab wrote to the old storage could not be merged.', error);
       }

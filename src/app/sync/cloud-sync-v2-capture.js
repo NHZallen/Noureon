@@ -7,6 +7,13 @@ import { filterEncodedWorkspaceByTombstones } from './cloud-sync-v2-deletions.js
 import { countShadowUploadRows, createShadowUploadDelta, markCutMessagesDeleted, mergeShadowUploadIntoBaseline } from './cloud-sync-v2-delta.js';
 import { preserveDeferredConversationFolderRows, reconcileEncodedMessageIds } from './cloud-sync-v2-merge.js';
 import { emptyShadowRows, normalizeVerifiedShadowBaseline } from './cloud-sync-v2-shared.js';
+import { isStub } from '../runtime/kernel/conversation-stub.js';
+
+// The workspace without the conversations that are only stubs (their messages are not in memory, they have no change to send): encoding one would read it as a conversation
+// with no messages, and a conversation that was cut back (`messagesCutAt`) would then have all its messages deleted in the cloud.
+const withoutStubs = workspace => (Array.isArray(workspace?.conversations) && workspace.conversations.some(isStub)
+  ? { ...workspace, conversations: workspace.conversations.filter(conversation => !isStub(conversation)) }
+  : workspace);
 
 // What an upload counts, for the status (the same while it runs and when it is done).
 const uploadCounts = (encoded, uploadRows) => ({
@@ -34,7 +41,8 @@ export function createCapture(ctx, remote) {
     if (typeof options.readCaptureState !== 'function') {
       return { workspace, revision: metadata?.revision || null, journal: null };
     }
-    const resolved = await options.readCaptureState({ workspace, metadata, assertCurrent });
+    // A full upload needs every conversation in full (the cloud's state is not known): the state says so.
+    const resolved = await options.readCaptureState({ workspace, metadata, assertCurrent, needsFull: !(state.baselineTrusted && state.uploadBaseline), knownIds: state.uploadBaseline ? new Set((state.uploadBaseline.conversations || []).map(row => row?.id)) : null });
     assertCurrent();
     return {
       ...resolved,
@@ -144,7 +152,7 @@ export function createCapture(ctx, remote) {
     assertCurrent();
     ctx.setStatus({ state: 'uploading' });
     assertCurrent();
-    const normalizedWorkspace = await options.normalizeWorkspace(latestWorkspace);
+    const normalizedWorkspace = withoutStubs(await options.normalizeWorkspace(latestWorkspace));
     assertCurrent();
     const uploadWorkspace = await options.prepareWorkspaceForUpload(normalizedWorkspace);
     assertCurrent();

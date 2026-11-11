@@ -3,6 +3,7 @@
 // and says where it is (getStatus). Every operation runs after the one before it (`state.work`); stop() makes every operation under way end
 // without touching anything. The parts it joins: cloud-sync-v2-remote-apply.js, -capture.js and -permanent-delete.js.
 
+import { getConversationLoader } from '../runtime/kernel/on-demand-loading.js';
 import { createTombstoneIndex } from './cloud-sync-v2-deletions.js';
 import { createCapture } from './cloud-sync-v2-capture.js';
 import { createPermanentDeletes } from './cloud-sync-v2-permanent-delete.js';
@@ -358,7 +359,8 @@ export function createConversationShadowSync({
       return ctx.setStatus({ state: 'retry', enabled: false, pending: false, lastErrorAt: now(), ...describeShadowError(error) });
     }
     try {
-      const localWorkspace = await normalizeWorkspace(await readWorkspace() || {});
+      // (With on-demand loading the commit reads the local workspace itself, only the part it needs: reading all of it here too would hold every conversation in memory for nothing.)
+      const localWorkspace = options.commitWorkspace && getConversationLoader() ? null : await normalizeWorkspace(await readWorkspace() || {});
       assertCurrent();
       const { tombstones, rows } = await remote.loadRemoteState(assertCurrent);
       const committedWorkspace = await remote.commitRemoteState({
