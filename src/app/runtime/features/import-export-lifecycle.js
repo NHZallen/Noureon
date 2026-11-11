@@ -373,15 +373,21 @@ export function createImportExportLifecycle({
         // (Not let go at once: a phone's browser may still be reading the file when the click returns.)
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       };
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] }) && /Mobi|Android/i.test(navigator.userAgent)) {
-        // Only the file: a title or a text beside it is put into the message as words by the apps that take it.
-        try {
-          await navigator.share({ files: [shareFile] });
-        } catch (error) {
-          // The person closed the sheet: nothing failed. A phone only lets a page share within a few seconds of a tap, and a big backup takes longer to make
-          // (NotAllowedError): the file is then saved as a download instead of the export failing.
-          if (error?.name === 'AbortError') return;
-          if (error?.name !== 'NotAllowedError') throw error;
+      const onPhone = /Mobi|Android/i.test(navigator.userAgent);
+      if (onPhone) {
+        // A phone lets a page share or save only within a few seconds of a tap, and a big backup takes longer to make: the person taps once more, and the
+        // sheet is opened from that tap. (Closing the sheet is not a failure.)
+        const ready = await showCustomConfirm(text('exportReadyMessage', 'The backup is ready. Tap OK, then choose where to save or share it.'), text('exportReadyTitle', 'Backup ready'));
+        if (!ready) return;
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] })) {
+          try {
+            // Only the file: a title or a text beside it is put into the message as words by the apps that take it.
+            await navigator.share({ files: [shareFile] });
+          } catch (error) {
+            if (error?.name === 'AbortError') return;
+            saveByLink();
+          }
+        } else {
           saveByLink();
         }
       } else {
