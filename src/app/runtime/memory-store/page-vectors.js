@@ -88,7 +88,8 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
       // What the projects hold now (a source may have come or gone): read first, so that the pieces below are the ones there are.
       try { await getProjectPieces()?.refresh?.(); } catch (error) { logger.warn?.('The files of the projects could not be read for the vectors.', error); }
       const pieces = worth();
-      await vectors.prune(pieces.map((piece) => piece.id));
+      // (While the texts and files of some conversations have not been looked at yet, their vectors are not pruned: they are not in the pieces, but they are not gone.)
+      if (history.complete?.() !== false) await vectors.prune(pieces.map((piece) => piece.id));
       // What another device already made is taken from the cloud first (it costs nothing); when the cloud cannot be reached the page goes on with its own.
       const cloud = cloudFor(provider);
       if (cloud) { try { await cloud.pull(vectors, new Set(pieces.map((piece) => piece.id))); } catch (error) { logger.warn?.('The vectors in the cloud could not be fetched.', error); } }
@@ -139,7 +140,7 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
       if (cloud && !stopRequested) {
         try {
           await cloud.push(vectors);
-          await cloud.prune(pieces.map((piece) => piece.id));
+          if (history.complete?.() !== false) await cloud.prune(pieces.map((piece) => piece.id));
         } catch (error) {
           logger.warn?.('The vectors could not be kept in the cloud; they stay on this device.', error);
         }

@@ -96,3 +96,24 @@ test('a conversation that became busy while it was checked is not emptied', asyn
   assert.deepEqual(await loader.trim(), []);
   assert.equal(isStub(conversations[0]), false);
 });
+
+test('scanMessages gives the messages of every conversation, a batch at a time, and keeps none of what it read for the stubs', async () => {
+  const { conversations, loader, reads } = setup({ ids: ['a', 'b', 'c', 'd', 'e'] });
+  await loader.ensureLoaded(['b']); // b is whole already
+  const seen = [];
+  const finished = await loader.scanMessages(conversations, (conversation, messages) => seen.push([conversation.id, messages.length]), { batch: 2 });
+  assert.equal(finished, true);
+  assert.deepEqual(seen, [['a', 2], ['b', 2], ['c', 2], ['d', 2], ['e', 2]]);
+  assert.deepEqual(reads.slice(1).map(batch => batch.join()), ['a', 'c,d', 'e'], 'whole conversations are not read again, the stubs a batch at a time');
+  assert.equal(conversations.filter(isStub).length, 4, 'the stubs are still stubs: nothing was kept');
+  assert.equal(conversations[0].messages, EMPTY_MESSAGES);
+});
+
+test('scanMessages stops when asked to, and rejects with what it could not read', async () => {
+  const { conversations, loader, stored } = setup({ ids: ['a', 'b', 'c', 'd'] });
+  let visits = 0;
+  assert.equal(await loader.scanMessages(conversations, () => { visits += 1; }, { batch: 2, shouldStop: () => visits >= 2 }), false);
+  assert.equal(visits, 2);
+  stored.delete('d');
+  await assert.rejects(() => loader.scanMessages(conversations, () => {}, { batch: 2 }), error => error instanceof ConversationLoadError && error.ids.join() === 'd');
+});

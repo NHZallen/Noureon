@@ -113,5 +113,36 @@ export function createConversationLoader({
     return trimming;
   }
 
-  return { ensureLoaded, isUnloaded, touch, trim, tracked: () => [...lastUsed.keys()] };
+  /**
+   * Goes through these conversations one batch at a time and calls `visit(conversation, messages)` for each, without keeping what it read: a conversation that is
+   * whole gives the messages it has, a stub is read from its record and let go of after the visit (memory holds one batch more, not all of them). Resolves
+   * false when `shouldStop()` ended it early.
+   */
+  async function scanMessages(conversations, visit, { batch = 8, shouldStop = () => false } = {}) {
+    const list = Array.isArray(conversations) ? conversations : [];
+    for (let start = 0; start < list.length; start += batch) {
+      if (shouldStop()) return false;
+      const slice = list.slice(start, start + batch);
+      const stubs = slice.filter(conversation => isStub(conversation));
+      let records = new Map();
+      if (stubs.length) {
+        const store = getStore();
+        if (!store) throw new ConversationLoadError(stubs.map(conversation => conversation.id), [{ reason: 'no-store' }]);
+        const { found, problems } = await store.readConversations(stubs.map(conversation => conversation.id));
+        if (found.size !== stubs.length) {
+          throw new ConversationLoadError(stubs.filter(conversation => !found.has(conversation.id)).map(conversation => conversation.id), problems);
+        }
+        records = found;
+      }
+      for (const conversation of slice) {
+        if (shouldStop()) return false;
+        // (A conversation filled meanwhile by someone else gives its own messages.)
+        const messages = isStub(conversation) ? (normalizeRecord(records.get(conversation.id)).messages || []) : conversation.messages;
+        visit(conversation, messages);
+      }
+    }
+    return true;
+  }
+
+  return { ensureLoaded, isUnloaded, touch, trim, scanMessages, tracked: () => [...lastUsed.keys()] };
 }

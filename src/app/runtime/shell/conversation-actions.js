@@ -2,6 +2,8 @@
 // and see an archived one, pin it, rename it (or a folder). Part of the application shell (shell.js); the later parts it calls
 // (the drawing of the page, the memory) are handed in as functions, since they are made after it.
 
+import { messageCountOf } from '../kernel/conversation-stub.js';
+import { ensureConversationsLoaded, isConversationUnloaded } from '../kernel/on-demand-loading.js';
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '../messages/conversation-view-renderer.js';
@@ -61,7 +63,7 @@ export function createConversationActions({
         const currentConversations = liveConversationsBridge.getConversations();
         const oldTempChatCount = currentConversations.length;
         const cleanedConversations = liveConversationsBridge.replaceConversations(
-            currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)
+            currentConversations.filter(c => !c.isTemporary || messageCountOf(c) > 0)
                 .filter(c => c.retentionMode !== 'ephemeral')
         );
         if (cleanedConversations.length < oldTempChatCount) {
@@ -81,11 +83,24 @@ export function createConversationActions({
         updateInputState();
         updateApiKeyWarningBadge();
     };
-    const loadChat = (id) => {
+    let latestChatRequest = null;
+    const loadChat = async (id) => {
         disconnectMessageObserver();
         if (id !== conversationStateAccess.getCurrentConversationId()) {
+            // A conversation that is only a stub is read in full before it is shown (a no-op when conversations are not loaded on demand); a newer request wins.
+            latestChatRequest = id;
+            if (isConversationUnloaded(id)) {
+                try {
+                    await ensureConversationsLoaded([id]);
+                } catch (error) {
+                    console.error('The conversation could not be read.', error);
+                    runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].conversationReadFailed || 'This conversation could not be opened.', 'error');
+                    return;
+                }
+                if (latestChatRequest !== id) return;
+            }
             const previousConv = getActiveConversation();
-            if (previousConv && (previousConv.isTemporary && previousConv.messages.length === 0 || previousConv.retentionMode === 'ephemeral')) {
+            if (previousConv && (previousConv.isTemporary && messageCountOf(previousConv) === 0 || previousConv.retentionMode === 'ephemeral')) {
                 const currentConversations = liveConversationsBridge.getConversations();
                 liveConversationsBridge.replaceConversations(
                     currentConversations.filter(c => c.id !== previousConv.id)
@@ -186,11 +201,14 @@ export function createConversationActions({
         mediaMode: 'inlineData',
         wrapTextParts: true
     });
-    const showArchivedChatPreview = (id, event) => {
+    const showArchivedChatPreview = async (id, event) => {
         event?.stopPropagation();
         const currentConversations = liveConversationsBridge.getConversations();
         const conv = currentConversations.find(c => c.id === id);
         if (!conv) return;
+        if (isConversationUnloaded(id)) {
+            try { await ensureConversationsLoaded([id]); } catch (error) { console.error('The conversation could not be read.', error); return; }
+        }
         ALL_ELEMENTS.viewArchivedTitle.textContent = conv.title;
         const contentContainer = ALL_ELEMENTS.viewArchivedContent;
         archivedConversationViewRenderer.renderConversationMessages({conversation:conv,contentContainer,emptyHTML:'<p class="text-center text-[var(--text-secondary)]">No messages in this archived chat.</p>'});

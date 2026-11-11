@@ -3,7 +3,9 @@
 // of each conversation is chosen as for the curator after a reply: the person's choice, the cheap model of the provider of the conversation's model, or that model itself.
 
 import { pickCuratorModel } from '../../../data/memory-curator.js';
-import { REBUILD, pickConversations, rebuildFromHistory } from '../../../data/memory-rebuild.js';
+import { REBUILD, eligible, pickConversations, rebuildFromHistory } from '../../../data/memory-rebuild.js';
+import { ensureConversationsLoaded } from '../kernel/on-demand-loading.js';
+import { isStub, messageCountOf } from '../kernel/conversation-stub.js';
 import { tidyNotes } from './page-tidy.js';
 import { scopedView } from '../memory-notes/scope.js';
 
@@ -58,12 +60,19 @@ export function createRebuildController({ getStore, getConversations, getConfig,
     return runner({ modelId: model.id, prompt });
   };
 
+  // Which conversations are read depends on what was said in them, which a stub does not hold: the newest ones (twice as many as will be read, so that the ones with nothing to
+  // read do not leave a gap) are brought into memory first. They are let go of again by the loader a minute after.
+  const prepare = async (skip) => {
+    const newest = [...(getConversations() || [])].filter(eligible).sort((left, right) => String(right.lastUpdatedAt || right.createdAt || '').localeCompare(String(left.lastUpdatedAt || left.createdAt || ''))).slice(0, (skip + REBUILD.conversations) * 2);
+    await ensureConversationsLoaded(newest.filter(isStub).map((conversation) => conversation.id));
+  };
   async function run({ clearFirst, skip }) {
     // The memory of the account is built from the chats outside the projects that keep their notes for themselves (getConversations leaves those out); the notes of those projects are not touched.
     const store = scopedView(getStore(), '');
     if (!store?.isLoaded()) return set({ status: 'error', error: 'not_loaded' });
     if (state.status === 'running') return state;
     stopRequested = false;
+    await prepare(skip).catch((error) => logger.warn?.('The conversations to read could not be brought in.', error));
     set({ status: 'running', done: 0, total: pickConversations(getConversations(), { skip }).length, added: skip ? state.added : 0, skip, error: '' });
     try {
       const baseAdded = skip ? state.added : 0;
@@ -94,7 +103,8 @@ export function createRebuildController({ getStore, getConversations, getConfig,
       return () => listeners.delete(listener);
     },
     /** How many conversations there are to read (the newest 30 are read at a time). */
-    available: (skip = 0) => pickConversations(getConversations(), { skip, limit: REBUILD.conversations }).length,
+    // (A stub holds no messages to judge by: it counts when it has any, which is the most it can tell.)
+    available: (skip = 0) => Math.max(0, Math.min(REBUILD.conversations, (getConversations() || []).filter((conversation) => (conversation?.__stub ? eligible(conversation) && messageCountOf(conversation) > 0 : pickConversations([conversation]).length > 0)).length - skip)),
     /** Reads the newest conversations; `clearFirst` empties the notes before (what the person deleted stays deleted). */
     start: async ({ clearFirst = false } = {}) => {
       // Adding to the notes (not clearing them) can be left to the server; anything else, and a server that does not take it, is made here.
@@ -116,6 +126,7 @@ export function createRebuildController({ getStore, getConversations, getConfig,
       if (!store?.isLoaded() || state.status === 'running') return false;
       const settings = store.getSettings();
       if (!settings.use || !settings.learn || settings.paused || settings.rebuiltAt || scopedView(store, '').getNotes().length) return false;
+      await prepare(0).catch(() => {});
       if (!pickConversations(getConversations(), { limit: REBUILD.conversations }).length) return false;
       if (typeof getModelRunner() !== 'function') return false;
       const current = models.find((model) => model.id === getConfig()?.memoryModelId);

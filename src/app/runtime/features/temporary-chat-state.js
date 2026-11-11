@@ -1,4 +1,5 @@
 export const EPHEMERAL_RETENTION_MODE = 'ephemeral';
+import { messageCountOf } from '../kernel/conversation-stub.js';
 export const PERSISTENT_RETENTION_MODE = 'persistent';
 
 export function isEphemeralConversation(conversation = {}) {
@@ -15,7 +16,7 @@ export function canCaptureConversationMessage(conversation = {}, message) {
 // The empty chat the app opens for the next message is not kept: the next start removes it and opens a new one anyway (startNewChat),
 // so storing it only made the stored workspace differ at every start.
 export function isEmptyTemporaryConversation(conversation = {}) {
-  return conversation?.isTemporary === true && !(conversation.messages?.length > 0);
+  return conversation?.isTemporary === true && !(messageCountOf(conversation) > 0);
 }
 
 export function createPersistableAppDataSnapshot(snapshot = {}) {

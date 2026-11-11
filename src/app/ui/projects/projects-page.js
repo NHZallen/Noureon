@@ -3,14 +3,12 @@
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
 import { cameraAvailable, openCameraDialog } from './project-camera.js';
-import { liftSandboxRunBlock } from '../sandbox/sandbox-run-block.js';
-import { stripCitationMarkers } from '../citations/citation-model.js';
-import { plainMarkdown } from '../citations/plain-text.js';
 import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, openSourceUrlSheet, sourceFailureText } from './project-sheets.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
 import { sourceUrlHost, sourceUrlIcon } from '../../../data/project-source-url.js';
 import { pictureOf } from '../../runtime/projects/project-pieces.js';
+import { previewOfConversation } from '../../runtime/projects/chat-preview.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
 let current = null;
@@ -30,18 +28,7 @@ const headingOf = (document, className, level = 1) => {
   return node;
 };
 
-// What a chat says, as the list of the chats of a project shows it: the last message that has words, without the record of what the model did (the ```noureon-run block at the start of a reply),
-// the markers that cite sources, the files that went with it, or the marks of Markdown.
-const previewOf = (conversation) => {
-  const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const raw = (messages[index]?.parts || []).map((part) => part?.text || '').join('\n');
-    const { run, text: said } = liftSandboxRunBlock(raw);
-    const text = plainMarkdown(stripCitationMarkers(said, run?.sources).replace(/(`{3,})file[^\n]*\n[\s\S]*?(?:\1`*|$)/g, ' ')).replace(/\s+/g, ' ').trim();
-    if (text) return text.slice(0, 160);
-  }
-  return '';
-};
+const previewOf = previewOfConversation;
 
 /**
  * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id } (with `back` when it is the way back from a chat of the project).

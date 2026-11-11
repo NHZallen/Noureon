@@ -6,6 +6,7 @@ import { createSettingsDesktopSectionHelper } from './settings-desktop-section-h
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
 import { createLazyFunctions } from '../kernel/lazy-functions.js';
+import { setReplyPin } from '../kernel/on-demand-loading.js';
 import { createModelRequestRuntime } from '../shell/model-request-runtime.js';
 import { createSettingsModalLifecycle } from './settings-modal-lifecycle.js';
 
@@ -207,6 +208,7 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
     } = updateInputStateHelper;
     const updateSubmitButtonState = (isGenerating) => {
         const { submitButton, submitButtonIcon } = ALL_ELEMENTS;
+        setReplyPin(isGenerating, getActiveConversation()?.id); // the conversation a reply is written into stays in memory
         if (isGenerating) {
             submitButton.disabled = false;
             submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>`;

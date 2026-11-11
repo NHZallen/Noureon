@@ -5,6 +5,7 @@
 import { withWorkspaceStorageExclusive } from '../../sync/workspace-storage-coordinator.js';
 import { createConversationLoader } from './conversation-loader.js';
 import { conversationStubFlags } from './conversation-stub-flags.js';
+import { isStub } from './conversation-stub.js';
 
 let loader = null;
 let stopWork = () => {};
@@ -16,6 +17,31 @@ export const getConversationLoader = () => loader;
 /** Resolves when these conversations have their messages in memory. A no-op when nothing is on demand. */
 export const ensureConversationsLoaded = ids => (loader ? loader.ensureLoaded(ids) : Promise.resolve());
 
+/**
+ * Calls `visit(conversation, messages)` for each of these conversations, a batch at a time, without keeping the messages of the ones that are stubs. The way to
+ * read "every conversation" (search, statistics, exports): the memory it holds is one batch, not the whole workspace. Without on-demand loading it is a plain loop.
+ * Resolves false when `shouldStop()` ended it early.
+ */
+export async function forEachConversationMessages(conversations, visit, options = {}) {
+  if (loader) return loader.scanMessages(conversations, visit, options);
+  for (const conversation of Array.isArray(conversations) ? conversations : []) {
+    if (options.shouldStop?.()) return false;
+    // (A stub with no loader to read it cannot be read: its empty messages must not be taken for the conversation's.)
+    if (isStub(conversation)) throw new Error('A conversation kept as a stub cannot be read without the loader.');
+    visit(conversation, conversation.messages || []);
+  }
+  return true;
+}
+
+/** `pick(message)` for every message of these conversations (what a statistic needs of them), read a batch at a time. */
+export async function collectFromMessages(conversations, pick, options = {}) {
+  const collected = [];
+  const finished = await forEachConversationMessages(conversations, (conversation, messages) => {
+    for (const message of messages) collected.push(pick(message, conversation));
+  }, options);
+  return finished ? collected : null;
+}
+
 /** Whether this conversation is only a stub (its messages are not in memory). */
 export const isConversationUnloaded = id => Boolean(loader && loader.isUnloaded(id));
 
@@ -23,6 +49,24 @@ export const isConversationUnloaded = id => Boolean(loader && loader.isUnloaded(
 export function registerConversationInUse(provider) {
   inUseProviders.add(provider);
   return () => inUseProviders.delete(provider);
+}
+
+const pinned = new Set();
+
+/** A conversation a reply is being written into stays in memory until the reply is over, whichever conversation is shown meanwhile. */
+export const pinConversation = id => { if (id != null) pinned.add(id); };
+export const unpinConversation = id => { pinned.delete(id); };
+
+let pinnedForReply = null;
+/** Called as a reply starts and ends: the conversation shown when it starts is kept in memory until it ends. */
+export function setReplyPin(isGenerating, activeId) {
+  if (isGenerating && pinnedForReply === null) {
+    pinnedForReply = activeId ?? null;
+    pinConversation(pinnedForReply);
+  } else if (!isGenerating && pinnedForReply !== null) {
+    unpinConversation(pinnedForReply);
+    pinnedForReply = null;
+  }
 }
 
 const idle = () => new Promise(resolve => (typeof globalThis.requestIdleCallback === 'function' ? globalThis.requestIdleCallback(() => resolve(), { timeout: 2000 }) : setTimeout(resolve, 50)));
@@ -52,7 +96,7 @@ export function startOnDemandLoading({ store, appDataStore, normalizeRecord, kee
     getStore: () => store,
     getConversations: () => appDataStore.getConversations(),
     normalizeRecord,
-    inUse: conversation => [...inUseProviders].some(provider => provider(conversation)),
+    inUse: conversation => pinned.has(conversation.id) || [...inUseProviders].some(provider => provider(conversation)),
     stubFlags: conversationStubFlags,
     keep,
     logger

@@ -1,3 +1,4 @@
+import { forEachConversationMessages } from '../kernel/on-demand-loading.js';
 import { highlightText } from '../reply/search-text-formatting.js';
 import { createMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
@@ -111,18 +112,17 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
         return await callApiWithSchema(prompt, responseSchema);
     };
 
-    const calculateRelevanceScores = (weightedKeywords) => {
+    const calculateRelevanceScores = async (weightedKeywords, shouldStop) => {
         const conversations = getSearchableConversations();
         const results = [];
         const processedConvIds = new Set();
 
-        conversations.forEach(conv => {
+        await forEachConversationMessages(conversations, (conv, conversationMessages) => {
                 if (processedConvIds.has(conv.id)) return;
                 let totalScore = 0;
                 let maxPossibleScore = 0;
                 const foundKeywords = new Set();
                 let bestSnippet = '';
-                const conversationMessages = Array.isArray(conv.messages) ? conv.messages : [];
                 const totalMessages = Math.max(conversationMessages.length, 1);
                 weightedKeywords.forEach(kw => {
                     const keywordLower = kw.keyword.toLowerCase();
@@ -166,7 +166,7 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
                     });
                     processedConvIds.add(conv.id);
                 }
-            });
+            }, { shouldStop });
         return results;
     };
 
@@ -209,7 +209,10 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
         });
     };
 
+    let latestSearch = 0;
     const performSearchAndRenderResults = async () => {
+        const searchNumber = ++latestSearch;
+        const superseded = () => searchNumber !== latestSearch; // a newer search began: this one stops reading and shows nothing
         const conversations = getSearchableConversations();
         const query = ALL_ELEMENTS.modalSearchInput.value.trim();
         const scope = ALL_ELEMENTS.modalSearchScopeSelect.value;
@@ -227,15 +230,18 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
                 if (!weightedKeywords || weightedKeywords.length === 0) {
                     throw new Error(getText('keywordGenerationFailed', 'Keyword generation failed.'));
                 }
-                results = calculateRelevanceScores(weightedKeywords);
+                results = await calculateRelevanceScores(weightedKeywords, superseded);
+                if (superseded()) return;
             } catch (error) {
+                if (superseded()) return;
                 container.innerHTML = `<p class="text-center text-red-500">${escapeHTML(error.message)}</p>`;
                 return;
             }
         } else {
             const lowerCaseQuery = query.toLowerCase();
             const searchIn = scope === 'keyword-title' ? ['title'] : ['title', 'content'];
-            conversations.forEach(conv => {
+            try {
+              const finished = await forEachConversationMessages(conversations, (conv, conversationMessages) => {
                     let matchFound = false;
                     let titleHTML = escapeHTML(conv.title);
                     let snippetHTML = '';
@@ -244,7 +250,7 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
                         titleHTML = highlightText(conv.title, query);
                     }
                     if (searchIn.includes('content')) {
-                        for (const msg of (Array.isArray(conv.messages) ? conv.messages : [])) {
+                        for (const msg of (Array.isArray(conversationMessages) ? conversationMessages : [])) {
                             for (const part of msg.parts) {
                                 if (part.text && part.text.toLowerCase().includes(lowerCaseQuery)) {
                                     matchFound = true;
@@ -262,7 +268,13 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
                     if (matchFound) {
                         results.push({ conv, titleHTML, snippetHTML, score: 0 });
                     }
-                });
+                }, { shouldStop: superseded });
+              if (!finished) return;
+            } catch (error) {
+                if (superseded()) return;
+                container.innerHTML = `<p class="text-center text-red-500">${escapeHTML(error.message)}</p>`;
+                return;
+            }
         }
 
         if (scope === 'natural') {

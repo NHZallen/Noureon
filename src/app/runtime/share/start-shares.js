@@ -1,6 +1,7 @@
 // Starts sharing for the page (docs/superpowers/specs/2026-10-31-conversation-share-design.md): keeps the list of the person's shares, opens the dialog when a menu asks (the event
 // `astra:share-conversation`), draws the card "Shared items" in the Data tab and warns before a shared conversation is deleted. It is loaded after the page; a reply never waits for it.
 
+import { ensureConversationsLoaded } from '../kernel/on-demand-loading.js';
 import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
@@ -64,6 +65,7 @@ export function startShares({ document, window = globalThis.window, configAccess
     if (!conversation) return;
     if (!cloudOn()) { showNotification(text('csNeedCloud'), 'error'); return; }
     if (conversation.isTemporary) { showNotification(text('csTemporary'), 'error'); return; }
+    try { await ensureConversationsLoaded([conversationId]); } catch { showNotification(text('conversationReadFailed'), 'error'); return; }
     if (!(conversation.messages || []).some((message) => !message.deletedAt)) { showNotification(text('csEmpty'), 'error'); return; }
     if (!state.isLoaded()) await reload();
     await openShareDialog({

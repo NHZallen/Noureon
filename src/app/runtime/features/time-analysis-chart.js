@@ -1,14 +1,26 @@
 // The chart of when messages were sent (the dashboard's time analysis): a year, a month and a day to narrow it, drawn with Chart.js.
 
+import { collectFromMessages } from '../kernel/on-demand-loading.js';
 import { buildTimeDistributionChartData } from './time-distribution-chart-data.js';
 import { applyChartThemeDefaults } from '../../../utils/theme-colors.js';
 
 export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getConversations, runtimeConfigAccess, i18n, Chart }) {
     // The chart drawn last, destroyed before the next one is drawn.
     let timeDistChart = null;
-    const setupTimeAnalysis = () => {
+    // When each message was sent, for all the conversations (read from the stored records a batch at a time when conversations are loaded on demand). Kept for a minute,
+    // so that choosing a month and then a day does not read everything again.
+    let sentCache = null;
+    const sentMessages = () => {
+        if (!sentCache || Date.now() - sentCache.at > 60_000) {
+            sentCache = { at: Date.now(), promise: collectFromMessages(getConversations(), message => ({ createdAt: message.createdAt, role: message.role })).then(list => list || []) };
+            sentCache.promise.catch(() => { sentCache = null; });
+        }
+        return sentCache.promise;
+    };
+    const setupTimeAnalysis = async () => {
         const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
-        const allMessages = getConversations().flatMap(c => c.messages.map(m => new Date(m.createdAt)));
+        // (What the chart needs of a message is when it was sent and who sent it: those are kept, not the messages.)
+        const allMessages = (await sentMessages()).map(m => new Date(m.createdAt));
         const years = [...new Set(allMessages.map(d => d.getFullYear()))].sort((a,b) => b-a);
         const uiLanguage = runtimeConfigAccess.getUiLanguage();
         timeAnalysisYearSelect.innerHTML = `<option value="">${i18n[uiLanguage].all || '全部'}</option>`;
@@ -61,11 +73,12 @@ export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getC
         timeAnalysisDaySelect.addEventListener('change', updateTimeDistributionChart);
         updateTimeDistributionChart();
     };
-    const updateTimeDistributionChart = () => {
+    const updateTimeDistributionChart = () => drawTimeDistributionChart();
+    async function drawTimeDistributionChart() {
         const year = ALL_ELEMENTS.timeAnalysisYearSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisYearSelect.value) : null;
         const month = ALL_ELEMENTS.timeAnalysisMonthSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisMonthSelect.value) : null;
         const day = ALL_ELEMENTS.timeAnalysisDaySelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisDaySelect.value) : null;
-        const allMessages = getConversations().flatMap(c => c.messages);
+        const allMessages = await sentMessages();
         const lang = runtimeConfigAccess.getUiLanguage();
         const { chartType, label, labels, data } = buildTimeDistributionChartData({ messages: allMessages, year, month, day, text: i18n[lang] });
         const ctx = document.getElementById('time-distribution-chart').getContext('2d');
@@ -99,6 +112,6 @@ export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getC
                 }
             }
         });
-    };
+    }
     return { setupTimeAnalysis, updateTimeDistributionChart };
 }

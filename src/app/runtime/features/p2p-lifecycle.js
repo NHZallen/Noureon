@@ -1,3 +1,4 @@
+import { ensureConversationsLoaded } from '../kernel/on-demand-loading.js';
 import { createP2PScannerLifecycle } from './p2p-scanner-lifecycle.js';
 import { createReceivedDataLifecycle } from './received-data-lifecycle.js';
 
@@ -404,6 +405,23 @@ export function createP2PLifecycle({
     }
     if (!isCurrentConnection(operation, attempt)) return;
     const zip = new JSZipCtor();
+
+    // The conversations that go are read whole first (the ones kept only as stubs are brought in; a no-op when conversations are not loaded on demand).
+    if (operation.type !== 'astras') {
+      const sentFolderIds = getFolders().filter((folder) => operation.selectedIds.includes(folder.id)).flatMap((folder) => folder.conversationIds || []);
+      try {
+        await ensureConversationsLoaded([...sentFolderIds, ...operation.selectedIds]);
+      } catch (error) {
+        if (isCurrentConnection(operation, attempt)) {
+          reportVendorLoadFailure(error);
+          releaseOperationConnection(operation, attempt);
+          closeConnection(connection);
+          resetP2PUI();
+        }
+        return;
+      }
+      if (!isCurrentConnection(operation, attempt)) return;
+    }
 
     if (operation.type === 'astras') {
       const selectedAstras = getAstras().filter((astra) => operation.selectedIds.includes(astra.id));

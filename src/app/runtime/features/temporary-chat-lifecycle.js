@@ -1,3 +1,4 @@
+import { messageCountOf } from '../kernel/conversation-stub.js';
 import {
   EPHEMERAL_RETENTION_MODE,
   PERSISTENT_RETENTION_MODE,
@@ -193,7 +194,7 @@ export function createTemporaryChatLifecycle({
 
     root.querySelector('#temporary-chat-entry-button').addEventListener('click', () => {
       const conversation = getActiveConversation();
-      if (!conversation || (conversation.messages?.length || 0) > 0) return;
+      if (!conversation || messageCountOf(conversation) > 0) return;
       if (isEphemeralConversation(conversation)) {
         conversation.retentionMode = PERSISTENT_RETENTION_MODE;
         delete conversation.memoryAccessEnabled;
@@ -219,7 +220,7 @@ export function createTemporaryChatLifecycle({
     memoryMenu.querySelectorAll('[data-memory-enabled]').forEach(button => {
       button.addEventListener('click', () => {
         const conversation = getActiveConversation();
-        if (!conversation || !isEphemeralConversation(conversation) || conversation.messages?.length) return;
+        if (!conversation || !isEphemeralConversation(conversation) || messageCountOf(conversation)) return;
         conversation.memoryAccessEnabled = button.dataset.memoryEnabled === 'true';
         closeMemoryMenu();
         render();

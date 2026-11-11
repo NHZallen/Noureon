@@ -7,6 +7,7 @@ const COMPOSER_ID = 'input-bar-container';
 /**
  * deps: document, actions (prepareChat, abandonChat, sentChat), getActiveConversation(), getCurrentConversationId(), conversationExists(id), isInProject(id), loadChat(id).
  */
+import { messageCountOf } from '../kernel/conversation-stub.js';
 export function createProjectComposer({ document, actions, getActiveConversation, getCurrentConversationId, conversationExists = () => false, isInProject = () => false, loadChat }) {
   const win = document.defaultView || globalThis;
   let box = null; // the element itself: it is found even while it is out of the document
@@ -26,7 +27,7 @@ export function createProjectComposer({ document, actions, getActiveConversation
   const onSubmit = () => {
     win.setTimeout(() => {
       const chat = getActiveConversation?.();
-      if (!held || chat?.id !== held.chatId || !(chat.messages || []).length) return;
+      if (!held || chat?.id !== held.chatId || !messageCountOf(chat)) return;
       actions.sentChat(held.chatId);
       const sentFrom = held;
       held = null;

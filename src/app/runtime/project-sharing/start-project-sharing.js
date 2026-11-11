@@ -2,6 +2,7 @@
 // `noureon:project-members` from the menu of a project) and the invitation a person opens (noureon.com/join/<code>, kept by the start of the page until a signed-in cloud account is ready).
 // It is loaded after the page; a reply never waits for it.
 
+import { messageCountOf } from '../kernel/conversation-stub.js';
 import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { SERVICES, getService } from '../services.js';
@@ -129,7 +130,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
   const rowOf = (chat) => ({ id: chat.id, title: chat.title || '', lastUpdatedAt: chat.updatedAt, createdAt: chat.createdAt, messages: chat.messages || [], pinned: false, shared: true, mine: chat.authorId === me(), authorId: chat.authorId, authorName: chat.authorName });
   // The chats of a shared project: the person's own (the copies they keep, which are newer than what the cloud has) and everybody else's (as the server gave them).
   const chatsOf = (projectId) => {
-    const own = (dataStore.getConversations() || []).filter((entry) => entry.sharedProject?.id === projectId && !entry.deletedAt && !entry.archived && (entry.messages || []).length > 0).map((entry) => ({ ...entry, shared: true, mine: true }));
+    const own = (dataStore.getConversations() || []).filter((entry) => entry.sharedProject?.id === projectId && !entry.deletedAt && !entry.archived && messageCountOf(entry) > 0).map((entry) => ({ ...entry, shared: true, mine: true }));
     const ids = new Set(own.map((entry) => entry.id));
     const others = (chatsByProject.has(projectId) ? chatsByProject.get(projectId) : keptChats(projectId)).filter((entry) => !ids.has(entry.id)).map(rowOf);
     return [...own, ...others].sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)) || stampOf(right) - stampOf(left));
@@ -261,7 +262,7 @@ export function startProjectSharing({ document, window = globalThis.window, conf
       if (!sharedFolders.isOwned(id) || sharedFolders.has(id)) return null;
       const others = chatsByProject.has(id) ? chatsByProject.get(id).filter((entry) => entry.authorId !== me()) : snapshots.get(id) ? keptChats(id) : null;
       if (!others) return sharedFolders.ownedCount(id);
-      const mine = (dataStore.getConversations() || []).filter((entry) => entry.folderId === id && !entry.deletedAt && !entry.archived && (entry.messages || []).length > 0).length;
+      const mine = (dataStore.getConversations() || []).filter((entry) => entry.folderId === id && !entry.deletedAt && !entry.archived && messageCountOf(entry) > 0).length;
       return mine + others.length;
     },
     moveOut: async (id, conversationId) => {

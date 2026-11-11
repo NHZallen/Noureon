@@ -1,6 +1,7 @@
 // What the page of the projects does to the workspace (docs/superpowers/specs/2026-10-31-projects-design.md): a project is a folder of the workspace, so these work on the folders and on the
 // `folderId` of the conversations, as the sidebar's folders do. The page (ui/projects/) only asks; saving, the cloud and the sidebar are done here.
 
+import { messageCountOf } from '../kernel/conversation-stub.js';
 import { FOLDER_SVGS } from '../features/folder-metadata.js';
 import { FOLDER_COLORS } from '../shell/runtime-ui-colors.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
@@ -286,7 +287,7 @@ export function createProjectActions({
   function abandonChat(conversationId) {
     const conversation = conversations().find((entry) => entry.id === conversationId);
     prepared.delete(conversationId);
-    if (!conversation || (conversation.messages || []).length > 0) return false;
+    if (!conversation || messageCountOf(conversation) > 0) return false;
     if (conversation.sharedProject) { delete conversation.sharedProject; return true; }
     const folder = folderOf(conversation.folderId);
     if (folder) folder.conversationIds = (folder.conversationIds || []).filter((id) => id !== conversationId);

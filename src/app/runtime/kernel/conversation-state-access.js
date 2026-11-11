@@ -1,8 +1,13 @@
+import { registerConversationInUse } from './on-demand-loading.js';
+
 export function createConversationStateAccess({
   getConversations,
   getCurrentConversationId,
   setCurrentConversationId
 }) {
+  // With on-demand loading, the conversation that is shown stays in memory.
+  registerConversationInUse((conversation) => conversation?.id === getCurrentConversationId());
+
   const getConversationById = (id) => {
     if (id == null) return undefined;
 

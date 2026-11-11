@@ -196,3 +196,22 @@ P2（`load()` 實際回傳存根、`ensureConversationsLoaded`、LRU 收回、�
 - 測試：`tests/cloud-sync-v2-journal.test.js` 新增 4 項（沒變動不讀任何對話、只讀有變動的那一個且存根不被上傳或刪除、基準遺失時完整讀且不丟資料），`tests/cloud-live-stub-merge.test.js`、`tests/conversation-loader.test.js`。全部 5171 項測試、lint、build、各項檢查通過。
 
 **還沒做**：P3 到 P5（讀 `.messages` 的各處改成存根安全）、同步基準瘦身（`uploadBaseline` 改指紋）、「本機只留最近的、其餘從雲端拉」。在 P3 到 P5 完成前**不要對真實帳號開 `?ws3=1`**（會有畫面讀到空訊息）。
+
+### 13.5 做完的：P3 到 P5 的第一批（旗標仍預設關；2026-11-12，同日）
+
+**共用零件**：`messageCountOf`（存根給原本的訊息數）、`pinConversation`／`setReplyPin`（回覆進行中的對話不被收回）、目前顯示的對話登記為「使用中」（`conversation-state-access.js`）、載入器的 `scanMessages`（分批讀、不留存）、`forEachConversationMessages`／`collectFromMessages`（沒有載入器時是普通迴圈；**有存根卻沒有載入器會丟錯，不會把空訊息當成內容**）、存根旗標多一個 `preview`（專案對話列表的預覽文字）。
+
+**已改成存根安全的地方**
+- 開對話：`loadChat` 先讀完整對話再切換（最新的請求優先、失敗有五語通知 `conversationReadFailed`）；封存檢視同理。
+- 側邊歷史／專案列表：預覽改用 `__flags.preview`；`startNewChat`、暫時對話清理、`abandonChat`、專案分享列表、`latestSingleModelConversation` 改用 `messageCountOf`（原本會把有內容的存根當成空對話而刪掉）。
+- 全文搜尋：串流掃描，新搜尋開始時舊的停止；使用量圖不需要訊息；時間分析只收集時間與角色（一分鐘快取）。
+- 記憶：歷史索引不會用存根清空既有條目；背景暖機分批讀存根；`complete()` 為假時（有存根還沒看過）**不修剪向量**（本機與雲端都是），多媒體片段改成延遲讀取（`loadMedia`）；重建記憶先把最新的幾十個對話讀進來。
+- 備份匯出（原本會輸出空對話）、P2P 傳送、專案影片來源、分享對話：先讀完整。
+- 測試：`tests/history-index-stubs.test.js`、`tests/conversation-loader.test.js` 新增 `scanMessages`。全部 5175 項測試與 lint、build、check:sizes／shell／server、npm audit 通過。
+
+**還沒做（開 `?ws3=1` 前要補完或由 Allen 在自己帳號先試）**
+- 引用、分支、匯出單一對話、垃圾桶檢視、`auth-import-lifecycle`、資料夾批次操作等「用 id 找別的對話」的入口還沒逐一加 `ensureConversationsLoaded`（目前只改了：開對話、封存檢視、分享、備份匯出、P2P、專案影片、重建記憶）。
+- 「掃描 `.messages` 的防呆測試」還沒寫；目前靠人工清單。
+- 記憶向量的 `estimate()`、專案頁的檔案來源預覽、`project-snapshots` 等還沒對存根驗證。
+- 同步基準瘦身、「本機只留最近的、其餘從雲端拉」都還沒做。
+- 以上都只用假儲存與假雲端驗證過；真實雲端、多分頁、真實大量資料沒有量測過。

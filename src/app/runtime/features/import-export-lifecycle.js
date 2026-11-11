@@ -1,3 +1,4 @@
+import { ensureConversationsLoaded } from '../kernel/on-demand-loading.js';
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
 import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
@@ -255,6 +256,17 @@ export function createImportExportLifecycle({
     elements.confirmExportBtn.disabled = true;
     setButtonBusy(elements.confirmExportBtn, true);
 
+    // A backup holds every conversation whole: the ones kept only as stubs are brought in first (and let go of by the loader after).
+    try {
+      await ensureConversationsLoaded((rawData.conversations || []).map((conversation) => conversation.id));
+    } catch (error) {
+      console.error('Some conversations could not be read for the backup.', error);
+      showNotification(text('exportReadFailed', 'Some conversations could not be read, so the backup was not made.'), 'error');
+      elements.confirmExportBtn.disabled = false;
+      setButtonBusy(elements.confirmExportBtn, false);
+      elements.confirmExportBtn.textContent = originalBtnText;
+      return;
+    }
     const dataClone = JSON.parse(JSON.stringify(rawData));
     Object.assign(dataToExport, dataClone);
 

@@ -1,9 +1,12 @@
 // The search over the past conversations of this page (memory-notes/history-index.js): made from the conversations the page holds, brought up to date when it is used (only what changed is cut
 // again), with no model and nothing sent anywhere. The slip of the memory and the tool `search_memory` use it. Temporary conversations, deleted ones and the one being written are left out.
 
+import { forEachConversationMessages } from '../kernel/on-demand-loading.js';
 import { summarizeFileBlocks } from '../../ui/files/file-history-compaction.js';
 import { createHistoryIndex } from '../memory-notes/history-index.js';
-import { mediaPiecesOfAll } from '../memory-notes/media-pieces.js';
+import { mediaPiecesOf, searchable as mediaSearchable } from '../memory-notes/media-pieces.js';
+import { ensureConversationsLoaded } from '../kernel/on-demand-loading.js';
+import { messageCountOf } from '../kernel/conversation-stub.js';
 
 import { canSearchConversation } from '../memory-notes/scope.js';
 
@@ -12,8 +15,38 @@ export function createPageHistory({ getConversations, getProjectOf = () => '' })
   const allowFor = (scopeId = '', projectId = '') => (conversationId) => canSearchConversation({ scopeId, projectId }, getProjectOf(conversationId));
   const withAllow = ({ scopeId = '', projectId = '', ...options } = {}) => ({ ...options, allow: allowFor(scopeId, projectId) });
   // A file the person attached or a reply made is in the text as a block: the index sees a short summary of it, not the whole body.
-  const index = createHistoryIndex({ clean: summarizeFileBlocks });
-  const fresh = () => index.update(getConversations() || []);
+  const index = createHistoryIndex({ clean: summarizeFileBlocks, scan: forEachConversationMessages });
+  // The conversations that are only stubs are cut in the background (a batch at a time); what is asked meanwhile is answered from what the index holds.
+  let warming = null;
+  const warm = () => {
+    if (warming) return;
+    const conversations = getConversations() || [];
+    warming = Promise.all([index.warm(conversations), warmMedia(conversations)]).catch(() => 0).finally(() => { warming = null; });
+  };
+  // The files of the conversations as pieces for the vectors. A conversation kept as a stub shows the pieces it had (without the bytes: `loadMedia` reads the conversation
+  // when the piece has to be sent); until a stub has been looked at once, the set is not complete, and the vectors of what is missing from it must not be thrown away.
+  const mediaMeta = new Map(); // conversation id -> { signature, pieces }
+  const mediaSignature = (conversation) => `${messageCountOf(conversation)}|${conversation.lastUpdatedAt || ''}`;
+  const lazyPiece = ({ media, ...piece }) => ({
+    ...piece,
+    loadMedia: async () => {
+      await ensureConversationsLoaded([piece.conversationId]);
+      const conversation = (getConversations() || []).find((entry) => entry?.id === piece.conversationId);
+      return conversation ? mediaPiecesOf(conversation).find((entry) => entry.id === piece.id)?.media || null : null;
+    }
+  });
+  const warmMedia = (conversations) => {
+    const todo = conversations.filter((conversation) => conversation?.__stub && mediaSearchable(conversation) && !mediaMeta.has(conversation.id));
+    if (!todo.length) return Promise.resolve(0);
+    return forEachConversationMessages(todo, (conversation, messages) => {
+      mediaMeta.set(conversation.id, { signature: mediaSignature(conversation), pieces: mediaPiecesOf({ ...conversation, messages }).map(lazyPiece) });
+    }).then(() => todo.length);
+  };
+  const fresh = () => {
+    const count = index.update(getConversations() || []);
+    warm();
+    return count;
+  };
   let vectors = null;
   return {
     /** For the slip: at most two pieces from two other conversations that clearly bear on the question. */
@@ -32,7 +65,22 @@ export function createPageHistory({ getConversations, getProjectOf = () => '' })
       return index.pieces();
     },
     /** The files of the conversations (pictures, videos, sounds, documents) as pieces for the vectors; the keyword index does not hold them. */
-    mediaPieces: () => mediaPiecesOfAll(getConversations()),
+    mediaPieces() {
+      const out = [];
+      for (const conversation of getConversations() || []) {
+        if (!mediaSearchable(conversation)) continue;
+        if (conversation.__stub) {
+          out.push(...(mediaMeta.get(conversation.id)?.pieces || []));
+          continue;
+        }
+        const pieces = mediaPiecesOf(conversation);
+        mediaMeta.set(conversation.id, { signature: mediaSignature(conversation), pieces: pieces.map(lazyPiece) });
+        out.push(...pieces);
+      }
+      return out;
+    },
+    /** Whether every text and every file of every conversation is among the pieces (false while a stub has not been looked at: the vectors of the missing ones are kept). */
+    complete: () => (getConversations() || []).every((conversation) => !conversation?.__stub || !mediaSearchable(conversation) || (mediaMeta.has(conversation.id) && index.has(conversation.id))),
     /** The search by meaning, when the person turned it on (page-vectors.js); the tool then puts it together with the keywords. */
     setVectors(value) { vectors = value || null; },
     /** For the tool, async: the keyword hits, and when the search by meaning is on, the nearest in meaning, put together. Always resolves a list. */

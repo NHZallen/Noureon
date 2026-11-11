@@ -13,7 +13,7 @@ export const MAX_MEDIA_CHARS = 12 * 1024 * 1024;
 export const mediaKindOf = (mimeType) => KINDS.find(([prefix]) => String(mimeType || '').toLowerCase().startsWith(prefix))?.[1] || '';
 
 const squash = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
-const searchable = (conversation) => Boolean(conversation?.id) && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral';
+export const searchable = (conversation) => Boolean(conversation?.id) && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral';
 
 /** [{ id, conversationId, at, role, text (the label), media: { mimeType, data, kind }, hash }] of one conversation. */
 export function mediaPiecesOf(conversation) {

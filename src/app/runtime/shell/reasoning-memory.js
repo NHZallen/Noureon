@@ -5,6 +5,7 @@
 const levelsOf = (conversation) => (conversation?.reasoningEfforts && typeof conversation.reasoningEfforts === 'object' ? conversation.reasoningEfforts : {});
 
 /** What this conversation has chosen for the model: the level it remembers for it (what it has now, when the model is the one it is on), or null. */
+import { messageCountOf } from '../kernel/conversation-stub.js';
 export function rememberedEffort(conversation, modelId) {
   const own = levelsOf(conversation)[modelId];
   if (own) return own;
@@ -42,7 +43,7 @@ export function latestSingleModelConversation(conversations, { models = [] } = {
   const time = (conversation) => Date.parse(conversation.lastUpdatedAt || conversation.updatedAt || conversation.createdAt || '') || 0;
   return (Array.isArray(conversations) ? conversations : [])
     .filter((conversation) => conversation
-      && Array.isArray(conversation.messages) && conversation.messages.length > 0
+      && messageCountOf(conversation) > 0
       && !conversation.deletedAt && !conversation.archived
       && conversation.retentionMode !== 'ephemeral'
       && !conversation.council?.enabled

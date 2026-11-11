@@ -36,3 +36,6 @@ export function refreezeStubs(conversations) {
   for (const conversation of conversations || []) if (isStub(conversation)) conversation.messages = EMPTY_MESSAGES;
   return conversations;
 }
+
+/** How many messages a conversation has, whether it is whole or a stub (a stub keeps the number it had; its `messages` is empty). */
+export const messageCountOf = conversation => (isStub(conversation) ? Number(conversation.__count) || 0 : (Array.isArray(conversation?.messages) ? conversation.messages.length : 0));

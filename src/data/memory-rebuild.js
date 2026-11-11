@@ -9,7 +9,7 @@ import { categoriesOf } from '../app/runtime/memory-notes/categories.js';
 export const REBUILD = Object.freeze({ conversations: 30, userMessages: 12, maxChars: 6000, maxFailuresInARow: 3 });
 
 const textOf = (message) => (Array.isArray(message?.parts) ? message.parts.filter((part) => typeof part?.text === 'string').map((part) => part.text).join('\n') : '');
-const eligible = (conversation) => Boolean(conversation?.id) && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral';
+export const eligible = (conversation) => Boolean(conversation?.id) && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral';
 const messageId = (message, index) => String(message.id || (message.createdAt ? `t:${message.createdAt}` : `i:${index}`));
 
 /** The person's last messages of a conversation as the curator reads them: { messages: [{ id, text, at }], current: { id, text, at } with the messages numbered, oldest first }, or null when there is nothing worth reading. */

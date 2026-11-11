@@ -36,9 +36,9 @@ export function cutIntoPieces(text, size = PIECE_CHARS) {
  * The pieces of one conversation: [{ id, conversationId, at, role, text }]. `clean(text)` may shorten a text first (the page gives it a summary of the files in a message, so that the body of an
  * attached file is not indexed).
  */
-export function piecesOf(conversation, clean = (text) => text) {
+export function piecesOf(conversation, clean = (text) => text, messages = conversation?.messages) {
   const out = [];
-  (conversation?.messages || []).forEach((message, index) => {
+  (messages || []).forEach((message, index) => {
     if (message?.role !== 'user' && message?.role !== 'model') return;
     cutIntoPieces(clean(textOf(message))).forEach((text, part) => {
       if (out.length < MAX_PIECES_PER_CONVERSATION) out.push({ id: `${conversation.id}:${index}:${part}`, conversationId: conversation.id, at: message.createdAt || conversation.lastUpdatedAt || conversation.createdAt || '', role: message.role, text });
@@ -48,13 +48,15 @@ export function piecesOf(conversation, clean = (text) => text) {
 }
 
 const searchable = (conversation) => Boolean(conversation?.id) && !conversation.deletedAt && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral';
-const signatureOf = (conversation) => `${conversation.messages?.length || 0}|${conversation.lastUpdatedAt || ''}|${conversation.deletedAt || ''}|${conversation.isTemporary ? 't' : ''}`;
+// (A conversation kept only as a stub has no messages in memory; it keeps the number it had, so it reads as the conversation it was.)
+const countOf = (conversation) => (conversation.__stub ? Number(conversation.__count) || 0 : conversation.messages?.length || 0);
+const signatureOf = (conversation) => `${countOf(conversation)}|${conversation.lastUpdatedAt || ''}|${conversation.deletedAt || ''}|${conversation.isTemporary ? 't' : ''}`;
 
 /**
  * The index. `update(conversations)` takes the conversations as they are now: the ones that changed are cut again, the ones gone (or deleted, or temporary) leave. `search(question, options)` gives
  * [{ conversationId, at, role, text, norm, strong }], the best first, at most one piece for each conversation.
  */
-export function createHistoryIndex({ clean = (text) => text } = {}) {
+export function createHistoryIndex({ clean = (text) => text, scan = null } = {}) {
   const byConversation = new Map();
   let bm25 = null;
   let all = [];
@@ -74,6 +76,8 @@ export function createHistoryIndex({ clean = (text) => text } = {}) {
         seen.add(conversation.id);
         const signature = signatureOf(conversation);
         if (byConversation.get(conversation.id)?.signature === signature) continue;
+        // A stub is not cut from the messages it does not have (that would empty it); it keeps what the index holds until `warm` reads it.
+        if (conversation.__stub) continue;
         byConversation.set(conversation.id, { signature, pieces: piecesOf(conversation, clean) });
         dirty = true;
       }
@@ -84,6 +88,26 @@ export function createHistoryIndex({ clean = (text) => text } = {}) {
         }
       }
       return byConversation.size;
+    },
+    /**
+     * Cuts the conversations that are only stubs and that the index does not hold yet (or holds from an older state), reading each from its record a batch at a time
+     * (`scan(conversations, visit)`, kernel/on-demand-loading.js) without keeping the messages. Resolves how many were cut.
+     */
+    async warm(conversations) {
+      if (!scan) return 0;
+      const todo = (conversations || []).filter((conversation) => conversation?.__stub && searchable(conversation) && byConversation.get(conversation.id)?.signature !== signatureOf(conversation));
+      if (!todo.length) return 0;
+      let cut = 0;
+      await scan(todo, (conversation, messages) => {
+        byConversation.set(conversation.id, { signature: signatureOf(conversation), pieces: piecesOf(conversation, clean, messages) });
+        cut += 1;
+      });
+      if (cut) dirty = true;
+      return cut;
+    },
+    /** Whether the index holds this conversation (a stub that has not been read yet is not held). */
+    has(conversationId) {
+      return byConversation.has(conversationId);
     },
     remove(conversationId) {
       if (byConversation.delete(conversationId)) dirty = true;

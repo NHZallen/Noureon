@@ -3,6 +3,7 @@
 // (`projectPassages`), each with its id `src:<source>:<number>` and the hash of its text. The text of a file is read here the way the tools read it (project-files-access.js, loaded only when
 // there is something to read). Page only.
 
+import { ensureConversationsLoaded } from '../kernel/on-demand-loading.js';
 import { mediaKindOfMime } from '../../../data/project-media.js';
 
 import { mediaPieceHash, projectPassages } from '../../../data/project-files-tool.js';
@@ -109,6 +110,8 @@ export function createProjectPieces({ getFolders, getConversations = () => [], l
     }
     // The videos attached to the messages (at most one request's worth of windows each, like a video of a project).
     attached.clear();
+    // A conversation kept only as a stub says in its flags whether it has a video; those are brought in (one at a time would do, they are let go of again after).
+    await ensureConversationsLoaded((getConversations() || []).filter((conversation) => conversation?.__stub && conversation.__flags?.video).map((conversation) => conversation.id)).catch((error) => logger.warn?.('The conversations with videos could not be read.', error));
     for (const { source, data } of chatVideoSourcesOf(getConversations())) {
       attached.set(source.file.hash, data);
       try { pieces.push(...await chatSources.piecesFor(source, 'video')); } catch (error) { logger.warn?.('A video of a message could not be cut for the vectors.', error?.message || error); }
