@@ -27,6 +27,8 @@ const watch = (card) => {
         timers.delete(target);
         continue;
       }
+      // A card on or near the screen loads its picture now, whatever the browser's own idea of near is.
+      target.querySelector?.('img[loading="lazy"]')?.setAttribute('loading', 'eager');
       if (timers.has(target) || !target.classList.contains('is-pending')) continue;
       timers.set(target, setTimeout(() => {
         timers.delete(target);

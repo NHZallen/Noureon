@@ -71,6 +71,11 @@
 /* The size the picture will have: as wide as the card may be, and no taller than the picture is allowed to be (70% of the screen). */
 .generated-image-card.is-pending { width: min(100%, 48rem, calc(70vh * var(--picture-ratio, 1))); aspect-ratio: var(--picture-ratio, 1); }
 .generated-image-card.is-pending img { opacity: 0; }
+/* While it waits, the picture's box is the whole card, not a point at its corner: a browser loads a lazy picture when its box comes near the screen, and the corner of a card that is only
+   half on the screen (its top is above it) is not near, so the picture of a card the person has stopped at never came. */
+.generated-image-card.is-pending { vertical-align: top; } /* (with nothing in the line, a card sits on the baseline and leaves the gap under it that the picture, once it comes, does not) */
+.generated-image-card.is-pending .generated-image-preview-btn,
+.generated-image-card.is-pending img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .generated-image-card.is-waiting::before {
     content: '';
     position: absolute;
