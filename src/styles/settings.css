@@ -640,8 +640,9 @@ body svg {
     height: 1.25rem !important;
     margin: 0;
     border: 0 !important;
-    border-radius: 0.375rem;
-    background: color-mix(in srgb, var(--text-primary) 16%, transparent);
+    min-height: 0 !important;
+    border-radius: 0.375rem !important;
+    background: color-mix(in srgb, var(--text-primary) 16%, transparent) !important;
     outline: none;
     cursor: pointer;
     transition: background-color 120ms var(--ease-out);
@@ -649,7 +650,7 @@ body svg {
 
 #export-data-modal input[type="checkbox"]:checked,
 #custom-dialog-modal input[type="checkbox"]:checked {
-    background: var(--text-primary);
+    background: var(--text-primary) !important;
 }
 
 #export-data-modal input[type="checkbox"]:checked::after,
