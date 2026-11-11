@@ -17,7 +17,7 @@
 .psh-link-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
 .psh-link-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .pj-chip { height: 2rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--chat-bg); color: var(--text-primary); font-size: var(--pj-small, 0.8125rem); }
-.pj-chip:hover { background: var(--hover-bg); }
+@media (hover: hover) { .pj-chip:hover { background: var(--hover-bg); } }
 .psh-members-head { display: flex; justify-content: space-between; }
 .psh-members { display: grid; }
 .psh-member { display: grid; grid-template-columns: 2.25rem 1fr auto; gap: 0.75rem; align-items: center; padding: 0.5rem 0; }
@@ -44,7 +44,7 @@
 .psh-text { width: 100%; min-height: 10rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--input-field-bg); color: var(--text-primary); font: inherit; resize: vertical; }
 .pj-members-slot { display: inline-flex; align-items: center; }
 .psh-stack { display: inline-flex; align-items: center; gap: 0; padding: 0.15rem 0.6rem 0.15rem 0.25rem; border: 0; border-radius: 1.5rem; background: transparent; color: var(--text-primary); }
-.psh-stack:hover { background: var(--hover-bg); }
+@media (hover: hover) { .psh-stack:hover { background: var(--hover-bg); } }
 .psh-stack .psh-avatar { width: 1.75rem; height: 1.75rem; margin-left: -0.5rem; border: 2px solid var(--modal-bg); font-size: var(--pj-small, 0.8125rem); }
 .psh-stack .psh-avatar:first-child { margin-left: 0; }
 .psh-stack-count { margin-left: 0.5rem; color: var(--text-secondary); font-size: var(--pj-small, 0.8125rem); }
@@ -88,9 +88,9 @@
 
 /* The panel at the right of someone else's chat: the app's own side panel (Timeline | Sources), drawn with its classes (styles/citations.css); this is only where it sits. */
 .psh-viewer { position: relative; overflow: hidden; }
-.psh-history-scrim { position: absolute; inset: 0; z-index: 2; background: color-mix(in srgb, var(--chat-bg) 38%, transparent); opacity: 0; visibility: hidden; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.3s; }
+.psh-history-scrim { position: absolute; inset: 0; z-index: 2; background: color-mix(in srgb, var(--chat-bg) 38%, transparent); opacity: 0; visibility: hidden; transition: opacity 0.3s var(--ease-out), visibility 0s 0.3s; }
 .psh-history-scrim.visible { opacity: 1; visibility: visible; transition-delay: 0s; }
-.psh-history { position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-direction: column; width: min(18rem, 100%); background: var(--sidebar-bg); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-lg, none); transform: translateX(100%); visibility: hidden; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.3s; }
+.psh-history { position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-direction: column; width: min(18rem, 100%); background: var(--sidebar-bg); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-lg, none); transform: translateX(100%); visibility: hidden; transition: transform 0.3s var(--ease-out), visibility 0s 0.3s; }
 .psh-history.visible { transform: translateX(0); visibility: visible; transition-delay: 0s; }
 .psh-history-list, .psh-history-sources { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 @media (min-width: 768px) { .psh-history { width: min(25rem, 100%); } }

@@ -22,11 +22,9 @@
     transition: opacity 0.3s ease-out;
     pointer-events: none;
 }
-.spotlight-effect:hover::before {
-    opacity: 1;
+@media (hover: hover) { .spotlight-effect:hover::before { opacity: 1; }
 }
-.spotlight-effect:hover::before {
-    opacity: 1;
+@media (hover: hover) { .spotlight-effect:hover::before { opacity: 1; }
 }
 .input-wrapper {
     flex-direction: column;
@@ -131,10 +129,7 @@
     color: var(--text-primary) !important;
     box-shadow: none !important;
 }
-#add-file-btn:hover,
-#voice-input-btn-message:hover {
-    background: transparent !important;
-    color: var(--text-primary) !important;
+@media (hover: hover) { #add-file-btn:hover, #voice-input-btn-message:hover { background: transparent !important; color: var(--text-primary) !important; }
 }
 #submit-btn {
     border: 0 !important;
@@ -143,8 +138,7 @@
     color: var(--button-primary-text) !important;
     box-shadow: none !important;
 }
-#submit-btn:hover {
-    background: var(--button-primary-hover-bg) !important;
+@media (hover: hover) { #submit-btn:hover { background: var(--button-primary-hover-bg) !important; }
 }
 #submit-btn:disabled {
     background: var(--button-primary-bg) !important;
@@ -191,10 +185,11 @@
     color: inherit;
     stroke: currentColor;
 }
-.reasoning-depth-btn.is-adjustable:hover,
 .reasoning-depth-btn[aria-expanded="true"] {
     background: transparent;
     color: var(--text-secondary);
+}
+@media (hover: hover) { .reasoning-depth-btn.is-adjustable:hover { background: transparent; color: var(--text-secondary); }
 }
 .reasoning-depth-btn.is-disabled {
     cursor: default;
@@ -215,7 +210,7 @@
 #auth-container {
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.5s ease-in;
+    transition: opacity 300ms var(--ease-out);
 }
 
 
@@ -236,8 +231,8 @@
     border-radius: 1.5rem; /* 24px */
 }
 .input-wrapper {
-    transition: border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-                padding-top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-radius 0.3s var(--ease-out), 
+                padding-top 0.3s var(--ease-out);
 }
         @media (max-width: 768px) {
   .chat-greeting-message {
@@ -259,9 +254,8 @@
     .p2p-select-item:last-child {
         border-bottom: none;
     }
-    .p2p-select-item:hover {
-        background-color: var(--hover-bg);
-    }
+    @media (hover: hover) { .p2p-select-item:hover { background-color: var(--hover-bg); }
+}
     /* The camera of the P2P code scanner (src/app/vendors/qr-scanner.js): the picture, dimmed around the square the code goes in. */
     .qr-scan {
         position: relative;
@@ -299,8 +293,7 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-#input-indicator-container .input-indicator-item:hover {
-    background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+@media (hover: hover) { #input-indicator-container .input-indicator-item:hover { background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent); }
 }
 
 #input-indicator-container .input-indicator-item button {
@@ -387,11 +380,13 @@
     object-fit: contain;
 }
 
-#attachment-menu .menu-item.is-active:hover,
+@media (hover: hover) {
+  #attachment-menu .menu-item.is-active:hover,
 #file-options-popover #web-search-popover-btn.is-active:hover,
 #file-options-popover #learning-mode-btn.is-active:hover,
 #file-options-popover #model-council-menu-btn.is-active:hover {
     background: color-mix(in srgb, var(--button-primary-bg) 12%, transparent);
+  }
 }
 
 #attachment-menu .menu-item.is-active svg,

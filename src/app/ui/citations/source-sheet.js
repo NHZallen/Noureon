@@ -141,7 +141,8 @@ export function openSourceSheet({ document, sources, all = false, language = 'zh
   let frame = 0;
   const paint = () => {
     frame = 0;
-    if (drag) sheet.style.setProperty('--sheet-drag', `${drag.shown}px`);
+    // The sheet's own `translate` (added to its resting transform), not a variable on it: a variable would be worked out again for everything inside the sheet at every frame.
+    if (drag) sheet.style.translate = `0 ${drag.shown}px`;
   };
   const pointerDown = (event) => {
     if (event.button !== undefined && event.button > 0) return;
@@ -165,7 +166,7 @@ export function openSourceSheet({ document, sources, all = false, language = 'zh
     drag = null;
     if (frame) { win?.cancelAnimationFrame?.(frame); frame = 0; }
     sheet.classList.remove('is-dragging');
-    sheet.style.removeProperty('--sheet-drag');
+    sheet.style.removeProperty('translate');
     if (outcome === 'close') close();
     else setState(outcome);
   };

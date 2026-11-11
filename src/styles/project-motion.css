@@ -1,13 +1,43 @@
 /* The pages of the projects come in, as the pages of the app do: into a project from the right, back to the list from the left. They are softer than they are long, and none for a person who asked for less motion. */
 @keyframes pj-come-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
 @keyframes pj-come-back { from { opacity: 0; transform: translateX(-1.5rem); } to { opacity: 1; transform: none; } }
-.pj.is-coming-in { animation: pj-come-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.pj.is-coming-back { animation: pj-come-back 0.24s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.pj.is-coming-in { animation: pj-come-in 0.24s var(--ease-out) both; }
+.pj.is-coming-back { animation: pj-come-back 0.24s var(--ease-out) both; }
 @media (prefers-reduced-motion: reduce) { .pj.is-coming-in, .pj.is-coming-back { animation: none; } }
 
 /* A source of a project: its name, the button that has the file and the button that removes it each answer on their own (the row does not light up as a whole). */
-.pj-source.pj-row, .pj-source.pj-row:hover, .pj-source.pj-row:focus-visible { background: transparent; cursor: default; }
+.pj-source.pj-row, .pj-source.pj-row:focus-visible { background: transparent; cursor: default; }
+@media (hover: hover) { .pj-source.pj-row:hover { background: transparent; cursor: default; } }
 .pj-source-open { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 0.8rem; padding: 0.15rem 0.3rem; border-radius: 0.6rem; }
 .pj-source-open.is-openable { cursor: pointer; }
 @media (hover: hover) { .pj-source-open.is-openable:hover { background: var(--hover-bg); } }
 .pj-source-open, .pj-source-open:focus, .pj-source-open:focus-visible { outline: none; -webkit-tap-highlight-color: transparent; }
+
+/* What opens over a page of the projects comes in with a short motion (docs/superpowers/specs/2026-11-11-interaction-overhaul-design.md §5, phase 3 and 7); how it goes out is
+   motion/leave-ghost.js. The page switches the transitions of everything in it off (projects.css), so these are one-time animations on the element as it is put on the page. */
+@keyframes pj-pop { from { opacity: 0; scale: 0.97; } }
+@keyframes pj-fade { from { opacity: 0; } }
+@keyframes pj-rise { from { opacity: 0; translate: 0 0.75rem; } }
+@keyframes pj-sheet-up { from { translate: 0 100%; } }
+html .pj-menu { animation: pj-pop var(--dur-menu) var(--ease-out) both; }
+html .pj-backdrop.is-dialog { animation: pj-fade var(--dur-menu) var(--ease-out) both; }
+html .pj-backdrop.is-dialog .pj-sheet { animation: pj-pop var(--dur-modal) var(--ease-out) both; }
+html .pj-backdrop:not(.is-dialog):not(.is-bottom) { animation: pj-rise var(--dur-modal) var(--ease-out) both; }
+html .pj-backdrop.is-bottom { animation: pj-fade var(--dur-menu) var(--ease-out) both; }
+html .pj-backdrop.is-bottom .pj-action-sheet { animation: pj-sheet-up var(--dur-drawer) var(--ease-drawer) both; }
+html.is-instant .pj-menu, html.is-instant .pj-backdrop, html.is-instant .pj-backdrop .pj-sheet { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  html .pj-menu, html .pj-backdrop, html .pj-backdrop .pj-sheet { animation: none; }
+  html .pj-backdrop:not(.is-dialog):not(.is-bottom) { animation: pj-fade var(--dur-menu) linear both; }
+}
+/* On a computer a sheet is a dialog in the middle, and a list of choices too: the dim layer fades and the box grows a little, nothing slides. */
+@media (min-width: 768px) {
+  html .pj-backdrop:not(.is-dialog):not(.is-bottom) { animation: pj-fade var(--dur-menu) var(--ease-out) both; }
+  html .pj-backdrop:not(.is-dialog):not(.is-bottom) .pj-sheet { animation: pj-pop var(--dur-modal) var(--ease-out) both; }
+}
+@media (min-width: 640px) {
+  html .pj-backdrop.is-bottom .pj-action-sheet { animation: pj-pop var(--dur-modal) var(--ease-out) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html .pj-backdrop .pj-sheet, html .pj-backdrop.is-bottom .pj-action-sheet { animation: none; }
+}

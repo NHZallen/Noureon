@@ -13,11 +13,11 @@
 }
 
 .generated-image-editor-enter {
-    animation: generated-image-editor-fade-in .34s cubic-bezier(.2, .82, .2, 1) both;
+    animation: generated-image-editor-fade-in .34s var(--ease-out) both;
 }
 
 .generated-image-editor-enter .generated-image-editor-canvas-wrap {
-    animation: generated-image-editor-suck-in .42s cubic-bezier(.18, .92, .18, 1) both;
+    animation: generated-image-editor-suck-in .42s var(--ease-out) both;
     transform-origin: center;
     will-change: transform, opacity, filter;
 }

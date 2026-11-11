@@ -2,6 +2,7 @@ import { highlightText } from '../reply/search-text-formatting.js';
 import { createMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createUploadedFilePreviewLifecycle } from '../features/uploaded-file-preview-lifecycle.js';
+import { attachDragDismiss } from '../../ui/motion/drag-dismiss.js';
 
 const CHAT_IMAGE_MAX_SIZE = 1600;
 const CHAT_IMAGE_QUALITY = 0.78;
@@ -379,6 +380,11 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
             sidebar.style.transform = 'translateX(-100%)';
             sidebarOverlay.classList.remove('visible');
         }
+    }
+
+    // On a phone the left menu follows a finger that pushes it to the left and goes away when pushed far enough or flicked (ui/motion/drag-dismiss.js).
+    if (ALL_ELEMENTS.sidebar) {
+        attachDragDismiss(ALL_ELEMENTS.sidebar, { direction: -1, enabled: () => window.innerWidth < 1024 && ALL_ELEMENTS.sidebar.classList.contains('open'), onDismiss: () => toggleSidebar(false) });
     }
 
     return {

@@ -36,13 +36,15 @@
 .sandbox-run-summary::after {
     content: '›';
     display: inline-block;
-    transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.28s var(--ease-out);
 }
 
 .sandbox-run-details[open]:not([data-closing]) > .sandbox-run-summary::after { transform: rotate(90deg); }
 
-.sandbox-run-summary:hover,
 .sandbox-run-summary:focus-visible { color: var(--text-primary); }
+
+@media (hover: hover) { .sandbox-run-summary:hover { color: var(--text-primary); }
+}
 
 .sandbox-run-steps { margin: 0.3rem 0 0; }
 

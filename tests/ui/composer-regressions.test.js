@@ -34,8 +34,8 @@ test('desktop chat input keeps active modes inside the rich editor at any caret 
   assert.match(richEditor, /range\.insertNode\(separator\);\s*range\.insertNode\(token\)/s);
   assert.match(css, /#reasoning-depth-control[^{]*\{[^}]*grid-area:\s*reasoning;/s);
   assert.match(css, /\.reasoning-depth-btn[^{]*\{[^}]*border-radius:\s*0\.35rem;[^}]*background:\s*transparent;/s);
-  assert.match(css, /\.reasoning-depth-btn\.is-adjustable:hover,\s*\.reasoning-depth-btn\[aria-expanded="true"\][^{]*\{[^}]*background:\s*transparent;[^}]*color:\s*var\(--text-secondary\);/s);
-  assert.doesNotMatch(css, /\.reasoning-depth-btn\.is-adjustable:hover,\s*\.reasoning-depth-btn\[aria-expanded="true"\][^{]*\{[^}]*button-primary-bg/s);
+  assert.match(css, /\.reasoning-depth-btn\.is-adjustable:hover[^{]*\{[^}]*background:\s*transparent;[^}]*color:\s*var\(--text-secondary\);/s);
+  assert.doesNotMatch(css, /\.reasoning-depth-btn\.is-adjustable:hover[^{]*\{[^}]*button-primary-bg/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*min-height\s+0\.24s[^}]*padding\s+0\.24s/s);
   assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*transition:[^}]*border-radius/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.flex\.items-end[^{]*\{[^}]*transition:[^}]*transform\s+0\.24s/s);

@@ -7,6 +7,7 @@ import { latestReplySources, replySourcePanelOptions } from '../features/reply-s
 import { plainMarkdown } from '../../ui/citations/plain-text.js';
 import { trackPointedRow } from '../../ui/scroll/pointed-row.js';
 import { projectIdOf } from '../projects/project-instructions.js';
+import { attachDragDismiss } from '../../ui/motion/drag-dismiss.js';
 
 // A message as the timeline names it: the start of what it says. The record of what the model did (and the markers that
 // cite sources) are kept in the message's text but are not what it says.
@@ -272,21 +273,11 @@ export function createHistorySidebarHelpers({
     let touchStartX = 0;
     let touchStartY = 0;
 
-    historySidebarOverlay.addEventListener('click', () => {
-      historySidebarOverlay.addEventListener('touchstart', (event) => {
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-      }, { passive: true });
-
-      historySidebarOverlay.addEventListener('touchend', (event) => {
-        const deltaX = event.changedTouches[0].clientX - touchStartX;
-        const deltaY = event.changedTouches[0].clientY - touchStartY;
-        if (deltaX > 50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
-          toggleHistorySidebar(false);
-        }
-      }, { passive: true });
-      toggleHistorySidebar(false);
-    });
+    // (The listeners of the swipe are put on once, not at every tap on the veil.)
+    historySidebarOverlay.addEventListener('click', () => toggleHistorySidebar(false));
+    // The panel follows a finger that pushes it to the right and goes away when pushed far enough or flicked (ui/motion/drag-dismiss.js); the veil beside it is the same thing to push.
+    const dismissOptions = { direction: 1, moveTarget: historySidebar, onDismiss: () => toggleHistorySidebar(false) };
+    attachDragDismiss(historySidebarOverlay, dismissOptions);
 
     // Where the panel lies over the chat, opening the left menu puts the panel away (the two would cover each other).
     menuToggleBtn?.addEventListener('click', () => {
@@ -318,18 +309,7 @@ export function createHistorySidebarHelpers({
       }
     }, { passive: true });
 
-    historySidebar.addEventListener('touchstart', (event) => {
-      touchStartX = event.touches[0].clientX;
-      touchStartY = event.touches[0].clientY;
-    }, { passive: true });
-
-    historySidebar.addEventListener('touchend', (event) => {
-      const deltaX = event.changedTouches[0].clientX - touchStartX;
-      const deltaY = event.changedTouches[0].clientY - touchStartY;
-      if (deltaX > 50 && Math.abs(deltaY) < Math.abs(deltaX) / 2) {
-        toggleHistorySidebar(false);
-      }
-    }, { passive: true });
+    attachDragDismiss(historySidebar, { ...dismissOptions, ignore: (target) => startsOnSidewaysScroller(target, historySidebar) });
   }
 
   const isVisibleConversation = (conversation) =>

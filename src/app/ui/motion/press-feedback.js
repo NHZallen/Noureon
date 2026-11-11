@@ -1,5 +1,4 @@
-// Every pressable thing answers a finger or a click: it sinks under the press and springs back on release, like a
-// physical key. One delegated listener covers all of them, including ones added later, so a new button needs no
+// Every pressable thing answers a finger or a click: it sinks a little under the press and comes back on release. One delegated listener covers all of them, including ones added later, so a new button needs no
 // styling to feel right.
 //
 // It finds the pressable by what it looks like to the user (the nearest element under the finger whose cursor is a
@@ -8,20 +7,21 @@
 // transitions, and `scale` is not caught by the global `button { transform: none !important }` rule.
 
 const MAX_LEVELS_UP = 6;
-const PRESS_MS = 110;
-const RELEASE_MS = 340;
+const PRESS_MS = 120;
+const RELEASE_MS = 160;
 const TOUCH_HOLD_MS = 55; // a touch that turns into a scroll should not flash a press
 const MOVE_SLOP = 10;
-const RELEASE_EASING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'; // a little overshoot, like a key coming back up
-const PRESS_EASING = 'cubic-bezier(0.2, 0.8, 0.3, 1)';
+// The curve of --ease-out (styles/tokens.css); a press does not bounce back.
+const RELEASE_EASING = 'cubic-bezier(0.23, 1, 0.32, 1)';
+const PRESS_EASING = 'cubic-bezier(0.23, 1, 0.32, 1)';
 
 // How far each size sinks. Small things sink most (they are the easiest to see move); a wide row or a card would
 // look like it shrinks away if it sank as much.
 export const pressScaleFor = (width, height) => {
   const shortSide = Math.min(width, height);
   const longSide = Math.max(width, height);
-  if (longSide <= 56) return 0.88; // icon buttons
-  if (shortSide <= 44 && longSide <= 200) return 0.94; // pills, chips, short buttons
+  if (longSide <= 56) return 0.94; // icon buttons
+  if (shortSide <= 44 && longSide <= 200) return 0.96; // pills, chips, short buttons
   if (shortSide <= 100 && width >= 160) return 0.985; // list rows, menu items
   if (shortSide <= 320) return 0.98; // cards
   return 1; // big surfaces do not sink
@@ -67,7 +67,7 @@ export function installPressFeedback(doc = document) {
     disabled.getAnimations().filter((animation) => animation.id === 'disabled-nudge').forEach((animation) => animation.cancel());
     const nudge = disabled.animate(
       [{ translate: '0' }, { translate: '-3px' }, { translate: '3px' }, { translate: '-2px' }, { translate: '1px' }, { translate: '0' }],
-      { duration: 300, easing: 'ease-out' }
+      { duration: 200, easing: 'ease-out' }
     );
     nudge.id = 'disabled-nudge';
   };
@@ -145,34 +145,16 @@ export function installPressFeedback(doc = document) {
     finish(state, { immediate: event.type === 'pointercancel' });
   };
 
-  // Enter and Space press a focused button too.
-  const onKeyDown = (event) => {
-    if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
-    if (reducedMotion?.matches) return;
-    const target = event.target;
-    if (!(target instanceof view.Element) || !target.matches('button, [role="button"], summary')) return;
-    if (target.matches(SKIP)) return;
-    const rect = target.getBoundingClientRect();
-    const scale = pressScaleFor(rect.width, rect.height);
-    if (scale === 1) return;
-    const state = { element: target, scale, sunk: false };
-    sink(state);
-    state.done = true;
-    view.setTimeout(() => rise(state), PRESS_MS);
-  };
-
   doc.addEventListener('pointerdown', onDown, { passive: true });
   doc.addEventListener('pointermove', onMove, { passive: true });
   doc.addEventListener('pointerup', onUp, { passive: true });
   doc.addEventListener('pointercancel', onUp, { passive: true });
-  doc.addEventListener('keydown', onKeyDown, { passive: true });
 
   return () => {
     doc.removeEventListener('pointerdown', onDown);
     doc.removeEventListener('pointermove', onMove);
     doc.removeEventListener('pointerup', onUp);
     doc.removeEventListener('pointercancel', onUp);
-    doc.removeEventListener('keydown', onKeyDown);
     delete doc.documentElement.dataset.pressFeedback;
   };
 }

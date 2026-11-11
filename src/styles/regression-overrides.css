@@ -44,10 +44,12 @@
     text-shadow: none !important;
 }
 
-.btn-outline-white:hover:not(:disabled),
 .btn-outline-white:active:not(:disabled) {
     background: var(--modal-bg) !important;
     color: var(--text-primary) !important;
+}
+
+@media (hover: hover) { .btn-outline-white:hover:not(:disabled) { background: var(--modal-bg) !important; color: var(--text-primary) !important; }
 }
 
 .btn-outline-white:disabled {

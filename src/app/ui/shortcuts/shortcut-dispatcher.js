@@ -20,6 +20,10 @@ export function startShortcutDispatcher({ document, store, platform = '' }) {
       if (!binding.enabled || binding.combo !== combo || !hasShortcutAction(shortcut.id)) continue;
       // The shortcuts that go to another place work over a dialog; the ones that act on the chat wait for it to close.
       if (!shortcut.modal && dialogIsOpen(document)) return;
+      // What a shortcut opens appears at once (styles/layout.css `html.is-instant`): a key used hundreds of times a day is not animated.
+      const root = document.documentElement;
+      root?.classList.add('is-instant');
+      setTimeout(() => root?.classList.remove('is-instant'), 400);
       if (runShortcutAction(shortcut.id, { event })) {
         event.preventDefault();
         event.stopPropagation();

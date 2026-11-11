@@ -4,7 +4,7 @@ import test from 'node:test';
 
 // The style rules (docs/superpowers/specs/2026-10-31-ui-style-rules.md) for the style files of the pages that follow them: no weight above 500, no colour of its own (only the names of
 // tokens.css), no heading elements (the page forces them to the bold weight). A new page is added to the list.
-const FILES = ['src/styles/projects.css', 'src/styles/projects-wide.css', 'src/styles/projects-composer.css', 'src/styles/rail.css', 'src/styles/shortcuts.css', 'src/styles/project-sharing.css'];
+const FILES = ['src/styles/projects.css', 'src/styles/projects-sources.css', 'src/styles/projects-wide.css', 'src/styles/projects-composer.css', 'src/styles/rail.css', 'src/styles/shortcuts.css', 'src/styles/project-sharing.css'];
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -29,7 +29,7 @@ for (const file of FILES) {
 }
 
 test('Google\'s file picker is above the pages and the sheets of the projects', () => {
-  const css = stripComments(readFileSync(new URL('../src/styles/projects.css', import.meta.url), 'utf8'));
+  const css = stripComments(['projects.css', 'projects-sources.css'].map((name) => readFileSync(new URL(`../src/styles/${name}`, import.meta.url), 'utf8')).join('\n'));
   const layer = (selector) => Number(new RegExp(`${selector.replace(/[.>]/g, '\\$&')}\\s*\\{[^}]*z-index:\\s*(\\d+)`).exec(css)?.[1]);
   const highest = Math.max(...[...css.matchAll(/z-index:\s*(\d+)/g)].map((match) => Number(match[1])).filter((value) => value < 1300));
   assert.ok(layer('body > .picker-dialog-bg') > highest, 'the dim layer of the picker');

@@ -20,16 +20,16 @@
 .pj-head-actions { display: flex; align-items: center; gap: 0.75rem; }
 .pj-head-actions .pj-search { width: 17.5rem; padding: 0.45rem 0.9rem; border: 0; background: var(--hover-bg); }
 .pj.is-wide.is-list .pj-round.has-label { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
-.pj.is-wide.is-list .pj-round.has-label:hover { background: var(--gpt-primary-action-bg); opacity: 0.88; }
+@media (hover: hover) { .pj.is-wide.is-list .pj-round.has-label:hover { background: var(--gpt-primary-action-bg); opacity: 0.88; } }
 .pj-bar { flex: none; padding: 0.8rem 1.75rem; border-bottom: 1px solid var(--border-color); }
 .pj-bar .pj-tabs, .pj-side .pj-tabs { margin: 0; }
 .pj-bar .pj-tab { border: 1px solid var(--border-color); }
-.pj-bar .pj-tab:hover { border-color: var(--text-secondary); }
+@media (hover: hover) { .pj-bar .pj-tab:hover { border-color: var(--text-secondary); } }
 .pj-bar .pj-tab[aria-selected="true"] { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
 .pj.is-wide.is-list .pj-body { flex: 1; max-width: 51rem; padding: 0.9rem 0 2.5rem; }
 .pj.is-wide.is-list .pj-row { position: relative; gap: 1rem; padding: 0.85rem 0.6rem; border-radius: 0.9rem; }
 .pj.is-wide.is-list .pj-row + .pj-row::before { content: ""; position: absolute; left: 0.6rem; right: 0.6rem; top: 0; border-top: 1px solid var(--border-color); }
-.pj.is-wide.is-list .pj-row:hover::before, .pj.is-wide.is-list .pj-row:hover + .pj-row::before { border-color: transparent; }
+@media (hover: hover) { .pj.is-wide.is-list .pj-row:hover::before, .pj.is-wide.is-list .pj-row:hover + .pj-row::before { border-color: transparent; } }
 .pj.is-wide.is-list .pj-mark.is-row { width: 2.75rem; height: 2.75rem; border-radius: 0.8rem; }
 
 /* ----- one project: three columns */
@@ -41,7 +41,8 @@
 .pj-side .pj-search { padding: 0.45rem 0.8rem; border-radius: 0.8rem; }
 .pj-side-list { display: grid; gap: 0.1rem; align-content: start; min-height: 0; overflow-y: auto; }
 .pj-side-row { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.5rem 0.6rem; border: 0; border-radius: 0.8rem; background: transparent; text-align: left; }
-.pj-side-row:hover, .pj-side-row.is-current { background: var(--hover-bg); }
+.pj-side-row.is-current { background: var(--hover-bg); }
+@media (hover: hover) { .pj-side-row:hover { background: var(--hover-bg); } }
 .pj-side-row .pj-row-title { max-width: 11rem; }
 .pj-main { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--pj-back-inset) var(--page-gutter) 2.5rem; }
 .pj-main .pj-head { max-width: none; grid-template-columns: minmax(0, 1fr) auto; padding: 0 0 1rem; }
@@ -50,12 +51,12 @@
 .pj-main-title { margin: 1.3rem 0.25rem 0.2rem; color: var(--text-secondary); font-size: var(--pj-small); }
 .pj-main .pj-chat { position: relative; padding: 0.85rem 0.5rem; border-radius: 1rem; }
 .pj-main .pj-chat + .pj-chat::before { content: ""; position: absolute; left: 0.5rem; right: 0.5rem; top: 0; border-top: 1px solid var(--border-color); }
-.pj-main .pj-chat:hover::before, .pj-main .pj-chat:hover + .pj-chat::before { border-color: transparent; }
+@media (hover: hover) { .pj-main .pj-chat:hover::before, .pj-main .pj-chat:hover + .pj-chat::before { border-color: transparent; } }
 .pj-panel { display: grid; gap: 0.9rem; align-content: start; min-height: 0; overflow-y: auto; padding: var(--pj-back-inset) 1.4rem 1.1rem 0; }
 .pj-card { padding: 1rem; border: 1px solid var(--border-color); border-radius: 1rem; }
 .pj-card-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
 .pj-card-toggle { display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; padding: 0.15rem 0.3rem 0.15rem 0; border: 0; background: transparent; text-align: left; }
-.pj-card-toggle:hover .pj-card-title { color: var(--text-secondary); }
+@media (hover: hover) { .pj-card-toggle:hover .pj-card-title { color: var(--text-secondary); } }
 .pj-card-toggle svg { flex: none; color: var(--text-secondary); }
 .pj-card.is-folded .pj-card-toggle svg { transform: rotate(-90deg); }
 .pj-card.is-folded > :not(.pj-card-head) { display: none; }
@@ -78,6 +79,6 @@
 /* On a wide computer the left menu is docked (it takes room beside the app, not a layer over it): the page of the projects, laid over the app, leaves that room free while the menu is open, so the
    back button of the overview can bring the menu as it does on a phone, and the page stays beside it. */
 @media (min-width: 1024px) {
-  #app-container > .pj:not(.pj-dialog-only) { transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  #app-container > .pj:not(.pj-dialog-only) { transition: left 0.3s var(--ease-drawer); }
   #app-container.sidebar-open > .pj:not(.pj-dialog-only) { left: 18rem; }
 }

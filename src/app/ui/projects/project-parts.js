@@ -1,6 +1,7 @@
 // The small parts the pages of the projects are made of: elements, the icons (outline, 24 by 24, in the colour of the text), the mark of a project, a menu that opens at a button and the sheet
 // that comes up from below on a phone and sits in the middle on a wide screen. Every text of a person (a name, a title) is put in with textContent.
 
+import { leaving } from '../motion/leave-ghost.js';
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
 import { FOLDER_COLORS } from '../../runtime/shell/runtime-ui-colors.js';
 import { resolveFolderColor } from '../../../utils/folder-colors.js';
@@ -88,6 +89,7 @@ export function openMenu({ document, root, anchor, point = null, items, align = 
     closed = true;
     win.removeEventListener('pointerdown', onOutside, true);
     win.removeEventListener('keydown', onKey, true);
+    leaving.menu(menu);
     menu.remove();
     onClose();
   };
@@ -114,6 +116,8 @@ export function openMenu({ document, root, anchor, point = null, items, align = 
   const top = rect.bottom + 6 + height > viewHeight ? Math.max(8, rect.top - height - 6) : rect.bottom + 6;
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
+  // It grows from the corner that is at the button.
+  menu.style.transformOrigin = `${align === 'start' ? 'left' : 'right'} ${top >= rect.bottom ? 'top' : 'bottom'}`;
   win.addEventListener('pointerdown', onOutside, true);
   win.addEventListener('keydown', onKey, true);
   menu.querySelector('button')?.focus();
@@ -171,12 +175,13 @@ export function openSheet({ document, root, title, label, body, footer = null, a
     win.removeEventListener('keydown', onKey, true);
     viewport?.removeEventListener('resize', fit);
     viewport?.removeEventListener('scroll', fit);
+    (dialog ? leaving.dialog : leaving.page)(backdrop);
     backdrop.remove();
     try { opener?.focus?.(); } catch { /* the opener may be gone */ }
     onClose();
   };
   const onKey = (event) => {
-    if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop')].at(-1)) return;
+    if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop:not([data-ghost])')].at(-1)) return;
     // A box open inside the dialog (the icons, the choice of memory) takes the key first and closes alone.
     if (backdrop.querySelector('.pj-popover, .pj-dropdown-list')) return;
     event.stopPropagation();
@@ -217,11 +222,12 @@ export function openActionSheet({ document, root, title, items, onClose = () => 
     if (closed) return;
     closed = true;
     win.removeEventListener('keydown', onKey, true);
+    leaving.bottom(backdrop);
     backdrop.remove();
     onClose();
   };
   const onKey = (event) => {
-    if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop')].at(-1)) return;
+    if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop:not([data-ghost])')].at(-1)) return;
     event.stopPropagation();
     event.preventDefault();
     close();

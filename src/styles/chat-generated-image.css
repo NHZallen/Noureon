@@ -112,8 +112,7 @@
     pointer-events: auto;
 }
 
-.generated-image-action-btn:hover {
-    background: var(--media-chip-bg-hover);
+@media (hover: hover) { .generated-image-action-btn:hover { background: var(--media-chip-bg-hover); }
 }
 
 .generated-image-download-btn {
@@ -135,7 +134,7 @@
     min-height: 24rem;
     max-height: 72vh;
     aspect-ratio: 1 / 1;
-    transition: width .46s cubic-bezier(.2, .8, .2, 1), height .46s cubic-bezier(.2, .8, .2, 1), aspect-ratio .46s cubic-bezier(.2, .8, .2, 1), min-height .46s cubic-bezier(.2, .8, .2, 1);
+    transition: width .46s var(--ease-out), height .46s var(--ease-out), aspect-ratio .46s var(--ease-out), min-height .46s var(--ease-out);
     /* Not clipped: nothing in it goes outside (the field of dots has its own bounds), and a clip at the left edge shaved the left stroke of the first
        letter of the stage words where a font's glyph reaches a little past its box (「正」 of 「正在構圖」 on a phone). */
     overflow: visible;
@@ -202,7 +201,7 @@ noureon-image-wait .generated-image-dots {
     transform: scale(1);
     filter: blur(0);
     clip-path: inset(0 round 1.5rem);
-    transition: opacity .46s ease, transform .52s cubic-bezier(.2, .8, .2, 1), filter .42s ease, clip-path .52s cubic-bezier(.2, .8, .2, 1);
+    transition: opacity .46s ease, transform .52s var(--ease-out), filter .42s ease, clip-path .52s var(--ease-out);
 }
 
 @media (max-width: 640px) {

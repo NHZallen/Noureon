@@ -36,7 +36,8 @@
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .ac-attach-card[data-openable="false"] { cursor: default; }
-.ac-attach-card:hover { border-color: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+@media (hover: hover) { .ac-attach-card:hover { border-color: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+}
 .ac-attach-card:focus-visible { outline: 2px solid var(--link-color); outline-offset: 2px; }
 
 .ac-attach-thumb {
@@ -184,7 +185,8 @@
     box-sizing: border-box;
 }
 button.message-file-row { cursor: pointer; transition: border-color 0.15s ease; }
-button.message-file-row:hover { border-color: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+@media (hover: hover) { button.message-file-row:hover { border-color: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+}
 button.message-file-row:focus-visible { outline: 2px solid var(--link-color); outline-offset: 2px; }
 .message-file-row .ac-kind-icon { width: 1.7rem; height: 1.7rem; }
 .message-file-copy {

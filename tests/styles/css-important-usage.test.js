@@ -19,7 +19,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/chat.css': {
-    max: 16,
+    max: 17,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/chat-streaming.css': {
@@ -42,6 +42,10 @@ const documentedImportantUsage = {
     max: 38,
     category: 'required: regression override / legacy compatibility'
   },
+  'src/styles/layout.css': {
+    max: 6,
+    category: 'required: accessibility'
+  },
   'src/styles/input-polish.css': {
     max: 34,
     category: 'required: regression override / legacy compatibility'
@@ -63,7 +67,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/memory-notes.css': {
-    max: 10,
+    max: 12,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/shortcuts.css': {

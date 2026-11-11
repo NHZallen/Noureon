@@ -8,7 +8,7 @@ import { COLOR_SCHEMES, normalizeColorScheme } from '../../../data/color-scheme-
 export { COLOR_SCHEMES, normalizeColorScheme };
 export const COLOR_SCHEME_STORAGE_KEY = 'noureon-color-scheme';
 // The colour of the browser's own bars (the address bar of a phone) for each theme.
-const BROWSER_BAR = Object.freeze({ light: '#3b82f6', dark: '#212121' });
+const BROWSER_BAR = Object.freeze({ light: '#ffffff', dark: '#212121' });
 
 /** The theme to show for a choice: 'light' or 'dark'. */
 export const resolveTheme = (scheme, deviceIsDark = false) => (scheme === 'dark' || (normalizeColorScheme(scheme) === 'system' && deviceIsDark) ? 'dark' : 'light');

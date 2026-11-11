@@ -73,7 +73,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
   // A shared project of someone else (runtime/project-sharing/): everyone reads it, only an editor changes its instructions and sources; the project itself is not the person's to rename, pin or delete.
   const canEdit = (project) => !project?.shared || project.role === 'editor';
-  const openSheets = () => root.querySelectorAll('.pj-backdrop').length;
+  const openSheets = () => root.querySelectorAll('.pj-backdrop:not([data-ghost])').length;
   const closeMenu = () => { menu?.close(); menu = null; };
 
   // ----- the address: the list and a project each have one, and the back of the browser goes from one to the other

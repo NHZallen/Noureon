@@ -29,12 +29,14 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.quote-inquiry-menu-button:hover,
 .quote-inquiry-menu-button:focus-visible {
     background: var(--modal-bg);
     color: var(--button-primary-bg);
     outline: none;
     box-shadow: none;
+}
+
+@media (hover: hover) { .quote-inquiry-menu-button:hover { background: var(--modal-bg); color: var(--button-primary-bg); outline: none; box-shadow: none; }
 }
 
 .quote-inquiry-menu-button:active {
@@ -96,11 +98,13 @@
     justify-content: center;
 }
 
-.quote-inquiry-remove:hover,
 .quote-inquiry-remove:focus-visible {
     background: var(--hover-bg);
     color: var(--text-primary);
     outline: none;
+}
+
+@media (hover: hover) { .quote-inquiry-remove:hover { background: var(--hover-bg); color: var(--text-primary); outline: none; }
 }
 
 .quote-inquiry-remove svg {
@@ -134,10 +138,12 @@
     transition: color 0.15s ease;
 }
 
-.sent-message-quote:hover,
 .sent-message-quote:focus-visible {
     color: var(--text-primary);
     outline: none;
+}
+
+@media (hover: hover) { .sent-message-quote:hover { color: var(--text-primary); outline: none; }
 }
 
 .sent-message-quote-icon {
@@ -148,9 +154,11 @@
     transition: color 0.15s ease;
 }
 
-.sent-message-quote:hover .sent-message-quote-icon,
 .sent-message-quote:focus-visible .sent-message-quote-icon {
     color: var(--text-primary);
+}
+
+@media (hover: hover) { .sent-message-quote:hover .sent-message-quote-icon { color: var(--text-primary); }
 }
 
 .quote-inquiry-icon svg,

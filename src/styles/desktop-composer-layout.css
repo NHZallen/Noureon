@@ -71,10 +71,12 @@
         display: none;
     }
 
-    #expand-input-btn.composer-expand-btn:hover,
     #expand-input-btn.composer-expand-btn:focus-visible {
         background: var(--hover-bg);
         outline: none;
+    }
+
+    @media (hover: hover) { #expand-input-btn.composer-expand-btn:hover { background: var(--hover-bg); outline: none; }
     }
 
     #expand-input-btn.composer-expand-btn svg {
@@ -97,7 +99,7 @@
 
     #chat-workspace.composer-layout-animate #input-bar-container {
         will-change: transform;
-        transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: transform 0.36s var(--ease-drawer);
     }
 
     #chat-workspace[data-composer-layout="empty"] #message-list {
@@ -125,7 +127,7 @@
         left: -0.7rem !important;
         width: var(--desktop-composer-menu-width) !important;
         bottom: calc(100% + 1.75rem) !important;
-        max-height: min(31rem, calc(100vh - 8rem));
+        max-height: min(31rem, calc(100dvh - 8rem));
         margin: 0 !important;
         padding: 0.6rem !important;
         overflow-x: hidden;
@@ -168,10 +170,16 @@
         transition: background-color 0.12s ease-out !important;
     }
 
-    #file-options-popover:not(.message-edit-shared-popover) > button:hover,
     #file-options-popover:not(.message-edit-shared-popover) > button:focus-visible {
         background: color-mix(in srgb, var(--text-secondary) 12%, transparent) !important;
         outline: none;
+    }
+
+    @media (hover: hover) {
+      #file-options-popover:not(.message-edit-shared-popover) > button:hover {
+        background: color-mix(in srgb, var(--text-secondary) 12%, transparent) !important;
+        outline: none;
+      }
     }
 
     #add-file-btn svg {

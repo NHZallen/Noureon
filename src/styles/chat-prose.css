@@ -101,7 +101,8 @@
         cursor: pointer;
     }
     .color-swatch, .icon-option { transition: transform 0.2s; border: 2px solid transparent; }
-    .color-swatch:hover, .icon-option:hover { transform: scale(1.1); }
+    @media (hover: hover) { .color-swatch:hover, .icon-option:hover { transform: scale(1.1); }
+}
     .color-swatch.selected { border-color: var(--button-primary-bg); }
     .icon-option.selected { background-color: var(--active-bg); border-color: var(--button-primary-bg); }
     #sidebar.open {

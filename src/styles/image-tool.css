@@ -48,7 +48,7 @@
 .image-picked-mini { flex: none; width: 1.75rem; height: 1.75rem; margin-left: auto; border-radius: 0.4rem; }
 .image-picked-mini .picture-number { display: none; }
 .image-pick-text-button { padding: 0.15rem 0.4rem; margin-right: -0.25rem; border: 0; border-radius: 0.4rem; background: none; color: var(--text-secondary); font: inherit; font-size: 0.85rem; cursor: pointer; }
-.image-pick-text-button:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
+@media (hover: hover) { .image-pick-text-button:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); } }
 .image-pick-text-button:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .image-pick-cand { transition: none; } }
 

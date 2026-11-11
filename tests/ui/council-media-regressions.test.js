@@ -38,7 +38,7 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
   assert.doesNotMatch(lifecycle, /council-filter-panel|data-council-filter|applyCouncilSearchFilter/);
 
   // Bounded: the list scrolls inside the panel, and the panel never outgrows the screen.
-  assert.match(css, /\.mp-panel\s*\{[^}]*max-height:\s*min\(40rem,\s*calc\(100vh - 8rem\)\);[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.mp-panel\s*\{[^}]*max-height:\s*min\(40rem,\s*calc\(100dvh - 8rem\)\);[^}]*overflow:\s*hidden;/s);
   assert.match(css, /\.mp-scroll\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s);
   // Quiet: a thin thumb that only shows while the pointer is over the list.
   assert.match(css, /\.mp-scroll\s*\{\s*scrollbar-color:\s*transparent transparent;/);

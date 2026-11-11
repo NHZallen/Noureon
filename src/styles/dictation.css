@@ -14,10 +14,10 @@
     border-radius: inherit;
     background: var(--input-field-bg);
     color: var(--text-secondary);
-    animation: dictation-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    animation: dictation-in 200ms var(--ease-out) both;
 }
 
-.dictation-bar.is-leaving { animation: dictation-out 0.16s ease-in forwards; pointer-events: none; }
+.dictation-bar.is-leaving { animation: dictation-out 120ms var(--ease-out) forwards; pointer-events: none; }
 @keyframes dictation-in { from { opacity: 0; transform: scale(0.985); } }
 @keyframes dictation-out { to { opacity: 0; } }
 
@@ -40,12 +40,7 @@
     transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.input-wrapper .dictation-bar button:hover:not(:disabled) {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    transform: none;
-    filter: none;
-}
+@media (hover: hover) { .input-wrapper .dictation-bar button:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); transform: none; filter: none; } }
 
 .input-wrapper .dictation-bar button:active:not(:disabled) { background: var(--active-bg); transform: none; }
 .input-wrapper .dictation-bar button:disabled { cursor: default; }
@@ -87,12 +82,13 @@
     transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
-#voice-input-btn-message[data-tip]:hover::after,
 #voice-input-btn-message[data-tip]:focus-visible::after {
     opacity: 1;
     transform: translate(50%, 0);
     transition-delay: 0.35s;
 }
+
+@media (hover: hover) { #voice-input-btn-message[data-tip]:hover::after { opacity: 1; transform: translate(50%, 0); transition-delay: 0.35s; } }
 
 @media (hover: none) { #voice-input-btn-message[data-tip]::after { display: none; } }
 

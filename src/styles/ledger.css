@@ -19,8 +19,10 @@
     cursor: pointer;
 }
 
-.ledger-action:hover,
 .ledger-action:focus-visible { background: var(--hover-bg); }
+
+@media (hover: hover) { .ledger-action:hover { background: var(--hover-bg); }
+}
 
 .ledger-list { display: flex; flex-direction: column; gap: 0.1rem; }
 
@@ -44,7 +46,7 @@
     display: inline-block;
     margin-left: 0.35rem;
     color: var(--text-secondary);
-    transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.28s var(--ease-out);
 }
 .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after { transform: rotate(90deg); }
 
@@ -179,7 +181,8 @@
 
 /* Its scrollbar shows only while the pointer is over it. */
 .ledger-thought { scrollbar-color: transparent transparent; }
-.ledger-thought:hover { scrollbar-color: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent) transparent; }
+@media (hover: hover) { .ledger-thought:hover { scrollbar-color: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent) transparent; }
+}
 
 .ledger-output.is-error { color: var(--state-danger); }
 
@@ -315,7 +318,7 @@
     /* Shut, no chevron shows until the pointer is over the row, and then it points on (›); open, it points down. */
     opacity: 0;
     transform: rotate(-45deg);
-    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: opacity 0.2s ease, transform 0.28s var(--ease-out);
 }
 
 @media (hover: hover) {
@@ -329,7 +332,8 @@
     .ledger-row[data-kind] > .ledger-row-head.is-expandable .ledger-label::after { opacity: 1; }
 }
 
-.ledger-row[data-kind].is-failed > .ledger-row-head.is-expandable:hover .ledger-label { color: var(--state-danger); }
+@media (hover: hover) { .ledger-row[data-kind].is-failed > .ledger-row-head.is-expandable:hover .ledger-label { color: var(--state-danger); }
+}
 
 .ledger-row[data-kind] > .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after,
 .ledger-row[data-kind][open]:not([data-closing]) > .ledger-row-head.is-expandable .ledger-label::after {
@@ -373,10 +377,12 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.run-source-chip:hover,
 .run-source-chip:focus-visible {
     background: var(--text-primary, var(--gpt-primary-action-bg));
     color: var(--chat-bg, var(--gpt-primary-action-text));
+}
+
+@media (hover: hover) { .run-source-chip:hover { background: var(--text-primary, var(--gpt-primary-action-bg)); color: var(--chat-bg, var(--gpt-primary-action-text)); }
 }
 
 .run-source-host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -453,8 +459,10 @@
     cursor: pointer;
 }
 
-.run-code-copy:hover,
 .run-code-copy:focus-visible { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 8%, transparent); }
+
+@media (hover: hover) { .run-code-copy:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 8%, transparent); }
+}
 
 /* The code runs on one line and scrolls sideways, like a code editor. */
 .ledger-row[data-kind] .run-code-card .ledger-code {
@@ -524,7 +532,8 @@
 /* The 重試 of the note of a visual check that failed or was stopped (vision-retry.js). */
 .vision-retry-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
 .vision-retry { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.75rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-primary); font-size: 0.8rem; }
-.vision-retry:hover { background: var(--hover-bg); }
+@media (hover: hover) { .vision-retry:hover { background: var(--hover-bg); }
+}
 .vision-retry:disabled { opacity: 0.5; }
 .vision-retry svg { width: 0.9rem; height: 0.9rem; }
 
@@ -558,10 +567,12 @@
     font-size: 0.85rem;
     cursor: pointer;
 }
-.net-ask-button:hover:not(:disabled) { background: var(--hover-bg); }
+@media (hover: hover) { .net-ask-button:hover:not(:disabled) { background: var(--hover-bg); }
+}
 .net-ask-button:disabled { opacity: 0.5; cursor: default; }
 .net-ask-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
-.net-ask-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; }
+@media (hover: hover) { .net-ask-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; }
+}
 .net-ask-note, .net-ask-failed { margin: 0.5rem 0 0 1.55rem; font-size: 0.78rem; color: var(--text-secondary); }
 .net-ask-failed { color: var(--state-danger); }
 .net-ask.is-resolved { padding: 0.45rem 0.85rem; border-style: dashed; }

@@ -1,6 +1,5 @@
-.temporary-chat-entry-button:hover,
-.save-temporary-chat-button:hover,
-.temporary-memory-menu button:hover { background: var(--hover-bg); }
+
+@media (hover: hover) { .temporary-chat-entry-button:hover, .save-temporary-chat-button:hover, .temporary-memory-menu button:hover { background: var(--hover-bg); } }
 
 .temporary-chat-icon { display: grid; place-items: center; }
 .temporary-chat-icon svg { width: 1.25rem; height: 1.25rem; }

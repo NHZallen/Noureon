@@ -8,17 +8,8 @@
         to { opacity: 1; transform: scale(1); }
     }
     button,.sidebar-item,.settings-nav-item,.theme-btn,.voice-input-btn,.color-option {
-        transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+        transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
     }
-button:not(.btn-primary):hover:not(:disabled) {
-    transform: translateY(-1px);
-    filter: brightness(95%);
-}
-button:not(.btn-primary):active:not(:disabled) {
-    transform: translateY(0px);
-    box-shadow: none;
-    filter: brightness(90%);
-}
     body { background-color: var(--chat-bg); color: var(--text-primary); }
     .scroll-area {
         -webkit-overflow-scrolling: touch;
@@ -30,23 +21,24 @@ button:not(.btn-primary):active:not(:disabled) {
     .sidebar {
         background-color: var(--sidebar-bg);
         border-right: 1px solid var(--border-color);
-        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        transition: transform 0.3s var(--ease-drawer);
     }
     .scroll-area::-webkit-scrollbar { width: 8px; }
     .scroll-area::-webkit-scrollbar-track { background: transparent; }
     .scroll-area::-webkit-scrollbar-thumb { background: var(--gpt-scrollbar); border-radius: 4px; }
-    .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+    @media (hover: hover) { .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+}
     .modal {
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+        transition: opacity 150ms var(--ease-out), visibility 150ms;
     }
-    .modal.visible { opacity: 1; visibility: visible; }
+    .modal.visible { opacity: 1; visibility: visible; transition-duration: var(--dur-modal), var(--dur-modal); }
     .modal > div {
-        transform: scale(0.95);
-        transition: transform 0.2s ease-in-out;
+        transform: scale(0.96);
+        transition: transform 150ms var(--ease-out);
     }
-    .modal.visible > div { transform: scale(1); }
+    .modal.visible > div { transform: scale(1); transition-duration: var(--dur-modal); }
 
 /* The page is not dragged or bounced: the app is fixed to what is seen, and there is nothing to scroll behind it. */
 html, body { overscroll-behavior: none; }
@@ -73,3 +65,31 @@ html:has(#store-container:not(.hidden)) { overflow: hidden; }
 @media (min-width: 768px) {
     html:is([data-rail-early], [data-rail-layout]) :is(#new-chat-btn, #new-chat-btn-header, #menu-toggle-btn, #open-cli-store-btn, #user-controls) { display: none; }
 }
+
+/* An action started from the keyboard (a shortcut) is not animated: it is done hundreds of times a day (runtime/shortcuts/instant-flag.js). */
+html.is-instant *, html.is-instant *::before, html.is-instant *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
+}
+
+/* Reduced motion: what moves or scales stands still, fades and colours stay (the files that set their own rules keep them). */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+    }
+    .modal > div, .notification, .message-item { transform: none !important; }
+}
+
+/* important-audit: required: accessibility - the reduced-motion and keyboard-instant rules must beat every rule of every file; an input of 16 px must beat the sizes set by id. */
+/* The floor of a phone (docs/superpowers/specs/2026-11-11-interaction-overhaul-design.md §5, phase 1): no grey flash on a tap, a tap fires at once,
+   the label of a control is not selected by a long press, and an input is 16 px so that focusing it does not zoom the page. */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+button, a, [role="button"], summary, label, select { touch-action: manipulation; }
+button, [role="button"], summary { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+@media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select { font-size: max(16px, 1em) !important; }
+}
+
+/* Panels that are pushed away with a finger (ui/motion/drag-dismiss.js): the browser keeps the vertical scroll, the sideways move is the panel's. */
+#history-sidebar, #sidebar { touch-action: pan-y; }

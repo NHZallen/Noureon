@@ -43,7 +43,7 @@ export function fadeOutPreviousChat({ messageList, chatContainer, document }) {
   const remove = () => ghost.remove();
   const exit = ghost.animate(
     [{ opacity: 1, translate: '0 0', scale: '1' }, { opacity: 0, translate: '0 -10px', scale: '0.985' }],
-    { duration: EXIT_MS, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+    { duration: EXIT_MS, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' }
   );
   exit.onfinish = remove;
   view.setTimeout(remove, EXIT_MS + 250); // a hidden tab never finishes the animation

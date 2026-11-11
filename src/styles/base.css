@@ -51,11 +51,11 @@ body {
     height: 60%; 
     background-color: var(--button-primary-bg);
     border-radius: 9999px; 
-    animation: indicator-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: indicator-pop-in 0.3s var(--ease-out) forwards;
 }
     #history-sidebar-overlay {
     background-color: color-mix(in srgb, var(--chat-bg) 38%, transparent) !important;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s var(--ease-drawer);
 }
 #history-sidebar-overlay.visible {
     display: block; /* 讓它可以被看見 */
@@ -64,7 +64,7 @@ body {
     #history-sidebar {
     /* 預設將側邊欄向右移出畫面外 */
     transform: translateX(100%); 
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s var(--ease-drawer);
     -webkit-user-select: none; /* 防止在滑動時選取文字 */
     user-select: none;
 }
@@ -112,7 +112,7 @@ body {
     .sidebar-item {
     position: relative; /* 這是為了讓指示條可以相對於它定位，非常重要！ */
     border-radius: 0.5rem;
-    transition: all 0.2s ease-in-out; /* 保留平滑動畫 */
+    transition: background-color 150ms ease, color 150ms ease;
     padding-left: 1.25rem; /* 稍微增加左邊距，為指示條留出空間 */
 }
 .sidebar-item.active::before {
@@ -126,7 +126,7 @@ body {
     background-color: var(--button-primary-bg);
     
     border-radius: 9999px; /* 讓指示條兩端變圓滑 */
-    animation: indicator-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: indicator-pop-in 0.3s var(--ease-out) forwards;
 }
 @keyframes indicator-pop-in {
     from {

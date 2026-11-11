@@ -11,7 +11,8 @@
 #settings-modal .sc { padding: 0 0 2rem; }
 #settings-modal .sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin: 0 0 1.25rem; }
 #settings-modal .sc-reset-all { flex: none; height: 2rem; padding: 0 0.9rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; font-size: 0.8125rem; cursor: pointer; }
-#settings-modal .sc-reset-all:hover:not(:disabled) { background: var(--hover-bg); }
+@media (hover: hover) { #settings-modal .sc-reset-all:hover:not(:disabled) { background: var(--hover-bg); }
+}
 #settings-modal .sc-reset-all:disabled { opacity: 0.45; cursor: default; }
 #settings-modal .sc .sc-hint { flex: 1; min-width: 0; margin: 0; padding-top: 0.35rem; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary) !important; }
 
@@ -27,7 +28,8 @@
 
 /* The keys: quiet text on the right; a click makes them a field that waits for the new ones. */
 #settings-modal .sc .sc-key { flex: none; min-width: 6.5rem; padding: 0.4rem 0.7rem; border: 1px solid transparent; border-radius: 0.6rem; background: transparent; text-align: right; font-size: 0.9375rem; font-weight: 400; color: var(--text-secondary) !important; cursor: pointer; }
-#settings-modal .sc .sc-key:hover:not(:disabled):not(.is-static) { background: var(--hover-bg); }
+@media (hover: hover) { #settings-modal .sc .sc-key:hover:not(:disabled):not(.is-static) { background: var(--hover-bg); }
+}
 #settings-modal .sc .sc-key:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 1px; }
 #settings-modal .sc .sc-key.is-recording { border-color: var(--text-secondary); background: var(--input-field-bg); text-align: left; color: var(--text-primary) !important; outline: none; }
 #settings-modal .sc .sc-key:disabled { opacity: 0.5; cursor: default; }
@@ -35,7 +37,8 @@
 
 #settings-modal .sc-reset { flex: none; display: inline-grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; cursor: pointer; }
 #settings-modal .sc-reset[hidden] { display: none; }
-#settings-modal .sc-reset:hover { background: var(--hover-bg); }
+@media (hover: hover) { #settings-modal .sc-reset:hover { background: var(--hover-bg); }
+}
 #settings-modal .sc .sc-reset svg, #settings-modal .sc .sc-reset svg * { color: var(--text-secondary) !important; stroke: var(--text-secondary) !important; }
 
 #settings-modal .sc .sc-msg { flex: 0 0 100%; padding: 0 0 0.35rem 4.9rem; font-size: 0.8125rem; line-height: 1.4; color: var(--state-danger) !important; }

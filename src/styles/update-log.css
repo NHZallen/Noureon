@@ -2,7 +2,7 @@
 .ul-dialog { position: relative; display: flex; flex-direction: column; width: 100%; max-height: 92vh; border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); box-shadow: var(--shadow-xl); }
 .ul-hero { max-width: 34rem; }
 .ul-x { position: absolute; top: 0.9rem; right: 1.1rem; width: 2rem; height: 2rem; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-secondary); font-size: 1.5rem; line-height: 1; cursor: pointer; }
-.ul-x:hover { color: var(--text-primary); }
+@media (hover: hover) { .ul-x:hover { color: var(--text-primary); } }
 .ul-head { padding: 1.5rem 3.2rem 1rem 2rem; border-bottom: 1px solid var(--border-color); }
 .ul-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
 .ul-scroll { overflow-y: auto; }
@@ -28,7 +28,7 @@
 .ul-it-desc { margin: 0.15rem 0 0; font-size: 0.88rem; line-height: 1.55; color: var(--text-secondary); }
 .ul-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 2.2rem 1.4rem; border-top: 1px solid var(--border-color); }
 .ul-link { display: inline-block; padding: 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.ul-link:hover { color: var(--text-primary); }
+@media (hover: hover) { .ul-link:hover { color: var(--text-primary); } }
 .ul-btn { height: 2.6rem; padding: 0 1.4rem; border: 0; border-radius: 0.6rem; background: var(--button-primary-bg); color: var(--button-primary-text); font: inherit; font-size: 0.92rem; cursor: pointer; }
 @media (max-width: 560px) {
     .ul-head { padding: 1.3rem 3rem 0.9rem 1.3rem; }

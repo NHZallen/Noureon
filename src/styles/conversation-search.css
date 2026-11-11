@@ -12,7 +12,7 @@
     width: min(47.5rem, calc(100vw - 2rem)) !important;
     height: min(70vh, 42rem) !important;
     max-width: 47.5rem;
-    max-height: calc(100vh - 2.5rem) !important;
+    max-height: calc(100dvh - 2.5rem) !important;
     background: var(--modal-bg) !important;
     border: 1px solid var(--border-color);
     border-radius: 1rem !important;
@@ -57,9 +57,7 @@
     height: 1.25rem;
 }
 
-#search-modal #close-search-modal-btn:hover {
-    color: var(--text-primary);
-    background: var(--hover-bg);
+@media (hover: hover) { #search-modal #close-search-modal-btn:hover { color: var(--text-primary); background: var(--hover-bg); }
 }
 
 #search-modal .conversation-search-toolbar {
@@ -100,9 +98,7 @@
     transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.conversation-search-mode-control button:hover {
-    color: var(--text-primary);
-    background: var(--hover-bg);
+@media (hover: hover) { .conversation-search-mode-control button:hover { color: var(--text-primary); background: var(--hover-bg); }
 }
 
 .conversation-search-mode-control button.is-active {
@@ -189,10 +185,12 @@
     cursor: pointer;
 }
 
-#search-modal #modal-search-input::-webkit-search-cancel-button:hover {
+@media (hover: hover) {
+  #search-modal #modal-search-input::-webkit-search-cancel-button:hover {
     background:
         linear-gradient(45deg, transparent 45%, var(--text-primary) 45%, var(--text-primary) 55%, transparent 55%),
         linear-gradient(-45deg, transparent 45%, var(--text-primary) 45%, var(--text-primary) 55%, transparent 55%);
+  }
 }
 
 #search-modal #voice-input-btn-search {
@@ -209,9 +207,7 @@
     border-radius: 0.7rem;
 }
 
-#search-modal #voice-input-btn-search:hover {
-    color: var(--text-primary);
-    background: var(--hover-bg);
+@media (hover: hover) { #search-modal #voice-input-btn-search:hover { color: var(--text-primary); background: var(--hover-bg); }
 }
 
 #search-modal #perform-search-btn {
@@ -247,9 +243,7 @@
     transition: background-color 0.15s ease;
 }
 
-.conversation-search-recent-item:hover,
-.conversation-search-result:hover {
-    background: var(--hover-bg);
+@media (hover: hover) { .conversation-search-recent-item:hover, .conversation-search-result:hover { background: var(--hover-bg); }
 }
 
 .conversation-search-chat-icon {
@@ -370,10 +364,12 @@
         box-shadow: var(--shadow-sm);
     }
 
-    #search-modal #close-search-modal-btn:hover,
     #search-modal #close-search-modal-btn:active {
         color: var(--text-primary);
         background: var(--modal-bg);
+    }
+
+    @media (hover: hover) { #search-modal #close-search-modal-btn:hover { color: var(--text-primary); background: var(--modal-bg); }
     }
 
     #search-modal .conversation-search-toolbar {
@@ -473,8 +469,10 @@
         border-radius: 0;
     }
 
-    .conversation-search-result:hover,
     .conversation-search-result:active {
         background: var(--sidebar-bg);
+    }
+
+    @media (hover: hover) { .conversation-search-result:hover { background: var(--sidebar-bg); }
     }
 }

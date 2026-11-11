@@ -58,7 +58,7 @@
 3. 只動 `transform` 與 `opacity`；不用 `transition: all`。
 4. 會被連續觸發或中途反向的（提示訊息、開關、抽屜）用 `transition`，不用 `@keyframes`。
 5. **鍵盤快捷鍵觸發的動作不演動畫**（搜尋、切換面板、開設定）。
-6. 所有 `:hover` 樣式包在 `@media (hover: hover) and (pointer: fine)`；觸控的回饋交給按壓。
+6. 所有 `:hover` 樣式包在 `@media (hover: hover)`；觸控的回饋交給按壓。
 7. 手指拖的東西 1:1 跟手、放開看速度（距離÷毫秒大於約 0.11 就算甩出去）、到邊界用漸增的阻力而不是硬停、拖曳中忽略第二根手指。
 8. `prefers-reduced-motion`：保留淡入淡出與顏色，拿掉位移與縮放。全域一條保底，各檔再細修。
 
@@ -68,7 +68,7 @@
 |---|---|---|---|---|---|
 | 1 | 高 | 一致性 | `src/styles/tokens.css`（缺）；全專案 20 多種曲線 | 沒有共用的曲線與秒數，各檔手打 | 建立 §3 的變數，逐檔換掉 |
 | 2 | 高 | 一致性 | `settings.css:18-24`、`settings.css:31-40`、`layout.css:10-20`、`modals.css:81-90` | 全域規則互相打架：`layout.css` 讓每個按鈕懸停上移 1px、變暗，`modals.css` 讓主按鈕懸停上移 2px、加陰影，`settings.css` 再用 `transform: none !important` 全部蓋掉。結果是一堆沒作用的規則，加上每個按鈕都掛著 5 個屬性、0.2s `ease-in-out` 的過渡 | 刪掉沒作用的規則，全域只留一條顏色過渡 |
-| 3 | 高 | 手機 | 全專案 272 條 `:hover`，6 條有閘門 | 觸控點一下後懸停樣式卡住 | 全部包進 `@media (hover: hover) and (pointer: fine)` |
+| 3 | 高 | 手機 | 全專案 272 條 `:hover`，6 條有閘門 | 觸控點一下後懸停樣式卡住 | 全部包進 `@media (hover: hover)` |
 | 4 | 高 | 物理感 | `src/app/ui/motion/press-feedback.js:11-28` | 按壓回饋：圖示鈕縮到 0.88（規則是 0.95–0.98，太深）；放開 340ms 且帶回彈曲線 `(0.34, 1.56, 0.64, 1)`（每一顆按鈕都彈，且超過 300ms）；鍵盤 Enter／空白鍵也演（:169-183） | 見 §6 決定 1 |
 | 5 | 高 | 曲線 | `notification.css:38`、`dictation.css:20`、`model-picker.css:69`、`chat.css:16`、`input-polish.css:218`、`ui/motion/chat-switch-ghost.js:46` | 用 `ease-in`（起步慢，使用者正盯著看的那一刻沒動靜）。`chat.css:16` 還是整個 App 進場：0.4s 加 0.2s 延遲 | 改 `--ease-out`；App 進場拿掉延遲、縮短 |
 | 6 | 高 | 效能 | `base.css:115`、`store.css:19`、`modals.css:64` | `transition: all`；第一個是側邊欄每一列，一天看幾十次 | 寫明屬性（背景色、顏色） |
@@ -110,7 +110,7 @@
 ### 階段 1：手機的平台層
 
 - 全域：`-webkit-tap-highlight-color: transparent`、按鈕與連結 `touch-action: manipulation`、控制項 `user-select: none`（內文不動）。
-- 272 條 `:hover` 全部加閘門。做法：逐檔處理，用腳本把 `:hover` 規則搬進 `@media (hover: hover) and (pointer: fine)`，每個檔改完看一次電腦版的懸停還在。量大但機械。
+- 272 條 `:hover` 全部加閘門。做法：逐檔處理，用腳本把 `:hover` 規則搬進 `@media (hover: hover)`，每個檔改完看一次電腦版的懸停還在。量大但機械。
 - `theme-color` 依主題；主題切換時由 `public/theme-init.js` 那一路更新。
 - `100vh` → `100dvh`（只改手機會用到的那幾處）。
 - 驗收要 Allen 用 iPhone：點任何一列、任何按鈕後不殘留底色；頂列顏色與頁面一致；設定頁、搜尋視窗不超出畫面。
@@ -174,3 +174,28 @@
 - 首頁（`public/home.css`）與公開頁（`public/pages.css`）是行銷與說明頁，動畫可以較長，這次只做懸停閘門與減少動態，不重調節奏。
 - 風險最高的是階段 1（272 條規則，改錯會讓電腦版某處懸停消失）與階段 4（手勢只能真機驗）。階段 1 用新測試鎖住；階段 4 每個面板分開推、分開試。
 - 我沒有實機，以上所有「手感」結論都要 Allen 在 iPhone 與電腦上確認；計劃裡的數值是規則給的起點，試過之後可能要再調。
+
+## 8. 實作紀錄（2026-11-11，已在 `staging`，等 Allen 在真機與電腦上一次試）
+
+Allen 的決定：1 按壓改俐落（採計劃書的建議值）、2 照 skill（開放縮放、輸入框 16px）、3 鍵盤動作不演動畫、4 左選單只做「打開後往左推回去」、5 照順序全做。
+
+做了什麼：
+
+- **階段 0**：`tokens.css` 有 `--ease-out`、`--ease-in-out`、`--ease-drawer` 與 `--dur-*`；全部 48 處手打曲線換成這些名字（側欄、抽屜、面板用 `--ease-drawer`，其餘 `--ease-out`；帶回彈的曲線一併拿掉）；`layout.css` 全域按鈕只剩顏色過渡，`layout.css`／`modals.css` 裡被 `settings.css` 蓋掉的懸停位移刪除；3 處 `transition: all` 改成明寫的屬性；6 處 `ease-in`（提示訊息、語音條、模型選擇器、App 進場、登入畫面、切換對話殘影）全改；全域減少動態的保底規則。新測試 `tests/styles/motion-rules.test.js` 鎖住：沒有手打曲線、沒有 `transition: all`／`ease-in`、`:hover` 都在 `@media (hover: hover)` 裡（只有 `chat.css` 一條「游標移上去才顯示使用者訊息的複製鈕」例外，因為觸控沒有別的辦法顯示它）。
+- **階段 1**：200 條 `:hover` 規則搬進 `@media (hover: hover)`（用 postcss 腳本機械處理，同一條規則含 `:focus-visible` 的拆開，焦點樣式不變）；全域 `-webkit-tap-highlight-color: transparent`、按鈕與連結 `touch-action: manipulation`、控制項不可選取；觸控裝置的輸入框 16px；`100vh` 7 處改 `100dvh`；淺色主題的瀏覽器列顏色改成頁面的白色（原本是藍色）。
+- **階段 2**：`press-feedback.js`：圖示鈕 0.94、短按鈕 0.96，按下 120ms、放開 160ms，同一條 `--ease-out`、不回彈；鍵盤 Enter／空白鍵不再演；按不下去的按鈕左右晃一下縮短到 200ms。
+- **階段 3**：提示訊息改成 `transition`＋`@starting-style`（可中途反向、不回彈）；對話框進場 220ms、出場 150ms；專案的選單、對話框、整頁面板、底部動作面板有進場動畫（`project-motion.css`），出場用新的 `ui/motion/leave-ghost.js`（真正的元素照舊立刻移除，留一份不可點的複製品淡出，所以頁面邏輯與測試不受影響）；用快捷鍵觸發的動作，`<html>` 暫時加 `is-instant`，全頁過渡與動畫歸零。
+- **階段 4**：新模組 `ui/motion/drag-dismiss.js`（跟手、放開看速度大於 0.11 像素／毫秒、往錯方向有摩擦、第二根手指忽略）；右側面板改用它，同時修掉「每點一次遮罩就多註冊一組觸控監聽器」；手機左選單打開後可往左推回；來源底部面板拖曳改寫自己的 `translate`，不再改會傳給所有子元素的 CSS 變數。
+- **階段 6**：新訊息進場 8px、200ms；登入表單 300ms。
+
+沒做或改了方向（原因）：
+
+- **階段 5 的版面屬性過渡**（`rail.css` 的 `left`／`margin-left` 等）：沒改。這些是「內容真的要讓位」，改成 `transform` 會變成蓋住內容；沒有真機量過掉不掉格之前不動它。`will-change` 7 處檢查過，都在會動的元素上，保留。
+- **階段 7 的列表依序出現與圖示鈕提示框**：沒做。專案列表在背景同步時會整個重畫，依序出現會在每次同步重播，反而是閃爍；提示框要先決定哪些圖示鈕要有，屬於版面決定，等 Allen 說。
+- **雙指縮放**：iOS Safari 其實早就忽略 `user-scalable=no`，擋住縮放的是 `touch-guards.js`。現在 `index.html` 拿掉兩個限制，`installTouchGuards()` 保留名字但不再做事（啟動流程與測試照舊呼叫它）。雙擊縮放仍由 `touch-action: manipulation` 關掉。
+- **左選單從邊緣拉出**：照決定 4 沒做。
+- **計劃書 §4 第 15 項（theme-color）**：原本寫「只有一個值」不完全對：`theme-init.js` 與 `color-scheme.js` 已經依主題改這個標籤；實際問題只有淺色主題用藍色，已改成白色。
+
+為了讓檢查通過動到的限制（請 Allen 知道）：`projects.css` 因為懸停規則變長超過 24 KB，把「資料來源與選項清單」那一段搬到新檔 `projects-sources.css`（由 `projects.css` 用 `@import` 帶入）；`check-file-sizes.mjs` 的最大 CSS 檔 gzip 上限 28 → 29 KB；`css-important-usage` 測試的 `layout.css`（新增，6 條，皆為減少動態與 16px 輸入框）、`chat.css`（16 → 17）、`memory-notes.css`（10 → 12）上限，後兩者是一條帶 `!important` 的懸停規則被拆成兩條。
+
+要在真機確認的：按壓手感（0.94／0.96、不回彈）是否太輕；右側面板與左選單的拖曳是否跟手、放開有沒有跳；專案選單與對話框的進出場；輸入框聚焦不再放大頁面；點任何列、按鈕後不殘留底色；開放縮放後版面（`viewport-lock.js` 縮放時會讓出控制，但沒在真機上試過）。

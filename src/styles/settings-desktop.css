@@ -60,9 +60,7 @@
         font-weight: 600 !important;
     }
 
-    .settings-nav-item:hover {
-        color: var(--gpt-control-text) !important;
-        background: transparent !important;
+    @media (hover: hover) { .settings-nav-item:hover { color: var(--gpt-control-text) !important; background: transparent !important; }
     }
 
     #settings-modal .settings-nav-item:not(.active) {

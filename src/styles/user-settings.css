@@ -14,7 +14,7 @@
 #settings-modal #user-section .us-uid-label { font-size: 0.7rem; letter-spacing: 0.08em; color: var(--text-secondary) !important; }
 #settings-modal #user-section .us-uid-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: var(--astra-font-medium) !important; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; color: var(--text-primary) !important; user-select: all; }
 #settings-modal #user-section .us-copy { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary) !important; cursor: pointer; }
-#settings-modal #user-section .us-copy:hover { background: var(--hover-bg); color: var(--text-primary) !important; }
+@media (hover: hover) { #settings-modal #user-section .us-copy:hover { background: var(--hover-bg); color: var(--text-primary) !important; } }
 #settings-modal #user-section .us-copy.is-copied { color: var(--text-primary) !important; }
 #settings-modal #user-section .us-sub { margin-top: 0.15rem; font-size: 0.875rem; color: var(--text-secondary) !important; }
 #settings-modal #user-section .us-card { margin-top: 1rem; border: 1px solid var(--border-color); border-radius: 0.875rem; overflow: hidden; box-shadow: var(--shadow-xs); }
@@ -32,7 +32,7 @@
 #settings-modal #user-section .us-row-title { display: block; font-size: 0.95rem; font-weight: var(--astra-font-medium) !important; }
 #settings-modal #user-section .us-row-desc { display: block; margin-top: 0.05rem; font-size: 0.8125rem; color: var(--text-secondary) !important; }
 #settings-modal #user-section button.us-row { cursor: pointer; }
-#settings-modal #user-section button.us-row:hover:not(.is-disabled) { background: var(--hover-bg); }
+@media (hover: hover) { #settings-modal #user-section button.us-row:hover:not(.is-disabled) { background: var(--hover-bg); } }
 #settings-modal #user-section .us-row.is-disabled { cursor: default; }
 #settings-modal #user-section .us-row.is-disabled .us-row-title { color: var(--text-secondary) !important; }
 #settings-modal #user-section .us-mark { flex: none; width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 0.6rem; background: var(--input-field-bg, transparent); color: var(--text-secondary) !important; }
@@ -58,7 +58,7 @@
 #settings-modal #user-section .us-eye .us-eye-on { display: none; }
 #settings-modal #user-section .us-eye[aria-pressed="true"] .us-eye-on { display: block; }
 #settings-modal #user-section .us-eye[aria-pressed="true"] .us-eye-off { display: none; }
-#settings-modal #user-section .us-eye:hover { color: var(--text-primary) !important; }
+@media (hover: hover) { #settings-modal #user-section .us-eye:hover { color: var(--text-primary) !important; } }
 #settings-modal #user-section .us-hint { font-size: 0.8125rem; color: var(--text-secondary) !important; }
 #settings-modal #user-section .us-check { display: flex; align-items: flex-start; gap: 0.65rem; font-size: 0.875rem; cursor: pointer; }
 #settings-modal #user-section .us-check input { flex: none; width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; accent-color: var(--gpt-primary-action-bg, #111827); }
@@ -69,14 +69,14 @@
 #settings-modal #user-section .us-foot { display: flex; flex-direction: column-reverse; align-items: stretch; gap: 0.85rem; padding: 0.9rem 1.15rem; border-top: 1px solid var(--border-color); background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
 #settings-modal #user-section .us-foot.hidden { display: none; }
 #settings-modal #user-section .us-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: transparent; color: inherit !important; font: inherit; font-size: 0.875rem; font-weight: var(--astra-font-medium) !important; white-space: nowrap; cursor: pointer; box-shadow: var(--shadow-xs); }
-#settings-modal #user-section .us-btn:hover:not(:disabled) { background: var(--hover-bg); }
+@media (hover: hover) { #settings-modal #user-section .us-btn:hover:not(:disabled) { background: var(--hover-bg); } }
 #settings-modal #user-section .us-btn:disabled { opacity: 0.5; cursor: default; }
 #settings-modal #user-section .us-btn.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text) !important; box-shadow: none; }
-#settings-modal #user-section .us-btn.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; }
+@media (hover: hover) { #settings-modal #user-section .us-btn.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; } }
 #settings-modal #user-section .us-btn.is-danger { color: var(--state-danger) !important; }
 #settings-modal #user-section .us-btn.is-block { width: 100%; height: 2.75rem; }
 #settings-modal #user-section .us-link { align-self: center; padding: 0; border: 0; background: transparent; color: var(--text-secondary) !important; font: inherit; font-size: 0.875rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-#settings-modal #user-section .us-link:hover:not(:disabled) { color: var(--text-primary) !important; }
+@media (hover: hover) { #settings-modal #user-section .us-link:hover:not(:disabled) { color: var(--text-primary) !important; } }
 #settings-modal #user-section .us-link:disabled { opacity: 0.5; cursor: default; }
 #settings-modal #user-section .us-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 #settings-modal #user-section .us-note { padding: 0.9rem 1.15rem; font-size: 0.875rem; color: var(--text-secondary) !important; }

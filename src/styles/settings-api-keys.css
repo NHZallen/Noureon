@@ -42,11 +42,7 @@
     border-color: var(--accent-color);
 }
 
-.api-key-visibility-btn:hover,
-.api-key-clear-btn:hover,
-.api-key-clear-all-btn:hover {
-    color: var(--text-primary);
-    border-color: var(--accent-color);
+@media (hover: hover) { .api-key-visibility-btn:hover, .api-key-clear-btn:hover, .api-key-clear-all-btn:hover { color: var(--text-primary); border-color: var(--accent-color); }
 }
 
 .api-key-clear-all-btn {

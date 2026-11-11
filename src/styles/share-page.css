@@ -20,9 +20,9 @@ html.share-page, html.share-page body { height: 100%; overflow: hidden; }
 .sp-notice p, .sp-loading { margin: 0 0 1rem; color: var(--text-secondary); }
 .sp-loading { padding: 3rem 0; text-align: center; }
 .sp-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; background: var(--hover-bg); color: var(--text-primary); font-size: 0.875rem; }
-.sp-btn:hover:not(:disabled) { background: var(--active-bg); }
+@media (hover: hover) { .sp-btn:hover:not(:disabled) { background: var(--active-bg); } }
 .sp-btn.is-primary { background: var(--button-primary-bg); color: var(--button-primary-text); }
-.sp-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); }
+@media (hover: hover) { .sp-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); } }
 .sp-btn:disabled { opacity: 0.55; }
 .sp-footer { flex: none; max-width: 48rem; width: 100%; margin: 0 auto; padding: 1rem 1.25rem 2rem; box-sizing: border-box; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border-color); }
 .sp-disclaimer { margin: 0; }

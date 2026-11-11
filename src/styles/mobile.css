@@ -172,9 +172,7 @@
         -webkit-user-select: text;
     }
 
-    #message-input .composer-inline-mode-token:hover {
-        background: transparent;
-        color: var(--button-primary-bg);
+    @media (hover: hover) { #message-input .composer-inline-mode-token:hover { background: transparent; color: var(--button-primary-bg); }
     }
 
     #message-input .composer-inline-mode-token .input-indicator-content {

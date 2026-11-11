@@ -75,7 +75,8 @@
     overflow-wrap: anywhere;
     transition: color 0.15s ease;
 }
-.ac-file-card .ac-file-link:hover { background: none; color: var(--link-color); }
+@media (hover: hover) { .ac-file-card .ac-file-link:hover { background: none; color: var(--link-color); }
+}
 .ac-file-card .ac-file-link[aria-busy="true"] { opacity: 0.7; }
 /* A global `body svg` rule pins icons to one colour; the arrow follows the link (blue under the pointer). */
 .ac-file-card .ac-file-link .ac-file-link-arrow { color: inherit; stroke: currentColor; }
@@ -141,8 +142,9 @@
     opacity: 0.6;
     transition: opacity 0.15s ease;
 }
-.ac-file-card:hover .ac-file-actions,
 .ac-file-card:focus-within .ac-file-actions { opacity: 1; }
+@media (hover: hover) { .ac-file-card:hover .ac-file-actions { opacity: 1; }
+}
 @media (hover: none) { .ac-file-actions { opacity: 1; } }
 
 .ac-file-action {
@@ -164,9 +166,7 @@
     transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-.ac-file-action:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
+@media (hover: hover) { .ac-file-action:hover { background: var(--hover-bg); color: var(--text-primary); }
 }
 
 .ac-file-action:focus-visible {
@@ -182,9 +182,7 @@
     color: var(--ac-file-accent-text);
 }
 
-.ac-file-action-primary:hover {
-    background: color-mix(in srgb, var(--ac-file-accent) 20%, transparent);
-    color: var(--ac-file-accent-text);
+@media (hover: hover) { .ac-file-action-primary:hover { background: color-mix(in srgb, var(--ac-file-accent) 20%, transparent); color: var(--ac-file-accent-text); }
 }
 
 .ac-file-action .ac-file-action-icon {
@@ -321,8 +319,7 @@
     line-height: 1;
 }
 
-.ac-file-preview-close:hover {
-    background: var(--hover-bg);
+@media (hover: hover) { .ac-file-preview-close:hover { background: var(--hover-bg); }
 }
 
 /* The dialog puts the focus on the close button as it opens, and a ring round it on every opening is not wanted. */

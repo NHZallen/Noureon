@@ -105,7 +105,7 @@ samp,
 
     #settings-modal > div {
         transform: translateY(100%) !important;
-        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.32s ease !important;
+        transition: transform 0.32s var(--ease-out), box-shadow 0.32s ease !important;
         will-change: transform;
     }
 
@@ -176,7 +176,7 @@ samp,
         display: block !important;
         min-height: 0 !important;
         transition:
-            transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+            transform 0.28s var(--ease-out),
             opacity 0.2s ease !important;
         will-change: transform;
     }

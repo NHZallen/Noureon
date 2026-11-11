@@ -31,7 +31,7 @@ test('applying a choice sets the theme of the page, the colour of the browser ba
   assert.equal(t.window.localStorage.getItem(COLOR_SCHEME_STORAGE_KEY), 'dark');
   assert.equal(scheme.apply('light'), 'light');
   assert.equal(t.document.documentElement.getAttribute('data-theme'), 'light');
-  assert.equal(t.document.querySelector('meta[name="theme-color"]').getAttribute('content'), '#3b82f6');
+  assert.equal(t.document.querySelector('meta[name="theme-color"]').getAttribute('content'), '#ffffff');
 });
 
 test('"system" follows the device while it is the choice, and only then', () => {

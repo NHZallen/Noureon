@@ -23,10 +23,12 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.cite-pill:hover,
 .cite-pill:focus-visible {
     background: var(--text-primary, var(--gpt-primary-action-bg));
     color: var(--chat-bg, var(--gpt-primary-action-text));
+}
+
+@media (hover: hover) { .cite-pill:hover { background: var(--text-primary, var(--gpt-primary-action-bg)); color: var(--chat-bg, var(--gpt-primary-action-text)); }
 }
 
 .cite-pill-icon { width: 0.95rem; height: 0.95rem; }
@@ -49,8 +51,10 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.sources-button:hover,
 .sources-button:focus-visible { background: var(--hover-bg); color: var(--text-primary); }
+
+@media (hover: hover) { .sources-button:hover { background: var(--hover-bg); color: var(--text-primary); }
+}
 .sources-button-icons { display: inline-flex; align-items: center; }
 .sources-button-icon { width: 1.15rem; height: 1.15rem; box-shadow: 0 0 0 2px var(--chat-bg, #ffffff); background: var(--chat-bg, var(--modal-bg)); }
 .sources-button-icon + .sources-button-icon { margin-left: -0.4rem; }
@@ -116,7 +120,7 @@
     color: var(--text-primary);
     box-shadow: var(--shadow-up);
     transform: translate3d(-50%, 110%, 0);
-    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform var(--dur-drawer) var(--ease-drawer), translate var(--dur-drawer) var(--ease-drawer);
     will-change: transform;
     outline: none;
 }
@@ -131,7 +135,7 @@
 .source-sheet.is-all.is-large { --sheet-rest: 0px; }
 .source-sheet.is-all:not(.is-large) .source-sheet-list { padding-bottom: calc(var(--sheet-offset) + 1rem + env(safe-area-inset-bottom, 0px)); }
 .source-sheet-root.is-open .source-sheet-backdrop { opacity: 1; }
-.source-sheet-root.is-open .source-sheet { transform: translate3d(-50%, calc(var(--sheet-rest) + var(--sheet-drag, 0px)), 0); }
+.source-sheet-root.is-open .source-sheet { transform: translate3d(-50%, var(--sheet-rest), 0); }
 .source-sheet.is-dragging { transition: none; }
 
 /* On a phone it fills the width and rests on the bottom edge, as the settings do. */
@@ -169,7 +173,8 @@
 .history-tab[aria-selected='true'] { background: var(--chat-bg, var(--modal-bg)); color: var(--text-primary); box-shadow: var(--shadow-xs); }
 .history-tab-count { margin-left: 0.3rem; opacity: 0.7; }
 .history-close { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary); cursor: pointer; }
-.history-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+@media (hover: hover) { .history-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+}
 #history-sources-list, .psh-history-sources { padding: 0.4rem; }
 #history-sources-list[hidden], #history-sidebar-list[hidden] { display: none; }
 .history-sources-count { padding: 0.5rem 0.9rem 0.3rem; color: var(--text-secondary); font-size: 0.875rem; }
@@ -184,7 +189,7 @@ main.flex-1 > header { z-index: 11; }
 
 @media (min-width: 1024px) {
     /* Open, the panel takes its width from the chat instead of lying over it, and there is no veil. */
-    main.flex-1 { transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    main.flex-1 { transition: padding-right 0.3s var(--ease-drawer); }
     main.flex-1.history-docked { padding-right: 25rem; }
     main.flex-1.history-docked #history-sidebar-overlay { display: none; }
 }
@@ -273,7 +278,8 @@ main.flex-1 > header { z-index: 11; }
 .source-row-open, .source-row-open:focus, .source-row-open:focus-visible { outline: none; -webkit-tap-highlight-color: transparent; }
 .source-row-action.is-download { width: 2.25rem; height: 2.25rem; padding: 0; justify-content: center; border-color: transparent; }
 .source-row-action { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.1rem 0.6rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.75rem; cursor: pointer; }
-.source-row-action:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
+@media (hover: hover) { .source-row-action:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
+}
 .source-row-action:disabled { opacity: 0.5; cursor: default; }
 .mi { display: inline-grid; place-items: center; flex: none; }
 .mi-svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }

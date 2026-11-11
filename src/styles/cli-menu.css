@@ -13,7 +13,7 @@
 .cli-menu-kind { flex: none; color: var(--text-secondary); font-size: 0.9rem; }
 .cli-menu-empty { padding: 0.9rem 0.8rem 0.4rem; color: var(--text-secondary); }
 .cli-menu-store { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0.4rem 0.4rem; padding: 0.6rem 0.8rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
-.cli-menu-store:hover { background: var(--hover-bg); }
+@media (hover: hover) { .cli-menu-store:hover { background: var(--hover-bg); } }
 
 /* The row of the left menu. */
 .cli-sidebar-entry { gap: 0.7rem; margin: 0.1rem 0 0.4rem; padding: 0.55rem 0.75rem; }

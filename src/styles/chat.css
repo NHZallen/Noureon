@@ -12,8 +12,8 @@
     }
     #app-container, #store-container {
         opacity: 0;
-        transform: scale(1.05);
-        transition: opacity 0.4s ease-in 0.2s, transform 0.4s ease-in 0.2s;
+        transform: scale(1.02);
+        transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
     }
     #app-container.visible, #store-container.visible {
         opacity: 1;
@@ -34,7 +34,7 @@
     .folder-item > .folder-content-container {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: grid-template-rows 0.4s var(--ease-out);
 }
 
 /* 為了讓 grid 動畫正常運作，需要設定內容的 overflow */
@@ -193,11 +193,13 @@
     stroke: var(--on-color);
 }
 
-.file-preview-item > .file-preview-remove:hover,
 .file-preview-item > .file-preview-remove:active {
     transform: none;
     filter: none;
     background: var(--media-control-bg-active);
+}
+
+@media (hover: hover){ .file-preview-item > .file-preview-remove:hover { transform: none; filter: none; background: var(--media-control-bg-active); }
 }
 
 #input-indicator-container .input-indicator-item {
@@ -207,7 +209,7 @@
         animation: pulse-glow 0.7s ease-out;
     }
     #auth-container .auth-form-container {
-        animation: subtleFadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        animation: subtleFadeInUp 300ms var(--ease-out) forwards;
     }
     .sidebar {
         /* Opaque, in the colour the pale veil it used to be had over the page (tokens.css --sidebar-veil). On a phone the menu lies over the
@@ -264,8 +266,7 @@
     color: inherit;
     opacity: 0.7;
 }
-#file-options-popover button:hover {
-    background-color: var(--hover-bg);
+@media (hover: hover){ #file-options-popover button:hover { background-color: var(--hover-bg); }
 }
 
 #file-options-popover .image-mode-select {
@@ -273,14 +274,16 @@
     box-shadow: none;
 }
 
-#file-options-popover .image-mode-select:hover,
 #file-options-popover .image-mode-select:focus {
     background: color-mix(in srgb, var(--chat-bg) 45%, transparent);
     outline: none;
 }
 
+@media (hover: hover){ #file-options-popover .image-mode-select:hover { background: color-mix(in srgb, var(--chat-bg) 45%, transparent); outline: none; }
+}
+
     .folder-summary .folder-arrow {
-        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        transition: transform 0.3s var(--ease-drawer);
         transform: rotate(-90deg); /* 預設向右指 */
     }
 
@@ -295,22 +298,26 @@
 .history-source-list { display: grid; gap: .2rem; margin: .45rem 0 0; padding: 0; list-style: none; }
 .history-source-link, .history-source-item.is-unavailable > span { display: grid; gap: .08rem; width: 100%; padding: .35rem .5rem; border-radius: .45rem; text-align: left; }
 .history-source-link { border: 0; background: var(--active-bg); color: var(--text-primary); cursor: pointer; }
-.history-source-link:hover, .history-source-link:focus-visible { background: var(--hover-bg); outline: none; }
+.history-source-link:focus-visible { background: var(--hover-bg); outline: none; }
+@media (hover: hover){ .history-source-link:hover { background: var(--hover-bg); outline: none; }
+}
 .history-source-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-source-updated, .history-source-item.is-unavailable > span { color: var(--text-secondary); font-size: .72rem; }
 /* The message row spans the full chat width.  Limit the actions to the bubble stack,
    so moving across the empty part of that row cannot reveal them. */
 .message-stack-user:hover .user-message-actions, .message-stack-user:focus-within .user-message-actions { visibility: visible; pointer-events: auto; opacity: 1; transition-delay: 0s; }
 .user-message-action { display: inline-grid; width: 1.9rem; height: 1.9rem; padding: .3rem; place-items: center; border: 0; border-radius: .45rem; background: transparent; color: inherit; }
-.user-message-action, .user-message-action:hover { color: var(--text-secondary) !important; }
+.user-message-action { color: var(--text-secondary) !important; }
+@media (hover: hover){ .user-message-action:hover { color: var(--text-secondary) !important; }
+}
 .user-message-action svg { width: 1.25rem; height: 1.25rem; stroke: var(--text-secondary) !important; }
 .user-message-action svg * { stroke: var(--text-secondary) !important; }
-.message-edit-inline { position: relative; width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transform: scale(.92); transform-origin: bottom right; filter: blur(3px); transition: opacity .46s cubic-bezier(.16, 1, .3, 1), transform .46s cubic-bezier(.16, 1, .3, 1), filter .34s ease; }
+.message-edit-inline { position: relative; width: min(100%, 68rem); margin-left: auto; border-radius: 1.5rem; background: var(--input-field-bg); color: var(--text-primary); opacity: 0; transform: scale(.92); transform-origin: bottom right; filter: blur(3px); transition: opacity .46s var(--ease-out), transform .46s var(--ease-out), filter .34s ease; }
 .message-edit-inline.message-edit-visible { opacity: 1; transform: scale(1); filter: blur(0); }
-.message-edit-inline.message-edit-closing { overflow: hidden; background-color: transparent; transition: height .42s cubic-bezier(.16, 1, .3, 1), background-color .32s ease; }
-.message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; opacity: 0; transform: scale(.9); transform-origin: bottom right; clip-path: inset(10% 0 10% 62% round 1rem); transition: opacity .42s ease, transform .46s cubic-bezier(.16, 1, .3, 1), clip-path .46s cubic-bezier(.16, 1, .3, 1); }
+.message-edit-inline.message-edit-closing { overflow: hidden; background-color: transparent; transition: height .42s var(--ease-out), background-color .32s ease; }
+.message-edit-panel { display: flex; flex-direction: column; padding: 1rem 1.5rem .9rem; opacity: 0; transform: scale(.9); transform-origin: bottom right; clip-path: inset(10% 0 10% 62% round 1rem); transition: opacity .42s ease, transform .46s var(--ease-out), clip-path .46s var(--ease-out); }
 .message-edit-inline.message-edit-visible .message-edit-panel { opacity: 1; transform: scale(1); clip-path: inset(0 round 1.5rem); }
-.message-edit-inline.message-edit-closing .message-edit-panel { opacity: 0; transform: scale(.82); clip-path: inset(14% 0 14% 66% round 1rem); transition: opacity .26s ease, transform .4s cubic-bezier(.16, 1, .3, 1), clip-path .4s cubic-bezier(.16, 1, .3, 1); }
+.message-edit-inline.message-edit-closing .message-edit-panel { opacity: 0; transform: scale(.82); clip-path: inset(14% 0 14% 66% round 1rem); transition: opacity .26s ease, transform .4s var(--ease-out), clip-path .4s var(--ease-out); }
 .message-edit-inline > .message-edit-returning { position: absolute; top: 0; right: 0; opacity: 0; pointer-events: none; transition: opacity .3s ease .04s; }
 .message-edit-returning.message-edit-returned { opacity: 1; }
 /* The returning stack is a visual snapshot only; it must never reveal its actions. */
@@ -322,7 +329,8 @@
 .message-edit-preview-slot #file-preview-container { padding: .3rem 0; }
 .message-edit-footer { display: flex; align-items: flex-start; gap: .7rem; margin-top: .65rem; }
 .message-edit-plus { display: inline-flex; width: 2.25rem; height: 2.25rem; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--text-primary); font-size: 1.8rem; line-height: 1; }
-.message-edit-plus:hover { background: transparent; color: var(--text-primary); }
+@media (hover: hover){ .message-edit-plus:hover { background: transparent; color: var(--text-primary); }
+}
 .message-edit-footer-spacer { flex: 1; }
 .message-edit-buttons { display: flex; align-self: center; gap: .5rem; margin-left: auto; }
 .message-edit-buttons button { padding: .5rem .8rem; border-radius: 999px; font: inherit; }
@@ -331,14 +339,14 @@
 .message-edit-send:disabled { opacity: .6; }
 @media (max-width: 768px) {
   .user-message-actions { position: static; visibility: visible; pointer-events: auto; opacity: 1; min-height: 1.9rem; margin-top: .25rem; padding-top: 0; }
-  .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); opacity: 0; transition: opacity .28s cubic-bezier(.22, 1, .36, 1); }
+  .message-edit-mobile-page { position: fixed; z-index: 200; inset: 0; display: flex; flex-direction: column; background: var(--modal-bg); color: var(--text-primary); opacity: 0; transition: opacity .28s var(--ease-out); }
   .message-edit-mobile-page.message-edit-visible { opacity: 1; }
   .message-edit-mobile-header { display: grid; grid-template-columns: 4rem 1fr 4rem; align-items: center; min-height: 5.5rem; padding: 1rem; }
   .message-edit-mobile-header h2 { margin: 0; text-align: center; font-size: 1.2rem; }
   .message-edit-mobile-header button { width: 3rem; height: 3rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font-size: 2rem; line-height: 1; }
   .message-edit-mobile-composer { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; min-height: 0; }
   .message-edit-mobile-composer #input-bar-container { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
-  #input-bar-container.message-edit-composer-returning { opacity: 0; transition: opacity .28s cubic-bezier(.22, 1, .36, 1); }
+  #input-bar-container.message-edit-composer-returning { opacity: 0; transition: opacity .28s var(--ease-out); }
   #input-bar-container.message-edit-composer-returning.message-edit-composer-returned { opacity: 1; }
   body.is-editing-mobile-message #reasoning-depth-control { display: none !important; }
 }
@@ -377,7 +385,7 @@
         background-color: color-mix(in srgb, var(--chat-bg) 38%, transparent) !important;
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        transition: opacity 0.3s var(--ease-drawer), visibility 0.3s var(--ease-drawer);
     }
     #sidebar-overlay.visible {
         opacity: 1;
@@ -397,10 +405,11 @@
     .scroll-area::-webkit-scrollbar { width: 8px; }
     .scroll-area::-webkit-scrollbar-track { background: transparent; }
     .scroll-area::-webkit-scrollbar-thumb { background: var(--gpt-scrollbar); border-radius: 4px; }
-    .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
-    .message-item { animation: slideInUp 0.4s ease-out forwards; }
+    @media (hover: hover){ .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+}
+    .message-item { animation: slideInUp 200ms var(--ease-out) forwards; }
     .message-item.is-history { animation: none; }
-    @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes fadeInChar {
     from {
         opacity: 0;

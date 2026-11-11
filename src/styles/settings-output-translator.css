@@ -27,9 +27,11 @@
     font-weight: 400 !important;
 }
 
-.translator-picker-option:hover,
 .translator-picker-option.selected {
     background: var(--gpt-subtle) !important;
+}
+
+@media (hover: hover) { .translator-picker-option:hover { background: var(--gpt-subtle) !important; }
 }
 
 .translator-picker-button {
@@ -41,8 +43,7 @@
     box-shadow: none !important;
 }
 
-.translator-picker-button:hover {
-    border-color: color-mix(in srgb, var(--gpt-border) 70%, var(--text-secondary)) !important;
+@media (hover: hover) { .translator-picker-button:hover { border-color: color-mix(in srgb, var(--gpt-border) 70%, var(--text-secondary)) !important; }
 }
 
 .translator-picker-menu {

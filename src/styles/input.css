@@ -72,8 +72,7 @@
 }
 
 
-#attachment-menu .menu-item:hover {
-    background-color: var(--hover-bg);
+@media (hover: hover) { #attachment-menu .menu-item:hover { background-color: var(--hover-bg); }
 }
 
 

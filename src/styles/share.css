@@ -5,7 +5,7 @@
 .cs-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 0.75rem; }
 .cs-title { margin: 0; font-size: 1.25rem; font-weight: 700; }
 .cs-x { flex: none; width: 2rem; height: 2rem; border-radius: 9999px; font-size: 1.5rem; line-height: 1; color: var(--text-secondary); }
-.cs-x:hover { background: var(--hover-bg); }
+@media (hover: hover) { .cs-x:hover { background: var(--hover-bg); } }
 .cs-body { padding: 0 1.5rem 0.5rem; overflow-y: auto; }
 .cs-conv { margin: 0 0 1rem; font-size: 0.875rem; color: var(--text-secondary); overflow-wrap: anywhere; }
 .cs-label { margin: 0 0 0.4rem; font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); }
@@ -31,13 +31,13 @@
 .cs-link input { flex: 1; min-width: 0; padding: 0.5rem 0.65rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: var(--input-field-bg); font-size: 0.8125rem; }
 .cs-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.6rem; padding: 0.9rem 1.5rem 1.25rem; }
 .cs-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; background: var(--hover-bg); font-size: 0.875rem; white-space: nowrap; }
-.cs-btn:hover:not(:disabled) { background: var(--active-bg); }
+@media (hover: hover) { .cs-btn:hover:not(:disabled) { background: var(--active-bg); } }
 .cs-btn:disabled { opacity: 0.55; cursor: default; }
 .cs-btn.is-primary { background: var(--button-primary-bg); color: var(--button-primary-text); }
-.cs-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); }
+@media (hover: hover) { .cs-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); } }
 .cs-btn.is-danger-text { color: var(--state-danger); }
 .cs-btn.is-danger { margin-right: auto; background: transparent; color: var(--state-danger); }
-.cs-btn.is-danger:hover:not(:disabled) { background: var(--hover-bg); }
+@media (hover: hover) { .cs-btn.is-danger:hover:not(:disabled) { background: var(--hover-bg); } }
 @media (max-width: 480px) { .cs-btn.is-danger { margin-right: 0; } .cs-foot { justify-content: stretch; } .cs-foot .cs-btn { flex: 1 1 auto; } }
 
 /* The card "Shared items" of the Data tab. */

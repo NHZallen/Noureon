@@ -184,8 +184,10 @@ button.council-tl-member-head .council-tl-member-name {
     cursor: pointer;
 }
 
-.council-tl-exit:hover,
 .council-tl-exit:focus-visible { color: var(--text-primary); }
+
+@media (hover: hover) { .council-tl-exit:hover { color: var(--text-primary); }
+}
 
 @media (pointer: coarse) {
     .council-tl-exit { min-height: 2.25rem; padding-left: 0.75rem; }
@@ -337,9 +339,11 @@ button.council-tl-member-head .council-tl-member-name {
     text-align: left;
 }
 
-.translator-picker-option:hover,
 .translator-picker-option.selected {
     background: var(--hover-bg);
+}
+
+@media (hover: hover) { .translator-picker-option:hover { background: var(--hover-bg); }
 }
 
 .translator-picker-option.selected {

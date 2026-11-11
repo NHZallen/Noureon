@@ -9,6 +9,19 @@
  * The dark theme is a dark grey after ChatGPT's (page #212121, side bar #171717, input #2f2f2f).
  */
 :root { --page-gutter: 1rem; }
+
+/* Motion: the curves and times of every transition (docs/superpowers/specs/2026-11-11-interaction-overhaul-design.md §3). A style uses
+   these names and never writes a curve or a time of its own. */
+:root {
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur-press: 120ms;
+    --dur-tip: 150ms;
+    --dur-menu: 180ms;
+    --dur-modal: 220ms;
+    --dur-drawer: 300ms;
+}
 @media (min-width: 768px) { :root { --page-gutter: 1.5rem; } }
 
 :root {
