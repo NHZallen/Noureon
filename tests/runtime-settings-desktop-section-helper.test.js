@@ -191,3 +191,12 @@ test('binding is idempotent for already-bound nav items', () => {
 test('import is inert', () => {
   assert.equal(typeof createSettingsDesktopSectionHelper, 'function');
 });
+
+test('a page built again while it is open keeps the section the person chose (phone); opening it starts from the list', () => {
+  const { calls, helper, settingsModal } = createFixture({ mobile: true });
+  helper.syncSettingsSectionForViewport(helper.bindDesktopSettingsSections(), { keepOpen: true });
+  assert.deepEqual(calls, [], 'built again: the open section stays');
+  assert.equal(settingsModal.classList.contains('settings-mobile-detail-open'), true);
+  helper.syncSettingsSectionForViewport(helper.bindDesktopSettingsSections());
+  assert.deepEqual(calls, [['showSettingsMobileList', { animate: false }]], 'opened: the list');
+});

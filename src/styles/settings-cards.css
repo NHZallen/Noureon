@@ -77,6 +77,10 @@
 #settings-modal .pz .pz-gbtn { padding: 0.3rem 0.55rem; border: 0; border-radius: 0.4rem; background: transparent; font: inherit; font-size: 0.85rem; color: var(--text-secondary) !important; white-space: nowrap; cursor: pointer; }
 @media (hover: hover) { #settings-modal .pz .pz-gbtn:hover { background: var(--hover-bg); color: var(--text-primary) !important; } }
 #settings-modal .pz .pz-gbtn-danger { color: var(--state-danger) !important; }
+/* While one of these buttons works, the ring takes the place of its words (the words stay in the button, unseen, so its size does not change). */
+#settings-modal .pz :is(.pz-gbtn, .pz-sbtn)[data-busy="true"] { position: relative; color: transparent !important; }
+#settings-modal .pz :is(.pz-gbtn, .pz-sbtn)[data-busy="true"]::after { position: absolute; inset: 0; margin: auto; width: 1rem; height: 1rem; border-color: var(--text-secondary); border-right-color: transparent; }
+#settings-modal .pz :is(.pz-gbtn-danger, .pz-sbtn-danger)[data-busy="true"]::after { border-color: var(--state-danger); border-right-color: transparent; }
 @media (hover: hover) { #settings-modal .pz .pz-gbtn-danger:hover { color: var(--state-danger) !important; } }
 #settings-modal .pz .pz-bar { padding: 0.7rem 1.15rem; border-top: 1px solid var(--border-color); background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
 #settings-modal .pz .pz-bar.hidden { display: none; }

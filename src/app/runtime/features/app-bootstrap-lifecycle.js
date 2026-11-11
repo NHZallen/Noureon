@@ -160,7 +160,7 @@ export function createAppBootstrapLifecycle({
         ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
         ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
         ALL_ELEMENTS.settingsBtn.addEventListener('click', () => openWhenBuilt({ setup: resolveEventsSetupSettingsModal, show: () => toggleModal(ALL_ELEMENTS.settingsModal, true) }));
-        prepareWhenIdle({ setup: resolveEventsSetupSettingsModal });
+        prepareWhenIdle({ setup: () => resolveEventsSetupSettingsModal({ keepOpen: true }) });
         ALL_ELEMENTS.saveSettingsBtn?.remove();
         const scheduleInstantSettingsSave = (() => {
             let saveTimer = null;

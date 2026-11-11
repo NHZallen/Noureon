@@ -57,8 +57,11 @@ export function createSettingsDesktopSectionHelper(dependencies = {}) {
     return defaultNavItem;
   };
 
-  const syncSettingsSectionForViewport = (navItems = bindDesktopSettingsSections()) => {
+  const syncSettingsSectionForViewport = (navItems = bindDesktopSettingsSections(), { keepOpen = false } = {}) => {
     if (isMobileSettingsViewport()) {
+      // The page is built a little after it opens (its parts load when it is first opened): when it is only built again (keepOpen), a section the
+      // person has already chosen in the meantime stays open. Opening the page starts from the list as before.
+      if (keepOpen && ALL_ELEMENTS.settingsModal.classList.contains('settings-mobile-detail-open')) return;
       showSettingsMobileList({ animate: false });
       return;
     }

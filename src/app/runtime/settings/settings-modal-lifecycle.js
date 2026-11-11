@@ -74,7 +74,8 @@ export function createSettingsModalLifecycle({
         settingsStyles = null;
         console.warn('Loading the styles of the settings failed.', error);
     });
-    const setupSettingsModal = () => {
+    // `keepOpen`: the page is only built ahead (when the page is idle), not opened: a section the person has chosen on the phone meanwhile stays open.
+    const setupSettingsModal = ({ keepOpen = false } = {}) => {
         const stylesReady = loadSettingsStyles();
         ensureSettingsMobileShell();
         ensureUserSettingsNavigationShell();
@@ -100,13 +101,13 @@ export function createSettingsModalLifecycle({
         renderSettingsMobileList();
         const navItems = bindDesktopSettingsSections();
         activateDefaultDesktopSettingsSection(navItems);
-        syncSettingsSectionForViewport(navItems);
+        syncSettingsSectionForViewport(navItems, { keepOpen });
         const rebuildNavigation = () => {
             applyLanguage(config.uiLanguage);
             renderSettingsMobileList();
             const nextNavItems = bindDesktopSettingsSections();
             activateDefaultDesktopSettingsSection(nextNavItems);
-            syncSettingsSectionForViewport(nextNavItems);
+            syncSettingsSectionForViewport(nextNavItems, { keepOpen: true });
         };
         partsFilled = loadDialogParts().then((parts) => {
             if (parts.build()) rebuildNavigation();

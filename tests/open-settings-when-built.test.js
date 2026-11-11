@@ -66,5 +66,6 @@ test('the page is built ahead when the page is idle, not at once', async () => {
 test('the page is built ahead by the app after it started (source of the wiring)', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('../src/app/runtime/features/app-bootstrap-lifecycle.js', import.meta.url), 'utf8');
-  assert.match(source, /prepareWhenIdle\(\{\s*setup:\s*resolveEventsSetupSettingsModal\s*\}\)/);
+  // Built ahead only (not opened): a section the person chose on the phone in the meantime stays open.
+  assert.match(source, /prepareWhenIdle\(\{\s*setup:\s*\(\)\s*=>\s*resolveEventsSetupSettingsModal\(\{\s*keepOpen:\s*true\s*\}\)\s*\}\)/);
 });
