@@ -27,7 +27,7 @@ export function createGeneratedImageRuntimeLoader({
     focusMessageInput
 }) {
     let generatedImageRuntimePromise;
-    return () => {
+    const load = () => {
         if (!generatedImageRuntimePromise) {
             generatedImageRuntimePromise = Promise.all([
                 import('../images/generated-image-assets.js'),
@@ -85,4 +85,10 @@ export function createGeneratedImageRuntimeLoader({
         }
         return generatedImageRuntimePromise;
     };
+    // Loaded a moment after the page starts, while it is idle: the first picture of an opened chat then does not wait for these files to come (a picture kept on this device is
+    // there at once; what it waited for was the code that shows it).
+    const warm = () => { load().catch(() => { generatedImageRuntimePromise = undefined; }); };
+    if (typeof globalThis.requestIdleCallback === 'function') globalThis.requestIdleCallback(warm, { timeout: 4000 });
+    else setTimeout(warm, 2000);
+    return load;
 }

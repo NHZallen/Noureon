@@ -176,19 +176,23 @@ export function createGeneratedImageAssetStore({
   };
 
   const bind = async (root, descriptors = []) => {
-    // The shape of every picture from its file first, and every card put in that shape at once.
-    const blobs = new Map(await Promise.all(descriptors.map(async descriptor => {
+    // The pictures nearest to what is on the screen first, each on its own: the one being looked at does not wait for the others to be read.
+    const distance = (descriptor) => {
+      const element = root.querySelector?.(`[data-generated-image-id="${descriptor.id}"]`);
+      const rect = element?.getBoundingClientRect?.();
+      const view = globalThis.innerHeight || 0;
+      return rect ? Math.abs((rect.top + rect.bottom) / 2 - view / 2) : Infinity;
+    };
+    const ordered = [...descriptors].sort((first, second) => distance(first) - distance(second));
+    await Promise.all(ordered.map(async descriptor => {
       const blob = await getBlob(descriptor);
       if (blob && !(descriptor.width > 0 && descriptor.height > 0)) {
         const size = await pictureSizeOfBlob(blob);
         if (size) rememberPictureSize(descriptor, size.width, size.height);
       }
-      return [descriptor, blob];
-    })));
-    shapeCards(descriptors.flatMap(descriptor => [...root.querySelectorAll(`[data-generated-image-id="${descriptor.id}"]`)]
-      .map(element => ({ card: element.closest?.('.generated-image-card'), width: descriptor.width, height: descriptor.height }))));
-    await Promise.all(descriptors.map(async descriptor => {
-      const blob = blobs.get(descriptor);
+      // The card takes the shape of its picture from the file, before the picture is drawn (and the person stays where they are).
+      shapeCards([...root.querySelectorAll(`[data-generated-image-id="${descriptor.id}"]`)]
+        .map(element => ({ card: element.closest?.('.generated-image-card'), width: descriptor.width, height: descriptor.height })));
       if (!blob) {
         settlePictures(root, descriptor.id);
         return;
