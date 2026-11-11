@@ -208,3 +208,9 @@ Allen 在 iPhone 上回報：卡頓、輸入框一按整頁被放大歪掉、Nou
 - **輸入框放大歪掉**：第一輪拿掉 `maximum-scale=1.0, user-scalable=no` 並讓 `touch-guards.js` 不擋捏合。iOS 靠 `maximum-scale=1` 擋掉聚焦放大，輸入列（可編輯區塊）又不是 16px，所以一按就放大。已還原 `index.html` 的限制與 `touch-guards.js`，也拿掉強制 16px 的規則。**決定 2（開放縮放）作廢；要開放縮放必須先把每個輸入欄位都做到 16px，另案處理。**
 - **Nouras 商店滑不動**：根因是 2026-10-21（18.15.4）加的 `main.flex-1 { overflow: clip }`（為了修聊天區），商店的 `<main id="store-main-content" class="flex-1 overflow-y-auto">` 也被它蓋成不能捲。新增 `main#store-main-content.flex-1 { overflow-y: auto }`。在模擬手機上用滾輪確認會捲（0 → 400）。
 - **卡頓**：在 Chromium 模擬 iPhone、CPU 降速 4 倍下，用同一組操作（開關側欄 ×3、輸入框打字、開專案、開建立面板）比較改造前（20e883eb）與現在：frame 中位數都是 17ms、超過 50ms 的 frame 都是 1 個、長任務 2–3 個，沒有差別，所以重現不出來。最可能的原因是上一條的縮放（放大後整頁固定定位層重繪、`viewport-lock.js` 在縮放時讓出控制）。**這不是在 iPhone 上確認的**，請 Allen 在還原後的版本再試一次；若仍卡，需要 Safari 的網頁檢閱器錄一段。
+
+### 8.2 圖示鈕提示框與版面屬性過渡（Allen 決定兩項都做，同日）
+
+- **圖示鈕提示框**：新模組 `ui/tooltips/icon-tooltips.js`＋`styles/tooltips.css`，一個委派監聽器涵蓋全部按鈕（含之後新增的）。文字取 `data-tip`（麥克風帶快捷鍵那段）、否則 `aria-label`、否則 `title`；`title` 在第一次顯示時搬到 `aria-label` 並移除，避免瀏覽器原生泡泡重複。第一個提示等 350ms 才出現，之後 450ms 內移到相鄰按鈕就立刻出現、沒有動畫；只給滑鼠（`(hover: hover)`）；鍵盤聚焦（`:focus-visible`）立刻顯示；已經有文字的按鈕、`data-no-tip` 不顯示。位置：左側圖示列在右側，其餘預設在下方，下方放不下改上方，左右夾在畫面內；從靠近按鈕那一邊長出來（125ms，`scale 0.97 → 1`）；黑底白字（深色主題相反），與主按鈕同色。原本只有麥克風有的提示（`dictation.css` 的 `::after`）併入這一套。
+- **補上沒有文字的圖示鈕**（新增五語 key：`menuToggle`、`historyPanelToggle`、`sendMessage`、`stopReply`，放 `parts/app-ui.js`）：手機版側欄鈕、右上角時間線鈕、送出鈕（依狀態是「傳送」或「停止回覆」）、商店的返回鈕、各視窗的關閉鈕。**動態產生的圖示鈕我沒有逐一查過**，沒有 `aria-label`／`title` 的就不會有提示。
+- **版面屬性過渡：量過，不改。** 電腦版（Chromium，1280×800）左側面板「釘住 ↔ 滑鼠展開」切換時記錄每個 frame：CPU 正常速度時 58 個 frame 全是 17ms；CPU 降速 6 倍時，每次切換只有 1 個約 170–200ms 的 frame（開始移動那一刻整頁重排一次），其餘都是 17ms；滑鼠移到圖示列展開浮動面板時沒有任何掉格。改成 `transform` 會讓內容被蓋住而不是讓位，行為會變，而量到的問題只有起點一格，所以保持原樣。若 Allen 在實機上看到切換起點頓一下，再改成「面板浮在上面、內容不動」。

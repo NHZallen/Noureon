@@ -2,6 +2,10 @@
 export default {
     'zh-TW': {
         newChat: '新對話',
+        menuToggle: '選單',
+        historyPanelToggle: '時間線與來源',
+        sendMessage: '傳送',
+        stopReply: '停止回覆',
         temporaryChatStart: '開始臨時對話',
         temporaryChatExit: '退出臨時對話',
         temporaryChatTitle: '臨時對話',
@@ -68,6 +72,10 @@ export default {
     },
     en: {
         newChat: 'New Chat',
+        menuToggle: 'Menu',
+        historyPanelToggle: 'Timeline and sources',
+        sendMessage: 'Send',
+        stopReply: 'Stop reply',
         temporaryChatStart: 'Start temporary chat',
         temporaryChatExit: 'Exit temporary chat',
         temporaryChatTitle: 'Temporary chat',
@@ -134,6 +142,10 @@ export default {
     },
     fr: {
         newChat: 'Nouveau Chat',
+        menuToggle: 'Menu',
+        historyPanelToggle: 'Chronologie et sources',
+        sendMessage: 'Envoyer',
+        stopReply: 'Arrêter la réponse',
         temporaryChatStart: 'Démarrer une discussion temporaire',
         temporaryChatExit: 'Quitter la discussion temporaire',
         temporaryChatTitle: 'Discussion temporaire',
@@ -200,6 +212,10 @@ export default {
     },
     ru: {
         newChat: 'Новый чат',
+        menuToggle: 'Меню',
+        historyPanelToggle: 'Хронология и источники',
+        sendMessage: 'Отправить',
+        stopReply: 'Остановить ответ',
         temporaryChatStart: 'Начать временный чат',
         temporaryChatExit: 'Выйти из временного чата',
         temporaryChatTitle: 'Временный чат',
@@ -266,6 +282,10 @@ export default {
     },
     es: {
         newChat: 'Nuevo chat',
+        menuToggle: 'Menú',
+        historyPanelToggle: 'Cronología y fuentes',
+        sendMessage: 'Enviar',
+        stopReply: 'Detener respuesta',
         temporaryChatStart: 'Iniciar chat temporal',
         temporaryChatExit: 'Salir del chat temporal',
         temporaryChatTitle: 'Chat temporal',

@@ -59,41 +59,10 @@
 
 @keyframes dictation-spin { to { transform: rotate(360deg); } }
 
-/* The microphone's tip: what it does and the key for it, after a short wait. */
+/* The microphone's tip (what it does and the key for it) is the one of every icon button (ui/tooltips/icon-tooltips.js), from its data-tip. */
 #voice-input-btn-message { position: relative; }
-
-#voice-input-btn-message[data-tip]::after {
-    content: attr(data-tip);
-    position: absolute;
-    right: 50%;
-    bottom: calc(100% + 0.5rem);
-    z-index: 20;
-    padding: 0.3rem 0.6rem;
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--text-primary) 92%, transparent);
-    color: var(--modal-bg, #ffffff);
-    font-size: 0.75rem;
-    font-weight: 500;
-    line-height: 1.3;
-    white-space: pre;
-    pointer-events: none;
-    opacity: 0;
-    transform: translate(50%, 4px);
-    transition: opacity 0.12s ease, transform 0.12s ease;
-}
-
-#voice-input-btn-message[data-tip]:focus-visible::after {
-    opacity: 1;
-    transform: translate(50%, 0);
-    transition-delay: 0.35s;
-}
-
-@media (hover: hover) { #voice-input-btn-message[data-tip]:hover::after { opacity: 1; transform: translate(50%, 0); transition-delay: 0.35s; } }
-
-@media (hover: none) { #voice-input-btn-message[data-tip]::after { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
     .dictation-bar,
     .dictation-bar.is-leaving { animation: none; }
-    #voice-input-btn-message[data-tip]::after { transition: none; }
 }

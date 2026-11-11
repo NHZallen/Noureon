@@ -65,6 +65,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'sidebar.css',
     'input.css',
     'store.css',
+    'tooltips.css',
     'layout.css',
     'chat.css',
     'chat-streaming.css',

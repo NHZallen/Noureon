@@ -38,6 +38,10 @@ export function createSettingsUpdateInputStateHelper({
         const hasQuoteInquiry = String(getQuoteReference()?.text || '').trim() !== '';
         const hasContent = elements.messageInput.value.trim() !== '' || uploadedFiles.length > 0 || hasQuoteInquiry;
         const { submitButton, submitButtonIcon } = elements;
+        // What the button does is its tip (ui/tooltips/icon-tooltips.js): it sends, or stops the reply while one is made and the box is empty.
+        const tipTexts = i18n[config.uiLanguage] || {};
+        const setSubmitLabel = (key) => { const label = tipTexts[key]; if (label && submitButton.getAttribute('aria-label') !== label) submitButton.setAttribute('aria-label', label); };
+        setSubmitLabel(getAbortController() && !hasContent ? 'stopReply' : 'sendMessage');
         // The send button while a reply is made follows the box: something in it is sent (see features/reply-steering.js), nothing stops the reply.
         replySteering.setDraft(hasContent, uploadedFiles.length || hasQuoteInquiry ? '' : elements.messageInput.value);
         const sendIconHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>`;
