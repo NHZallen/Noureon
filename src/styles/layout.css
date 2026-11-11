@@ -81,15 +81,12 @@ html.is-instant *, html.is-instant *::before, html.is-instant *::after {
     .modal > div, .notification, .message-item { transform: none !important; }
 }
 
-/* important-audit: required: accessibility - the reduced-motion and keyboard-instant rules must beat every rule of every file; an input of 16 px must beat the sizes set by id. */
+/* important-audit: required: accessibility - the reduced-motion and keyboard-instant rules must beat every rule of every file */
 /* The floor of a phone (docs/superpowers/specs/2026-11-11-interaction-overhaul-design.md §5, phase 1): no grey flash on a tap, a tap fires at once,
-   the label of a control is not selected by a long press, and an input is 16 px so that focusing it does not zoom the page. */
+   and the label of a control is not selected by a long press. (The page is not zoomable: iOS zooms into an input under 16 px unless the viewport says maximum-scale=1, and the composer and many fields are smaller than that.) */
 html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
 button, a, [role="button"], summary, label, select { touch-action: manipulation; }
 button, [role="button"], summary { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-@media (pointer: coarse) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select { font-size: max(16px, 1em) !important; }
-}
 
 /* Panels that are pushed away with a finger (ui/motion/drag-dismiss.js): the browser keeps the vertical scroll, the sideways move is the panel's. */
 #history-sidebar, #sidebar { touch-action: pan-y; }

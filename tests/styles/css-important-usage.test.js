@@ -43,7 +43,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/layout.css': {
-    max: 6,
+    max: 5,
     category: 'required: accessibility'
   },
   'src/styles/input-polish.css': {

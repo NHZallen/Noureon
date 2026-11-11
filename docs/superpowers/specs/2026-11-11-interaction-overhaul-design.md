@@ -199,3 +199,12 @@ Allen 的決定：1 按壓改俐落（採計劃書的建議值）、2 照 skill�
 為了讓檢查通過動到的限制（請 Allen 知道）：`projects.css` 因為懸停規則變長超過 24 KB，把「資料來源與選項清單」那一段搬到新檔 `projects-sources.css`（由 `projects.css` 用 `@import` 帶入）；`check-file-sizes.mjs` 的最大 CSS 檔 gzip 上限 28 → 29 KB；`css-important-usage` 測試的 `layout.css`（新增，6 條，皆為減少動態與 16px 輸入框）、`chat.css`（16 → 17）、`memory-notes.css`（10 → 12）上限，後兩者是一條帶 `!important` 的懸停規則被拆成兩條。
 
 要在真機確認的：按壓手感（0.94／0.96、不回彈）是否太輕；右側面板與左選單的拖曳是否跟手、放開有沒有跳；專案選單與對話框的進出場；輸入框聚焦不再放大頁面；點任何列、按鈕後不殘留底色；開放縮放後版面（`viewport-lock.js` 縮放時會讓出控制，但沒在真機上試過）。
+
+### 8.1 第一輪實測後的修正（同日）
+
+Allen 在 iPhone 上回報：卡頓、輸入框一按整頁被放大歪掉、Nouras 商店滑不動、專案的「新增資料來源」關不掉。原因與處理：
+
+- **「新增資料來源」關不掉**：我把 `projects.css` 的一段搬去 `projects-sources.css` 再用 `@import` 放在檔案最上面，這一段（含 `.pj-action-sheet`）就排到後面的 `.pj-sheet { flex: 1 }` 之前，同優先權下被蓋掉，面板撐滿整個畫面、點不到外面的暗層。已搬回原位、刪掉新檔，最大 CSS 檔上限改 26 KB。**教訓：這個專案的 CSS 靠檔內順序，不要用拆檔來省大小。**
+- **輸入框放大歪掉**：第一輪拿掉 `maximum-scale=1.0, user-scalable=no` 並讓 `touch-guards.js` 不擋捏合。iOS 靠 `maximum-scale=1` 擋掉聚焦放大，輸入列（可編輯區塊）又不是 16px，所以一按就放大。已還原 `index.html` 的限制與 `touch-guards.js`，也拿掉強制 16px 的規則。**決定 2（開放縮放）作廢；要開放縮放必須先把每個輸入欄位都做到 16px，另案處理。**
+- **Nouras 商店滑不動**：根因是 2026-10-21（18.15.4）加的 `main.flex-1 { overflow: clip }`（為了修聊天區），商店的 `<main id="store-main-content" class="flex-1 overflow-y-auto">` 也被它蓋成不能捲。新增 `main#store-main-content.flex-1 { overflow-y: auto }`。在模擬手機上用滾輪確認會捲（0 → 400）。
+- **卡頓**：在 Chromium 模擬 iPhone、CPU 降速 4 倍下，用同一組操作（開關側欄 ×3、輸入框打字、開專案、開建立面板）比較改造前（20e883eb）與現在：frame 中位數都是 17ms、超過 50ms 的 frame 都是 1 個、長任務 2–3 個，沒有差別，所以重現不出來。最可能的原因是上一條的縮放（放大後整頁固定定位層重繪、`viewport-lock.js` 在縮放時讓出控制）。**這不是在 iPhone 上確認的**，請 Allen 在還原後的版本再試一次；若仍卡，需要 Safari 的網頁檢閱器錄一段。

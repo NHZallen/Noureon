@@ -53,3 +53,18 @@ test('the shortcut flag, the reduced-motion rule and the floor of a phone are in
   assert.match(layout, /-webkit-tap-highlight-color:\s*transparent/);
   assert.match(layout, /touch-action:\s*manipulation/);
 });
+
+test('the store of the Nouras scrolls, and the action sheet of the projects keeps coming after the rule of every sheet (order decides between rules of one weight)', () => {
+  const base = readFileSync(new URL('base.css', DIR), 'utf8');
+  assert.match(base, /main#store-main-content\.flex-1\s*\{[^}]*overflow-y:\s*auto/);
+  const projects = readFileSync(new URL('projects.css', DIR), 'utf8');
+  assert.doesNotMatch(projects, /@import/, 'a rule moved to another file lands before the rules that used to be above it');
+  assert.ok(projects.indexOf('.pj-sheet {') < projects.indexOf('.pj-action-sheet {'));
+});
+
+test('the page cannot be zoomed by an input: the viewport keeps maximum-scale=1 and the pinch guard stays', () => {
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+  assert.match(html, /name="viewport"[^>]*maximum-scale=1\.0/);
+  const guards = readFileSync(new URL('../../src/pwa/touch-guards.js', import.meta.url), 'utf8');
+  assert.match(guards, /gesturestart/);
+});
