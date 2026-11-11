@@ -1,4 +1,5 @@
 import { ensureConversationsLoaded, isConversationUnloaded } from '../kernel/on-demand-loading.js';
+import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { createMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createConversationViewRenderer } from '../messages/conversation-view-renderer.js';
@@ -170,7 +171,7 @@ export function createTrashLifecycle({
 
   const handleRestoreTrashItem = async (conversationId) => {
     const conversation = getConversations().find(item => item.id === conversationId);
-    if (conversation) {
+    if (conversation) await whileBusy(`restore:${conversationId}`, rowButtons(conversationId, '.trash-item-restore-btn'), async () => {
       const restoredAt = new Date().toISOString();
       conversation.deletedAt = null;
       conversation.stateUpdatedAt = restoredAt;
@@ -180,7 +181,7 @@ export function createTrashLifecycle({
       renderTrash();
       showCoordinatedNotification(getTexts().itemRestored || '項目已還原。', 'success');
       void rebuildHistoryIndex();
-    }
+    });
   };
 
   // A button that does nothing is the worst answer: what throws that the handlers did not expect is told too.
@@ -193,6 +194,23 @@ export function createTrashLifecycle({
       return undefined;
     }
   };
+
+  // Deleting waits for the cloud and for the files, which takes a moment: the button that was pressed turns a ring until the work ends, and the same
+  // action cannot be started twice. (A row is drawn again when the work ends, so its ring goes with it.)
+  const working = new Set();
+  const whileBusy = async (key, buttons, action) => {
+    if (working.has(key)) return undefined;
+    working.add(key);
+    const marked = buttons.filter(Boolean);
+    marked.forEach(button => setButtonBusy(button, true));
+    try {
+      return await action();
+    } finally {
+      working.delete(key);
+      marked.forEach(button => setButtonBusy(button, false));
+    }
+  };
+  const rowButtons = (conversationId, selector) => [...(elements.trashListContainer?.querySelectorAll?.(selector) || [])].filter(button => button.dataset.id === conversationId);
 
   // What a deletion has to know of a conversation (its files, in the cloud) is in its messages: the ones kept only as stubs are read first (a no-op when conversations are not loaded on demand).
   const readWhole = async (ids) => {
@@ -211,17 +229,19 @@ export function createTrashLifecycle({
       getTexts().confirmPermanentDelete || '此操作將永久刪除此對話，無法復原。您確定嗎？',
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
-    if (!await readWhole([conversationId])) return;
-    const conversation = getConversations().find(item => item.id === conversationId);
-    if (!await confirmCloudDeletion([conversationId], conversation ? [conversation] : [])) return;
-    await invalidateConversationMemory({ conversationId });
-    replaceConversations(
-      getConversations().filter(conversation => conversation.id !== conversationId)
-    );
-    await saveAppData();
-    renderSidebar();
-    renderTrash();
-    showNotification(getTexts().itemPermanentlyDeleted || '項目已永久刪除。', 'success');
+    await whileBusy(`delete:${conversationId}`, rowButtons(conversationId, '.trash-item-delete-btn'), async () => {
+      if (!await readWhole([conversationId])) return;
+      const conversation = getConversations().find(item => item.id === conversationId);
+      if (!await confirmCloudDeletion([conversationId], conversation ? [conversation] : [])) return;
+      await invalidateConversationMemory({ conversationId });
+      replaceConversations(
+        getConversations().filter(conversation => conversation.id !== conversationId)
+      );
+      await saveAppData();
+      renderSidebar();
+      renderTrash();
+      showNotification(getTexts().itemPermanentlyDeleted || '項目已永久刪除。', 'success');
+    });
   });
 
   const showTrashItemInViewModal = async (conversationId) => {
@@ -293,20 +313,22 @@ export function createTrashLifecycle({
       getTexts().permanentDeleteTitle || '永久刪除確認'
     ))) return;
     const ids = [...selectedTrashIds];
-    if (!await readWhole(ids)) return;
-    const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id));
-    if (!await confirmCloudDeletion(ids, selectedSnapshots)) return;
-    for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
-    replaceConversations(
-      getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
-    );
-    await saveAppData();
-    renderSidebar();
-    toggleTrashSelectionMode();
-    showNotification(
-      `${getTexts().batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${getTexts().items || '個項目'}。`,
-      'success'
-    );
+    await whileBusy('batch-delete', [elements.trashBatchDeleteBtn], async () => {
+      if (!await readWhole(ids)) return;
+      const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id));
+      if (!await confirmCloudDeletion(ids, selectedSnapshots)) return;
+      for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
+      replaceConversations(
+        getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))
+      );
+      await saveAppData();
+      renderSidebar();
+      toggleTrashSelectionMode();
+      showNotification(
+        `${getTexts().batchPermanentlyDeletedSuccess || '已成功永久刪除'} ${count} ${getTexts().items || '個項目'}。`,
+        'success'
+      );
+    });
   };
 
   const handleEmptyTrash = async () => {
@@ -314,23 +336,25 @@ export function createTrashLifecycle({
       getTexts().confirmEmptyTrash || '您確定要清空垃圾桶嗎？此操作無法復原。',
       getTexts().emptyTrashConfirmationTitle || '清空垃圾桶確認'
     ))) return;
-    if (!await readWhole(getConversations().filter(conversation => conversation.deletedAt).map(conversation => conversation.id))) return;
-    const conversations = getConversations();
-    const count = conversations.filter(conversation => conversation.deletedAt).length;
-    const trashSnapshots = conversations.filter(conversation => conversation.deletedAt);
-    const ids = trashSnapshots.map(conversation => conversation.id);
-    if (!await confirmCloudDeletion(ids, trashSnapshots)) return;
-    for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
-    replaceConversations(
-      conversations.filter(conversation => !conversation.deletedAt)
-    );
-    await saveAppData();
-    renderSidebar();
-    renderTrash();
-    showNotification(
-      `${getTexts().trashEmptiedSuccess || '已成功清空垃圾桶，刪除了'} ${count} ${getTexts().items || '個項目'}。`,
-      'success'
-    );
+    await whileBusy('empty', [elements.emptyTrashBtn], async () => {
+      if (!await readWhole(getConversations().filter(conversation => conversation.deletedAt).map(conversation => conversation.id))) return;
+      const conversations = getConversations();
+      const count = conversations.filter(conversation => conversation.deletedAt).length;
+      const trashSnapshots = conversations.filter(conversation => conversation.deletedAt);
+      const ids = trashSnapshots.map(conversation => conversation.id);
+      if (!await confirmCloudDeletion(ids, trashSnapshots)) return;
+      for (const conversationId of ids) await invalidateConversationMemory({ conversationId });
+      replaceConversations(
+        conversations.filter(conversation => !conversation.deletedAt)
+      );
+      await saveAppData();
+      renderSidebar();
+      renderTrash();
+      showNotification(
+        `${getTexts().trashEmptiedSuccess || '已成功清空垃圾桶，刪除了'} ${count} ${getTexts().items || '個項目'}。`,
+        'success'
+      );
+    });
   };
 
   return {

@@ -8,7 +8,7 @@ import { createTrashLifecycle } from '../src/app/runtime/features/trash-lifecycl
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 // A trash panel on a real DOM (happy-dom), so selection works through the checkboxes the person clicks.
-function createDomHarness(conversations) {
+function createDomHarness(conversations, overrides = {}) {
   const window = new Window();
   const { document } = window;
   const calls = [];
@@ -49,7 +49,8 @@ function createDomHarness(conversations) {
     escapeHTML: (value) => String(value),
     scheduleTimeout: () => 0,
     clearScheduledTimeout: () => {},
-    createChangeEvent: () => new window.Event('change')
+    createChangeEvent: () => new window.Event('change'),
+    ...overrides
   });
   const selectRow = (id) => elements.trashListContainer
     .querySelector(`.trash-item[data-id="${id}"] .pz-text`)
@@ -538,4 +539,41 @@ test('a permanent delete that the cloud refuses keeps the row and says why (with
   await broken.lifecycle.handleDeleteTrashItemPermanently('c1');
   const told = broken.calls.find((call) => call[0] === 'notification' && call[2] === 'error');
   assert.ok(told, 'a failure that nobody planned for still answers the tap');
+});
+
+test('a permanent delete that takes a while shows a turning ring on its button and cannot be started twice; the ring is gone when it ends', async () => {
+  let release;
+  let cloudCalls = 0;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const harness = createDomHarness([{ id: 'a', title: 'A', deletedAt: '2026-01-01T00:00:00.000Z', messages: [] }], {
+    deleteConversationsFromCloud: async () => { cloudCalls += 1; await gate; }
+  });
+  harness.lifecycle.renderTrash();
+  const button = harness.elements.trashListContainer.querySelector('.trash-item-delete-btn');
+  button.click();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(button.dataset.busy, 'true');
+  assert.equal(button.getAttribute('aria-busy'), 'true');
+  button.click();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(cloudCalls, 1);
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(button.dataset.busy, undefined);
+  assert.deepEqual(harness.getConversations(), []);
+});
+
+test('emptying the trash shows the ring on its button while it works', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const harness = createDomHarness([{ id: 'a', title: 'A', deletedAt: '2026-01-01T00:00:00.000Z', messages: [] }], {
+    deleteConversationsFromCloud: async () => { await gate; }
+  });
+  harness.lifecycle.renderTrash();
+  const pending = harness.lifecycle.handleEmptyTrash();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(harness.elements.emptyTrashBtn.dataset.busy, 'true');
+  release();
+  await pending;
+  assert.equal(harness.elements.emptyTrashBtn.dataset.busy, undefined);
 });
