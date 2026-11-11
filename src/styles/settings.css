@@ -62,8 +62,8 @@ button:active:not(:disabled),
 }
 
 .store-category-btn.active {
-    background: var(--button-primary-bg) !important;
-    color: var(--button-primary-text) !important;
+    background: var(--gpt-primary-action-bg) !important;
+    color: var(--gpt-primary-action-text) !important;
     border-color: transparent !important;
 }
 
@@ -71,7 +71,7 @@ button:active:not(:disabled),
     transition: border-color 0.15s ease, background-color 0.15s ease !important;
 }
 
-@media (hover: hover) { .astras-store-card:hover { border-color: color-mix(in srgb, var(--button-primary-bg) 45%, var(--border-color)) !important; }
+@media (hover: hover) { .astras-store-card:hover { border-color: var(--text-tertiary) !important; }
     
     
     
@@ -624,3 +624,7 @@ body svg {
 #custom-dialog-message {
     white-space: pre-line;
 }
+
+/* The store of the Nouras: black and white like the rest of the app (the accent colour and the black outline of the other pills are not used here). */
+#store-container .store-category-btn:not(.active) { border-color: var(--border-color) !important; color: var(--text-secondary) !important; }
+#store-container .store-category-btn.active { background: var(--gpt-primary-action-bg) !important; border-color: transparent !important; color: var(--gpt-primary-action-text) !important; }

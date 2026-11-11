@@ -101,26 +101,46 @@ export function createAstraStoreLifecycle({
             <button class="subscribe-btn btn-primary" data-id="${escapeHTML(originalId)}"></button>
         `;
             const btn = card.querySelector('.subscribe-btn');
-            if (isSubscribed) {
-                btn.textContent = translations.unsubscribe || '取消訂閱';
-                btn.classList.add('subscribed');
-            } else if (isUserCreated) {
-                btn.textContent = translations.manage || '管理';
-                btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                btn.textContent = translations.subscribe || '訂閱';
-            }
+            paintSubscribeButton(btn, isSubscribed, isUserCreated);
             btn.addEventListener('click', async () => {
                 await handleSubscription(originalId);
             });
             grid.appendChild(card);
         });
     };
+    // The state of the button of a card: not subscribed (the primary button), subscribed (an outline that takes it back), or a Noura of the person's own (nothing to do here).
+    const paintSubscribeButton = (btn, isSubscribed, isUserCreated = false) => {
+        const translations = texts();
+        btn.classList.toggle('subscribed', isSubscribed);
+        btn.classList.toggle('btn-primary', !isSubscribed);
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.disabled = false;
+        if (isSubscribed) {
+            btn.textContent = translations.unsubscribe || '取消訂閱';
+        } else if (isUserCreated) {
+            btn.textContent = translations.manage || '管理';
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            btn.textContent = translations.subscribe || '訂閱';
+        }
+    };
+    // The buttons of a Noura change where they are, the cards are not drawn again (that made the whole page flash).
+    const paintOfficial = (officialId) => {
+        const isSubscribed = getAstras().some(a => a.officialId === officialId);
+        ALL_ELEMENTS.storeGrid?.querySelectorAll?.('.subscribe-btn').forEach((btn) => {
+            if (btn.dataset.id === officialId) paintSubscribeButton(btn, isSubscribed);
+        });
+    };
     const handleSubscription = async (officialId) => {
         const isSubscribed = getAstras().some(a => a.officialId === officialId);
         if (isSubscribed) {
-            const subscribedAstras = getAstras().filter(a => a.officialId === officialId);
+            // The page answers at once: the Noura is taken out and the button turns back; the cloud is told after, and what was taken out is put back if it cannot be.
+            const previous = getAstras();
+            const subscribedAstras = previous.filter(a => a.officialId === officialId);
+            replaceAstras(previous.filter(a => a.officialId !== officialId));
+            paintOfficial(officialId);
+            showNotification(texts().unsubscribed || '已取消訂閱', 'success');
             try {
                 await deleteAstrasFromCloud(
                     subscribedAstras.map(astra => astra.id),
@@ -128,11 +148,12 @@ export function createAstraStoreLifecycle({
                 );
             } catch (error) {
                 try { console.warn('Noureon cloud Noura unsubscribe failed; keeping the local Noura.', error); } catch {}
+                replaceAstras(previous);
+                paintOfficial(officialId);
+                renderAstras();
                 showNotification(texts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
                 return;
             }
-            replaceAstras(getAstras().filter(a => a.officialId !== officialId));
-            showNotification(texts().unsubscribed || '已取消訂閱', 'success');
         } else {
             const officialAstra = OFFICIAL_ASTRAS.find(a => a.id === officialId);
             if (officialAstra) {
@@ -142,11 +163,11 @@ export function createAstraStoreLifecycle({
                     officialId: officialAstra.id,
                 };
                 getAstras().unshift(newAstra);
+                paintOfficial(officialId);
                 showNotification(texts().subscribed || '訂閱成功！', 'success');
             }
         }
         await saveAppData();
-        renderStore();
         renderAstras();
     };
     const openAvatarEditor = (astrasId) => {
