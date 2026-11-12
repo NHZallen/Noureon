@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Passkey probe</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; padding: 20px; background: #fff; color: #111; }
+  @media (prefers-color-scheme: dark) { body { background: #212121; color: #eee; } }
+  button { display: block; width: 100%; margin: 12px 0; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #888; background: transparent; color: inherit; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; border: 1px solid #888; border-radius: 12px; padding: 12px; }
+</style>
+</head>
+<body>
+<h1>Passkey probe</h1>
+<p>A test of what this browser allows. Tap each button once and send the text below it. Nothing is saved on the server.</p>
+<button id="b1">1. Plain passkey (no extra options)</button>
+<button id="b2">2. Passkey with the options the app uses</button>
+<button id="b3">3. Like 2, with the secret (PRF) asked for</button>
+<button id="b4">4. Only ask what this browser says it can do</button>
+<pre id="out"></pre>
+<script src="/passkey-probe.js"></script>
+</body>
+</html>
