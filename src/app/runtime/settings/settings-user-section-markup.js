@@ -11,6 +11,25 @@ export const getUserSectionElements = (document) => ({
   securityNav: document.getElementById('security-section-nav'),
   securitySection: document.getElementById('security-section'),
   securityMessage: document.getElementById('security-message'),
+  totpCard: document.getElementById('security-totp-card'),
+  totpState: document.getElementById('security-totp-state'),
+  totpOff: document.getElementById('security-totp-off'),
+  totpSetup: document.getElementById('security-totp-setup'),
+  totpOn: document.getElementById('security-totp-on'),
+  totpStart: document.getElementById('security-totp-start-btn'),
+  totpQr: document.getElementById('security-totp-qr'),
+  totpSecret: document.getElementById('security-totp-secret'),
+  totpCopy: document.getElementById('security-totp-copy'),
+  totpOpen: document.getElementById('security-totp-open'),
+  totpCode: document.getElementById('security-totp-code'),
+  totpConfirm: document.getElementById('security-totp-confirm-btn'),
+  totpCancel: document.getElementById('security-totp-cancel-btn'),
+  totpRemove: document.getElementById('security-totp-remove-btn'),
+  mfaChallenge: document.getElementById('security-mfa-challenge'),
+  mfaCode: document.getElementById('security-mfa-code'),
+  mfaError: document.getElementById('security-mfa-error'),
+  mfaConfirm: document.getElementById('security-mfa-confirm-btn'),
+  mfaCancel: document.getElementById('security-mfa-cancel-btn'),
   emailStatus: document.getElementById('account-email-status'),
   googleStatus: document.getElementById('account-google-status'),
   emailForm: document.getElementById('account-email-link-form'),
@@ -70,6 +89,8 @@ function markupKit(text) {
   const ICONS = {
     mail: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>',
     key: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8.2 7 10 4-1.8 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 19z"/></svg>',
     pencil: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
@@ -170,6 +191,20 @@ export function buildSecuritySectionMarkup(text) {
   const minimum = syncVaultPolicy.minimumPasswordLength;
   return `
       <div class="us">
+        <section id="security-mfa-challenge" class="us-card hidden" aria-live="polite">
+          <div class="us-panel">
+            <p class="us-desc" data-lang-key="securityMfaChallengeDesc">這個動作需要驗證器。請輸入驗證器 app 顯示的六位數。</p>
+            <div class="us-field">
+              <label for="security-mfa-code" data-lang-key="securityMfaCodeLabel">驗證碼</label>
+              <div class="us-input"><input id="security-mfa-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="123456"></div>
+              <p id="security-mfa-error" class="us-hint is-error hidden"></p>
+            </div>
+          </div>
+          <div class="us-foot">
+            <button id="security-mfa-cancel-btn" type="button" class="us-link" data-lang-key="securityTotpCancel">取消</button>
+            <button id="security-mfa-confirm-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityMfaConfirm">確認</button>
+          </div>
+        </section>
         <section class="us-card">
           <div id="login-password-row" class="us-row hidden">
             <span class="us-mark">${ICONS.key}</span>
@@ -270,6 +305,48 @@ export function buildSecuritySectionMarkup(text) {
               <button id="sync-vault-reset-btn" type="button" class="us-btn is-danger" data-lang-key="resetCloudSyncPassword">清除同步密碼</button>
               <button id="sync-vault-change-btn" type="button" class="us-btn is-primary is-block" data-lang-key="saveCloudSyncPassword">儲存新密碼</button>
             </div>
+          </div>
+        </section>
+        <section id="security-totp-card" class="us-card hidden">
+          <div class="us-head">
+            <div class="us-head-main">
+              <span class="us-mark">${ICONS.shield}</span>
+              <div class="us-head-text">
+                <div class="us-head-line">
+                  <h3 data-lang-key="securityTotpTitle">驗證器</h3>
+                  ${statusMarkup('security-totp-state', ' hidden')}
+                </div>
+                <p class="us-desc" data-lang-key="securityTotpDesc">用驗證器 app 的六位數，保護重設同步密碼、重新開始與救援資料的變更。</p>
+              </div>
+            </div>
+          </div>
+          <div id="security-totp-off" class="hidden">
+            <div class="us-foot is-end"><button id="security-totp-start-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityTotpStart">設定驗證器</button></div>
+          </div>
+          <div id="security-totp-setup" class="hidden">
+            <div class="us-panel">
+              <p class="us-hint" data-lang-key="securityTotpStep1">1. 在驗證器 app（Google Authenticator、Microsoft Authenticator、1Password 等）掃描這個圖，或改用下面的設定金鑰。</p>
+              <div class="us-qr"><img id="security-totp-qr" alt="" width="176" height="176"></div>
+              <div class="us-field">
+                <label for="security-totp-secret" data-lang-key="securityTotpSecretLabel">設定金鑰（不能掃描時，在 app 裡選「輸入設定金鑰」）</label>
+                <div class="us-input">
+                  <input id="security-totp-secret" type="text" readonly autocomplete="off" spellcheck="false">
+                  <button id="security-totp-copy" type="button" class="us-eye" title="複製" aria-label="複製" data-lang-key-title="securityTotpCopy" data-lang-key-aria="securityTotpCopy">${ICONS.copy}</button>
+                </div>
+                <p class="us-hint"><a id="security-totp-open" href="#" data-lang-key="securityTotpOpen">在這台裝置上開啟驗證器 app</a></p>
+              </div>
+              <div class="us-field">
+                <label for="security-totp-code" data-lang-key="securityTotpStep2">2. 輸入 app 顯示的六位數</label>
+                <div class="us-input"><input id="security-totp-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="123456"></div>
+              </div>
+            </div>
+            <div class="us-foot">
+              <button id="security-totp-cancel-btn" type="button" class="us-link" data-lang-key="securityTotpCancel">取消</button>
+              <button id="security-totp-confirm-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityTotpConfirm">啟用驗證器</button>
+            </div>
+          </div>
+          <div id="security-totp-on" class="hidden">
+            <div class="us-foot is-end"><button id="security-totp-remove-btn" type="button" class="us-btn is-danger" data-lang-key="securityTotpRemove">移除驗證器</button></div>
           </div>
         </section>
         <p class="us-footnote" data-lang-key="passwordKindsNote">登入密碼用來登入帳號；同步密碼用來加密你的 API 金鑰，只在你的裝置上使用，兩者不同。</p>

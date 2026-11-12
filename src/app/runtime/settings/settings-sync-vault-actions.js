@@ -15,14 +15,17 @@ import {
 export function bindSyncVaultActions(elements, {
   window, document, storage, getCurrentUser, showNotification, text, getSupabase, isBusy, setBusy, getAccountTurnstile, notifyError,
   setAccountMessage, authErrorText, requireMatchingPasswords, refreshSyncVaultControls, requestVaultRecovery, storeVaultRecovery,
-  getRecoveryStorageKey, dispatchUnlocked, queueCloudSyncKind, setManageOpen
+  getRecoveryStorageKey, requireAal2, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
+  // With an authenticator app set up, the six digits are asked for before the recovery of the sync password is made, changed or taken away.
+  const guarded = async () => await requireAal2();
   elements.createButton.addEventListener('click', async () => {
     if (isBusy()) return;
     try {
       const user = getCurrentUser();
       if (user.authProvider !== 'supabase') throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
       requireMatchingPasswords(elements.createPassword.value, elements.createConfirmation.value);
+      if (!await guarded()) return;
       setBusy(true);
       const record = await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
       try {
@@ -97,6 +100,7 @@ export function bindSyncVaultActions(elements, {
     const user = getCurrentUser();
     try {
       requireMatchingPasswords(elements.recoveryPassword.value, elements.recoveryConfirmation.value);
+      if (!await guarded()) return;
       setBusy(true);
       const recovered = await requestVaultRecovery('recover');
       await queueCloudSyncKind('vault');
@@ -142,6 +146,7 @@ export function bindSyncVaultActions(elements, {
     if (!window.confirm(text('cloudSyncStartOverConfirm', '重新開始會清除雲端上的同步密碼和已同步的 API 金鑰，之後要設新的同步密碼，並在各裝置重新輸入 API 金鑰。對話和其他資料不受影響。確定要繼續嗎？'))) return;
     const user = getCurrentUser();
     try {
+      if (!await guarded()) return;
       setBusy(true);
       await requestVaultRecovery('delete');
       await removeSyncVault({ storage, username: user.username });
@@ -173,6 +178,7 @@ export function bindSyncVaultActions(elements, {
     try {
       const user = getCurrentUser();
       requireMatchingPasswords(elements.nextPassword.value, elements.nextConfirmation.value);
+      if (!await guarded()) return;
       setBusy(true);
       const previousRecord = await readSyncVaultRecord(storage, user.username);
       const nextRecord = await changeSyncVaultPassword({
@@ -215,6 +221,7 @@ export function bindSyncVaultActions(elements, {
     if (!window.confirm(text('cloudSyncPasswordResetConfirm', '清除同步密碼後，既有加密資料將無法解密。確定要繼續嗎？'))) return;
     const user = getCurrentUser();
     try {
+      if (!await guarded()) return;
       await requestVaultRecovery('delete', { currentPassword });
     } catch (error) {
       notifyError(error);

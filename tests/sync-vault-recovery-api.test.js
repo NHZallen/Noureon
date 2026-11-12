@@ -75,3 +75,43 @@ test('a session alone cannot replace or remove the recovery: it takes the sync p
     }
   }
 });
+
+test('an account with an authenticator app set up needs its code confirmed (aal2) for every action of the recovery; one without it, or with an unconfirmed one, does not', async () => {
+  const { default: handler } = await import('../api/sync-vault-recovery.js');
+  const key = Buffer.alloc(32, 7).toString('base64');
+  const jwt = (claims) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
+  const now = Math.floor(Date.now() / 1000);
+  const aal1 = jwt({ iat: now, aal: 'aal1', amr: [{ method: 'magiclink' }] });
+  const aal2 = jwt({ iat: now, aal: 'aal2', amr: [{ method: 'totp' }, { method: 'magiclink' }] });
+  const stored = encryptRecoveryPayload({ password: 'the kept password', record: { v: 1 } }, key);
+  let factors = [{ factor_type: 'totp', status: 'verified' }];
+  const saved = { fetch: globalThis.fetch, env: { ...process.env } };
+  Object.assign(process.env, { SUPABASE_URL: 'https://db.example', SUPABASE_PUBLISHABLE_KEY: 'pk', SYNC_VAULT_RECOVERY_KEY: key });
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).endsWith('/auth/v1/user')) return new Response(JSON.stringify({ id: 'u1', factors }), { status: 200 });
+    if (options.method === 'POST' || options.method === 'DELETE') return new Response('', { status: 201 });
+    return new Response(JSON.stringify([{ recovery_payload: stored }]), { status: 200 });
+  };
+  const call = async (token, body) => {
+    const res = { code: 0, body: null, setHeader() {}, status(code) { this.code = code; return this; }, json(value) { this.body = value; return this; } };
+    await handler({ method: 'POST', headers: { authorization: `Bearer ${token}` }, body }, res);
+    return res;
+  };
+  try {
+    for (const action of ['store', 'recover', 'delete']) {
+      const body = { action, password: 'a new password!', record: { v: 2 } };
+      const refused = await call(aal1, body);
+      assert.equal(refused.code, 403, `${action} after the sign-in alone`);
+      assert.equal(refused.body.code, 'mfa_required');
+      assert.equal((await call(aal2, body)).code, 200, `${action} with the code confirmed`);
+    }
+    factors = [{ factor_type: 'totp', status: 'unverified' }];
+    assert.equal((await call(aal1, { action: 'recover' })).code, 200, 'a factor that was never confirmed asks nothing');
+    factors = [];
+    assert.equal((await call(aal1, { action: 'recover' })).code, 200, 'no factor: as before');
+  } finally {
+    globalThis.fetch = saved.fetch;
+    for (const name of Object.keys(process.env)) if (!(name in saved.env)) delete process.env[name];
+    Object.assign(process.env, saved.env);
+  }
+});

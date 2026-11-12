@@ -64,6 +64,20 @@ async function authenticateUser({ token, supabaseUrl, publishableKey, fetchImpl 
   return response.json();
 }
 
+const tokenClaims = (token) => {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+  } catch {
+    return {};
+  }
+};
+
+// A person with an authenticator app set up (a verified TOTP factor) has to have confirmed its code in this session (aal2) before anything of the
+// recovery is read, replaced or removed. (The table's own rules ask the same for writes: supabase/migrations/20261112100000_vault_recovery_slots.sql.)
+const authenticatorCodeMissing = (user, token) => Array.isArray(user?.factors)
+  && user.factors.some((factor) => factor?.factor_type === 'totp' && factor?.status === 'verified')
+  && tokenClaims(token).aal !== 'aal2';
+
 function hasFreshEmailVerification(token, now = Date.now()) {
   try {
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
@@ -128,6 +142,10 @@ export default async function handler(req, res) {
       return;
     }
     const body = parseBody(req.body);
+    if (['store', 'recover', 'delete'].includes(body.action) && authenticatorCodeMissing(user, token)) {
+      res.status(403).json({ error: 'Confirm the code of the authenticator app first', code: 'mfa_required' });
+      return;
+    }
     if (body.action === 'store') {
       if (typeof body.password !== 'string' || body.password.length < 10 || !body.record) {
         res.status(400).json({ error: 'A valid password and vault record are required' });

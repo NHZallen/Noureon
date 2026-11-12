@@ -589,3 +589,155 @@ test('the show/hide button of the password boxes of the security page works, and
   eye.click();
   assert.equal(input.type, 'password');
 });
+
+// The authenticator app: Supabase's TOTP factor. A fake `auth.mfa` keeps the factors; `aal` is what the session has confirmed.
+const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLevel: 'aal1' }, goodCode = '123456' } = {}) => {
+  const state = { factors: [...factors], aal: { ...aal }, enrolled: 0, verified: [], unenrolled: [] };
+  const mfa = {
+    listFactors: async () => ({ data: { all: state.factors, totp: state.factors.filter((factor) => factor.factor_type === 'totp') }, error: null }),
+    enroll: async () => {
+      state.enrolled += 1;
+      const factor = { id: `factor-${state.enrolled}`, factor_type: 'totp', status: 'unverified' };
+      state.factors.push(factor);
+      return { data: { id: factor.id, totp: { qr_code: 'data:image/svg+xml;utf8,<svg/>', secret: 'ABCDEFGHJKLMNPQR', uri: 'otpauth://totp/Noureon:me?secret=ABCDEFGHJKLMNPQR&issuer=Noureon' } }, error: null };
+    },
+    challengeAndVerify: async ({ factorId, code }) => {
+      state.verified.push({ factorId, code });
+      if (code !== goodCode) return { data: null, error: { message: 'Invalid TOTP code entered' } };
+      const factor = state.factors.find((entry) => entry.id === factorId);
+      if (factor) factor.status = 'verified';
+      state.aal = { currentLevel: 'aal2', nextLevel: 'aal2' };
+      return { data: {}, error: null };
+    },
+    unenroll: async ({ factorId }) => { state.unenrolled.push(factorId); state.factors = state.factors.filter((factor) => factor.id !== factorId); return { data: {}, error: null }; },
+    getAuthenticatorAssuranceLevel: async () => ({ data: state.aal, error: null })
+  };
+  const supabase = { auth: { mfa, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
+  const notices = [];
+  const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }) });
+  fixture.window.confirm = () => true;
+  const requests = [];
+  fixture.window.fetch = async (url, init) => { requests.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ deleted: true }) }; };
+  fixture.setCurrentUser(cloudUser);
+  await createAndUnlockSyncVault({ storage: fixture.storage, username: cloudUser.username, password: 'old-password-123' });
+  fixture.controls.ensureSyncVaultSettings();
+  await fixture.controls.refreshSyncVaultControls();
+  await flush();
+  return { ...fixture, state, notices, requests, byId: (id) => fixture.window.document.getElementById(id) };
+};
+
+test('authenticator: the card shows for a cloud account, setup draws the QR code and the setup key to type in, and six digits turn it on', async () => {
+  const { byId, state, notices } = await mfaFixture();
+  assert.equal(byId('security-totp-card').classList.contains('hidden'), false);
+  assert.equal(byId('security-totp-off').classList.contains('hidden'), false);
+
+  byId('security-totp-start-btn').click();
+  await flush();
+  assert.equal(byId('security-totp-setup').classList.contains('hidden'), false);
+  assert.match(byId('security-totp-qr').getAttribute('src'), /^data:image/);
+  assert.equal(byId('security-totp-secret').value, 'ABCD EFGH JKLM NPQR', 'the key to type in, in groups of four');
+  assert.match(byId('security-totp-open').getAttribute('href'), /^otpauth:\/\/totp\//);
+
+  byId('security-totp-code').value = '12ab34';
+  byId('security-totp-code').dispatchEvent(new (byId('security-totp-code').ownerDocument.defaultView.Event)('input'));
+  assert.equal(byId('security-totp-code').value, '1234', 'only digits are kept');
+
+  byId('security-totp-code').value = '123456';
+  byId('security-totp-confirm-btn').click();
+  await flush();
+  assert.deepEqual(state.verified.at(-1), { factorId: 'factor-1', code: '123456' });
+  assert.equal(byId('security-totp-on').classList.contains('hidden'), false);
+  assert.equal(byId('security-totp-setup').classList.contains('hidden'), true);
+  assert.match(notices.at(-1).message, /驗證器已啟用/);
+});
+
+test('authenticator: a wrong code keeps the setup open and nothing is turned on', async () => {
+  const { byId, state, notices } = await mfaFixture();
+  byId('security-totp-start-btn').click();
+  await flush();
+  byId('security-totp-code').value = '000000';
+  byId('security-totp-confirm-btn').click();
+  await flush();
+  assert.equal(byId('security-totp-setup').classList.contains('hidden'), false);
+  assert.equal(state.factors[0].status, 'unverified');
+  assert.equal(notices.at(-1).type, 'error');
+  assert.match(notices.at(-1).message, /不正確/);
+});
+
+test('authenticator: cancelling the setup removes the unfinished factor', async () => {
+  const { byId, state } = await mfaFixture();
+  byId('security-totp-start-btn').click();
+  await flush();
+  byId('security-totp-cancel-btn').click();
+  await flush();
+  assert.deepEqual(state.unenrolled, ['factor-1']);
+  assert.equal(byId('security-totp-off').classList.contains('hidden'), false);
+});
+
+test('authenticator: with one set up, the six digits are asked for before the recovery is changed, and the action goes on only after they are right', async () => {
+  const { byId, state, requests, values } = await mfaFixture({
+    factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }],
+    aal: { currentLevel: 'aal1', nextLevel: 'aal2' }
+  });
+  assert.equal(byId('security-totp-on').classList.contains('hidden'), false);
+
+  byId('sync-vault-current-password').value = 'old-password-123';
+  byId('sync-vault-reset-btn').click();
+  await flush();
+  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false, 'the code is asked for');
+  assert.equal(requests.length, 0, 'nothing is sent to the server yet');
+
+  byId('security-mfa-code').value = '999999';
+  byId('security-mfa-confirm-btn').click();
+  await flush();
+  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false, 'a wrong code keeps it open');
+  assert.equal(byId('security-mfa-error').classList.contains('hidden'), false);
+  assert.equal(requests.length, 0);
+
+  byId('security-mfa-code').value = '123456';
+  byId('security-mfa-confirm-btn').click();
+  await flush();
+  assert.deepEqual(state.verified.map((entry) => entry.code), ['999999', '123456']);
+  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), true);
+  assert.deepEqual(requests, [{ action: 'delete', currentPassword: 'old-password-123' }], 'the action went on');
+  assert.equal(values.has(`chatSyncVault_v1_${cloudUser.username}`), false);
+});
+
+test('authenticator: giving up at the code stops the action, and a session that already confirmed the code is not asked again', async () => {
+  const asked = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+  asked.byId('sync-vault-current-password').value = 'old-password-123';
+  asked.byId('sync-vault-reset-btn').click();
+  await flush();
+  asked.byId('security-mfa-cancel-btn').click();
+  await flush();
+  assert.equal(asked.requests.length, 0);
+  assert.equal(asked.byId('security-mfa-challenge').classList.contains('hidden'), true);
+
+  const done = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal2', nextLevel: 'aal2' } });
+  done.byId('sync-vault-current-password').value = 'old-password-123';
+  done.byId('sync-vault-reset-btn').click();
+  await flush();
+  assert.equal(done.byId('security-mfa-challenge').classList.contains('hidden'), true);
+  assert.equal(done.requests.length, 1);
+});
+
+test('authenticator: removing it asks for the code first and then unenrolls the factor', async () => {
+  const { byId, state } = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+  byId('security-totp-remove-btn').click();
+  await flush();
+  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false);
+  byId('security-mfa-code').value = '123456';
+  byId('security-mfa-confirm-btn').click();
+  await flush();
+  assert.deepEqual(state.unenrolled, ['factor-9']);
+  assert.equal(byId('security-totp-off').classList.contains('hidden'), false);
+});
+
+test('authenticator: a client with no auth.mfa hides the card and never asks for a code; a local account has no card', async () => {
+  const { byId } = await mfaFixture();
+  assert.equal(byId('security-totp-card').classList.contains('hidden'), false);
+  const local = createFixture({ getSupabase: () => ({ auth: { getUserIdentities: async () => ({ data: { identities: [] }, error: null }) } }) });
+  local.controls.ensureSyncVaultSettings();
+  await local.controls.refreshSyncVaultControls();
+  assert.equal(local.window.document.getElementById('security-totp-card').classList.contains('hidden'), true);
+});

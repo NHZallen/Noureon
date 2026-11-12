@@ -101,3 +101,12 @@
 /* The sync-now block (settings-sync-now-controls.js) inside the unlocked card. */
 #settings-modal :is(#user-section, #security-section) .us-body { display: grid; gap: 0.9rem; padding: 0.4rem 1.15rem 1.1rem; }
 #settings-modal :is(#user-section, #security-section) .us-body #sync-now-panel { padding-bottom: 0; border-bottom: 0; }
+
+/* The authenticator app (settings-security-authenticator.js): the QR code, the setup key that can be typed in, and the code asked for before a change. */
+/* The QR code is drawn dark on light whatever the theme: a scanner needs that, so the box takes the light colours of the system. */
+#settings-modal :is(#user-section, #security-section) .us-qr { display: flex; justify-content: center; padding: 0.75rem; color-scheme: light; background: Canvas; border: 1px solid var(--border-color); border-radius: 0.75rem; justify-self: center; }
+#settings-modal :is(#user-section, #security-section) .us-qr img { display: block; width: 11rem; height: 11rem; max-width: 100%; }
+#settings-modal :is(#user-section, #security-section) #security-totp-secret { letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+#settings-modal :is(#user-section, #security-section) #security-totp-code, #settings-modal :is(#user-section, #security-section) #security-mfa-code { letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
+#settings-modal :is(#user-section, #security-section) .us-hint.is-error { color: var(--state-danger) !important; }
+#settings-modal :is(#user-section, #security-section) .us-hint a { color: inherit; text-decoration: underline; }

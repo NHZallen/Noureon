@@ -8,6 +8,8 @@ import { createTurnstileClient } from '../security/turnstile-client.js';
 import { SERVICES, getService } from '../services.js';
 import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-section-markup.js';
 import { mountSecurityPage, togglePasswordEye } from './settings-security-page.js';
+import { createVaultRecoveryClient, getRecoveryStorageKey } from './settings-vault-recovery-client.js';
+import { createAuthenticatorControls } from './settings-security-authenticator.js';
 import { bindAccountLinkingActions } from './settings-account-linking-actions.js';
 import { bindSyncVaultActions } from './settings-sync-vault-actions.js';
 
@@ -134,38 +136,9 @@ export function createSettingsSyncVaultControls({
     recoveryTurnstileMounted = true;
   };
 
-  const getRecoveryStorageKey = (username) => `chatSyncVaultRecovery_v1_${username}`;
+  const { request: requestVaultRecovery, store: storeVaultRecovery, isVerifiedMode: isVerifiedRecoveryMode } = createVaultRecoveryClient({ window, storage, getSupabase: () => getSupabase(), text });
 
-  const requestVaultRecovery = async (action, payload = {}) => {
-    const supabase = getSupabase();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.access_token) {
-      throw sessionError || new Error(text('sessionRequired', '請重新登入後再試。'));
-    }
-    const response = await window.fetch('/api/sync-vault-recovery', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ action, ...payload })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (result.code === 'current_password_required') throw Object.assign(new Error(text('cloudSyncCurrentPasswordRequired', '請在「目前同步密碼」輸入現在的同步密碼。忘記的話，請用「忘記同步密碼」。')), { code: result.code });
-      throw Object.assign(new Error(result.error || text('cloudSyncRecoveryFailed', '同步密碼復原服務失敗。')), { code: result.code });
-    }
-    return result;
-  };
-
-  // Replacing what is kept takes the sync password kept now (or the Email sign-in of the recovery): a session alone is not enough.
-  const storeVaultRecovery = (password, record, currentPassword = '') => requestVaultRecovery('store', { password, record, currentPassword });
-
-  const isVerifiedRecoveryMode = async (username) => {
-    const recoveryState = new URL(window.location.href).searchParams.get('vault_recovery');
-    if (!recoveryState) return false;
-    return recoveryState === await storage.getItem(getRecoveryStorageKey(username));
-  };
+  const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
   const emailBindLabel = () => (getCurrentUser?.()?.authProvider === 'supabase'
@@ -250,6 +223,8 @@ export function createSettingsSyncVaultControls({
   const refreshSyncVaultControls = async () => {
     ensureSyncVaultSettings();
     await refreshAccountLinking();
+    authenticator.bind();
+    void authenticator.refresh();
     const user = getCurrentUser?.();
     const elements = getElements();
     if (!user?.username || !elements.section) return;
@@ -370,7 +345,7 @@ export function createSettingsSyncVaultControls({
       window, document, storage, getCurrentUser, showNotification, text, getSupabase, reloadPage, scheduleTimeout,
       isBusy: () => busy, setBusy, getAccountTurnstile: () => accountTurnstile, notifyError, setAccountMessage, authErrorText,
       requireMatchingPasswords, requireMatchingLoginPasswords, refreshAccountLinking, refreshSyncVaultControls, requestVaultRecovery,
-      storeVaultRecovery, getRecoveryStorageKey, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
+      storeVaultRecovery, getRecoveryStorageKey, requireAal2: authenticator.requireAal2, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
     };
     bindAccountLinkingActions(elements, ctx);
     bindSyncVaultActions(elements, ctx);
