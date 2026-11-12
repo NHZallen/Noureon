@@ -15,6 +15,7 @@ export const getUserSectionElements = (document) => ({
   passkeyState: document.getElementById('security-passkey-state'),
   passkeyUnsupported: document.getElementById('security-passkey-unsupported'),
   passkeyNoVault: document.getElementById('security-passkey-no-vault'),
+  passkeyInApp: document.getElementById('security-passkey-in-app'),
   passkeyAdd: document.getElementById('security-passkey-add'),
   passkeyPassword: document.getElementById('security-passkey-password'),
   passkeyAddButton: document.getElementById('security-passkey-add-btn'),
@@ -332,6 +333,7 @@ export function buildSecuritySectionMarkup(text) {
           <ul id="security-passkey-list" class="us-pk-list hidden"></ul>
           <div class="us-panel">
             <p id="security-passkey-unsupported" class="us-hint hidden" data-lang-key="securityPasskeyUnsupported">這個瀏覽器還不能用通行金鑰救援。請換用 Safari、Chrome 或 Edge 的新版本。</p>
+            <p id="security-passkey-in-app" class="us-hint hidden" data-lang-key="securityPasskeyInApp">你現在用的是 app 裡的瀏覽器（例如 Google app），它不能用通行金鑰。請用 Safari 或 Chrome 開啟這個網址。</p>
             <p id="security-passkey-no-vault" class="us-hint hidden" data-lang-key="securityPasskeyNoVault">先在上面設定同步密碼，才能新增通行金鑰。</p>
             <div id="security-passkey-add" class="hidden">
               ${passwordField({ id: 'security-passkey-password', label: '目前的同步密碼（新增或更新時需要）', labelKey: 'securityPasskeyPasswordLabel', autocomplete: 'current-password' })}

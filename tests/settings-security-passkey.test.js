@@ -260,3 +260,12 @@ test('an account that only has the old recovery of the server keeps working the 
   assert.equal(fixture.byId('sync-vault-recovery-passkey-btn').classList.contains('hidden'), true);
   assert.equal(fixture.byId('sync-vault-recovery-save-btn').classList.contains('hidden'), false);
 });
+
+test('passkey card: inside an app\'s own browser it says to open Safari or Chrome, and offers no button that cannot work', async () => {
+  const fixture = await setup({ availability: 'in-app' });
+  assert.equal(fixture.byId('security-passkey-in-app').classList.contains('hidden'), false);
+  assert.match(fixture.byId('security-passkey-in-app').textContent, /Safari/);
+  assert.equal(fixture.byId('security-passkey-add').classList.contains('hidden'), true);
+  assert.equal(fixture.byId('security-passkey-add-btn').parentElement.classList.contains('hidden'), true);
+  assert.equal(fixture.byId('security-passkey-unsupported').classList.contains('hidden'), true);
+});

@@ -9,10 +9,14 @@ const withCode = (error, code) => Object.assign(error, { code });
 
 // What went wrong, as a code the pages show in the person's language. `detail` is the browser's own name for it (NotAllowedError...), kept so a page can show it:
 // a browser says "not allowed" for a cancelled sheet, a tap that was too old, and a view that has no passkeys, and only the name tells them apart a little.
-const failure = (error) => {
+// A refusal that comes back at once (the person had no time to touch anything) means the browser would not even show the sheet: an app's own browser view
+// (the Google app, Facebook, Instagram...) has no passkeys. A cancelled sheet takes seconds.
+const BLOCKED_WITHIN_MS = 300;
+const failure = (error, startedAt = 0, now = Date.now()) => {
   if (error?.code && String(error.code).startsWith('passkey-')) return error;
   const detail = error?.name || '';
   const make = (message, code) => Object.assign(new Error(message), { code, detail });
+  if (error?.name === 'NotAllowedError' && startedAt && now - startedAt < BLOCKED_WITHIN_MS) return make('The browser did not show the passkey sheet.', 'passkey-blocked');
   if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') return make('The passkey was not confirmed.', 'passkey-cancelled');
   if (error?.name === 'InvalidStateError') return make('This passkey is already registered.', 'passkey-exists');
   if (error?.name === 'NotSupportedError' || error?.name === 'SecurityError') return make('Passkeys cannot be used here.', 'passkey-unsupported');
@@ -26,12 +30,16 @@ const secretOf = (results) => {
   return bytes.length === 32 ? bytes : null;
 };
 
+/** The browser views that apps open inside themselves (Google app, Facebook, Instagram, Line, WeChat, Android WebView): they have no passkeys. */
+export const isInAppBrowser = (userAgent = '') => /\bGSA\/|FBAN|FBAV|FB_IAB|Instagram|\bLine\/|MicroMessenger|\bwv\)/i.test(String(userAgent));
+
 /**
  * Whether this browser can do it: 'yes' (it says it supports PRF), 'no' (no passkeys, or it says it does not), 'unknown' (passkeys, but the browser
  * cannot say about PRF: the page offers it and a failure is told when it happens).
  */
 export async function passkeyPrfAvailability({ pkc = globalThis.PublicKeyCredential, nav = globalThis.navigator } = {}) {
   if (!pkc || !nav?.credentials?.create) return 'no';
+  if (isInAppBrowser(nav.userAgent)) return 'in-app';
   try {
     if (typeof pkc.getClientCapabilities === 'function') {
       const capabilities = await pkc.getClientCapabilities();
@@ -48,6 +56,7 @@ export async function passkeyPrfAvailability({ pkc = globalThis.PublicKeyCredent
 export async function registerRecoveryPasskey({ rpId, userId, userName, excludeCredentialIds = [], nav = globalThis.navigator, cryptoProvider = globalThis.crypto } = {}) {
   const prfSalt = cryptoProvider.getRandomValues(new Uint8Array(32));
   let created;
+  const startedAt = Date.now();
   try {
     created = await nav.credentials.create({
       publicKey: {
@@ -61,7 +70,7 @@ export async function registerRecoveryPasskey({ rpId, userId, userName, excludeC
       }
     });
   } catch (error) {
-    throw failure(error);
+    throw failure(error, startedAt);
   }
   if (!created) throw withCode(new Error('No passkey was made.'), 'passkey-failed');
   const extension = created.getClientExtensionResults?.()?.prf;
@@ -88,6 +97,7 @@ export async function readAnyRecoveryPasskey({ rpId, slots, nav = globalThis.nav
   if (!list.length) throw withCode(new Error('There is no passkey to ask.'), 'passkey-none');
   const evalByCredential = Object.fromEntries(list.map((slot) => [slot.credentialId, { first: base64ToBytes(slot.prfSalt) }]));
   let assertion;
+  const startedAt = Date.now();
   try {
     assertion = await nav.credentials.get({
       publicKey: {
@@ -99,7 +109,7 @@ export async function readAnyRecoveryPasskey({ rpId, slots, nav = globalThis.nav
       }
     });
   } catch (error) {
-    throw failure(error);
+    throw failure(error, startedAt);
   }
   const answered = bytesToBase64Url(new Uint8Array(assertion?.rawId || []));
   const slot = list.find((entry) => entry.credentialId === answered);

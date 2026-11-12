@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   MAX_RECOVERY_SLOTS, addRecoverySlot, createPasskeySlot, findRecoverySlotByCredential, isSlotCurrent, normalizeRecoverySlots, openRecoverySlot, removeRecoverySlot, rewrapRecoverySlot
 } from '../src/app/sync/vault-recovery-slots.js';
-import { passkeyPrfAvailability, readAnyRecoveryPasskey, registerRecoveryPasskey } from '../src/app/sync/passkey-prf.js';
+import { isInAppBrowser, passkeyPrfAvailability, readAnyRecoveryPasskey, registerRecoveryPasskey } from '../src/app/sync/passkey-prf.js';
 
 const secretA = () => Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 const secretB = () => Uint8Array.from({ length: 32 }, (_, index) => 200 - index);
@@ -87,7 +87,8 @@ test('registering a passkey that gives its secret as it is made needs one confir
 test('a passkey without PRF, a cancelled confirmation and a passkey that is there already are told apart', async () => {
   const noPrf = { credentials: { create: async () => makeCredential({ rawId: Uint8Array.from([9]), prf: { enabled: false } }) } };
   await assert.rejects(registerRecoveryPasskey({ rpId: 'x', userId: new Uint8Array(16), nav: noPrf }), { code: 'passkey-prf-unsupported' });
-  const cancelled = { credentials: { create: async () => { throw Object.assign(new Error('x'), { name: 'NotAllowedError' }); } } };
+  // A sheet the person closes takes a moment (a refusal that comes at once is "blocked": see below).
+  const cancelled = { credentials: { create: async () => { await new Promise((resolve) => setTimeout(resolve, 350)); throw Object.assign(new Error('x'), { name: 'NotAllowedError' }); } } };
   await assert.rejects(registerRecoveryPasskey({ rpId: 'x', userId: new Uint8Array(16), nav: cancelled }), { code: 'passkey-cancelled' });
   const exists = { credentials: { create: async () => { throw Object.assign(new Error('x'), { name: 'InvalidStateError' }); } } };
   await assert.rejects(registerRecoveryPasskey({ rpId: 'x', userId: new Uint8Array(16), nav: exists }), { code: 'passkey-exists' });
@@ -130,9 +131,23 @@ test('a slot keeps the fingerprint of its vault record in the open, so one seale
 });
 
 test('a refusal of the browser keeps its own name, so the page can show what kind it was', async () => {
-  const nav = { credentials: { create: async () => { throw Object.assign(new Error('x'), { name: 'NotAllowedError' }); } } };
+  const nav = { credentials: { create: async () => { await new Promise((resolve) => setTimeout(resolve, 350)); throw Object.assign(new Error('x'), { name: 'NotAllowedError' }); } } };
   await assert.rejects(
     registerRecoveryPasskey({ rpId: 'noureon.test', userId: new Uint8Array(4), nav }),
     (error) => error.code === 'passkey-cancelled' && error.detail === 'NotAllowedError'
   );
+});
+
+test('an app\'s own browser view is known by its name, and a refusal that comes at once (no sheet was shown) is told apart from a cancelled one', async () => {
+  const google = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/445.5 Mobile/15E148 Safari/604.1';
+  const safari = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  assert.equal(isInAppBrowser(google), true);
+  assert.equal(isInAppBrowser(safari), false);
+  const pkc = class { static getClientCapabilities() { return Promise.resolve({ 'extension:prf': true }); } };
+  assert.equal(await passkeyPrfAvailability({ pkc, nav: { credentials: { create() {} }, userAgent: google } }), 'in-app');
+  assert.equal(await passkeyPrfAvailability({ pkc, nav: { credentials: { create() {} }, userAgent: safari } }), 'yes');
+
+  const refuse = (delay) => ({ credentials: { create: () => new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('x'), { name: 'NotAllowedError' })), delay)) } });
+  await assert.rejects(registerRecoveryPasskey({ rpId: 'noureon.test', userId: new Uint8Array(4), nav: refuse(5) }), (error) => error.code === 'passkey-blocked');
+  await assert.rejects(registerRecoveryPasskey({ rpId: 'noureon.test', userId: new Uint8Array(4), nav: refuse(400) }), (error) => error.code === 'passkey-cancelled');
 });

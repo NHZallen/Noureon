@@ -14,6 +14,7 @@ const ERROR_TEXTS = {
   'passkey-cancelled': ['securityPasskeyCancelled', '沒有確認通行金鑰，所以沒有完成。'],
   'passkey-exists': ['securityPasskeyExists', '這把通行金鑰已經登記過了。要再登記一把，請用另一台裝置或另一把金鑰。'],
   'passkey-unsupported': ['securityPasskeyUnsupportedHere', '這個瀏覽器或這個網址不能使用通行金鑰。'],
+  'passkey-blocked': ['securityPasskeyBlocked', '這個瀏覽器沒有跳出通行金鑰的確認視窗。若是從 app（例如 Google app）裡開的網頁，請改用 Safari 或 Chrome 開啟。'],
   'passkey-prf-unsupported': ['securityPasskeyNoPrf', '這把通行金鑰不能用來救援同步密碼。請改用另一個裝置或瀏覽器。'],
   'passkey-none': ['securityPasskeyNone', '還沒有登記通行金鑰。'],
   'passkey-unknown': ['securityPasskeyUnknown', '這不是登記過的救援通行金鑰。'],
@@ -113,9 +114,12 @@ export function createPasskeyControls({
     if (label) label.textContent = has ? text('securityPasskeyStateOn', '已設定') : text('securityPasskeyStateOff', '尚未設定');
     elements.passkeyState.classList.toggle('is-on', has);
     show(elements.passkeyState, true);
+    const usable = availability !== 'no' && availability !== 'in-app';
     show(elements.passkeyUnsupported, availability === 'no');
-    show(elements.passkeyNoVault, availability !== 'no' && !record);
-    show(elements.passkeyAdd, availability !== 'no' && Boolean(record));
+    show(elements.passkeyInApp, availability === 'in-app');
+    show(elements.passkeyNoVault, usable && !record);
+    show(elements.passkeyAdd, usable && Boolean(record));
+    show(elements.passkeyAddButton.parentElement, usable && Boolean(record));
     show(elements.passkeyList, has);
     elements.passkeyAddButton.textContent = has ? text('securityPasskeyAddAnother', '再新增一把通行金鑰') : text('securityPasskeyAdd', '新增通行金鑰');
     await renderList();
