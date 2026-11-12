@@ -28,6 +28,11 @@ function fakeDb() {
       if (at >= 0) rows[at] = { ...rows[at], ...row };
       else rows.push({ ...row });
     },
+    update: async (table, filters, values) => {
+      const hit = rows.filter(filterOf(filters));
+      hit.forEach((row) => Object.assign(row, values));
+      return hit.map((row) => ({ name: row.name }));
+    },
     remove: async (table, filters) => {
       for (let index = rows.length - 1; index >= 0; index -= 1) if (filterOf(filters)(rows[index])) rows.splice(index, 1);
     }

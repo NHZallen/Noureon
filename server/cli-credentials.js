@@ -25,7 +25,15 @@ const aadOf = (name) => ({ messageId: `credential:${name}` });
 
 export function createCredentialStore({ db, vault, now = () => new Date() }) {
   const table = 'user_credentials';
-  const open = (row, userId) => vault.open(row.envelope, row.key_version, { userId, ...aadOf(row.name) }).value;
+  const open = (row, userId) => {
+    const value = vault.open(row.envelope, row.key_version, { userId, ...aadOf(row.name) }).value;
+    // One sealed in the older form (the master key itself) is sealed again with the person's own key; the write only happens if the row is still as it was read.
+    if (!vault.isCurrent(row.envelope, row.key_version)) {
+      const { envelope, keyVersion } = vault.seal({ value }, { userId, ...aadOf(row.name) });
+      Promise.resolve(db.update(table, { user_id: `eq.${userId}`, name: `eq.${row.name}`, envelope: `eq.${row.envelope}` }, { envelope, key_version: keyVersion }, { returning: 'name' })).catch(() => {});
+    }
+    return value;
+  };
 
   return {
     /** All of a person's credentials: [{ name, value, updatedAt }] (the person may look at their own). A row that cannot be opened is left out. */

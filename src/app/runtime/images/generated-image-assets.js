@@ -175,6 +175,15 @@ export function createGeneratedImageAssetStore({
     return `data:${descriptor.mediaType || blob.type || 'image/png'};base64,${encodeBase64(bytes)}`;
   };
 
+  // An SVG is a document that can hold script: the blob: address of one, opened in a tab (the context menu of a picture or a link offers it), is a page of the
+  // app's own origin, which could read what the app keeps. A data: address is never opened as a page by the browser, and an <img> runs no script in it.
+  const pictureUrlOf = async (descriptor, blob) => {
+    if (String(descriptor?.mediaType || blob.type || '').toLowerCase().startsWith('image/svg+xml')) {
+      return `data:image/svg+xml;base64,${encodeBase64(new Uint8Array(await blob.arrayBuffer()))}`;
+    }
+    return createObjectURL(blob);
+  };
+
   const bind = async (root, descriptors = []) => {
     // The pictures nearest to what is on the screen first, each on its own: the one being looked at does not wait for the others to be read.
     const distance = (descriptor) => {
@@ -197,7 +206,7 @@ export function createGeneratedImageAssetStore({
         settlePictures(root, descriptor.id);
         return;
       }
-      const objectUrl = createObjectURL(blob);
+      const objectUrl = await pictureUrlOf(descriptor, blob);
       root.querySelectorAll(`[data-generated-image-id="${descriptor.id}"]`)
         .forEach(element => {
           if (typeof element.addEventListener === 'function') {

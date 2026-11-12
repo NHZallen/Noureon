@@ -121,3 +121,26 @@ test('a drawing kept without a size is read at the size every picture has, and t
   kept.set('p', png);
   assert.equal(await store.getBlob({ id: 'p', mediaType: 'image/png', storageKey: 'p' }), png, 'a picture is given as it is');
 });
+
+test('an SVG picture and its download link get a data: address, never a blob: one that a tab could open as a page of the app', async () => {
+  const blob = new Blob(['<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'], { type: 'image/svg+xml' });
+  const image = { src: '' };
+  const link = { href: '', download: '' };
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-generated-image-id="asset-1"]') return [image];
+      if (selector === '[data-generated-image-download="asset-1"]') return [link];
+      return [];
+    },
+    setAttribute() {}
+  };
+  let blobUrls = 0;
+  const store = createGeneratedImageAssetStore({ setItem: async () => {}, getItem: async () => blob, getUserName: () => 'alice', createObjectURL: () => { blobUrls += 1; return 'blob:asset-1'; } });
+
+  await store.bind(root, [{ id: 'asset-1', storageKey: 'key', mediaType: 'image/svg+xml' }]);
+
+  assert.match(image.src, /^data:image\/svg\+xml;base64,/);
+  assert.equal(link.href, image.src);
+  assert.equal(blobUrls, 0, 'no blob: address was made for it');
+  assert.match(Buffer.from(image.src.split(',')[1], 'base64').toString('utf8'), /^<svg [^>]*><script>1<\/script><\/svg>$/, 'the file itself, as it is kept');
+});

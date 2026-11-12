@@ -277,3 +277,8 @@ v1 的金鑰是 `PBKDF2(密碼, salt)` 直接當資料金鑰。**搬移時把這
 - **資料庫**：`supabase/migrations/20261113000000_retire_server_vault_recovery.sql` 把所有 `recovery_payload` 清成空，並加上檢查，之後這欄只能是空。Allen 先套測試專案，再套正式專案。
 - **Allen 要做的**：套 migration；伺服器與頁面部署後，到 Vercel 刪環境變數 `SYNC_VAULT_RECOVERY_KEY`，不留任何副本。
 - **文字**：隱私政策、協助中心五語和 `PRIVACY.md` 已改成「Noureon 不保存服務端打得開的同步密碼副本」；舊的「2026 年 12 月 31 日前仍可用 Email 復原」說法拿掉。
+
+## 24. 金鑰保護計畫 ②③（Allen 2026-11-13）
+
+- **② SVG 一律用 data: 網址**：圖片卡片的 `<img>` 與下載連結、檔案預覽裡的 SVG，不再用 `blob:` 網址（`generated-image-assets.js` 的 `pictureUrlOf`、`file-preview-dialog.js`）。SVG 是可以帶腳本的文件，`blob:` 網址在新分頁開會是 app 同源的頁面；`data:` 網址瀏覽器不會當成頁面打開，`<img>` 裡也不執行腳本。正式站的 CSP 強制後，這個洞還有第二層擋（新分頁的 inline script 會被擋），這一層是不靠 CSP 的。
+- **③ 伺服器每人一把衍生金鑰**：`server/key-vault.js` 不再直接用主金鑰封存，而是用 HKDF-SHA256（主金鑰，context 含使用者 ID）算出每人專屬的金鑰，封包前綴改 `nk2`；舊的 `nk1`（主金鑰直接封存）照常能開。呼叫的地方不用改（都已帶 userId）。命令工具憑證在被讀取時，若不是現行格式，會重新封存並寫回（寫入帶舊封包當條件，期間被改過就不寫）；連接器權杖在下次更新權杖時自然換成新格式。不需要設定任何環境變數。**如實說明**：主金鑰外洩的話，所有人的金鑰都能算出來，這一層擋的是單一使用者金鑰或單一封包出事不連累別人。

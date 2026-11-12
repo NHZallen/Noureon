@@ -95,11 +95,13 @@ function renderMarkdownPreview({ document, descriptor, renderMarkdown, language 
   return article;
 }
 
-function renderSvgPreview({ document, window, descriptor, cleanups }) {
-  // An <img> never executes script inside an SVG, unlike inline markup.
-  const blob = new window.Blob([descriptor.content], { type: 'image/svg+xml' });
-  const url = window.URL.createObjectURL(blob);
-  cleanups.push(() => window.URL.revokeObjectURL(url));
+function renderSvgPreview({ document, window, descriptor }) {
+  // An <img> never executes script inside an SVG, unlike inline markup. A data: address, not a blob: one: the blob: address of an SVG opened in a tab
+  // (the context menu of a picture offers it) is a page of the app's own origin that could run the script of the file.
+  const bytes = new window.TextEncoder().encode(descriptor.content);
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 8192) binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+  const url = `data:image/svg+xml;base64,${window.btoa(binary)}`;
   const figure = document.createElement('div');
   figure.className = 'ac-file-preview-image';
   const image = document.createElement('img');
