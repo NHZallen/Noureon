@@ -126,11 +126,12 @@ export function createRebuildController({ getStore, getConversations, getConfig,
       if (!store?.isLoaded() || state.status === 'running') return false;
       const settings = store.getSettings();
       if (!settings.use || !settings.learn || settings.paused || settings.rebuiltAt || scopedView(store, '').getNotes().length) return false;
-      await prepare(0).catch(() => {});
-      if (!pickConversations(getConversations(), { limit: REBUILD.conversations }).length) return false;
+      // What costs nothing is asked first: with no model to read with, the newest conversations are not read into memory for nothing (it was done at every start).
       if (typeof getModelRunner() !== 'function') return false;
       const current = models.find((model) => model.id === getConfig()?.memoryModelId);
       if (!pickCuratorModel({ settingsId: settings.curatorModelId, current, models, hasKey: (provider) => Boolean(getApiKeyForProvider(provider)) })) return false;
+      await prepare(0).catch(() => {});
+      if (!pickConversations(getConversations(), { limit: REBUILD.conversations }).length) return false;
       await store.setSettings({ rebuiltAt: now() });
       if (await startOnServer()) return true;
       void run({ clearFirst: false, skip: 0 });

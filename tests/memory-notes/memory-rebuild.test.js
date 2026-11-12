@@ -241,3 +241,11 @@ test('the controller makes the build itself when the server cannot take it, when
   await busy.controller.start();
   assert.equal(busy.ran.length, 0, 'a job already running on the server is not started a second time');
 });
+
+test('with no model to read with, the automatic rebuild does not even look at the conversations (they are not read into memory at every start for nothing)', async () => {
+  let looked = 0;
+  const store = await newStore();
+  const controller = createRebuildController({ getStore: () => store, getConversations: () => { looked += 1; return CONVERSATIONS; }, getConfig: () => ({ memoryModelId: 'gemini-3.5-flash-lite' }), getModelRunner: () => async () => '{"ops":[]}', models: MODELS, getApiKeyForProvider: () => '', createId, now, logger: { warn() {} } });
+  assert.equal(await controller.maybeAutoStart(), false);
+  assert.equal(looked, 0);
+});
