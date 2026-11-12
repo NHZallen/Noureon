@@ -9,23 +9,21 @@ import {
   lockSyncVault,
   readSyncVaultRecord,
   removeSyncVault,
+  resetSyncVaultPasswordWithKeyBytes,
   unlockSyncVault
 } from '../../sync/sync-vault.js';
 
 export function bindSyncVaultActions(elements, {
   window, document, storage, getCurrentUser, showNotification, text, getSupabase, isBusy, setBusy, getAccountTurnstile, notifyError,
   setAccountMessage, authErrorText, requireMatchingPasswords, refreshSyncVaultControls, requestVaultRecovery, storeVaultRecovery,
-  getRecoveryStorageKey, requireAal2, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
+  getRecoveryStorageKey, confirmIdentity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
-  // With an authenticator app set up, the six digits are asked for before the recovery of the sync password is made, changed or taken away.
-  const guarded = async () => await requireAal2();
   elements.createButton.addEventListener('click', async () => {
     if (isBusy()) return;
     try {
       const user = getCurrentUser();
       if (user.authProvider !== 'supabase') throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
       requireMatchingPasswords(elements.createPassword.value, elements.createConfirmation.value);
-      if (!await guarded()) return;
       setBusy(true);
       const record = await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
       try {
@@ -52,6 +50,22 @@ export function bindSyncVaultActions(elements, {
       setBusy(true);
       await unlockSyncVault({ storage, username: user.username, password: elements.unlockPassword.value });
       elements.unlockPassword.value = '';
+      dispatchUnlocked(user.username);
+      showNotification(text('cloudSyncUnlockedNotice', '雲端同步已解鎖。'));
+      await refreshSyncVaultControls();
+    } catch (error) {
+      notifyError(error);
+    } finally {
+      setBusy(false);
+    }
+  });
+  // The daily unlock with a passkey instead of the sync password.
+  elements.unlockPasskeyButton?.addEventListener('click', async () => {
+    if (isBusy()) return;
+    try {
+      const user = getCurrentUser();
+      setBusy(true);
+      await passkeys.unlockWithPasskey();
       dispatchUnlocked(user.username);
       showNotification(text('cloudSyncUnlockedNotice', '雲端同步已解鎖。'));
       await refreshSyncVaultControls();
@@ -95,34 +109,36 @@ export function bindSyncVaultActions(elements, {
       setBusy(false);
     }
   });
-  // Forgot the sync password and signed in by Email: the recovery comes from the passkey (a slot opened here) or from the old way of the server.
+  // Forgot the sync password and signed in by Email: the way back is a passkey (it opens a slot with the data key, and a new password wraps that key) or, for a
+  // person who still has one, the old copy of the server's.
   const bindRecovery = (button, fromPasskey) => button?.addEventListener('click', async () => {
     if (isBusy()) return;
     const user = getCurrentUser();
     try {
       requireMatchingPasswords(elements.recoveryPassword.value, elements.recoveryConfirmation.value);
-      if (!await guarded()) return;
+      if (!await confirmIdentity({ onlyIfSet: true })) return;
       setBusy(true);
-      const recovered = fromPasskey ? await passkeys.recover() : await requestVaultRecovery('recover');
-      await queueCloudSyncKind('vault');
-      await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
-      await queueCloudSyncKind('vault');
-      const nextRecord = await changeSyncVaultPassword({
-        storage,
-        username: user.username,
-        currentPassword: recovered.password,
-        nextPassword: elements.recoveryPassword.value
-      });
-      try {
-        await passkeys.keepRecovery({ password: elements.recoveryPassword.value, record: nextRecord, currentPassword: recovered.password, secrets: recovered.secrets, serverStore: storeVaultRecovery });
-      } catch (error) {
+      const nextPassword = elements.recoveryPassword.value;
+      if (fromPasskey) {
+        await resetSyncVaultPasswordWithKeyBytes({ storage, username: user.username, keyBytes: await passkeys.openKey(), nextPassword });
+        await queueCloudSyncKind('vault');
+      } else {
+        const recovered = await requestVaultRecovery('recover');
         await queueCloudSyncKind('vault');
         await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
-        await unlockSyncVault({ storage, username: user.username, password: recovered.password });
-        await cancelSyncVaultRotation({ storage, username: user.username });
-        await queueCloudSyncKind('sensitive');
         await queueCloudSyncKind('vault');
-        throw error;
+        const nextRecord = await changeSyncVaultPassword({ storage, username: user.username, currentPassword: recovered.password, nextPassword });
+        try {
+          await passkeys.keepRecovery({ password: nextPassword, record: nextRecord, currentPassword: recovered.password, serverStore: storeVaultRecovery });
+        } catch (error) {
+          await queueCloudSyncKind('vault');
+          await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
+          await unlockSyncVault({ storage, username: user.username, password: recovered.password });
+          await cancelSyncVaultRotation({ storage, username: user.username });
+          await queueCloudSyncKind('sensitive');
+          await queueCloudSyncKind('vault');
+          throw error;
+        }
       }
       await storage.removeItem(getRecoveryStorageKey(user.username));
       const cleanUrl = new URL(window.location.href);
@@ -149,7 +165,7 @@ export function bindSyncVaultActions(elements, {
     if (!window.confirm(text('cloudSyncStartOverConfirm', '重新開始會清除雲端上的同步密碼和已同步的 API 金鑰，之後要設新的同步密碼，並在各裝置重新輸入 API 金鑰。對話和其他資料不受影響。確定要繼續嗎？'))) return;
     const user = getCurrentUser();
     try {
-      if (!await guarded()) return;
+      if (!await confirmIdentity()) return;
       setBusy(true);
       await requestVaultRecovery('delete');
       await removeSyncVault({ storage, username: user.username });
@@ -181,10 +197,9 @@ export function bindSyncVaultActions(elements, {
     try {
       const user = getCurrentUser();
       requireMatchingPasswords(elements.nextPassword.value, elements.nextConfirmation.value);
-      if (!await guarded()) return;
+      if (await passkeys.keepsServerCopy() && !await confirmIdentity({ onlyIfSet: true })) return;
       setBusy(true);
       const previousRecord = await readSyncVaultRecord(storage, user.username);
-      const secrets = await passkeys.collectSecrets();
       const nextRecord = await changeSyncVaultPassword({
         storage,
         username: user.username,
@@ -192,7 +207,7 @@ export function bindSyncVaultActions(elements, {
         nextPassword: elements.nextPassword.value
       });
       try {
-        await passkeys.keepRecovery({ password: elements.nextPassword.value, record: nextRecord, currentPassword: elements.currentPassword.value, secrets, serverStore: storeVaultRecovery });
+        await passkeys.keepRecovery({ password: elements.nextPassword.value, record: nextRecord, currentPassword: elements.currentPassword.value, serverStore: storeVaultRecovery });
       } catch (error) {
         await queueCloudSyncKind('vault');
         await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(previousRecord));
@@ -225,7 +240,7 @@ export function bindSyncVaultActions(elements, {
     if (!window.confirm(text('cloudSyncPasswordResetConfirm', '清除同步密碼後，既有加密資料將無法解密。確定要繼續嗎？'))) return;
     const user = getCurrentUser();
     try {
-      if (!await guarded()) return;
+      if (!await confirmIdentity()) return;
       await requestVaultRecovery('delete', { currentPassword });
     } catch (error) {
       notifyError(error);

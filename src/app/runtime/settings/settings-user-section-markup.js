@@ -82,6 +82,7 @@ export const getUserSectionElements = (document) => ({
   nextConfirmation: document.getElementById('sync-vault-next-confirmation'),
   createButton: document.getElementById('sync-vault-create-btn'),
   unlockButton: document.getElementById('sync-vault-unlock-btn'),
+  unlockPasskeyButton: document.getElementById('sync-vault-unlock-passkey-btn'),
   forgotButton: document.getElementById('sync-vault-forgot-btn'),
   recoveryPanel: document.getElementById('sync-vault-recovery-panel'),
   recoveryPassword: document.getElementById('sync-vault-recovery-password'),
@@ -269,6 +270,7 @@ export function buildSecuritySectionMarkup(text) {
           </div>
           <div id="sync-vault-unlock-panel" class="hidden">
             <div class="us-panel">
+              <button id="sync-vault-unlock-passkey-btn" type="button" class="us-btn is-block hidden" data-lang-key="securityPasskeyUnlock">用通行金鑰解鎖</button>
               ${passwordField({ id: 'sync-vault-unlock-password', label: '同步密碼', labelKey: 'cloudSyncPassword', autocomplete: 'current-password', minlength: minimum })}
               <div id="sync-vault-turnstile-slot" class="us-slot hidden"><span id="sync-vault-turnstile-anchor"></span></div>
               <p id="sync-vault-turnstile-hint" class="us-hint hidden" data-lang-key="turnstileForgotHint">忘記同步密碼時，需要先完成這個驗證。</p>
@@ -326,7 +328,7 @@ export function buildSecuritySectionMarkup(text) {
                   <h3 data-lang-key="securityPasskeyTitle">通行金鑰救援</h3>
                   ${statusMarkup('security-passkey-state', ' hidden')}
                 </div>
-                <p class="us-desc" data-lang-key="securityPasskeyDesc">忘記同步密碼時，用這台裝置的 Face ID、指紋或螢幕鎖救回。救援資料在你的裝置上加密，我們看不到。</p>
+                <p class="us-desc" data-lang-key="securityPasskeyDesc">忘記同步密碼時，用這台裝置的 Face ID、指紋或螢幕鎖救回，平常也能用它解鎖。救援資料在你的裝置上加密，我們看不到。</p>
               </div>
             </div>
           </div>

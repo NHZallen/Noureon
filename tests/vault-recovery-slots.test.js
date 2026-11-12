@@ -2,22 +2,24 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  MAX_RECOVERY_SLOTS, addRecoverySlot, createPasskeySlot, findRecoverySlotByCredential, isSlotCurrent, normalizeRecoverySlots, openRecoverySlot, removeRecoverySlot, rewrapRecoverySlot
+  MAX_RECOVERY_SLOTS, addRecoverySlot, createPasskeySlot, findRecoverySlotByCredential, normalizeRecoverySlots, openRecoverySlot, removeRecoverySlot
 } from '../src/app/sync/vault-recovery-slots.js';
 import { isInAppBrowser, passkeyPrfAvailability, readAnyRecoveryPasskey, registerRecoveryPasskey } from '../src/app/sync/passkey-prf.js';
 
 const secretA = () => Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 const secretB = () => Uint8Array.from({ length: 32 }, (_, index) => 200 - index);
-const record = { version: 1, algorithm: 'AES-GCM', salt: 'c2FsdA==', iv: 'aXY=', check: 'Y2hlY2s=' };
+const dataKey = () => Uint8Array.from({ length: 32 }, (_, index) => (index * 7 + 3) % 256);
 const salt = Buffer.alloc(32, 7).toString('base64');
-const make = (over = {}) => createPasskeySlot({ secret: secretA(), credentialId: 'cred-1', prfSalt: salt, password: 'sync-password-1', record, label: 'iPhone', ...over });
+const make = (over = {}) => createPasskeySlot({ secret: secretA(), credentialId: 'cred-1', prfSalt: salt, keyBytes: dataKey(), label: 'iPhone', ...over });
 
-test('a slot holds the sync password and record sealed: nothing readable is in it, and the right secret opens it', async () => {
+test('a slot holds the data key of the vault sealed: nothing readable is in it, and the right secret opens it', async () => {
   const slot = await make();
   assert.equal(slot.type, 'passkey');
-  assert.ok(!JSON.stringify(slot).includes('sync-password-1'), 'the password is not in the stored text');
-  assert.ok(!JSON.stringify(slot).includes('c2FsdA=='), 'nor the record');
-  assert.deepEqual(await openRecoverySlot(slot, secretA()), { password: 'sync-password-1', record });
+  assert.equal(slot.version, 2);
+  assert.ok(!JSON.stringify(slot).includes(Buffer.from(dataKey()).toString('base64')), 'the key is not in the stored text');
+  assert.deepEqual([...(await openRecoverySlot(slot, secretA())).keyBytes], [...dataKey()]);
+  await assert.rejects(createPasskeySlot({ secret: secretA(), credentialId: 'c', prfSalt: salt, keyBytes: new Uint8Array(5) }), { code: 'recovery-slot-invalid' });
+  assert.deepEqual(normalizeRecoverySlots([{ ...slot, version: 1 }]), [], 'a slot of the first format (it held the password) is left out');
 });
 
 test('a wrong secret, a changed slot, or a short secret does not open it', async () => {
@@ -30,18 +32,12 @@ test('a wrong secret, a changed slot, or a short secret does not open it', async
   await assert.rejects(openRecoverySlot({ type: 'x' }, secretA()), { code: 'recovery-slot-invalid' });
 });
 
-test('two slots of the same passwords are different (a new IV each time), and a re-wrap keeps the passkey and id', async () => {
+test('two slots of the same key are different (a new IV and id each time)', async () => {
   const one = await make();
   const two = await make();
   assert.notEqual(one.ciphertext, two.ciphertext);
+  assert.notEqual(one.iv, two.iv);
   assert.notEqual(one.id, two.id);
-  const next = await rewrapRecoverySlot(one, secretA(), { password: 'new-sync-password', record: { ...record, iv: 'bmV3' } });
-  assert.equal(next.id, one.id);
-  assert.equal(next.credentialId, one.credentialId);
-  assert.equal(next.createdAt, one.createdAt);
-  assert.notEqual(next.iv, one.iv);
-  assert.deepEqual(await openRecoverySlot(next, secretA()), { password: 'new-sync-password', record: { ...record, iv: 'bmV3' } });
-  assert.equal((await openRecoverySlot(one, secretA())).password, 'sync-password-1', 'the old slot still opens with the old password: replacing it in the list is the caller\'s job');
 });
 
 test('the list: malformed entries are dropped, ids are unique, the limit holds, add replaces, remove removes', async () => {
@@ -118,16 +114,6 @@ test('the browser says whether passkeys with PRF can be used: yes, no, or it can
   assert.equal(await passkeyPrfAvailability({ pkc: { getClientCapabilities: async () => ({ 'extension:prf': false }) }, nav }), 'no');
   assert.equal(await passkeyPrfAvailability({ pkc: {}, nav }), 'unknown');
   assert.equal(await passkeyPrfAvailability({ pkc: { getClientCapabilities: async () => { throw new Error('x'); } }, nav }), 'unknown');
-});
-
-test('a slot keeps the fingerprint of its vault record in the open, so one sealed for an earlier password can be told from a current one', async () => {
-  const slot = await make();
-  assert.equal(slot.recordFingerprint, record.check);
-  assert.equal(isSlotCurrent(slot, record), true);
-  assert.equal(isSlotCurrent(slot, { ...record, check: 'another-record' }), false);
-  const sealed = await rewrapRecoverySlot(slot, secretA(), { password: 'sync-password-2', record: { ...record, check: 'another-record' } });
-  assert.equal(isSlotCurrent(sealed, { ...record, check: 'another-record' }), true);
-  assert.equal(isSlotCurrent({ ...slot, recordFingerprint: undefined }, record), false, 'a slot with no fingerprint is not taken for current');
 });
 
 test('a refusal of the browser keeps its own name, so the page can show what kind it was', async () => {

@@ -1,9 +1,9 @@
-// The recovery slots of the sync password (docs/superpowers/specs/2026-11-12-vault-recovery-design.md, §4). A slot holds the sync password and the
-// vault record, sealed with a key that only the person's own passkey can give (the secret the passkey computes with the WebAuthn PRF extension, see
-// passkey-prf.js). The slot is sealed and opened here, in the browser: what is stored in the cloud is the sealed text alone, so nobody who has the
+// The recovery slots of the sync vault (docs/superpowers/specs/2026-11-12-vault-recovery-design.md, §4 and §16). A slot holds the data key of the vault
+// (the one the API keys are encrypted with; the sync password only wraps it), sealed with a key that only the person's own passkey can give (the secret
+// the passkey computes with the WebAuthn PRF extension, see passkey-prf.js). A changed sync password changes nothing in a slot. The slot is sealed and opened here, in the browser: what is stored in the cloud is the sealed text alone, so nobody who has the
 // database (the service included) can open it. Pure functions, no browser objects but `crypto` (given or global), so tests and the server may use them.
 
-const SLOT_VERSION = 1;
+const SLOT_VERSION = 2;
 const INFO = 'noureon-vault-recovery-slot-v1';
 const SECRET_BYTES = 32;
 export const MAX_RECOVERY_SLOTS = 8;
@@ -23,13 +23,6 @@ export const base64ToBytes = (value) => Uint8Array.from(atob(value), (character)
 export const bytesToBase64Url = (bytes) => bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const base64UrlToBytes = (value) => base64ToBytes(String(value).replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(String(value).length / 4) * 4, '='));
 
-/**
- * What tells one vault record from the next (every new sync password makes a new one): the slot keeps it in the open, next to the sealed text, so
- * a slot that was sealed for an earlier password can be told from one that is current without opening it.
- */
-export const recordFingerprint = (record) => String(record?.check || '');
-export const isSlotCurrent = (slot, record) => Boolean(slot?.recordFingerprint) && slot.recordFingerprint === recordFingerprint(record);
-
 const toBytes = (value) => (value instanceof Uint8Array ? value : new Uint8Array(value));
 
 async function deriveSlotKey(secret, salt, cryptoProvider) {
@@ -45,20 +38,20 @@ async function deriveSlotKey(secret, salt, cryptoProvider) {
   );
 }
 
-async function seal({ secret, prfSalt, password, record, cryptoProvider }) {
+async function seal({ secret, prfSalt, keyBytes, cryptoProvider }) {
   const key = await deriveSlotKey(secret, base64ToBytes(prfSalt), cryptoProvider);
   const iv = cryptoProvider.getRandomValues(new Uint8Array(12));
-  const sealed = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(JSON.stringify({ password, record })));
+  const sealed = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(JSON.stringify({ key: bytesToBase64(toBytes(keyBytes)) })));
   return { iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(sealed)) };
 }
 
 /**
  * A new slot for a passkey. `secret`: the 32 bytes the passkey computed for `prfSalt` (base64 of 32 random bytes, kept in the slot: it is not secret);
- * `credentialId`: the passkey's id (base64url); `password` and `record`: the sync password and its vault record.
+ * `credentialId`: the passkey's id (base64url); `keyBytes`: the 32 bytes of the data key of the vault.
  */
-export async function createPasskeySlot({ secret, credentialId, prfSalt, password, record, label = '', cryptoProvider = globalThis.crypto } = {}) {
+export async function createPasskeySlot({ secret, credentialId, prfSalt, keyBytes, label = '', cryptoProvider = globalThis.crypto } = {}) {
   if (!credentialId || !prfSalt) throw withCode(new TypeError('A passkey slot needs the passkey id and its salt.'), 'recovery-slot-invalid');
-  if (typeof password !== 'string' || !password || !record || typeof record !== 'object') throw withCode(new TypeError('A slot needs the sync password and its record.'), 'recovery-slot-invalid');
+  if (toBytes(keyBytes || []).length !== SECRET_BYTES) throw withCode(new TypeError('A slot needs the 32 bytes of the data key.'), 'recovery-slot-invalid');
   const now = new Date().toISOString();
   return {
     version: SLOT_VERSION,
@@ -67,33 +60,26 @@ export async function createPasskeySlot({ secret, credentialId, prfSalt, passwor
     credentialId: String(credentialId),
     prfSalt: String(prfSalt),
     label: String(label || '').slice(0, 60),
-    recordFingerprint: recordFingerprint(record),
     createdAt: now,
     updatedAt: now,
-    ...await seal({ secret, prfSalt, password, record, cryptoProvider })
+    ...await seal({ secret, prfSalt, keyBytes, cryptoProvider })
   };
 }
 
-/** Opens a slot with the secret of its passkey: { password, record }. A wrong secret or a changed slot gives the code `recovery-slot-unreadable`. */
+/** Opens a slot with the secret of its passkey: { keyBytes } (the data key of the vault). A wrong secret or a changed slot gives the code `recovery-slot-unreadable`. */
 export async function openRecoverySlot(slot, secret, { cryptoProvider = globalThis.crypto } = {}) {
   if (!isRecoverySlot(slot)) throw withCode(new TypeError('Unsupported recovery slot.'), 'recovery-slot-invalid');
   try {
     const key = await deriveSlotKey(secret, base64ToBytes(slot.prfSalt), cryptoProvider);
     const plain = await cryptoProvider.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(slot.iv) }, key, base64ToBytes(slot.ciphertext));
     const opened = JSON.parse(decoder.decode(plain));
-    if (typeof opened?.password !== 'string' || !opened.record) throw new Error('Incomplete slot.');
-    return opened;
+    const keyBytes = base64ToBytes(String(opened?.key || ''));
+    if (keyBytes.length !== SECRET_BYTES) throw new Error('Incomplete slot.');
+    return { keyBytes };
   } catch (error) {
     if (error?.code === 'recovery-secret-invalid') throw error;
     throw withCode(new Error('The recovery slot cannot be opened with this passkey.'), 'recovery-slot-unreadable');
   }
-}
-
-/** The same slot (same passkey, same id) sealed again with a new password and record: the sync password changed. */
-export async function rewrapRecoverySlot(slot, secret, { password, record }, { cryptoProvider = globalThis.crypto } = {}) {
-  if (!isRecoverySlot(slot)) throw withCode(new TypeError('Unsupported recovery slot.'), 'recovery-slot-invalid');
-  if (typeof password !== 'string' || !password || !record) throw withCode(new TypeError('A slot needs the sync password and its record.'), 'recovery-slot-invalid');
-  return { ...slot, recordFingerprint: recordFingerprint(record), updatedAt: new Date().toISOString(), ...await seal({ secret, prfSalt: slot.prfSalt, password, record, cryptoProvider }) };
 }
 
 export function isRecoverySlot(slot) {

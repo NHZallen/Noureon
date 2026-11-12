@@ -169,5 +169,12 @@ export function createAuthenticatorControls({ document, window, getSupabase, get
     elements.totpCode.addEventListener('keydown', (event) => { if (event.key === 'Enter') guard(confirmSetup)(event); });
   }
 
-  return { bind, refresh, requireAal2 };
+  /** Whether an authenticator app is set up and confirmed for this account. */
+  async function isSet() {
+    if (!isCloud() || !mfa()) return false;
+    if (!factorId) await refresh();
+    return Boolean(factorId);
+  }
+
+  return { bind, refresh, requireAal2, isSet };
 }

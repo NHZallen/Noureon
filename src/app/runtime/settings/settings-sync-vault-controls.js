@@ -11,6 +11,7 @@ import { mountSecurityPage, togglePasswordEye } from './settings-security-page.j
 import { createVaultRecoveryClient, getRecoveryStorageKey } from './settings-vault-recovery-client.js';
 import { createAuthenticatorControls } from './settings-security-authenticator.js';
 import { createPasskeyControls, passkeyErrorText } from './settings-security-passkey.js';
+import { createIdentityConfirmation } from './settings-identity-confirmation.js';
 import { bindAccountLinkingActions } from './settings-account-linking-actions.js';
 import { bindSyncVaultActions } from './settings-sync-vault-actions.js';
 
@@ -141,7 +142,10 @@ export function createSettingsSyncVaultControls({
   const { request: requestVaultRecovery, store: storeVaultRecovery, isVerifiedMode: isVerifiedRecoveryMode } = createVaultRecoveryClient({ window, storage, getSupabase: () => getSupabase(), text });
 
   const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError });
-  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, requireAal2: authenticator.requireAal2, ...(passkeyApi && { passkey: passkeyApi }) });
+  // The passkeys ask the person to confirm through the same function the other actions use, which asks them (the passkeys) in turn.
+  const identity = {};
+  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), ...(passkeyApi && { passkey: passkeyApi }) });
+  identity.confirm = createIdentityConfirmation({ authenticator, passkeys });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
   const emailBindLabel = () => (getCurrentUser?.()?.authProvider === 'supabase'
@@ -274,7 +278,7 @@ export function createSettingsSyncVaultControls({
         ? text('manageSyncPasswordDesc', '變更或清除同步密碼')
         : text('manageSyncPasswordLockedDesc', '變更或清除同步密碼，解鎖後才能使用');
     }
-    if (recoveryMode) await passkeys.syncRecoveryPanel();
+    await passkeys.syncPanels({ recovery: recoveryMode, unlock: true });
     if (!canManage || !unlocked) setManageOpen(false);
     if (isCloudUser && record && unlocked && !recoveryMode) syncNow.refresh();
     if (isCloudUser && record && !unlocked && !recoveryMode) await ensureRecoveryTurnstile();
@@ -351,7 +355,7 @@ export function createSettingsSyncVaultControls({
       window, document, storage, getCurrentUser, showNotification, text, getSupabase, reloadPage, scheduleTimeout,
       isBusy: () => busy, setBusy, getAccountTurnstile: () => accountTurnstile, notifyError, setAccountMessage, authErrorText,
       requireMatchingPasswords, requireMatchingLoginPasswords, refreshAccountLinking, refreshSyncVaultControls, requestVaultRecovery,
-      storeVaultRecovery, getRecoveryStorageKey, requireAal2: authenticator.requireAal2, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
+      storeVaultRecovery, getRecoveryStorageKey, confirmIdentity: identity.confirm, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
     };
     bindAccountLinkingActions(elements, ctx);
     bindSyncVaultActions(elements, ctx);
