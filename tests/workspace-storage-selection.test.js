@@ -193,7 +193,7 @@ test('loadSplitWorkspace returns the normalized workspace of a split store, regi
     const plain = createFakeStorage({ [LEGACY_KEY]: legacy });
     assert.equal(await loadSplitWorkspace({ storage: plain, user: { username: 'alice' }, context, logger: quiet }), null);
     assert.equal(getActiveWorkspaceStore('alice'), null, 'a user on the old item has no registered store');
-    assert.deepEqual(globalThis.__noureonWorkspaceStorage, { mode: 'legacy', reason: 'not-enabled', problems: [], migrationAttempts: 0, rollbackFailed: false });
+    assert.deepEqual(globalThis.__noureonWorkspaceStorage, { mode: 'legacy', reason: 'not-enabled', problems: [], migrationAttempts: 0, stubCount: null, fullCount: null, rollbackFailed: false });
 
     environment.values.set(WS2_FLAG_KEY, '1');
     const fresh = await loadSplitWorkspace({ storage: createFakeStorage(), user: { username: 'alice' }, context, logger: quiet });
