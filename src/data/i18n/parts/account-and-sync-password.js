@@ -2,6 +2,7 @@
 export default {
     'zh-TW': {
         userSettings: '使用者',
+        securitySettings: '安全性與登入',
         accountLinking: '帳號綁定',
         accountLinkingDesc: '綁定 Email、Google 其中一種即可使用雲端功能，也可以兩種都綁定。',
         emailAddress: 'Email 地址',
@@ -124,6 +125,7 @@ export default {
     },
     en: {
         userSettings: 'User',
+        securitySettings: 'Security and sign-in',
         accountLinking: 'Account linking',
         accountLinkingDesc: 'Link either Email or Google to use cloud features, or link both.',
         emailAddress: 'Email address',
@@ -246,6 +248,7 @@ export default {
     },
     fr: {
         userSettings: 'Utilisateur',
+        securitySettings: 'Sécurité et connexion',
         accountLinking: 'Association du compte',
         accountLinkingDesc: 'Associez Email ou Google pour utiliser le cloud, ou associez les deux.',
         emailAddress: 'Adresse Email',
@@ -368,6 +371,7 @@ export default {
     },
     ru: {
         userSettings: 'Пользователь',
+        securitySettings: 'Безопасность и вход',
         accountLinking: 'Привязка аккаунта',
         accountLinkingDesc: 'Свяжите электронную почту или Google, чтобы использовать облачные функции, или свяжите оба.',
         emailAddress: 'Адрес электронной почты',
@@ -490,6 +494,7 @@ export default {
     },
     es: {
         userSettings: 'Usuario',
+        securitySettings: 'Seguridad e inicio de sesión',
         accountLinking: 'Vinculación de cuentas',
         accountLinkingDesc: 'Vincule el correo electrónico o Google para utilizar las funciones de la nube, o vincule ambos.',
         emailAddress: 'Dirección de correo electrónico',

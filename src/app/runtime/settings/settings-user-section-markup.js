@@ -1,5 +1,5 @@
-// The user page of the settings (settings-sync-vault-controls.js): its markup (the account, the sign-in methods, the sync password) and
-// the lookup of its elements.
+// The user page and the security page of the settings (settings-sync-vault-controls.js): their markup (the account and the sign-in methods; the login password, the
+// sync password and its recovery) and the lookup of their elements.
 
 import { syncVaultPolicy } from '../../sync/sync-vault.js';
 import { syncNowMarkup } from './settings-sync-now-controls.js';
@@ -8,6 +8,9 @@ import { userUidMarkup } from './settings-user-uid-controls.js';
 export const getUserSectionElements = (document) => ({
   nav: document.getElementById('user-section-nav'),
   section: document.getElementById('user-section'),
+  securityNav: document.getElementById('security-section-nav'),
+  securitySection: document.getElementById('security-section'),
+  securityMessage: document.getElementById('security-message'),
   emailStatus: document.getElementById('account-email-status'),
   googleStatus: document.getElementById('account-google-status'),
   emailForm: document.getElementById('account-email-link-form'),
@@ -62,8 +65,8 @@ export const getUserSectionElements = (document) => ({
   resetButton: document.getElementById('sync-vault-reset-btn')
 });
 
-/** The markup of the page in the language in use (`text` gives a word and its fallback). */
-export function buildUserSectionMarkup(text) {
+/** The pieces both pages are made of (the icons, a password box with its show/hide button, a status with its dot): `text` gives a word and its fallback. */
+function markupKit(text) {
   const ICONS = {
     mail: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>',
     key: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2"/></svg>',
@@ -93,9 +96,15 @@ export function buildUserSectionMarkup(text) {
 
   const statusMarkup = (id, extraClass = '') => `<span id="${id}" class="us-state${extraClass}"><i class="us-dot"></i><span class="us-state-text"></span></span>`;
 
-  const markup = () => {
-    const minimum = syncVaultPolicy.minimumPasswordLength;
-    return `
+  return {
+    ICONS, eyeButton, passwordField, statusMarkup
+  };
+}
+
+/** The user page: who the person is and the ways to sign in. */
+export function buildUserSectionMarkup(text) {
+  const { ICONS, passwordField, statusMarkup } = markupKit(text);
+  return `
       <div class="us">
         <div class="us-identity">
           <div class="us-avatar-wrap">
@@ -149,6 +158,19 @@ export function buildUserSectionMarkup(text) {
             ${statusMarkup('account-google-status')}
             <button id="account-google-link-btn" type="button" class="us-btn hidden" data-lang-key="bindGoogle">綁定 Google</button>
           </div>
+        </section>
+        <p id="account-link-message" class="us-message hidden"></p>
+      </div>
+    `;
+}
+
+/** The page of security and sign-in: the login password, the sync password (with its recovery) and the authenticator app. */
+export function buildSecuritySectionMarkup(text) {
+  const { ICONS, passwordField, statusMarkup } = markupKit(text);
+  const minimum = syncVaultPolicy.minimumPasswordLength;
+  return `
+      <div class="us">
+        <section class="us-card">
           <div id="login-password-row" class="us-row hidden">
             <span class="us-mark">${ICONS.key}</span>
             <div class="us-row-text">
@@ -251,9 +273,7 @@ export function buildUserSectionMarkup(text) {
           </div>
         </section>
         <p class="us-footnote" data-lang-key="passwordKindsNote">登入密碼用來登入帳號；同步密碼用來加密你的 API 金鑰，只在你的裝置上使用，兩者不同。</p>
-        <p id="account-link-message" class="us-message hidden"></p>
+        <p id="security-message" class="us-message hidden"></p>
       </div>
     `;
-  };
-  return markup();
 }

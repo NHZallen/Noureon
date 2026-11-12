@@ -85,9 +85,9 @@ export function bindSyncVaultActions(elements, {
       });
       getAccountTurnstile()?.reset('sync-vault-recovery');
       if (error) throw error;
-      setAccountMessage(text('cloudSyncRecoveryEmailSent', '重設驗證信已寄出，請從信件連結返回。'));
+      setAccountMessage(text('cloudSyncRecoveryEmailSent', '重設驗證信已寄出，請從信件連結返回。'), 'info', 'security');
     } catch (error) {
-      setAccountMessage(authErrorText(error) || error?.message || text('cloudSyncRecoveryFailed', '無法寄出重設驗證信。'), 'error');
+      setAccountMessage(authErrorText(error) || error?.message || text('cloudSyncRecoveryFailed', '無法寄出重設驗證信。'), 'error', 'security');
     } finally {
       setBusy(false);
     }

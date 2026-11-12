@@ -37,6 +37,23 @@ export function createSettingsModalLifecycle({
             section.className = 'settings-section';
             personalizationSection.before(section);
         }
+
+        // The security page (the login password, the sync password, the authenticator app) is beside the user page; its markup is made with it.
+        if (!document.getElementById('security-section-nav')) {
+            const nav = document.createElement('li');
+            nav.id = 'security-section-nav';
+            nav.className = 'settings-nav-item p-3 rounded-md';
+            nav.dataset.section = 'security';
+            nav.dataset.langKey = 'securitySettings';
+            nav.textContent = getSettingsText('securitySettings', 'Security and sign-in');
+            document.getElementById('user-section-nav').after(nav);
+        }
+        if (!document.getElementById('security-section')) {
+            const section = document.createElement('div');
+            section.id = 'security-section';
+            section.className = 'settings-section';
+            document.getElementById('user-section').after(section);
+        }
     };
     let syncVaultControlsPromise;
     const loadSyncVaultControls = () => {

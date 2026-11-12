@@ -7,6 +7,7 @@ import { readEmailLogin } from '../../auth/email-login-state.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
 import { SERVICES, getService } from '../services.js';
 import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-section-markup.js';
+import { mountSecurityPage, togglePasswordEye } from './settings-security-page.js';
 import { bindAccountLinkingActions } from './settings-account-linking-actions.js';
 import { bindSyncVaultActions } from './settings-sync-vault-actions.js';
 
@@ -56,6 +57,9 @@ export function createSettingsSyncVaultControls({
     section.dataset.syncVaultSettingsInitialized = 'true';
     section.innerHTML = buildUserSectionMarkup(text);
     if (!section.parentNode) personalizationSection.before(section);
+
+    // The security page (passwords, recovery, authenticator app) comes right after.
+    mountSecurityPage({ document, text, userNav: nav, userSection: section });
     Promise.resolve().then(loadStyles).catch((error) => globalThis.console?.warn?.('Loading the styles of the user page failed.', error));
     bindEvents();
   };
@@ -93,8 +97,9 @@ export function createSettingsSyncVaultControls({
     );
   };
 
-  const setAccountMessage = (message, type = 'info') => {
-    const element = getElements().accountMessage;
+  // `page`: 'user' (linking Email and Google) or 'security' (the passwords).
+  const setAccountMessage = (message, type = 'info', page = 'user') => {
+    const element = page === 'security' ? getElements().securityMessage : getElements().accountMessage;
     if (!element) return;
     element.textContent = message;
     element.classList.toggle('hidden', !message);
@@ -121,7 +126,7 @@ export function createSettingsSyncVaultControls({
     if (recoveryTurnstileMounted) return;
     accountTurnstile ||= createTurnstileClient({ window, document });
     if (!accountTurnstile.enabled) return;
-    // The check has a place of its own in the card, as tall as the check, so showing it moves nothing.
+    // The check has its own place in the card, so showing it moves nothing.
     const { turnstileSlot, turnstileHint, turnstileAnchor, forgotButton } = getElements();
     turnstileSlot?.classList.remove('hidden');
     turnstileHint?.classList.remove('hidden');
@@ -174,11 +179,11 @@ export function createSettingsSyncVaultControls({
     if (!emailToggle) return;
     emailToggle.setAttribute('aria-expanded', String(open));
     emailToggle.textContent = open ? text('userCancelAction', '取消') : text('bindEmail', '綁定 Email');
-    // The human check of a local account's Email is drawn when the form is opened, not while it is folded away.
+    // The human check of a local account's Email is drawn when the form opens.
     if (open && getCurrentUser?.()?.authProvider !== 'supabase') void ensureAccountTurnstile().catch(() => {});
   };
 
-  // The login password and the sync password settings are folded away until asked for.
+  // The password settings are folded away until asked for.
   const setLoginPasswordOpen = (open) => {
     const { loginPasswordPanel, loginPasswordToggle } = getElements();
     loginPasswordPanel?.classList.toggle('hidden', !open);
@@ -332,7 +337,7 @@ export function createSettingsSyncVaultControls({
     window.addEventListener('astra:language-changed', () => {
       if (!document.getElementById('user-section')?.dataset.syncVaultSettingsInitialized) return;
       // The show/hide button names what it does now (the shown ones offer to hide).
-      document.querySelectorAll('#user-section [data-us-eye]').forEach((eye) => {
+      document.querySelectorAll('#user-section [data-us-eye], #security-section [data-us-eye]').forEach((eye) => {
         const label = eye.getAttribute('aria-pressed') === 'true' ? text('userHidePassword', '') : text('userShowPassword', '');
         if (label) {
           eye.setAttribute('aria-label', label);
@@ -358,18 +363,9 @@ export function createSettingsSyncVaultControls({
       if (elements.manageToggle.getAttribute('aria-disabled') === 'true') return;
       setManageOpen(elements.managePanel.classList.contains('hidden'));
     });
-    // The show/hide button of every password box.
-    elements.section?.addEventListener('click', (event) => {
-      const eye = event.target.closest?.('[data-us-eye]');
-      const input = eye?.parentElement?.querySelector('input');
-      if (!input) return;
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      const label = show ? text('userHidePassword', '隱藏密碼') : text('userShowPassword', '顯示密碼');
-      eye.setAttribute('aria-pressed', String(show));
-      eye.setAttribute('aria-label', label);
-      eye.title = label;
-    });
+    // The show/hide button of the password boxes.
+    elements.section?.addEventListener('click', (event) => togglePasswordEye(event, text));
+    elements.securitySection?.addEventListener('click', (event) => togglePasswordEye(event, text));
     const ctx = {
       window, document, storage, getCurrentUser, showNotification, text, getSupabase, reloadPage, scheduleTimeout,
       isBusy: () => busy, setBusy, getAccountTurnstile: () => accountTurnstile, notifyError, setAccountMessage, authErrorText,

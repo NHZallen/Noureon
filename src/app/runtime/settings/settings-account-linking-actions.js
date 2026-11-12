@@ -131,21 +131,21 @@ export function bindAccountLinkingActions(elements, {
       elements.loginNewPassword.value = '';
       elements.loginConfirmation.value = '';
       if (!elements.loginSignOutAll?.checked) {
-        setAccountMessage(text('loginPasswordChanged', '登入密碼已更新。'));
+        setAccountMessage(text('loginPasswordChanged', '登入密碼已更新。'), 'info', 'security');
         setLoginPasswordOpen(false);
         return;
       }
       // Every device is signed out, this one too: the page loads again and asks for the new password.
       const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' });
       if (signOutError) {
-        setAccountMessage(text('loginPasswordSignOutFailed', '登入密碼已更新，但登出其他裝置失敗，請稍後到其他裝置手動登出。'), 'error');
+        setAccountMessage(text('loginPasswordSignOutFailed', '登入密碼已更新，但登出其他裝置失敗，請稍後到其他裝置手動登出。'), 'error', 'security');
         return;
       }
       await storage.removeItem('chat_lastUser');
-      setAccountMessage(text('loginPasswordChangedSignedOut', '登入密碼已更新，所有裝置已登出。'));
+      setAccountMessage(text('loginPasswordChangedSignedOut', '登入密碼已更新，所有裝置已登出。'), 'info', 'security');
       scheduleTimeout(reloadPage, 1500);
     } catch (error) {
-      setAccountMessage(authErrorText(error) || error?.message || text('loginPasswordChangeFailed', '登入密碼更新失敗。'), 'error');
+      setAccountMessage(authErrorText(error) || error?.message || text('loginPasswordChangeFailed', '登入密碼更新失敗。'), 'error', 'security');
     } finally {
       setBusy(false);
     }

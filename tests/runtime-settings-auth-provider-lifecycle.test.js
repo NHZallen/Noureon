@@ -202,7 +202,7 @@ test('opening the settings on a wide screen adds the user page, shows it first a
     await page.lifecycle.setupSettingsModal();
 
     const navItems = [...page.document.querySelectorAll('#settings-nav .settings-nav-item')];
-    assert.deepEqual(navItems.map((item) => item.dataset.section), ['user', 'personalization', 'model-management']);
+    assert.deepEqual(navItems.map((item) => item.dataset.section), ['user', 'security', 'personalization', 'model-management']);
     assert.equal(navItems[0].classList.contains('active'), true);
     assert.deepEqual(activeSectionIds(page.document), ['user-section']);
     assert.equal(page.document.getElementById('tavily-search-depth-select').value, 'advanced');

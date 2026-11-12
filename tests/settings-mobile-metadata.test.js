@@ -12,6 +12,7 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const expectedSections = [
   'user',
+  'security',
   'personalization',
   'memory',
   'model-management',
@@ -30,7 +31,7 @@ test('settings mobile metadata preserves section order', () => {
 
   assert.deepEqual(sections, expectedSections);
   assert.deepEqual(groups.map((group) => group.items.map((item) => item.section)), [
-    ['user', 'personalization', 'memory', 'model-management'],
+    ['user', 'security', 'personalization', 'memory', 'model-management'],
     ['data-management', 'privacy', 'permissions', 'tool-models', 'accessibility', 'trash'],
     ['about']
   ]);
@@ -69,6 +70,7 @@ test('settings mobile labels use injected text resolution without DOM access', (
   assert.deepEqual(calls.map(([key]) => key), [
     'customizeNoureon',
     'userSettings',
+    'securitySettings',
     'personalization',
     'memoryManagement',
     'modelManagement',

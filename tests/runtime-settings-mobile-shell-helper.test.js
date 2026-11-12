@@ -168,6 +168,7 @@ test('mobile settings groups preserve the expected section order', () => {
 
   assert.deepEqual(sections, [
     'user',
+    'security',
     'personalization',
     'memory',
     'model-management',

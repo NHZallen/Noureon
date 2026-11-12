@@ -1,5 +1,6 @@
 export const SETTINGS_MOBILE_ICON_MAP = Object.freeze({
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>',
+  security: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 8.2 7 10 4-1.8 7-5.6 7-10V6l-7-3Z"></path><rect x="9.5" y="11" width="5" height="4" rx="1"></rect><path d="M10.5 11V9.8a1.5 1.5 0 0 1 3 0V11"></path></svg>',
   personalization: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 13s1.5 2 4 2 4-2 4-2"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path></svg>',
   memory: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>',
   'model-management': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>',
@@ -24,6 +25,7 @@ export const getSettingsMobileGroups = (getText) => {
       title: text('customizeNoureon', 'Customize Noureon'),
       items: [
         { section: 'user', label: text('userSettings', '使用者') },
+        { section: 'security', label: text('securitySettings', '安全性與登入') },
         { section: 'personalization', label: text('personalization', '個人化') },
         { section: 'memory', label: text('memoryManagement', '記憶管理') },
         { section: 'model-management', label: text('modelManagement', '模型管理') }

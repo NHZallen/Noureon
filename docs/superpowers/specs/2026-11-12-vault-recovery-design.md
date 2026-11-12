@@ -156,3 +156,18 @@ Allen 的決定：通行金鑰（B）與驗證器（C）一起做，iPhone 與�
 **還沒做：**
 - P3 通行金鑰畫面、P4 驗證器畫面與伺服器 `api/sync-vault-recovery.js` 的 `aal2` 檢查、P5 文字與政策。畫面版面要先給 Allen 看（AGENTS.md）。
 - Allen 要確認兩個 Supabase 專案（正式 `clctveoosifoapbafhrl`、測試 `nnousccvghbkucloewrs`）的 Authentication → Multi-Factor 裡 TOTP 的「Enroll」與「Verify」是開的。
+
+## 13. 「安全性與登入」頁（2026-11-12，Allen 的決定，S1 做完在 `staging`）
+
+通行金鑰、驗證器、雲端同步密碼、登入密碼都放在新的設定頁「安全性與登入」（nav 在「使用者」之後）。「使用者」頁留下身分（頭像、Email、UID）與「登入方式」（綁定 Email、Google）。驗證器要能**手動輸入設定金鑰**，不只掃 QR（不是人人都能掃）。
+
+S1 做完：
+- `settings-user-section-markup.js` 拆成 `buildUserSectionMarkup` 與 `buildSecuritySectionMarkup`；登入密碼列與面板、雲端同步卡片（含忘記密碼、救援、重新開始）搬到安全性頁；元素 id 不變，所以既有處理器不用動。
+- 新模組 `settings-security-page.js`（建頁與導覽項、顯示／隱藏密碼按鈕）；導覽、手機清單（含圖示）、側欄分組（`rail-panels.js`）、五語名稱 `securitySettings`、CSS（`user-settings.css` 兩頁共用）都接上。
+- 訊息行：登入密碼與忘記同步密碼的訊息改顯示在安全性頁的 `security-message`；綁定 Email／Google 的訊息仍在使用者頁。
+- 測試 5222 個全過；`settings-sync-vault-controls.js` 逼近大小預算（20.0 KB），所以頁面程式碼抽到新檔。
+
+S2（驗證器）、S3（通行金鑰）在這一頁加卡片：
+- 驗證器卡：登記時顯示 QR、設定金鑰（分組、可複製）與 `otpauth://` 連結（在手機上點一下就開驗證器 app），再輸入六位數確認；已啟用時顯示狀態與移除。
+- 通行金鑰卡：已登記清單（名稱、日期、移除）與「新增通行金鑰」（要輸入同步密碼）。
+- 忘記密碼面板：加「用通行金鑰救援」；有驗證器的人，重設、重新開始、新增或移除通行金鑰前要先輸入六位數。

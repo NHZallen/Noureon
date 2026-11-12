@@ -217,7 +217,7 @@ test('updating the login password signs out every device, this one too, and load
   assert.deepEqual(calls, ['signIn', 'update', 'signOut:global']);
   assert.equal(values.has('chat_lastUser'), false, 'the page asks for a sign-in after it loads');
   assert.equal(reloads, 1);
-  assert.match(window.document.getElementById('account-link-message').textContent, /所有裝置已登出/);
+  assert.match(window.document.getElementById('security-message').textContent, /所有裝置已登出/);
   assert.equal(window.document.getElementById('login-new-password').value, '', 'the boxes are emptied');
 });
 
@@ -233,7 +233,7 @@ test('with the box unticked the password is updated and nobody is signed out', a
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(calls, ['signIn', 'update']);
   assert.equal(reloads, 0);
-  assert.equal(window.document.getElementById('account-link-message').textContent, '登入密碼已更新。');
+  assert.equal(window.document.getElementById('security-message').textContent, '登入密碼已更新。');
 });
 
 test('when signing out of the other devices fails the person is told, and the page is not reloaded', async () => {
@@ -247,8 +247,8 @@ test('when signing out of the other devices fails the person is told, and the pa
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(calls, ['signIn', 'update', 'signOut:global']);
   assert.equal(reloads, 0);
-  assert.match(window.document.getElementById('account-link-message').textContent, /登出其他裝置失敗/);
-  assert.equal(window.document.getElementById('account-link-message').classList.contains('is-error'), true);
+  assert.match(window.document.getElementById('security-message').textContent, /登出其他裝置失敗/);
+  assert.equal(window.document.getElementById('security-message').classList.contains('is-error'), true);
 });
 
 test('a password that is too short or does not match changes nothing', async () => {
@@ -389,7 +389,7 @@ test('the errors Supabase answers in English are shown in the person\'s language
     fillPasswordChange(window.document);
     window.document.getElementById('login-password-change-btn').click();
     await flush();
-    const message = window.document.getElementById('account-link-message');
+    const message = window.document.getElementById('security-message');
     assert.equal(message.textContent, expected);
     assert.equal(message.classList.contains('is-error'), true);
   }
@@ -554,4 +554,38 @@ test('start over: declining the confirmation does nothing', async () => {
 
   assert.equal(requests.length, 0);
   assert.ok(values.has(`chatSyncVault_v1_${cloudUser.username}`));
+});
+
+test('the security page sits right after the user page and holds the login password and the sync password; the user page keeps who the person is and the ways to sign in', async () => {
+  const { window, controls, setCurrentUser } = createFixture();
+  setCurrentUser(cloudUser);
+  controls.ensureSyncVaultSettings();
+  const { document } = window;
+
+  assert.deepEqual([...document.querySelectorAll('#settings-nav .settings-nav-item')].map((item) => item.dataset.section), ['user', 'security', 'personalization']);
+  assert.equal(document.getElementById('security-section-nav').dataset.langKey, 'securitySettings');
+  assert.equal(document.getElementById('user-section').nextElementSibling.id, 'security-section');
+
+  const inSecurity = ['login-password-row', 'login-password-panel', 'sync-vault-create-panel', 'sync-vault-unlock-panel', 'sync-vault-recovery-panel', 'sync-vault-start-over-btn', 'sync-vault-manage-toggle', 'security-message'];
+  const inUser = ['user-avatar', 'account-email-status', 'account-google-status', 'account-email-link-form', 'account-link-message'];
+  for (const id of inSecurity) assert.ok(document.getElementById('security-section').querySelector(`#${id}`), `${id} is on the security page`);
+  for (const id of inUser) assert.ok(document.getElementById('user-section').querySelector(`#${id}`), `${id} is on the user page`);
+  assert.equal(document.getElementById('user-section').querySelector('#login-password-row, #sync-vault-create-panel'), null, 'nothing of the passwords is left on the user page');
+
+  // Asking again builds nothing twice.
+  controls.ensureSyncVaultSettings();
+  assert.equal(document.querySelectorAll('#security-section-nav').length, 1);
+  assert.equal(document.querySelectorAll('#security-section').length, 1);
+});
+
+test('the show/hide button of the password boxes of the security page works, and the page follows a change of language', async () => {
+  const { window, controls, setCurrentUser } = createFixture();
+  setCurrentUser(cloudUser);
+  controls.ensureSyncVaultSettings();
+  const eye = window.document.querySelector('#sync-vault-create-password').parentElement.querySelector('[data-us-eye]');
+  const input = window.document.getElementById('sync-vault-create-password');
+  eye.click();
+  assert.equal(input.type, 'text');
+  eye.click();
+  assert.equal(input.type, 'password');
 });

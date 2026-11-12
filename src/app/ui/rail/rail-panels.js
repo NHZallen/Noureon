@@ -14,7 +14,7 @@ function searchIcon(document) {
 // The parts of the settings in groups, as the settings of the apps this one is modelled on have them (a small name above each group). A part that is not named here (one a later part adds) goes at the end of
 // the first group. The order inside a group is the order of this list.
 export const SETTINGS_GROUPS = Object.freeze([
-  { key: 'railGroupPersonal', sections: ['user', 'personalization', 'accessibility', 'shortcuts', 'memory'] },
+  { key: 'railGroupPersonal', sections: ['user', 'security', 'personalization', 'accessibility', 'shortcuts', 'memory'] },
   { key: 'railGroupModels', sections: ['model-management', 'tool-models', 'permissions'] },
   { key: 'railGroupData', sections: ['data-management', 'privacy', 'trash', 'about'] }
 ]);
