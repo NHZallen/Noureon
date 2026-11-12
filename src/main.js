@@ -98,6 +98,7 @@ async function bootstrap() {
     // The words of the language the page starts in (the one startup-lifecycle picks): only that language is loaded (NOU-17).
     ensureLanguage(startupLanguage),
     import('./data/astras-data.js'),
+    import('./data/update-logs.js'),
     import('./data/version.js')
   ]).then(() => {
     recordBootstrapMilestone(

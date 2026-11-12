@@ -326,3 +326,7 @@ Allen 試過後決定預設開。`isOnDemandLoadingEnabled`：沒有設定時是
 - `model-request-engine` 的閒置預載、設定頁的閒置預建（`prepareWhenIdle`）：分別為了第一次送出訊息不等、第一次開設定不閃白，是刻意的。
 - 模型選單／議會控制／模型管理的 DOM（約 1.5K 節點）：每次畫面更新都重建整個面板，改成「開啟才建」要動焦點、捲動位置、鍵盤操作，風險大，收益約 1 到 2 MB。
 - 語意搜尋開啟時啟動掃描全部對話：功能需要，分批、不留存。
+
+### 13.14 更新紀錄改回啟動時載入（2026-11-12，Allen 決定）
+
+§13.13 把 `update-logs`（約 194 KB）改成「這個版本比上次看過的新才載」。Allen 要求更新紀錄不要按需載入，已改回：`main.js` 啟動資料一起載入 `data/update-logs.js`，`shell.js` 靜態匯入，`latest-update-notice.js` 回到原本的寫法（拿掉 `loadUpdateLogs` 與版本比較的提早返回），刪掉 `tests/latest-update-notice-lazy.test.js`。§13.13 對它的數字（啟動載入 93 個檔、2345 KB）因此約增加 194 KB。

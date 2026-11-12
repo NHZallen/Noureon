@@ -6,7 +6,8 @@ import { PRODUCT_VERSION } from '../src/data/version.js';
 
 const EXPECTED_DATA_IMPORT_ORDER = [
   './data/i18n.js',
-  './data/astras-data.js'
+  './data/astras-data.js',
+  './data/update-logs.js'
 ];
 const EXPECTED_ASTRA_COUNT = 11;
 const EXPECTED_FIRST_ASTRA_ID = 'official-writer-01';

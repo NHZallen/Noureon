@@ -41,7 +41,8 @@ import { createShellState } from '/src/app/runtime/shell/shell-state.js';
 import * as passwordRecords from '/src/app/runtime/security/password-records.js';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { loadChartVendor, loadCropperVendor, loadUpdateLogs } from '/src/app/vendors/lazy-vendors.js';
+import { updateLogs } from '/src/data/update-logs.js';
+import { loadChartVendor, loadCropperVendor } from '/src/app/vendors/lazy-vendors.js';
 import { getKatex, loadKatex } from '/src/app/vendors/katex-vendor.js';
 import { loadArchiveVendor } from '/src/app/vendors/archive-vendor.js';
 import { loadSharingVendor } from '/src/app/vendors/sharing-vendor.js';
@@ -863,7 +864,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             window, document, navigator, fetch, File, Event, Image, FileReader, loadChart: loadChartVendor, loadCropper: loadCropperVendor,
             ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
             elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
-            OFFICIAL_ASTRAS, loadUpdateLogs, productVersion, UI_THEME_COLORS,
+            OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS,
             updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData, deleteConversationsFromCloud, deleteAstrasFromCloud,
             showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
             renderAll, renderAstras, renderInputIndicators, renderCouncilControls,
