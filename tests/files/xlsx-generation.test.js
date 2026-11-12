@@ -294,19 +294,42 @@ test('native charts: parsed from the sheet, laid out beside the table, written a
   assert.ok(zip.file('xl/drawings/_rels/drawing1.xml.rels'));
 });
 
-test('HTML files preview in a sandboxed frame that runs scripts in isolation', async () => {
+test('HTML files preview through the sandbox origin page, which runs them in a frame of their own without same origin', async () => {
   const { renderHtmlPreview } = await import('../../src/app/ui/files/previews/html-page-preview.js');
   const { document, window, cleanup } = createDom('<div id="host"></div>');
   try {
     const host = document.getElementById('host');
-    const view = await renderHtmlPreview(new window.Blob(['<h1>Hi</h1><script>1</script>'], { type: 'text/html' }), host, { document });
+    const source = '<h1>Hi</h1><script>1</script>';
+    const view = await renderHtmlPreview(new window.Blob([source], { type: 'text/html' }), host, { document });
     const frame = host.querySelector('iframe');
-    assert.equal(frame.getAttribute('sandbox'), 'allow-scripts', 'scripts run; no same origin, popups, forms, modals or top navigation');
-    assert.equal(frame.srcdoc, '<h1>Hi</h1><script>1</script>');
+    // The app's frame holds the preview page of the sandbox origin; the file never goes into the app's own origin.
+    assert.match(frame.getAttribute('src'), /^http:\/\/127\.0\.0\.1:?\d*\/sandbox\/html-preview\.html$/);
+    assert.equal(frame.getAttribute('sandbox'), 'allow-scripts allow-same-origin');
+    assert.equal(frame.srcdoc, '', 'the file is sent by postMessage, not put in the app');
+    const posted = [];
+    Object.defineProperty(frame, 'contentWindow', { value: { postMessage: (...args) => posted.push(args) } });
+    frame.dispatchEvent(new window.Event('load'));
+    assert.deepEqual(posted, [[{ type: 'noureon-html-preview', source }, 'http://127.0.0.1:']]);
     assert.equal(view.pageCount, 1);
     view.dispose();
     assert.equal(host.querySelector('iframe'), null);
   } finally {
     cleanup();
   }
+});
+
+test('HTML files preview in a sandboxed frame of the app where there is no sandbox origin', async () => {
+  const { Window } = await import('happy-dom');
+  const { renderHtmlPreview } = await import('../../src/app/ui/files/previews/html-page-preview.js');
+  const window = new Window({ url: 'https://some-preview.vercel.app/' });
+  const { document } = window;
+  document.body.innerHTML = '<div id="host"></div>';
+  const host = document.getElementById('host');
+  const view = await renderHtmlPreview(new window.Blob(['<h1>Hi</h1>'], { type: 'text/html' }), host, { document });
+  const frame = host.querySelector('iframe');
+  assert.equal(frame.getAttribute('sandbox'), 'allow-scripts', 'scripts run; no same origin, popups, forms, modals or top navigation');
+  assert.equal(frame.srcdoc, '<h1>Hi</h1>');
+  view.dispose();
+  assert.equal(host.querySelector('iframe'), null);
+  await window.happyDOM.close();
 });

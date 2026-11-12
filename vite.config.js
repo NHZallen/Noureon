@@ -7,9 +7,14 @@ import { languageSplitPlugin } from './scripts/language-split.mjs';
 const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
 export const SANDBOX_DEV_CSP = `default-src 'none'; script-src 'self' 'wasm-unsafe-eval' ${PYODIDE_CDN}; connect-src 'self' ${PYODIDE_CDN}; worker-src 'self'; frame-ancestors http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'`;
 
+// The page that shows HTML files for the preview needs to let the file's own inline scripts run; the file sits in a frame of
+// its own without allow-same-origin (public/sandbox/html-preview.js). Same policy as its rule in vercel.json.
+export const HTML_PREVIEW_DEV_CSP = `default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'unsafe-inline' https:; img-src data: blob: https:; media-src data: blob: https:; font-src data: https:; connect-src https:; frame-src https:; worker-src blob:; frame-ancestors http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'`;
+
 const sandboxHeaders = (request, response, next) => {
   if (request.url?.startsWith('/sandbox/')) {
-    response.setHeader('Content-Security-Policy', SANDBOX_DEV_CSP);
+    const preview = request.url.split(/[?#]/)[0] === '/sandbox/html-preview.html';
+    response.setHeader('Content-Security-Policy', preview ? HTML_PREVIEW_DEV_CSP : SANDBOX_DEV_CSP);
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('X-Content-Type-Options', 'nosniff');
   }

@@ -6,7 +6,7 @@ import test from 'node:test';
 import * as sandbox from '../../public/sandbox/protocol.js';
 import * as app from '../../src/app/runtime/sandbox/sandbox-protocol.js';
 import { ARCHIVE_EXTENSIONS, isBlockedFileExtension } from '../../src/app/ui/files/file-type-registry.js';
-import { SANDBOX_DEV_CSP } from '../../vite.config.js';
+import { HTML_PREVIEW_DEV_CSP, SANDBOX_DEV_CSP } from '../../vite.config.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const vercel = JSON.parse(read('vercel.json'));
@@ -102,6 +102,31 @@ test('the sandbox host gets its own enforced CSP, and the app host cannot serve 
   assert.ok(new RegExp(`^${offSandbox.source}$`).test('/'));
   assert.ok(new RegExp(`^${offSandbox.source}$`).test('/assets/index.js'));
   assert.ok(!new RegExp(`^${offSandbox.source}$`).test('/sandbox/index.html'));
+});
+
+test('the HTML preview page is the only page of the sandbox host that lets inline scripts run, and the file stays in a frame without same origin', () => {
+  const hostRules = vercel.headers.filter((rule) => rule.has?.some((condition) => condition.value === 'run.noureon.com'));
+  const strict = hostRules.find((rule) => rule.source !== '/sandbox/html-preview.html');
+  const preview = hostRules.find((rule) => rule.source === '/sandbox/html-preview.html');
+  assert.ok(strict && preview);
+  // The strict rule skips the preview page, so the two never both send a policy for it.
+  const skipsPreview = new RegExp(`^${strict.source}$`);
+  assert.equal(skipsPreview.test('/sandbox/html-preview.html'), false);
+  for (const path of ['/sandbox/index.html', '/sandbox/host.js', '/sandbox/worker.js', '/sandbox/sw.js', '/sandbox/pyodide/integrity.json']) assert.equal(skipsPreview.test(path), true, path);
+  const csp = preview.headers.find((header) => header.key === 'Content-Security-Policy').value;
+  assert.match(csp, /^default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;/);
+  assert.match(csp, /frame-ancestors https:\/\/noureon\.com https:\/\/www\.noureon\.com https:\/\/staging\.noureon\.com;/);
+  assert.equal(withoutFrameAncestors(csp), withoutFrameAncestors(HTML_PREVIEW_DEV_CSP), 'development uses the same policy');
+  for (const key of ['Cross-Origin-Resource-Policy', 'Referrer-Policy', 'Permissions-Policy', 'X-Content-Type-Options']) {
+    assert.deepEqual(preview.headers.find((header) => header.key === key), strict.headers.find((header) => header.key === key), key);
+  }
+  assert.ok(!preview.headers.some((header) => header.key === 'X-Frame-Options'));
+  const script = read('public/sandbox/html-preview.js');
+  assert.match(script, /setAttribute\('sandbox', 'allow-scripts'\)/);
+  assert.doesNotMatch(script, /'sandbox', '[^']*allow-same-origin/);
+  assert.match(script, /event\.source !== window\.parent/);
+  assert.match(script, /isAllowedAppOrigin\(event\.origin, window\.location\.origin\)/);
+  assert.doesNotMatch(read('public/sandbox/html-preview.html'), /<script(?![^>]*\ssrc=)/, 'no inline script of our own on the page');
 });
 
 test('the committed lock file lists our wheels with matching files and hashes', () => {
