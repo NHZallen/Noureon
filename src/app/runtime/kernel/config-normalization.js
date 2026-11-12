@@ -199,6 +199,7 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.sandboxNetwork = normalizedConfig.sandboxNetwork === 'off' ? 'off' : 'on';
   normalizedConfig.keyboardShortcuts = normalizeKeyboardShortcutItems(normalizedConfig.keyboardShortcuts);
+  normalizedConfig.reduceMotion = normalizedConfig.reduceMotion === 'on' ? 'on' : 'system';
   normalizedConfig.replyInputMode = ['steer', 'queue', 'send-now'].includes(normalizedConfig.replyInputMode) ? normalizedConfig.replyInputMode : 'steer';
   normalizedConfig.openaiWebSearch = normalizedConfig.openaiWebSearch === 'provider' ? 'provider' : 'official';
   normalizedConfig.openaiSafetyIdentifier = normalizedConfig.openaiSafetyIdentifier !== false;

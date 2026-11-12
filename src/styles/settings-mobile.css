@@ -335,6 +335,11 @@
         display: none !important;
     }
 
+    /* A page with little on it is still a little taller than the screen, so a phone lets it be pulled and springs it back as it does a long one. */
+    #settings-modal.settings-mobile-detail-open .settings-section.active {
+        min-height: calc(100% + 1px);
+    }
+
     #settings-modal.settings-mobile-detail-open .settings-section > h3 {
         margin: 1.2rem 0 0.55rem 1.35rem !important;
         color: var(--text-secondary) !important;

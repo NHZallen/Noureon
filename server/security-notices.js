@@ -53,13 +53,19 @@ export function originLines({ device = '', ip = '', location = '' } = {}) {
 }
 
 /** The subject, the text and the HTML of the mail for one event. */
-export function securityNoticeMailFor({ event, time, appUrl = 'https://noureon.com', origin = {} }) {
+export function securityNoticeMailFor({ event, time, appUrl = 'https://noureon.com', origin = {}, target = {} }) {
   const entry = SECURITY_EVENTS[event];
   if (!entry) throw new SecurityNoticeError('Unknown event.', 'invalid_event');
   const when = `When: ${stamp(time)}`;
-  const where = originLines(origin);
+  // A sign-out of one device names that device and the address it was on; the lines about where the request came from then say so.
+  const signedOut = event === 'device-signed-out' ? [
+    ...(oneLine(target?.device, 80) ? [`Signed-out device: ${oneLine(target.device, 80)}`] : []),
+    ...(looksLikeAddress(target?.ip) ? [`Signed-out device IP address: ${target.ip}`] : [])
+  ] : [];
+  const from = originLines(origin);
+  const where = signedOut.length ? [...signedOut, ...(from.length ? ['This was done from:', ...from] : [])] : from;
   const fine = 'If this was you, there is nothing more to do.';
-  const notYou = 'If it was not you, sign in, open Settings, then Security and sign-in, and change your login password. Use "Sign out of other devices" if you see it.';
+  const notYou = 'If it was not you, sign in, open Settings, then Security and sign-in, and change your login password. Use "Sign out of all devices" if you see it.';
   const url = String(appUrl).replace(/\/+$/, '');
   return {
     subject: `[Noureon] ${entry.subject}`,
@@ -83,13 +89,13 @@ export function createSecurityNotices({ mailer, appUrl, limit = SECURITY_NOTICE_
   const limiter = createRateLimiter({ limit, windowMs: HOUR, now });
 
   /** `email`: the address of the account (from the sign-in service). Resolves { sent } (false when the account has no address that can be used). */
-  async function send({ userId, email, event, origin = {} }) {
+  async function send({ userId, email, event, origin = {}, target = {} }) {
     if (!SECURITY_EVENTS[event]) throw new SecurityNoticeError('Unknown event.', 'invalid_event');
     if (!mailer?.configured) throw new SecurityNoticeError('Mail is not set up on the server.', 'unavailable');
     if (!email) return { sent: false };
     if (!limiter.take(userId)) throw new SecurityNoticeError('Too many notices this hour.', 'rate_limited');
     try {
-      await mailer.send({ to: email, ...securityNoticeMailFor({ event, time: now(), appUrl, origin }) });
+      await mailer.send({ to: email, ...securityNoticeMailFor({ event, time: now(), appUrl, origin, target }) });
     } catch (error) {
       limiter.release(userId);
       log('security_notice_mail_failed', { name: error?.name || 'Error' });

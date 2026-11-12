@@ -8,12 +8,14 @@ import { ensureWorkspaceStorageStatus } from './settings-workspace-storage-statu
 import { ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
 import { ensureOpenAiSettingsControls } from './settings-openai-controls.js';
 import { ensureReplyInputSettingsControl } from './settings-reply-input-control.js';
+import { mountMotionSetting } from '../../ui/motion/motion-preference.js';
 import { ensureSharedItemsCardLater } from '../share/share-ref.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 
-export function ensureVisionCheckSettingsControl({ document, elements, config, saveConfig, showNotification }) {
+export function ensureVisionCheckSettingsControl({ document, elements, config, saveConfig, showNotification, getText }) {
   // The Privacy and Permissions tabs are set up with the other tabs that are added here.
   ensurePrivacySettingsSection({ document, elements, config, saveConfig });
+  mountMotionSetting({ document, config, saveConfig, getText });
   ensurePermissionsSettingsSection({ document, elements, config, saveConfig, showNotification });
   ensureToolModelsSettingsSection({ document, elements, config, saveConfig });
   // The cloud space line is loaded with the settings, not with the page.

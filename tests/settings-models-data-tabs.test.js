@@ -99,14 +99,14 @@ test('the Accessibility tab has its rows in the page, and the controls that used
   ensureFileModeSettingsControl({ document, elements, config });
   ensureReplyInputSettingsControl({ document, elements, config: { ...config, replyInputMode: 'queue' } });
 
-  assert.equal(document.querySelectorAll('#accessibility-section .pz-row').length, before, 'no row is added');
+  assert.equal(document.querySelectorAll('#accessibility-section .pz-row').length, before + 1, 'the only row added is the switch of reduced motion, in a card of its own');
   assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #file-mode-setting-row, #reply-input-setting-row').length, 4);
   assert.equal(elements.replyInputModeSelect.value, 'queue', 'what is saved is shown on the choice that is in the page');
   assert.deepEqual([...elements.replyInputModeSelect.options].map((option) => option.textContent), ['Steer', 'Queue', 'Send now'], 'short words, in the language of the settings (a phone cuts a long one)');
   assert.equal(document.querySelector('#reply-input-setting-row').closest('.pz-card') !== null, true);
   assert.deepEqual(
     [...document.querySelectorAll('#accessibility-section .pz-card .pz-head h3')].map((heading) => heading.dataset.langKey),
-    ['settingsCardChat', 'settingsCardRepliesFiles']
+    ['settingsCardChat', 'settingsCardRepliesFiles', 'motionCardTitle']
   );
   assert.equal(elements.visionCheckToggleSwitch, document.getElementById('vision-check-toggle-switch'));
   assert.equal(elements.processToggle.checked, true, 'the setting is shown on the switch that is in the page');

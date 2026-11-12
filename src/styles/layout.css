@@ -67,10 +67,16 @@ html:has(#store-container:not(.hidden)) { overflow: hidden; }
 }
 
 /* An action started from the keyboard (a shortcut) is not animated: it is done hundreds of times a day (runtime/shortcuts/instant-flag.js). */
-html.is-instant *, html.is-instant *::before, html.is-instant *::after {
+html.is-instant *, html.is-instant *::before, html.is-instant *::after,
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
     animation-delay: 0ms !important;
+}
+
+/* The frame of a field that has the focus goes at once when the focus leaves it (it still fades in): a text field and the box that holds one (the composer keeps its own, its height moves with the text). */
+input:not([type="checkbox"]):not([type="radio"]):not(:focus), textarea:not(:focus):not(#message-input), select:not(:focus), .us-input:not(:focus-within) {
+    transition-duration: 0s;
 }
 
 /* Reduced motion: what moves or scales stands still, fades and colours stay (the files that set their own rules keep them). */
@@ -80,6 +86,9 @@ html.is-instant *, html.is-instant *::before, html.is-instant *::after {
     }
     .modal > div, .notification, .message-item { transform: none !important; }
 }
+/* The same when the person turned "Reduce motion" on in the settings (ui/motion/motion-preference.js): every transition and animation is cut short, as the line above does for the keyboard. */
+html[data-motion="reduced"] { scroll-behavior: auto; }
+
 
 /* important-audit: required: accessibility - the reduced-motion and keyboard-instant rules must beat every rule of every file */
 /* The floor of a phone (docs/superpowers/specs/2026-11-11-interaction-overhaul-design.md §5, phase 1): no grey flash on a tap, a tap fires at once,

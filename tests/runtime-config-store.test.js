@@ -20,6 +20,7 @@ const expectedConfig = (defaultModelId) => ({
   sandboxNetwork: 'on',
   replyInputMode: 'steer',
   keyboardShortcuts: {},
+    reduceMotion: 'system',
   openaiWebSearch: 'official',
   openaiSafetyIdentifier: true,
   searchProvider: 'tavily',

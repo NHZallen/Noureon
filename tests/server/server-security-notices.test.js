@@ -107,3 +107,16 @@ test('the route reads the device, the address and the place from the request its
     assert.doesNotMatch(sent[0].text, /Nowhere|1\.1\.1\.1|Mac · Chrome/);
   }, { securityNotices: notices });
 });
+
+test('the mail of one signed-out device names that device and its address, and says where the request came from; other events ignore a target', async () => {
+  const target = { device: 'Mac · Chrome', ip: '198.51.100.4' };
+  const origin = { device: 'iPhone · Safari', ip: '203.0.113.9' };
+  const mail = securityNoticeMailFor({ event: 'device-signed-out', time: TIME, origin, target });
+  assert.match(mail.text, /Signed-out device: Mac · Chrome/);
+  assert.match(mail.text, /Signed-out device IP address: 198\.51\.100\.4/);
+  assert.match(mail.text, /This was done from:\nDevice: iPhone · Safari\nIP address: 203\.0\.113\.9/);
+  assert.match(mail.html, /Signed-out device: Mac · Chrome/);
+  const bad = securityNoticeMailFor({ event: 'device-signed-out', time: TIME, origin, target: { device: 'X\r\nBcc: a@evil.test', ip: '<b>' } });
+  assert.doesNotMatch(bad.text, /\nBcc:|<b>/);
+  assert.doesNotMatch(securityNoticeMailFor({ event: 'signed-out-all', time: TIME, origin, target }).text, /Signed-out device/);
+});

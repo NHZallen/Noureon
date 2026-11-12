@@ -3,8 +3,8 @@
 -- The sign-in service keeps one row in `auth.sessions` for each device that is signed in, with the browser's User-Agent text and the address it came from. The person's role cannot read
 -- that table, so two functions that answer only about the person who asks do it: one lists the devices, one signs one of them out (the row is deleted, so its refresh token stops
 -- working; the short-lived access token it already holds ends by itself, within the hour, and the server of Noureon checks the sign-in service on every request).
--- The device the request comes from cannot be signed out here (that is "sign out", or "sign out of all devices", which the page does through the sign-in service). A person who has set
--- up an authenticator app (public.user_has_verified_totp) must have confirmed its code (aal2) to sign a device out.
+-- The device the request comes from cannot be signed out here (that is "sign out", or "sign out of all devices", which the page does through the sign-in service). Signing a device out asks for
+-- no second proof (no passkey, no authenticator code): the owner chose that, and each sign-out is mailed to the owner with the name and the address of the device.
 
 create or replace function public.list_my_sessions()
 returns table (id uuid, created_at timestamptz, last_active_at timestamptz, user_agent text, ip text, is_current boolean)
@@ -37,9 +37,6 @@ declare
 begin
   if (select auth.uid()) is null then
     raise exception 'not_signed_in';
-  end if;
-  if public.user_has_verified_totp() and coalesce((select auth.jwt() ->> 'aal'), '') <> 'aal2' then
-    raise exception 'mfa_required';
   end if;
   if p_session_id::text = coalesce((select auth.jwt() ->> 'session_id'), '') then
     return false;

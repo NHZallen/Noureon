@@ -474,7 +474,10 @@ export function createMemoryNotesSettings({
     tools.append(search, button(`＋ ${text('mnAdd')}`, 'btn-primary mn-btn', () => void actions.add()));
     const list = el('div', 'mn-list');
     renderList(live, list);
-    page.append(back, head, tools, categoryChips(live, stats), list);
+    // The way back, the title, the search and the categories stay at the top while the list scrolls under them.
+    const top = el('div', 'mn-sticky');
+    top.append(back, head, tools, categoryChips(live, stats));
+    page.append(top, list);
     return page;
   };
 

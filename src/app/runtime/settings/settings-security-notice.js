@@ -3,11 +3,12 @@
 
 import { serverRequest } from '../cli/cli-server-bridge.js';
 
-/** Returns notify(event) -> void. The events are the words of server/security-notices.js. */
+/** Returns notify(event, target?) -> void. The events are the words of server/security-notices.js; `target` ({ device, ip }) names the device a sign-out was for. */
 export function createSecurityNotifier({ request = serverRequest } = {}) {
-  return (event) => {
+  return (event, target = null) => {
     try {
-      Promise.resolve(request('POST', '/v1/security-notice', { body: JSON.stringify({ event }) })).catch(() => {});
+      const body = target && (target.device || target.ip) ? { event, target: { device: String(target.device || ''), ip: String(target.ip || '') } } : { event };
+      Promise.resolve(request('POST', '/v1/security-notice', { body: JSON.stringify(body) })).catch(() => {});
     } catch { /* nothing to do: the change itself is done */ }
   };
 }

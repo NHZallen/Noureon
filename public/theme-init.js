@@ -35,3 +35,18 @@
     if (localStorage.getItem('noureon.rail') !== 'off') document.documentElement.setAttribute('data-rail-early', '');
   } catch (error) { /* the page stays as it is */ }
 })();
+
+// "Reduce motion" of the Accessibility settings (src/app/ui/motion/motion-preference.js): the choice is mirrored in localStorage ("noureon-reduce-motion" = "on"). The page marks itself from the first paint
+// (`data-motion="reduced"`, styled in layout.css) and the questions of the scripts about "prefers-reduced-motion" are answered yes while it is on, as they are when the device asks for it.
+(function () {
+  try {
+    if (localStorage.getItem('noureon-reduce-motion') === 'on') document.documentElement.setAttribute('data-motion', 'reduced');
+    var original = window.matchMedia && window.matchMedia.bind(window);
+    if (!original) return;
+    window.matchMedia = function (query) {
+      var result = original(query);
+      if (!/prefers-reduced-motion:\s*reduce/.test(String(query)) || document.documentElement.getAttribute('data-motion') !== 'reduced') return result;
+      return { matches: true, media: result.media, onchange: null, addEventListener: function () {}, removeEventListener: function () {}, addListener: function () {}, removeListener: function () {}, dispatchEvent: function () { return false; } };
+    };
+  } catch (error) { /* the page stays as it is */ }
+})();

@@ -582,7 +582,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (!securityNotices) throw new RequestError(ERROR_CODES.runsUnavailable, 'Security notices are not set up on the server.');
         const body = await readJson(request, 512);
         try {
-          send(response, 202, await securityNotices.send({ userId: user.id, email: user.email, event: String(body?.event || ''), origin: requestOrigin(request) }), origin);
+          send(response, 202, await securityNotices.send({ userId: user.id, email: user.email, event: String(body?.event || ''), origin: requestOrigin(request), target: { device: String(body?.target?.device || ''), ip: String(body?.target?.ip || '') } }), origin);
           status = 202;
           return;
         } catch (error) {

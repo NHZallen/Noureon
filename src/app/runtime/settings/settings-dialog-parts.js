@@ -36,7 +36,7 @@ export function createSettingsDialogParts({
     const build = () => {
         const fresh = !built;
         built = true;
-        ensureVisionCheckSettingsControl({ document, elements: ALL_ELEMENTS, config, saveConfig, showNotification });
+        ensureVisionCheckSettingsControl({ document, elements: ALL_ELEMENTS, config, saveConfig, showNotification, getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '' });
         if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
         if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
         // The memory of notes fills the memory section.

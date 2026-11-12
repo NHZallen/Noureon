@@ -21,7 +21,9 @@
 #settings-modal .mn-root .mn-event-text { min-width: 0; overflow-wrap: anywhere; }
 #settings-modal .mn-root .mn-link { flex: none; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
 #settings-modal .mn-root .mn-foot { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.9rem 1.15rem; }
-#settings-modal .mn-root .mn-page { padding: 1rem 1.15rem 1.1rem; }
+/* The page that manages the notes is not a framed card: the list gets the whole width, and the top (back, title, search, categories) stays while the list scrolls. */
+#settings-modal .mn-root .mn-page { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+#settings-modal .mn-root .mn-sticky { position: sticky; top: 0; z-index: 3; padding: 0.25rem 0 0.75rem; background: var(--modal-bg); }
 #settings-modal .mn-root .mn-back { display: inline-flex; align-items: center; gap: 0.35rem; margin-bottom: 0.75rem; padding: 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; cursor: pointer; }
 #settings-modal .mn-root .mn-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 #settings-modal .mn-root .mn-page-head h3 { margin: 0; font-size: 1.125rem; }

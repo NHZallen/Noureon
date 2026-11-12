@@ -252,3 +252,12 @@ v1 的金鑰是 `PBKDF2(密碼, salt)` 直接當資料金鑰。**搬移時把這
 - **安全性與登入頁**：手機上是一張短清單，小標題（登入／額外保護／工作階段）下各一列（登入密碼、雲端同步、通行金鑰、驗證器、登入的裝置），點一列把那張卡片單獨當成一頁打開，標題列顯示該頁名稱，左上箭頭先回清單再離開。卡片、按鈕與 id 都沒變，`settings-security-pages.js` 只決定哪一張在畫面上（section 的 `data-page`，樣式在 `user-settings.css` 的 768px 以下）。列跟著卡片的 `hidden` 走（沒登入雲端帳號時沒有通行金鑰列），驗證器的六位數詢問卡不受影響、永遠在最上面。
 - **其他長頁**：模型管理與隱私同樣把每張卡片收成一列、點開才看內容（`settings-card-pages.js` ＋ `settings-card-pages.css`；頁面重畫（隱私頁換語言會重畫）後仍停在原本那頁）。清單在 `SECTIONS`，要加別的頁只加 id（該頁的卡片要是 `.pz > .pz-card`，標題在 `.pz-head`）。
 - **列上的動作**：通行金鑰列右邊是 ⋯ 選單（改名、移除）；裝置列右邊是登出圖示（`settings-row-menu.js`）。
+
+## 21. 回饋 2026-11-13（第二批）
+
+- **登出裝置不再要第二道確認**：單一裝置登出、登出所有裝置都只問一次「確定嗎」（`window.confirm`），不要通行金鑰也不要驗證器六位數；`revoke_my_session` 因此拿掉 aal2 檢查（那支 migration 還沒套用，直接改原檔）。三級確認規則裡「登出裝置」從危險動作清單拿掉。
+- **登出裝置的通知信**：`device-signed-out` 的信多兩行「Signed-out device: 設備名稱」「Signed-out device IP address」（頁面把被登出那列的名稱與 IP 放在 `target`，伺服器只收字串、清掉換行、IP 要像位址才收），原本的來源三行改成「This was done from:」底下。登出所有裝置只寄一封 `signed-out-all`（登入密碼更新時勾「登出所有裝置」也只寄 `login-password-changed` 一封）。
+- **減少動態效果**：輔助功能頁新增一張「動態效果」卡片，一個開關，設定 `reduceMotion`（`'system'` 跟隨裝置，`'on'` 強制減少，跟著帳號同步，同時鏡像在 localStorage `noureon-reduce-motion`）。開啟時 `html[data-motion="reduced"]`：`layout.css` 把所有 transition／animation 時間設為 0，`public/theme-init.js` 在第一次繪製前標記並讓 `matchMedia('(prefers-reduced-motion: reduce)')` 回答 true（頁面上二十幾處 JS 都是這樣問的）。程式在 `src/app/ui/motion/motion-preference.js`。沒做「強制完整動態」：二十幾個樣式檔各自有 `@media (prefers-reduced-motion)`，沒辦法從 JS 蓋掉。
+- **短頁也能下拉回彈**：手機設定的細節頁最少比畫面高 1px（`settings-mobile.css`），iOS 才會讓內容少的頁面也能拉開再彈回。
+- **筆記管理頁**：不再是有框的卡片（`mn-page` 去框去底），返回、標題、搜尋、分類列包在 `.mn-sticky`，往下滑時留在最上面。
+- **欄位焦點框**：欄位失去焦點時框立刻消失（`layout.css`：未聚焦的輸入欄 `transition-duration: 0s`，聚焦時仍淡入）。

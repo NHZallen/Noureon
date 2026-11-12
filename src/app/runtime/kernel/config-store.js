@@ -54,6 +54,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     sandboxNetwork: 'on',
     // The keyboard shortcuts the person turned off or gave other keys: { id: { combo?, enabled? } } (ui/shortcuts/); goes to the cloud with the other settings.
     keyboardShortcuts: {},
+    // Reduce motion: 'system' follows the device, 'on' cuts every transition and animation (ui/motion/motion-preference.js); goes to the cloud with the other settings.
+    reduceMotion: 'system',
     // What Send does while a reply is running: 'steer', 'queue' or 'send-now' (features/reply-steering.js).
     replyInputMode: 'steer',
     // OpenAI's own API: where its models search the web ('official': OpenAI's tool; 'provider': the search service of the settings), and whether an anonymous identifier of the user is sent with each request.

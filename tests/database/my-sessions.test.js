@@ -4,7 +4,7 @@ import test, { after, before } from 'node:test';
 import { createDatabase } from '../helpers/database/supabase-database.js';
 
 // The devices a person is signed in on (supabase/migrations/20261112110000_list_and_revoke_my_sessions.sql) with the real SQL: a person sees only their own, can sign out another
-// device but not the one the request comes from, and with an authenticator app set up needs its code (aal2) for it.
+// device but not the one the request comes from.
 
 let database;
 let ada;
@@ -63,13 +63,11 @@ test('another device can be signed out; this one cannot, nor can a device of som
   await database.db.query('delete from auth.sessions');
 });
 
-test('with an authenticator app set up, signing a device out needs its code (aal2)', async () => {
+test('signing a device out asks for no second proof, even with an authenticator app set up', async () => {
   const here = await session(ada, 'Here', '203.0.113.1');
   const there = await session(ada, 'There', '203.0.113.2');
   await database.db.query("insert into auth.mfa_factors (user_id, factor_type, status) values ($1, 'totp', 'verified')", [ada]);
-  assert.match((await asAda(here, 'aal1').error('select public.revoke_my_session($1)', [there]))?.message || 'it worked', /mfa_required/);
-  assert.equal((await database.db.query('select count(*)::int as n from auth.sessions')).rows[0].n, 2, 'nothing was signed out');
-  assert.equal((await asAda(here, 'aal2').query('select public.revoke_my_session($1) as done', [there]))[0].done, true);
+  assert.equal((await asAda(here, 'aal1').query('select public.revoke_my_session($1) as done', [there]))[0].done, true);
   await database.db.query('delete from auth.mfa_factors');
   await database.db.query('delete from auth.sessions');
 });

@@ -11,10 +11,11 @@ import { createRowIconButton } from './settings-row-menu.js';
 const SIGN_OUT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>';
 
 export function createDevicesControls({
-  window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity, notifySecurity = () => {},
+  window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity = () => {},
   reloadPage = () => window.location.reload(), scheduleTimeout = (callback, delay) => window.setTimeout(callback, delay)
 }) {
   let open = false;
+  const known = new Map(); // the devices as last listed, by session id
   const isCloud = () => getCurrentUser?.()?.authProvider === 'supabase';
   const when = (value) => {
     const date = new Date(value);
@@ -24,7 +25,9 @@ export function createDevicesControls({
   function render(rows) {
     const list = getElements().devicesList;
     list.textContent = '';
+    known.clear();
     for (const row of rows) {
+      known.set(row.id, row);
       const item = window.document.createElement('li');
       item.className = 'us-pk';
       item.dataset.sessionId = row.id;
@@ -64,11 +67,12 @@ export function createDevicesControls({
 
   async function signOutOne(sessionId) {
     if (!window.confirm(text('securityDevicesConfirmOne', '登出這個裝置？它要重新登入才能再使用。'))) return;
-    if (!await confirmIdentity()) return;
     const { data, error } = await getSupabase().rpc('revoke_my_session', { p_session_id: sessionId });
     if (error) throw error;
     if (data) {
-      notifySecurity('device-signed-out');
+      // The mail names the device that was signed out and the address it was on.
+      const gone = known.get(sessionId);
+      notifySecurity('device-signed-out', { device: gone ? deviceName(gone.user_agent) : '', ip: gone?.ip || '' });
       showNotification(text('securityDevicesDoneOne', '已登出這個裝置。'));
     } else {
       showNotification(text('securityDevicesGone', '這個裝置已經不在登入清單裡了。'), 'error');
@@ -78,7 +82,6 @@ export function createDevicesControls({
 
   async function signOutAll() {
     if (!window.confirm(text('securityDevicesConfirmAll', '所有裝置都會登出，包含這台，要用 Email 或 Google 重新登入。確定要繼續嗎？'))) return;
-    if (!await confirmIdentity()) return;
     const { error } = await getSupabase().auth.signOut({ scope: 'global' });
     if (error) throw error;
     notifySecurity('signed-out-all');

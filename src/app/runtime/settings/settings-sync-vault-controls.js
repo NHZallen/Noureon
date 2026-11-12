@@ -127,7 +127,7 @@ export function createSettingsSyncVaultControls({
   const identity = {};
   const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity, ...(passkeyApi && { passkey: passkeyApi }) });
   identity.confirm = createIdentityConfirmation({ authenticator, passkeys });
-  const devices = createDevicesControls({ window, storage, reloadPage, scheduleTimeout, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity });
+  const devices = createDevicesControls({ window, storage, reloadPage, scheduleTimeout, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
   const emailBindLabel = () => (getCurrentUser?.()?.authProvider === 'supabase'
