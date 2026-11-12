@@ -33,6 +33,7 @@ import { easeSavedDetails } from './app/ui/motion/collapse-motion.js';
 import { watchSourceIcons } from './app/ui/sandbox/run-sources.js';
 import { keepScrollBoxesOffTheirEdges, settleScrollBoxesOffTheirEdges } from './app/ui/motion/reader-scroll-guard.js';
 import { installPressFeedback } from './app/ui/motion/press-feedback.js';
+import { installSelectBlur } from './app/ui/forms/select-blur.js';
 import { installIconTooltips } from './app/ui/tooltips/icon-tooltips.js';
 import { installViewportLock } from './app/runtime/features/viewport-lock.js';
 import { SERVICES, getService, provideService } from './app/runtime/services.js';
@@ -146,6 +147,7 @@ async function bootstrap() {
   easeSavedDetails(document);
   watchSourceIcons(document);
   installPressFeedback(document);
+  installSelectBlur(document);
   installIconTooltips(document);
   recordBootstrapMilestone(
     STARTUP_MARKS.RUNTIME_INTERACTIVE,

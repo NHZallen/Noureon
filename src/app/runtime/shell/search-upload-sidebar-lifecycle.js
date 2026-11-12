@@ -4,6 +4,7 @@ import { createMediaAttachmentRenderer } from '../messages/media-attachment-rend
 import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createUploadedFilePreviewLifecycle } from '../features/uploaded-file-preview-lifecycle.js';
 import { attachDragDismiss } from '../../ui/motion/drag-dismiss.js';
+import { playExit } from '../../ui/motion/exit-animation.js';
 
 const CHAT_IMAGE_MAX_SIZE = 1600;
 const CHAT_IMAGE_QUALITY = 0.78;
@@ -380,6 +381,9 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
         // With the rail of a computer (ui/rail/) a panel that is docked stays where it is when something is chosen in it; the rail itself docks and frees it.
         if (show === false && document.documentElement?.getAttribute?.('data-rail-layout') === 'pinned') return;
         const nextSidebarOpen = typeof show === 'boolean' ? show : !getSidebarOpen();
+        const wasOpen = sidebar.classList.contains('open');
+        const swiped = sidebarSwiped;
+        sidebarSwiped = false;
         const sidebarOpen = setSidebarOpen(nextSidebarOpen);
         sidebar.classList.toggle('open', sidebarOpen);
 
@@ -389,14 +393,20 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
             sidebar.style.transform = 'translateX(0)';
             sidebarOverlay.classList.add('visible');
         } else {
+            // A tap on the veil or on a chat shows the way out itself (a swipe has its own: the panel leaves from where the finger let go).
+            if (wasOpen && !swiped) {
+                playExit(sidebar, [{ transform: 'translateX(0)' }, { transform: 'translateX(-100%)' }]);
+                playExit(sidebarOverlay, [{ opacity: 1 }, { opacity: 0 }]);
+            }
             sidebar.style.transform = 'translateX(-100%)';
             sidebarOverlay.classList.remove('visible');
         }
     }
+    let sidebarSwiped = false;
 
     // On a phone the left menu follows a finger that pushes it to the left and goes away when pushed far enough or flicked (ui/motion/drag-dismiss.js).
     if (ALL_ELEMENTS.sidebar) {
-        attachDragDismiss(ALL_ELEMENTS.sidebar, { direction: -1, enabled: () => window.innerWidth < 1024 && ALL_ELEMENTS.sidebar.classList.contains('open'), onDismiss: () => toggleSidebar(false) });
+        attachDragDismiss(ALL_ELEMENTS.sidebar, { direction: -1, enabled: () => window.innerWidth < 1024 && ALL_ELEMENTS.sidebar.classList.contains('open'), onDismiss: () => { sidebarSwiped = true; toggleSidebar(false); } });
     }
 
     return {
