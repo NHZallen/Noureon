@@ -1,5 +1,4 @@
 import { applyChartMarkdownPlaceholders } from '../../ui/charts/chart-markdown-placeholders.js';
-import { mountChartPlaceholders } from '../../ui/charts/chart-renderer.js';
 import { applyFileCards, prepareFileBlocksForMarkdown, setFileMarkdownRenderer } from '../../ui/files/file-markdown-cards.js';
 import { applyCitationPills } from '../../ui/citations/citation-pills.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
@@ -19,7 +18,13 @@ export function createMarkdownRenderingHelpers({
   marked,
   sanitizer,
   DOMParser,
-  katex,
+  katex: givenKatex,
+  // KaTeX is loaded when the first formula has to be set: `getKatex()` has it once it is there, `loadKatex()` brings it.
+  getKatex = () => null,
+  loadKatex = null,
+  // The drawing of charts (about 65 KB) is loaded when the first chart comes: the charts that waited are drawn then, and `onChartsLoaded(module)` lets the page watch for later ones.
+  chartModule: preloadedCharts = null,
+  onChartsLoaded = (module) => module.observeMessageCharts({ root: globalThis.document?.getElementById('message-list'), chartLabel: getText('chart', 'Chart') }),
   getUiLanguage,
   getText = (_key, fallback) => fallback,
   logger
@@ -179,7 +184,41 @@ export function createMarkdownRenderingHelpers({
     return { formulas, markdown: restore(markdown) };
   }
 
+  // A chart that comes before its drawing is there waits as a placeholder in the page, and is drawn when the module has loaded.
+  let chartModule = preloadedCharts;
+  let chartRequest = null;
+  const requestCharts = () => {
+    chartRequest ||= import('../../ui/charts/chart-renderer.js').then((module) => {
+      chartModule = module;
+      module.mountChartPlaceholders({ root: globalThis.document?.body, messageRole: 'assistant', chartLabel: getText('chart', 'Chart') });
+      onChartsLoaded(module);
+    }).catch((error) => {
+      chartRequest = null;
+      logger.error('The drawing of charts could not be loaded.', error);
+    });
+  };
+
+  // A formula that comes before KaTeX is there is shown as its text, in a place that is filled when KaTeX has loaded.
+  let katexRequest = null;
+  const fillWaitingFormulas = () => {
+    for (const element of globalThis.document?.querySelectorAll?.('.math-pending') || []) {
+      element.outerHTML = renderFormula({ displayMode: element.dataset.display === '1', formula: element.dataset.formula || '' });
+    }
+  };
+  const requestKatex = () => {
+    katexRequest ||= Promise.resolve(loadKatex()).then(fillWaitingFormulas).catch((error) => {
+      katexRequest = null;
+      logger.error('KaTeX could not be loaded.', error);
+    });
+  };
+
   function renderFormula({ displayMode, formula }) {
+    const katex = givenKatex || getKatex();
+    if (!katex && loadKatex) {
+      requestKatex();
+      const element = displayMode ? 'div' : 'span';
+      return `<${element} class="math-pending" data-display="${displayMode ? '1' : '0'}" data-formula="${escapeHtml(formula)}">${escapeHtml(formula)}</${element}>`;
+    }
     try {
       const normalizedFormula = normalizeDoubleEscapedTex(decodeFormula(formula));
       const displayChunks = displayMode ? splitDisplayFormula(normalizedFormula) : [normalizedFormula];
@@ -240,11 +279,13 @@ export function createMarkdownRenderingHelpers({
       chartLabel: getText('chart', runtimeTexts.chart)
     });
 
-    mountChartPlaceholders({
-      root: documentFragment.body,
-      messageRole: 'assistant',
-      chartLabel: getText('chart', runtimeTexts.chart)
-    });
+    if (documentFragment.body.querySelector('.ac-chart-placeholder')) {
+      if (chartModule) {
+        chartModule.mountChartPlaceholders({ root: documentFragment.body, messageRole: 'assistant', chartLabel: getText('chart', runtimeTexts.chart) });
+      } else {
+        requestCharts();
+      }
+    }
 
     // A skill a model wrote for the person (a ```skill-draft block): only a placeholder here; the card is made when the skill part of the page has loaded (skill-draft-watch.js).
     documentFragment.body.querySelectorAll('pre > code.language-skill-draft').forEach((code) => {

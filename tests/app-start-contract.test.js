@@ -50,11 +50,13 @@ test('the app shell has the elements the page needs', async () => {
 });
 
 // KaTeX is its own file (imported as a URL, not bundled into the start), and mhchem, which extends it, is loaded only after it.
-test('main loads KaTeX as its own script before mhchem', () => {
+test('KaTeX is its own script, loaded with mhchem after it when the first formula is set (not by main, not with the page)', () => {
   const mainSource = readSource('src/main.js');
-  assert.match(readSource('src/app/vendors/katex-vendor.js'), /import\s+\w+\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
+  const vendorSource = readSource('src/app/vendors/katex-vendor.js');
+  assert.match(vendorSource, /import\s+\w+\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
   assert.doesNotMatch(mainSource, /from\s+'katex\/dist\/katex\.min\.js'/);
-  assertInOrder(mainSource, ['await loadKatex()', "loadVendorScript('/vendor/mhchem.min.js')"], 'main bootstrap');
+  assert.doesNotMatch(mainSource, /loadKatex|mhchem/, 'the start of the page does not load the typesetter of formulas');
+  assertInOrder(vendorSource, ['loadVendorScript(katexScriptUrl)', "await loadVendorScript('/vendor/mhchem.min.js')"], 'katex vendor');
 });
 
 test('main css is an ordered split manifest with every imported file under the source size limit', () => {

@@ -6,6 +6,7 @@ import { Window } from 'happy-dom';
 import { marked } from 'marked';
 
 import { applyChartMarkdownPlaceholders } from '../../../src/app/ui/charts/chart-markdown-placeholders.js';
+import * as chartRenderer from '../../../src/app/ui/charts/chart-renderer.js';
 import { createMarkdownRenderingHelpers } from '../../../src/app/runtime/shell/markdown-rendering-helpers.js';
 
 const createWindow = () => new Window({ url: 'https://example.test/' });
@@ -35,6 +36,8 @@ const createMarkdownHarness = (overrides = {}) => {
     getUiLanguage: () => 'en',
     getText: (key, fallback) => (key === 'chart' ? 'Chart' : fallback),
     logger: console,
+    // (The drawing of charts is loaded when the first chart comes; these tests have it already, so a chart is drawn at once.)
+    chartModule: chartRenderer,
     ...overrides
   });
   return { helpers, window };

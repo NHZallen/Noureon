@@ -31,7 +31,7 @@ export function startUserAvatar({
   getSupabase = () => getSupabaseClient(),
   getLanguage = () => 'en',
   showNotification = () => {},
-  loadCropper = async () => (await import('cropperjs')).default,
+  loadCropper = () => import('../../vendors/cropper-vendor.js').then((module) => module.loadCropperVendor()),
   store = createAvatarStore({ getSupabase, storage, warn: (...args) => globalThis.console?.warn?.(...args) })
 }) {
   const win = document.defaultView;

@@ -374,7 +374,7 @@ const pickerControl = (extra = {}) => {
   return { control, cleanup, current, document, drawn, setLanguage: (value) => { language = value; }, window };
 };
 
-test('the picker is fetched before the click: when the browser is idle, and when the pointer or a finger reaches the button', async () => {
+test('the picker is fetched before the click when the pointer or a finger reaches the button, not while the browser is idle (most people never open it)', async () => {
   const idle = pickerControl();
   try {
     assert.equal(idle.drawn.length, 0);
@@ -396,12 +396,12 @@ test('the picker is fetched before the click: when the browser is idle, and when
     });
     control.render();
     assert.equal(loads, 0, 'nothing is fetched while the page starts');
-    idleWork.shift()();
+    assert.equal(idleWork.length, 0, 'and no idle work is asked for');
     await tick();
-    assert.equal(loads, 1, 'fetched once the browser is idle');
+    assert.equal(loads, 0, 'nothing is fetched while the browser is idle');
     document.getElementById('deck-design-btn').click();
     await tick();
-    assert.equal(loads, 1, 'and not again for the click');
+    assert.equal(loads, 1, 'it is fetched at the click');
   } finally {
     cleanup();
   }

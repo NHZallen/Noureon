@@ -49,10 +49,10 @@ const createHarness = (overrides = {}) => {
   return { charts, cleanup, document, getCurrentChart: () => currentChart, lifecycle };
 };
 
-test('renders model usage chart with legacy labels, counts, and chart options', () => {
+test('renders model usage chart with legacy labels, counts, and chart options', async () => {
   const { charts, cleanup, lifecycle } = createHarness();
   try {
-    const chart = lifecycle.renderModelUsageChart();
+    const chart = await lifecycle.renderModelUsageChart();
 
     assert.equal(chart, charts[0]);
     assert.equal(chart.config.type, 'pie');
@@ -69,11 +69,11 @@ test('renders model usage chart with legacy labels, counts, and chart options', 
   }
 });
 
-test('destroys the previous chart before installing the new chart', () => {
+test('destroys the previous chart before installing the new chart', async () => {
   const previousChart = { destroyed: false, destroy() { this.destroyed = true; } };
   const { cleanup, getCurrentChart, lifecycle } = createHarness({ currentChart: previousChart });
   try {
-    const chart = lifecycle.renderModelUsageChart();
+    const chart = await lifecycle.renderModelUsageChart();
 
     assert.equal(previousChart.destroyed, true);
     assert.equal(getCurrentChart(), chart);
@@ -82,12 +82,12 @@ test('destroys the previous chart before installing the new chart', () => {
   }
 });
 
-test('empty and partial conversation data keep legacy fallback boundaries', () => {
+test('empty and partial conversation data keep legacy fallback boundaries', async () => {
   const { charts, cleanup, lifecycle } = createHarness({
     conversations: [{}, { model: null }]
   });
   try {
-    lifecycle.renderModelUsageChart();
+    await lifecycle.renderModelUsageChart();
 
     assert.deepEqual(charts[0].config.data.labels, ['未知模型']);
     assert.deepEqual(charts[0].config.data.datasets[0].data, [2]);
@@ -96,7 +96,7 @@ test('empty and partial conversation data keep legacy fallback boundaries', () =
   }
 });
 
-test('missing chart container is a safe no-op boundary', () => {
+test('missing chart container is a safe no-op boundary', async () => {
   const lifecycle = createModelUsageChartLifecycle({
     Chart: class {},
     document: { getElementById: () => null },
@@ -106,7 +106,7 @@ test('missing chart container is a safe no-op boundary', () => {
     getUiLanguage: () => 'en'
   });
 
-  assert.equal(lifecycle.renderModelUsageChart(), null);
+  assert.equal(await lifecycle.renderModelUsageChart(), null);
 });
 
 test('model usage chart lifecycle source avoids unrelated runtime systems', () => {
@@ -129,4 +129,16 @@ test('model usage chart lifecycle source avoids unrelated runtime systems', () =
   ]) {
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
+});
+
+test('without a Chart given, the chart library is loaded when the chart is first drawn (not with the page)', async () => {
+  let loads = 0;
+  const FakeChart = class { constructor() { this.destroyed = false; } destroy() { this.destroyed = true; } };
+  FakeChart.defaults = { color: '', borderColor: '', plugins: { legend: { labels: {} } } };
+  const canvas = { getContext: () => ({}) };
+  const lifecycle = createModelUsageChartLifecycle({ loadChart: async () => { loads += 1; return FakeChart; }, document: { getElementById: () => canvas }, getConversations: () => [], getModels: () => [], setModelPieChart() {} });
+  assert.equal(loads, 0);
+  const chart = await lifecycle.renderModelUsageChart();
+  assert.equal(loads, 1);
+  assert.ok(chart instanceof FakeChart);
 });

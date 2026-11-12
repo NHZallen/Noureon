@@ -10,6 +10,7 @@ export function createDashboardLifecycle(dependencies = {}) {
     if (missing.length > 0) throw new TypeError(`The dashboard lifecycle is missing dependencies: ${missing.join(', ')}.`);
     const {
         Chart,
+        loadChart,
         document,
         elements: ALL_ELEMENTS,
         getConfig,
@@ -46,6 +47,7 @@ export function createDashboardLifecycle(dependencies = {}) {
     };
     const modelUsageChartLifecycle = createModelUsageChartLifecycle({
         Chart,
+        loadChart,
         document,
         getConversations: () => conversations,
         getI18n: () => i18n,

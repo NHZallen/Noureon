@@ -4,7 +4,7 @@
 
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { getKatex } from '../../vendors/katex-vendor.js';
+import { getKatex, loadKatex } from '../../vendors/katex-vendor.js';
 import { createMarkdownRenderingHelpers } from '../../runtime/shell/markdown-rendering-helpers.js';
 import { createMediaAttachmentRenderer } from '../../runtime/messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../../runtime/messages/media-preview-lifecycle.js';
@@ -125,7 +125,7 @@ export function openProjectConversation({ document, root, text, texts = {}, lang
     }
     panel.replaceChildren(head, body);
   }
-  const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({ marked, sanitizer: DOMPurify, DOMParser: win.DOMParser, katex: getKatex(), getUiLanguage: () => language, getText: (key, fallback) => texts[key] || fallback, logger: console }).renderMarkdownWithFormulas;
+  const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({ marked, sanitizer: DOMPurify, DOMParser: win.DOMParser, getKatex, loadKatex, getUiLanguage: () => language, getText: (key, fallback) => texts[key] || fallback, logger: console }).renderMarkdownWithFormulas;
   const mediaRenderer = createMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => language });
   const previews = createMediaPreviewLifecycle({ document, navigator: win.navigator, fetch: win.fetch?.bind(win), File: win.File, escapeHTML, getInlineMediaSrc: mediaRenderer.getInlineMediaSrc, getUiLanguage: () => language, getText: (key, fallback) => texts[key] || fallback });
   let current = chat;

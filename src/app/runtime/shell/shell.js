@@ -19,7 +19,6 @@ import { createHistorySidebarHelpers } from '/src/app/runtime/shell/history-side
 import { createMarkdownRenderingHelpers } from '/src/app/runtime/shell/markdown-rendering-helpers.js';
 import { createWorkspaceLoad } from '/src/app/runtime/shell/workspace-load.js';
 import { createConversationActions, getDefaultFolder, getDefaultGenConfig } from '/src/app/runtime/shell/conversation-actions.js';
-import { observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
 import { createRuntimeDomRegistry } from '/src/app/runtime/kernel/dom-registry.js';
@@ -42,14 +41,12 @@ import { createShellState } from '/src/app/runtime/shell/shell-state.js';
 import * as passwordRecords from '/src/app/runtime/security/password-records.js';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import Chart from 'chart.js/auto';
-import Cropper from 'cropperjs';
-import { getKatex } from '/src/app/vendors/katex-vendor.js';
+import { loadChartVendor, loadCropperVendor, loadUpdateLogs } from '/src/app/vendors/lazy-vendors.js';
+import { getKatex, loadKatex } from '/src/app/vendors/katex-vendor.js';
 import { loadArchiveVendor } from '/src/app/vendors/archive-vendor.js';
 import { loadSharingVendor } from '/src/app/vendors/sharing-vendor.js';
 import { i18n } from '/src/data/i18n.js';
 import { OFFICIAL_ASTRAS } from '/src/data/astras-data.js';
-import { updateLogs } from '/src/data/update-logs.js';
 import { PRODUCT_VERSION as productVersion } from '/src/data/version.js';
 import { markPicturesPending } from '../../ui/files/picture-loading.js';
 
@@ -298,14 +295,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             marked,
             sanitizer: DOMPurify,
             DOMParser,
-            katex: getKatex(),
+            getKatex,
+            loadKatex,
             getUiLanguage,
             getText,
             logger: console
-        });
-        observeMessageCharts({
-            root: ALL_ELEMENTS.messageList,
-            chartLabel: getText('chart', 'Chart')
         });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const { loadConfig, loadAppData } = createWorkspaceLoad({
@@ -834,7 +828,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         const { renderBatchActionBar, toggleSelectionMode } = batchActionBarLifecycle;
         const workspaceFeatures = createWorkspaceFeatures({
-            window, document, navigator, fetch, File, FileReader, Image, URL, Event, Chart, loadArchiveVendor,
+            window, document, navigator, fetch, File, FileReader, Image, URL, Event, loadChart: loadChartVendor, loadArchiveVendor,
             requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
             elements: ALL_ELEMENTS, i18n, models: MODELS,
             runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeStorageAdapter, runtimeDialogCoordinator,
@@ -866,10 +860,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             toggleTrashSelectionMode, handleBatchRestoreFromTrash,
             handleBatchDeleteFromTrash, handleEmptyTrash, updateDisplayedVersion
         } = createPageFeatures({
-            window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper,
+            window, document, navigator, fetch, File, Event, Image, FileReader, loadChart: loadChartVendor, loadCropper: loadCropperVendor,
             ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
             elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
-            OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS,
+            OFFICIAL_ASTRAS, loadUpdateLogs, productVersion, UI_THEME_COLORS,
             updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData, deleteConversationsFromCloud, deleteAstrasFromCloud,
             showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
             renderAll, renderAstras, renderInputIndicators, renderCouncilControls,

@@ -1,6 +1,7 @@
 import { applyChartThemeDefaults, readThemeColor } from '../../../utils/theme-colors.js';
 export function createModelUsageChartLifecycle({
-    Chart,
+    Chart: ChartOverride,
+    loadChart,
     document,
     getConversations = () => [],
     getI18n = () => ({}),
@@ -9,9 +10,10 @@ export function createModelUsageChartLifecycle({
     getUiLanguage = () => 'zh-TW',
     setModelPieChart = () => {}
 } = {}) {
-    const renderModelUsageChart = () => {
+    const renderModelUsageChart = async () => {
         const canvas = document?.getElementById?.('model-usage-pie-chart');
         if (!canvas) return null;
+        const Chart = ChartOverride || await loadChart();
         const ctx = canvas.getContext('2d');
         const models = getModels() || [];
         const conversations = getConversations() || [];

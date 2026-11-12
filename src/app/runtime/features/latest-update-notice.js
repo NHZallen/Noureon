@@ -5,15 +5,17 @@ import { localizeUpdateLogs } from '../../../data/update-logs/translations.js';
 import { renderLatestUpdates } from '../../ui/updates/update-log-view.js';
 
 export function createLatestUpdateNotice({
-    document, elements: ALL_ELEMENTS, getConfig, i18n, updateLogs, productVersion, sanitizeTrustedHTML, toggleModal, saveConfig,
+    document, elements: ALL_ELEMENTS, getConfig, i18n, updateLogs: knownLogs, loadUpdateLogs, productVersion, sanitizeTrustedHTML, toggleModal, saveConfig,
     // The window's stylesheet loads when it is shown, not with the page; it shows plain if the sheet cannot be loaded.
     loadStyles = () => import('../../../styles/update-log.css').catch((error) => console.warn('Loading the styles of the update notes failed.', error))
 }) {
     const checkAndShowLatestUpdate = async () => {
-        if (!getConfig().enableUpdateNotifications || typeof updateLogs === 'undefined' || updateLogs.length === 0) {
-            return;
-        }
+        if (!getConfig().enableUpdateNotifications) return;
         const lastSeenVersion = getConfig().lastSeenVersion || '0.0.0'; // 如果從未見過，則設為 '0.0.0'
+        // The notes (about 190 KB) are loaded only when this version is newer than the last one the person saw: most starts have nothing to show.
+        if (!knownLogs && productVersion && compareVersions(productVersion, lastSeenVersion) <= 0) return;
+        const updateLogs = knownLogs || (loadUpdateLogs ? await loadUpdateLogs() : undefined);
+        if (typeof updateLogs === 'undefined' || updateLogs.length === 0) return;
         const newUpdates = updateLogs.filter(log => compareVersions(log.version, lastSeenVersion) > 0);
         if (newUpdates.length > 0) {
             newUpdates.sort((a, b) => compareVersions(b.version, a.version));

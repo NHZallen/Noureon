@@ -90,7 +90,13 @@ function isFileCardCore(id) {
     && !id.includes('/src/app/ui/files/file-authoring-guidance.js');
 }
 
+// (The shared chunk of the libraries that start the page: the same name as the catch-all at the end of chunkName.)
+const COMPILER_HELPERS_CHUNK = 'vendor';
+
 function chunkName(id) {
+  // The helpers the compiler adds to code that is compiled down (typeof, defineProperty…) are shared by many libraries: they stay in the small shared
+  // chunk, not in whichever library's chunk they were first used (they were in the Chart.js chunk, which made every page that uses markdown load it).
+  if (id.includes('@oxc-project+runtime')) return COMPILER_HELPERS_CHUNK;
   if (id.includes('/src/app/runtime/shell/council-runtime-texts.js')) return 'council-texts';
   // The submit lifecycle and its parts (submit-input-*.js) ship together.
   if (id.includes('/src/app/runtime/shell/submit-input-')) return 'submit-input';

@@ -4,7 +4,7 @@
 
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { getKatex } from '../vendors/katex-vendor.js';
+import { getKatex, loadKatex } from '../vendors/katex-vendor.js';
 import { getSupabaseClient, getSupabaseUrl } from '../auth/supabase-client.js';
 import { ensureLanguage } from '../i18n/language-packs.js';
 import i18n from '../../data/i18n/index.js';
@@ -83,7 +83,7 @@ export async function initializeSharePage({ window, document, supabase = getSupa
   let reviewStatus = '';
 
   const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({
-    marked, sanitizer: DOMPurify, DOMParser: window.DOMParser, katex: getKatex(), getUiLanguage: () => language,
+    marked, sanitizer: DOMPurify, DOMParser: window.DOMParser, getKatex, loadKatex, getUiLanguage: () => language,
     getText: (key, fallback) => i18n[language]?.[key] || fallback, logger: console
   }).renderMarkdownWithFormulas;
   const mediaRenderer = createMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => language });

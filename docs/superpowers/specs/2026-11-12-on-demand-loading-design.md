@@ -307,3 +307,22 @@ Allen 試過後決定預設開。`isOnDemandLoadingEnabled`：沒有設定時是
 合計約 1.1 MB 未壓縮（約 350 KB 壓縮後）。
 
 **畫面（DOM）**：本機帳號首頁 2.9K 節點，背景預建設定頁後 3.7K（設定 modal 1.06K → 1.82K）；模型管理（約 700）、模型議會控制（約 440）、模型選單浮層（約 410）一開始就全部建好，多數人不會打開。
+
+### 13.13 §13.12 的項目做完了哪些（2026-11-12）
+
+**已改成按需**（正式建置、本機帳號、700 個對話，Chromium；啟動載入的 JS 從 114 個檔、3257 KB 降到 93 個檔、2345 KB；啟動後堆積 28.3 MB → 17.7 MB）：
+- `update-logs`（194 KB）：只有「這個版本比上次看過的新」才載（`latest-update-notice.js`：`productVersion` 對 `lastSeenVersion`）；`main.js` 啟動時也不再 import 它。
+- Chart.js（192 KB）：第一次畫圖才載（儀表板的圓餅圖與時間分析圖），新檔 `vendors/chart-vendor.js`。**另外發現它被當成啟動檔載入，是因為編譯器的輔助函式（`@oxc-project+runtime` 的 typeof／defineProperty…）被放進了 Chart.js 的 chunk，而 `vendor-markdown` 啟動時就要用它們**；`vite.config.js` 把這些輔助函式放進共用的 `vendor` chunk，Chart.js 才真的離開啟動路徑。
+- KaTeX（266 KB）＋mhchem（33 KB）＋它的樣式：第一個公式出現才載；公式先以文字佔位（`.math-pending`），載完填回（`markdown-rendering-helpers.js`）。
+- 圖表繪製（`chart-renderer`，65 KB）：第一個圖表出現才載，同樣先佔位再填。
+- 裁切器（`cropperjs` 37 KB）：連同它的樣式第一次裁切才載（`vendors/cropper-vendor.js`）；原本 `main.js` 為了樣式 import 它，整個函式庫連帶被預載。
+- 簡報設計挑選器（`deck-design-control.js`）：不再在瀏覽器閒置時預先抓，滑鼠或手指到按鈕、或按下才抓（點下去本來就有轉圈後備）。
+- 記憶自動重建：沒有模型時不讀對話（§13.12）。
+- 儲存層的操作佇列（`exclusive`）不再抓著上一個操作的結果（會讓最近讀過的整批對話留在記憶體直到下一次操作）。
+
+**刻意沒改**：
+- `supabase-client`（192 KB）：多個啟動就載的模組靜態匯入它，並且同步呼叫 `getSupabaseClient()`；只有本機帳號用不到，雲端帳號（多數）一定要用。要改得先把這些呼叫都改成非同步，風險大於收益。
+- `vendor-archive`（jszip）的離線預載（`archive-vendor-prewarm.js`）：是為了離線也能匯出入備份，是功能。
+- `model-request-engine` 的閒置預載、設定頁的閒置預建（`prepareWhenIdle`）：分別為了第一次送出訊息不等、第一次開設定不閃白，是刻意的。
+- 模型選單／議會控制／模型管理的 DOM（約 1.5K 節點）：每次畫面更新都重建整個面板，改成「開啟才建」要動焦點、捲動位置、鍵盤操作，風險大，收益約 1 到 2 MB。
+- 語意搜尋開啟時啟動掃描全部對話：功能需要，分批、不留存。

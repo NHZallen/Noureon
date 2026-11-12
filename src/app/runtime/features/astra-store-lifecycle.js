@@ -2,7 +2,7 @@
 
 export function createAstraStoreLifecycle({
     document, elements: ALL_ELEMENTS, i18n, OFFICIAL_ASTRAS, getUiLanguage, getAstras, replaceAstras, requestAnimationFrame, crypto,
-    console, FileReader, Cropper, escapeHTML, deleteAstrasFromCloud = async () => {}, showNotification, toggleModal, saveAppData, renderAstras
+    console, FileReader, Cropper, loadCropper, escapeHTML, deleteAstrasFromCloud = async () => {}, showNotification, toggleModal, saveAppData, renderAstras
 }) {
     // The category shown in the store, and the picture editor: its cropper and the Noura whose picture it changes.
     let currentStoreCategory = 'all';
@@ -178,14 +178,15 @@ export function createAstraStoreLifecycle({
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const imageUrl = e.target.result;
             ALL_ELEMENTS.avatarCropImage.src = imageUrl;
             toggleModal(ALL_ELEMENTS.astrasAvatarModal, true);
             if (cropperInstance) {
                 cropperInstance.destroy();
             }
-            cropperInstance = new Cropper(ALL_ELEMENTS.avatarCropImage, {
+            const CropperClass = Cropper || await loadCropper();
+            cropperInstance = new CropperClass(ALL_ELEMENTS.avatarCropImage, {
                 aspectRatio: 1,
                 viewMode: 1,
                 background: false,

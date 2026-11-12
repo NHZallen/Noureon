@@ -1,10 +1,6 @@
 import { preloadRail, waitForRail } from './app/ui/rail/rail-ready.js';
-import 'cropperjs/dist/cropper.css';
-import 'katex/dist/katex.min.css';
 import './styles/main.css';
 
-import { loadKatex } from './app/vendors/katex-vendor.js';
-import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
 import {
   dismissStartupSkeleton,
   mountAppShell,
@@ -57,9 +53,7 @@ const recordBootstrapMilestone = (markName, measureName) => {
 
 async function bootstrap() {
   markStartup(STARTUP_MARKS.BOOTSTRAP_START);
-  // The typesetter of formulas is a script that mhchem extends (app/vendors/katex-vendor.js); the other libraries are imported by the
-  // modules that use them.
-  await loadKatex();
+  // The typesetter of formulas (app/vendors/katex-vendor.js) and the other libraries are loaded by the modules that use them, when they are first used.
   if (isPasswordRecoveryRoute(window.location.pathname)) {
     const { initializePasswordRecoveryPage } = await import(
       './app/auth/password-recovery-page.js'
@@ -104,9 +98,7 @@ async function bootstrap() {
     // The words of the language the page starts in (the one startup-lifecycle picks): only that language is loaded (NOU-17).
     ensureLanguage(startupLanguage),
     import('./data/astras-data.js'),
-    import('./data/update-logs.js'),
-    import('./data/version.js'),
-    loadVendorScript('/vendor/mhchem.min.js')
+    import('./data/version.js')
   ]).then(() => {
     recordBootstrapMilestone(
       STARTUP_MARKS.STARTUP_DATA_READY,

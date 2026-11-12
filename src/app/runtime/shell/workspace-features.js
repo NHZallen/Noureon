@@ -11,7 +11,7 @@ import { getNotesMemory, setMemoryModelRunner } from '../memory-store/memory-ref
 
 export function createWorkspaceFeatures({
     window, document, navigator, fetch, File, FileReader: FileReaderCtor, Image: ImageCtor, URL, Event,
-    Chart, loadArchiveVendor, requestAnimationFrame, setTimeout, clearTimeout, crypto, console = globalThis.console,
+    Chart, loadChart, loadArchiveVendor, requestAnimationFrame, setTimeout, clearTimeout, crypto, console = globalThis.console,
     elements: ALL_ELEMENTS, i18n, models: MODELS,
     runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeStorageAdapter = null, runtimeDialogCoordinator,
     conversationStateAccess,
@@ -176,6 +176,7 @@ export function createWorkspaceFeatures({
         renderModelUsageChart
     } = createLazyFunctions(() => import('./dashboard-lifecycle.js').then(({ createDashboardLifecycle }) => createDashboardLifecycle({
         Chart,
+        loadChart,
         document,
         elements: ALL_ELEMENTS,
         getConfig,

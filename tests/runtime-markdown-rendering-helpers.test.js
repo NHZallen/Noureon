@@ -429,3 +429,31 @@ test('a model\'s markdown is sanitized with styles and forms forbidden (the real
     harness.window.close();
   }
 });
+
+test('KaTeX is asked for when the first formula comes, the formula waits as its text, and is set when KaTeX is there (nothing is asked for by a text without formulas)', async () => {
+  let loads = 0;
+  let loaded = null;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const harness = createHarness({ katex: undefined, getKatex: () => loaded, loadKatex: async () => { loads += 1; await gate; loaded = katex; return katex; } });
+  try {
+    const { helpers, window } = harness;
+    globalThis.document = window.document;
+    helpers.renderMarkdownWithFormulas('no formula here, only words');
+    assert.equal(loads, 0, 'a text without formulas does not load KaTeX');
+    const waiting = helpers.renderMarkdownWithFormulas('the area is $x^2 + y^2$');
+    assert.match(waiting, /class="math-pending"/);
+    assert.match(waiting, /x\^2 \+ y\^2/, 'the text of the formula is shown meanwhile');
+    assert.equal(loads, 1);
+    window.document.body.innerHTML = waiting;
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(window.document.querySelectorAll('.math-pending').length, 0, 'the waiting place is filled');
+    assert.ok(window.document.querySelector('.katex'), 'the formula is set');
+    assert.match(helpers.renderMarkdownWithFormulas('again $a+b$'), /class="katex"/, 'later formulas are set at once');
+    assert.equal(loads, 1);
+  } finally {
+    delete globalThis.document;
+    harness.window.close();
+  }
+});

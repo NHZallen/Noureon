@@ -4,7 +4,7 @@ import { collectFromMessages } from '../kernel/on-demand-loading.js';
 import { buildTimeDistributionChartData } from './time-distribution-chart-data.js';
 import { applyChartThemeDefaults } from '../../../utils/theme-colors.js';
 
-export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getConversations, runtimeConfigAccess, i18n, Chart }) {
+export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getConversations, runtimeConfigAccess, i18n, Chart: ChartOverride, loadChart }) {
     // The chart drawn last, destroyed before the next one is drawn.
     let timeDistChart = null;
     // When each message was sent, for all the conversations (read from the stored records a batch at a time when conversations are loaded on demand). Kept for a minute,
@@ -81,6 +81,7 @@ export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getC
         const allMessages = await sentMessages();
         const lang = runtimeConfigAccess.getUiLanguage();
         const { chartType, label, labels, data } = buildTimeDistributionChartData({ messages: allMessages, year, month, day, text: i18n[lang] });
+        const Chart = ChartOverride || await loadChart();
         const ctx = document.getElementById('time-distribution-chart').getContext('2d');
         if (timeDistChart) {
             timeDistChart.destroy();

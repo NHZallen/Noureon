@@ -149,8 +149,7 @@ export function createDeckDesignControl({
         return ready;
       });
     };
-    const idle = window?.requestIdleCallback;
-    if (typeof idle === 'function') idle.call(window, () => { void load().catch(() => {}); }, { timeout: 6000 });
+    // (The picker is not fetched while the browser is idle any more: most people never open it. It is fetched when the pointer or a finger comes to the button, or at the click.)
     button.addEventListener('pointerenter', warm);
     button.addEventListener('focus', warm);
     button.addEventListener('touchstart', warm, { passive: true });

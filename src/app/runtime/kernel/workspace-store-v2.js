@@ -272,7 +272,8 @@ export function createWorkspaceStoreV2({
   let chain = Promise.resolve();
   const exclusive = operation => {
     const result = chain.then(operation, operation);
-    chain = result.catch(() => {});
+    // (What the queue keeps is only the end of the operation, not what it gave: the conversations it read would stay in memory until the next operation.)
+    chain = result.then(() => {}, () => {});
     return result;
   };
 
