@@ -89,7 +89,7 @@ test('the mail says where the change came from: the device, the approximate plac
   assert.deepEqual(originLines({ ip: '2001:db8::1' }), ['IP address: 2001:db8::1']);
   assert.deepEqual(originLines({ device: 'A\r\nBcc: x@evil.test' }), ['Device: A Bcc: x@evil.test'], 'a line break cannot start another line');
   assert.doesNotMatch(securityNoticeMailFor({ event: 'passkey-added', time: TIME }).text, /Device:|IP address:|Location:/);
-  assert.ok(SECURITY_EVENTS['login-password-changed'] && SECURITY_EVENTS['signed-out-others']);
+  assert.ok(SECURITY_EVENTS['login-password-changed'] && SECURITY_EVENTS['signed-out-others'] && SECURITY_EVENTS['signed-out-all']);
 });
 
 test('the route reads the device, the address and the place from the request itself, not from its body', async () => {

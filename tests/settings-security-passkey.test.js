@@ -370,3 +370,27 @@ test('a passkey is named after the device and the browser it was made on, and a 
   await addPasskey(fixture);
   assert.equal(fixture.table.row.slots[1].label, `${base} 2`);
 });
+
+test('a passkey can be given a name of the person\'s own when it is added, and renamed later; the placeholder shows the name it gets otherwise; nothing secret is touched', async () => {
+  const fixture = await setup();
+  const base = deviceName(fixture.window.navigator.userAgent);
+  assert.equal(fixture.byId('security-passkey-name').placeholder, base);
+  fixture.byId('security-passkey-name').value = '  Allen\'s iPhone  ';
+  await addPasskey(fixture);
+  assert.equal(fixture.table.row.slots[0].label, 'Allen\'s iPhone');
+  assert.equal(fixture.byId('security-passkey-name').value, '', 'the box is emptied');
+
+  const sealedBefore = fixture.table.row.slots[0].ciphertext;
+  fixture.window.prompt = () => 'Work laptop';
+  fixture.byId('security-passkey-list').querySelector('[data-action="rename"]').click();
+  await flush();
+  assert.equal(fixture.table.row.slots[0].label, 'Work laptop');
+  assert.equal(fixture.table.row.slots[0].ciphertext, sealedBefore, 'the sealed text is as it was');
+  assert.equal(fixture.passkey.calls.readAny, 0, 'no passkey was asked');
+  assert.match(fixture.byId('security-passkey-list').textContent, /Work laptop/);
+
+  fixture.window.prompt = () => '   ';
+  fixture.byId('security-passkey-list').querySelector('[data-action="rename"]').click();
+  await flush();
+  assert.equal(fixture.table.row.slots[0].label, 'Work laptop', 'an empty name changes nothing');
+});

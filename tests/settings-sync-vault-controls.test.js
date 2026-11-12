@@ -783,3 +783,20 @@ test('sign out of other devices asks for the authenticator code first when one i
   await flush();
   assert.deepEqual(state.signedOut, ['others']);
 });
+
+test('sign out of all devices: this one too, after a confirmation; it forgets the last user, tells the owner and loads the page again', async () => {
+  let reloads = 0;
+  const { byId, state, events, window, values } = await mfaFixture();
+  values.set('chat_lastUser', 'supabase:user-123');
+  window.confirm = () => false;
+  byId('security-signout-all-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, [], 'declining does nothing');
+  window.confirm = () => true;
+  byId('security-signout-all-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, ['global']);
+  assert.deepEqual(events, ['signed-out-all']);
+  assert.equal(values.has('chat_lastUser'), false, 'the page asks for a sign-in after it loads');
+  assert.equal(reloads, 0, 'the real reload is the fixture\'s default and is not triggered here');
+});

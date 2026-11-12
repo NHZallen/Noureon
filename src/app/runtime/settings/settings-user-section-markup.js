@@ -13,6 +13,7 @@ export const getUserSectionElements = (document) => ({
   securityMessage: document.getElementById('security-message'),
   devicesCard: document.getElementById('security-devices-card'),
   signOutOthersButton: document.getElementById('security-signout-others-btn'),
+  signOutAllButton: document.getElementById('security-signout-all-btn'),
   passkeyCard: document.getElementById('security-passkey-card'),
   passkeyState: document.getElementById('security-passkey-state'),
   passkeyUnsupported: document.getElementById('security-passkey-unsupported'),
@@ -20,6 +21,7 @@ export const getUserSectionElements = (document) => ({
   passkeyInApp: document.getElementById('security-passkey-in-app'),
   passkeyAdd: document.getElementById('security-passkey-add'),
   passkeyPassword: document.getElementById('security-passkey-password'),
+  passkeyName: document.getElementById('security-passkey-name'),
   passkeyAddButton: document.getElementById('security-passkey-add-btn'),
   passkeyList: document.getElementById('security-passkey-list'),
   recoveryPasskeyButton: document.getElementById('sync-vault-recovery-passkey-btn'),
@@ -342,6 +344,10 @@ export function buildSecuritySectionMarkup(text) {
             <p id="security-passkey-no-vault" class="us-hint hidden" data-lang-key="securityPasskeyNoVault">先在上面設定同步密碼，才能新增通行金鑰。</p>
             <div id="security-passkey-add" class="hidden">
               ${passwordField({ id: 'security-passkey-password', label: '目前的同步密碼（新增或更新時需要）', labelKey: 'securityPasskeyPasswordLabel', autocomplete: 'current-password' })}
+              <div class="us-field">
+                <label for="security-passkey-name" data-lang-key="securityPasskeyNameLabel">這把通行金鑰的名稱（選填）</label>
+                <div class="us-input"><input id="security-passkey-name" type="text" maxlength="40" autocomplete="off" spellcheck="false"></div>
+              </div>
               <p class="us-hint" data-lang-key="securityPasskeyHint">建議多新增一把（例如另一台裝置），其中一把遺失時還能救援。</p>
             </div>
           </div>
@@ -394,11 +400,14 @@ export function buildSecuritySectionMarkup(text) {
               <span class="us-mark">${ICONS.devices}</span>
               <div class="us-head-text">
                 <div class="us-head-line"><h3 data-lang-key="securityDevicesTitle">登入的裝置</h3></div>
-                <p class="us-desc" data-lang-key="securityDevicesDesc">用在別的地方登入過的裝置遺失，或懷疑帳號被別人用過時，可以把其他所有裝置登出。這台裝置不受影響。</p>
+                <p class="us-desc" data-lang-key="securityDevicesDesc">用在別的地方登入過的裝置遺失，或懷疑帳號被別人用過時，可以把其他所有裝置登出（這台不受影響），也可以連這台一起登出。</p>
               </div>
             </div>
           </div>
-          <div class="us-foot is-end"><button id="security-signout-others-btn" type="button" class="us-btn is-danger" data-lang-key="securityDevicesSignOut">登出其他所有裝置</button></div>
+          <div class="us-foot">
+            <button id="security-signout-all-btn" type="button" class="us-link" data-lang-key="securityDevicesSignOutAll">登出所有裝置（包含這台）</button>
+            <button id="security-signout-others-btn" type="button" class="us-btn is-danger is-block" data-lang-key="securityDevicesSignOut">登出其他所有裝置</button>
+          </div>
         </section>
         <p class="us-footnote" data-lang-key="passwordKindsNote">登入密碼用來登入帳號；同步密碼用來加密你的 API 金鑰，只在你的裝置上使用，兩者不同。</p>
         <p id="security-message" class="us-message hidden"></p>

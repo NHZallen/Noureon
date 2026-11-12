@@ -16,6 +16,7 @@ export const SECURITY_EVENTS = Object.freeze({
   'authenticator-added': { subject: 'An authenticator app was turned on', title: 'An authenticator app was turned on', what: 'An authenticator app was turned on for your account.' },
   'authenticator-removed': { subject: 'An authenticator app was removed', title: 'An authenticator app was removed', what: 'The authenticator app was removed from your account.' },
   'login-password-changed': { subject: 'Your login password was changed', title: 'Your login password was changed', what: 'The password you sign in with was changed.' },
+  'signed-out-all': { subject: 'You were signed out of all your devices', title: 'Signed out of all devices', what: 'Every device, including the one that asked, was signed out of your account.' },
   'signed-out-others': { subject: 'You were signed out of your other devices', title: 'Signed out of other devices', what: 'Every other device was signed out of your account.' },
   'sync-password-changed': { subject: 'Your sync password was changed', title: 'Your sync password was changed', what: 'The sync password that protects your API keys was changed.' },
   'sync-password-reset': { subject: 'Your sync password was reset', title: 'Your sync password was reset', what: 'A forgotten sync password was replaced with a new one.' },

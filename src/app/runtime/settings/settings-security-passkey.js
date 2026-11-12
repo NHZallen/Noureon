@@ -87,12 +87,17 @@ export function createPasskeyControls({
       const meta = document.createElement('span');
       meta.className = 'us-pk-meta';
       meta.textContent = formatDate(slot.createdAt, window.document?.documentElement?.lang);
+      const rename = document.createElement('button');
+      rename.type = 'button';
+      rename.className = 'us-link';
+      rename.dataset.action = 'rename';
+      rename.textContent = text('securityPasskeyRename', '改名');
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'us-link';
       remove.dataset.action = 'remove';
       remove.textContent = text('securityPasskeyRemove', '移除');
-      item.append(name, meta, remove);
+      item.append(name, meta, rename, remove);
       list.append(item);
     }
   }
@@ -118,6 +123,7 @@ export function createPasskeyControls({
     show(elements.passkeyAdd, usable && Boolean(record));
     show(elements.passkeyAddButton.parentElement, usable && Boolean(record));
     show(elements.passkeyList, has);
+    elements.passkeyName.placeholder = nameForNewPasskey(); // what it is called when the person writes nothing
     elements.passkeyAddButton.textContent = has ? text('securityPasskeyAddAnother', '再新增一把通行金鑰') : text('securityPasskeyAdd', '新增通行金鑰');
     renderList();
   }
@@ -145,13 +151,27 @@ export function createPasskeyControls({
     const keyBytes = await openSyncVaultRecordKeyBytes(password, record); // the sync password is the right one, or this throws
     const slot = await createPasskeySlot({
       secret: made.secret, credentialId: made.credentialId, prfSalt: made.prfSalt, keyBytes,
-      label: nameForNewPasskey()
+      label: elements.passkeyName.value.trim().slice(0, 40) || nameForNewPasskey()
     });
     // The recovery the server kept for the person (the old way) is dropped now that the person has one of their own.
     state = { ...state, slots: await store.save(addRecoverySlot(state.slots, slot), { dropServerSlot: state.hasServerSlot }), hasServerSlot: false };
     elements.passkeyPassword.value = '';
+    elements.passkeyName.value = '';
     notifySecurity('passkey-added');
     showNotification(text('securityPasskeyAdded', '通行金鑰已新增。忘記同步密碼時，可以用它救援，也可以用它解鎖。'));
+    await refresh();
+  }
+
+  // The name is only a label in the open next to the sealed text (a passkey is told from another by it): changing it touches nothing that is secret.
+  async function rename(slotId) {
+    await ensure();
+    const slot = state.slots.find((entry) => entry.id === slotId);
+    if (!slot) return;
+    const answer = window.prompt(text('securityPasskeyRenamePrompt', '這把通行金鑰的新名稱'), slot.label || '');
+    const label = String(answer ?? '').trim().slice(0, 40);
+    if (!label || label === slot.label) return;
+    if (!await confirmIdentity({ onlyIfSet: true })) return;
+    state = { ...state, slots: await store.save(addRecoverySlot(state.slots, { ...slot, label, updatedAt: new Date().toISOString() })) };
     await refresh();
   }
 
@@ -219,9 +239,9 @@ export function createPasskeyControls({
     elements.passkeyCard.dataset.bound = 'true';
     elements.passkeyAddButton.addEventListener('click', guard(async () => { if (await confirmIdentity({ onlyIfSet: true })) await add(); }));
     elements.passkeyList.addEventListener('click', (event) => {
-      const target = event.target.closest?.('[data-action="remove"]');
+      const target = event.target.closest?.('[data-action]');
       const slotId = target?.closest('[data-slot-id]')?.dataset.slotId;
-      if (slotId) guard(() => remove(slotId))(event);
+      if (slotId) guard(() => (target.dataset.action === 'rename' ? rename(slotId) : remove(slotId)))(event);
     });
   }
 
