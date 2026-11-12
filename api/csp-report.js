@@ -1,6 +1,6 @@
-// Where the browser tells what the page's Content-Security-Policy would have blocked. The policy is only reported for now
-// (Content-Security-Policy-Report-Only in vercel.json); what is reported here, in the function logs, says what has to be allowed
-// before it can be enforced (security audit of 2026-10-18, L-3). Only the kind of each report is kept: the directive, the source that
+// Where the browser tells what the page's Content-Security-Policy blocked. The policy is enforced on every host of the app since 2026-11-13
+// (Content-Security-Policy in vercel.json; it was only reported before, and on the staging host enforced); what is reported here, in the
+// function logs, says what has to be allowed when something stops working (security audit of 2026-10-18, L-3). Only the kind of each report is kept: the directive, the source that
 // was blocked and the page, each without its path or query, so nothing a person wrote or opened is in the logs.
 
 export const config = {
