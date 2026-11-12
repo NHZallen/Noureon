@@ -1,3 +1,5 @@
+import { scrubApiKeys } from '../security/sensitive-config-redaction.js';
+
 export const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;',
   '<': '&lt;',
@@ -18,7 +20,8 @@ export function createTrustedHtmlSanitizer({ sanitizer } = {}) {
 }
 
 export const readErrorBody = async (response) => {
-  const text = await response.text();
+  // (A provider may repeat the key in its error: it is taken out before anything shows or saves the text.)
+  const text = scrubApiKeys(await response.text());
   try {
     return JSON.parse(text);
   } catch {
@@ -26,7 +29,7 @@ export const readErrorBody = async (response) => {
   }
 };
 
-export const getErrorMessage = (errorBody, fallback = 'The API request failed') => (
+export const getErrorMessage = (errorBody, fallback = 'The API request failed') => scrubApiKeys(
   errorBody?.error?.message ||
   errorBody?.message ||
   fallback

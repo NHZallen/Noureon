@@ -1,5 +1,5 @@
 import { normalizeApiKeyValue as defaultNormalizeApiKeyValue } from '../kernel/config-normalization.js';
-import { SENSITIVE_API_KEY_FIELDS } from './sensitive-config-redaction.js';
+import { SENSITIVE_API_KEY_FIELDS, registerApiKeySource } from './sensitive-config-redaction.js';
 
 const PROVIDER_KEY_ALIASES = Object.freeze({
   gemini: 'gemini',
@@ -46,6 +46,8 @@ export function createSensitiveConfigStore({
   normalizeApiKeyValue = defaultNormalizeApiKeyValue
 } = {}) {
   let apiKeys = normalizeApiKeys(initialApiKeys, normalizeApiKeyValue);
+  // What the provider's errors may repeat is taken out of the text before it is shown or saved (scrubApiKeys).
+  registerApiKeySource(() => apiKeys);
 
   function getApiKeys() {
     return { ...apiKeys };

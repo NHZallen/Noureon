@@ -59,8 +59,10 @@ test('report-only CSP covers current provider, auth, verification, P2P and serve
     'https://api.noureon.com',
     'https://generativelanguage.googleapis.com',
     'https://openrouter.ai',
-    'https://*.supabase.co',
-    'wss://*.supabase.co',
+    'https://clctveoosifoapbafhrl.supabase.co',
+    'wss://clctveoosifoapbafhrl.supabase.co',
+    'https://nnousccvghbkucloewrs.supabase.co',
+    'wss://nnousccvghbkucloewrs.supabase.co',
     'https://challenges.cloudflare.com',
     'https://0.peerjs.com',
     'wss://0.peerjs.com'
