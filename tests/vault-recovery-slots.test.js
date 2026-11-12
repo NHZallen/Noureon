@@ -128,3 +128,11 @@ test('a slot keeps the fingerprint of its vault record in the open, so one seale
   assert.equal(isSlotCurrent(sealed, { ...record, check: 'another-record' }), true);
   assert.equal(isSlotCurrent({ ...slot, recordFingerprint: undefined }, record), false, 'a slot with no fingerprint is not taken for current');
 });
+
+test('a refusal of the browser keeps its own name, so the page can show what kind it was', async () => {
+  const nav = { credentials: { create: async () => { throw Object.assign(new Error('x'), { name: 'NotAllowedError' }); } } };
+  await assert.rejects(
+    registerRecoveryPasskey({ rpId: 'noureon.test', userId: new Uint8Array(4), nav }),
+    (error) => error.code === 'passkey-cancelled' && error.detail === 'NotAllowedError'
+  );
+});

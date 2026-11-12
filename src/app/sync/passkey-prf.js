@@ -7,13 +7,16 @@ import { base64ToBytes, base64UrlToBytes, bytesToBase64, bytesToBase64Url } from
 
 const withCode = (error, code) => Object.assign(error, { code });
 
-// What went wrong, as a code the pages show in the person's language.
+// What went wrong, as a code the pages show in the person's language. `detail` is the browser's own name for it (NotAllowedError...), kept so a page can show it:
+// a browser says "not allowed" for a cancelled sheet, a tap that was too old, and a view that has no passkeys, and only the name tells them apart a little.
 const failure = (error) => {
   if (error?.code && String(error.code).startsWith('passkey-')) return error;
-  if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') return withCode(new Error('The passkey was not confirmed.'), 'passkey-cancelled');
-  if (error?.name === 'InvalidStateError') return withCode(new Error('This passkey is already registered.'), 'passkey-exists');
-  if (error?.name === 'NotSupportedError' || error?.name === 'SecurityError') return withCode(new Error('Passkeys cannot be used here.'), 'passkey-unsupported');
-  return withCode(new Error(error?.message || 'The passkey failed.'), 'passkey-failed');
+  const detail = error?.name || '';
+  const make = (message, code) => Object.assign(new Error(message), { code, detail });
+  if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') return make('The passkey was not confirmed.', 'passkey-cancelled');
+  if (error?.name === 'InvalidStateError') return make('This passkey is already registered.', 'passkey-exists');
+  if (error?.name === 'NotSupportedError' || error?.name === 'SecurityError') return make('Passkeys cannot be used here.', 'passkey-unsupported');
+  return make(error?.message || 'The passkey failed.', 'passkey-failed');
 };
 
 const secretOf = (results) => {

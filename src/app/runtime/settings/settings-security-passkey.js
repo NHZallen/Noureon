@@ -27,7 +27,8 @@ const ERROR_TEXTS = {
 /** The message in the person's language for the errors of this file (null for any other error). */
 export const passkeyErrorText = (error, text) => {
   const entry = ERROR_TEXTS[error?.code];
-  return entry ? text(entry[0], entry[1]) : '';
+  // The browser's own name for what happened goes after it, in brackets: it tells a support request what kind of refusal it was.
+  return entry ? `${text(entry[0], entry[1])}${error.detail ? ` (${error.detail})` : ''}` : '';
 };
 
 const formatDate = (value, locale) => {
@@ -42,6 +43,8 @@ export function createPasskeyControls({
 }) {
   let state = { slots: [], hasServerSlot: false, loaded: false };
   let availability = 'unknown';
+  // What the add flow needs, read when the card is drawn: the browser wants the passkey asked for right after the tap, and a wait before it can be refused.
+  let cached = { record: null, userId: '' };
   const rpId = () => window.location.hostname;
   const isCloud = () => getCurrentUser?.()?.authProvider === 'supabase';
   const show = (node, yes) => node?.classList.toggle('hidden', !yes);
@@ -104,6 +107,7 @@ export function createPasskeyControls({
     availability = await passkey.availability();
     await load();
     const record = await currentRecord();
+    cached = { record, userId: await userIdOf() };
     const has = state.slots.length > 0;
     const label = elements.passkeyState.querySelector('.us-state-text');
     if (label) label.textContent = has ? text('securityPasskeyStateOn', '已設定') : text('securityPasskeyStateOff', '尚未設定');
@@ -123,12 +127,11 @@ export function createPasskeyControls({
     const elements = getElements();
     const password = elements.passkeyPassword.value;
     if (!password) throw new Error(text('securityPasskeyPasswordRequired', '請輸入目前的同步密碼。'));
-    const record = await currentRecord();
+    const record = cached.record || await currentRecord();
     if (!record) throw Object.assign(new Error(), { code: 'vault-not-configured' });
-    await ensure();
     if (state.slots.length >= 8) throw Object.assign(new Error(), { code: 'recovery-slots-full' });
     if (!await requireAal2()) return;
-    const id = await userIdOf();
+    const id = cached.userId || await userIdOf();
     const made = await passkey.register({
       rpId: rpId(), userId: new TextEncoder().encode(id), userName: user.email || user.displayName || 'Noureon',
       excludeCredentialIds: state.slots.map((slot) => slot.credentialId)
