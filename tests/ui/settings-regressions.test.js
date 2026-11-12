@@ -99,7 +99,9 @@ test('app typography uses restrained GPT-like system weights and mobile settings
   assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-group-title[^{]*\{[^}]*font-size:\s*0\.95rem\s!important;/s);
   assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-list-item,\s*#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*font-size:\s*1\.06rem\s*!important;[^}]*min-height:\s*3\.85rem\s*!important;/s);
   assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon[^{]*\{[^}]*width:\s*2\.05rem\s*!important;[^}]*height:\s*2\.05rem\s*!important;/s);
-  assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon\s+svg,\s*#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon\s+svg\s+\*[^{]*\{[^}]*width:\s*1\.42rem\s!important;[^}]*height:\s*1\.42rem\s!important;/s);
+  // Only the svg takes the size: the same width on `svg *` replaces the width of a rect inside it and clips the icon (the shield, the model icon).
+  assert.match(css, /#settings-modal\s+#settings-mobile-list\s+\.settings-mobile-row-icon\s+svg\s*\{[^}]*width:\s*1\.42rem\s!important;[^}]*height:\s*1\.42rem\s!important;/s);
+  assert.doesNotMatch(css, /\.settings-mobile-row-icon\s+svg\s+\*[^{]*\{[^}]*(?<![-\w])(width|height):/s);
   assert.match(css, /#settings-mobile-title[^{]*\{[^}]*font-weight:\s*var\(--astra-font-semibold\)\s*!important;/s);
   assert.match(css, /\.settings-mobile-row-icon\s+svg,\s*\.settings-mobile-row-icon\s+svg\s+\*[^{]*\{[^}]*stroke-width:\s*1\.65\s*!important;/s);
   assert.match(css, /#settings-mobile-back-btn\s+svg,\s*#settings-mobile-back-btn\s+svg\s+\*[^{]*\{[^}]*stroke-width:\s*2\s!important;/s);
