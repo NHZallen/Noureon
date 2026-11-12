@@ -607,8 +607,13 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   window.addEventListener('astra:sync-vault-unlocked', handleSyncVaultUnlocked);
   // The unlock kept on this device (until the person locks or signs out): the vault opens by itself, so a new visit does not ask for the sync password again.
   const restoredUnlock = await restoreRememberedSyncVault({ storage, username });
-  if (bootstrapQueue?.takePendingVaultUnlock?.() || restoredUnlock) {
+  // The lock at the top right and the unlock dialog of the protection of the keys with a passkey (for an account that turned it on; otherwise nothing shows).
+  void import('../runtime/security/local-key-runtime.js').then((module) => module.startLocalKeyRuntime({ window, storage, username, supabase })).catch((error) => console.warn('The protection of the keys did not start.', error));
+  if (bootstrapQueue?.takePendingVaultUnlock?.()) {
     await handleSyncVaultUnlocked({ detail: { username } });
+  } else if (restoredUnlock) {
+    // The page is told like for any unlock (it reads the API keys that were locked when it started, and the sync goes on).
+    window.dispatchEvent(new window.CustomEvent('astra:sync-vault-unlocked', { detail: { username } }));
   }
 
   const handleWorkspaceRealtimeChange = payload => {

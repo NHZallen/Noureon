@@ -145,3 +145,18 @@ export function createLocalKeyProtection({ storage, getUsername, area = globalTh
     hasVault: async () => Boolean(await readSyncVaultRecord(storage, username()))
   };
 }
+
+/**
+ * Before the sync vault is removed (clearing the sync password, starting over): the keys sealed with its data key would be lost with it. With the vault open they are
+ * sealed with the key of the device again (nothing is lost); with it locked (the password is forgotten) they cannot be read, so they are dropped, as the keys in the cloud
+ * are on starting over. Either way the protection is off after it.
+ */
+export async function releaseKeysBeforeVaultRemoval({ storage, username, area = globalThis.localStorage, target = globalThis.window } = {}) {
+  if (!username || !readProtection(username, area)) return;
+  if (isSyncVaultUnlocked(username)) {
+    await createLocalKeyProtection({ storage, getUsername: () => username, area, target }).disable();
+    return;
+  }
+  await storage.removeItem(`${SENSITIVE_KEY_PREFIX}${username}`);
+  writeProtection(username, null, area);
+}

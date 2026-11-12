@@ -10,6 +10,7 @@ const PAGES = [
   { id: 'sync', card: 'security-sync-card', title: ['cloudSyncTitle', '雲端同步'], desc: ['securitySyncRowDesc', '同步密碼與雲端同步'], group: 'signin' },
   { id: 'passkey', card: 'security-passkey-card', title: ['securityPasskeyTitle', '通行金鑰'], desc: ['securityPasskeyDesc', '用 Face ID 或指紋救回與解鎖'], group: 'protection' },
   { id: 'totp', card: 'security-totp-card', title: ['securityTotpTitle', '驗證器'], desc: ['securityTotpDesc', '用驗證器 app 的六位數保護重要的變更。'], group: 'protection' },
+  { id: 'keyguard', card: 'security-keyguard-card', title: ['securityKeyguardTitle', '本機金鑰保護'], desc: ['securityKeyguardDesc', '用通行金鑰鎖住這台裝置上的 API 金鑰。'], group: 'protection' },
   { id: 'devices', card: 'security-devices-card', title: ['securityDevicesTitle', '登入的裝置'], desc: ['securityDevicesDesc', '查看哪些裝置已登入，或把它們登出。'], group: 'sessions' }
 ];
 const GROUPS = [

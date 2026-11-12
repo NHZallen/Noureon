@@ -11,11 +11,18 @@ import {
   resetSyncVaultPasswordWithKeyBytes,
   unlockSyncVault
 } from '../../sync/sync-vault.js';
+import { readProtection } from '../security/local-key-rules.js';
 
 export function bindSyncVaultActions(elements, {
   window, storage, getCurrentUser, showNotification, text, isBusy, setBusy, notifyError, requireMatchingPasswords, refreshSyncVaultControls, recoveryStore,
   setRecoveryOpen, confirmIdentity, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
+  // The keys sealed by the protection with a passkey are released before the vault that holds their key goes (security/local-key-protection.js).
+  const releaseKeys = async (username) => {
+    if (!readProtection(username)) return;
+    const { releaseKeysBeforeVaultRemoval } = await import('../security/local-key-protection.js');
+    await releaseKeysBeforeVaultRemoval({ storage, username, area: window.localStorage, target: window });
+  };
   // A form folds away or a panel changes and what is below moves up under the same place of the page: the person is taken back to the sync password, where the result is.
   const stayAtSync = () => elements.status?.scrollIntoView?.({ block: 'center' });
   elements.createButton.addEventListener('click', async () => {
@@ -117,6 +124,7 @@ export function bindSyncVaultActions(elements, {
       if (!await confirmIdentity()) return;
       setBusy(true);
       await recoveryStore.remove();
+      await releaseKeys(user.username);
       await removeSyncVault({ storage, username: user.username });
       await queueCloudSyncKind('vault');
       await queueCloudSyncKind('sensitive');
@@ -180,6 +188,7 @@ export function bindSyncVaultActions(elements, {
       await openSyncVaultRecordKeyBytes(currentPassword, await readSyncVaultRecord(storage, user.username));
       if (!await confirmIdentity()) return;
       await recoveryStore.remove();
+      await releaseKeys(user.username);
     } catch (error) {
       notifyError(error);
       return;

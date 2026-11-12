@@ -23,6 +23,7 @@ const ERROR_TEXTS = {
   'recovery-slot-unreadable': ['securityPasskeyUnreadable', '這把通行金鑰打不開救援資料。'],
   'vault-key-mismatch': ['securityPasskeyMismatch', '這把通行金鑰屬於另一個金鑰庫（同步密碼清除或重新開始過）。請用同步密碼解鎖，再重新新增通行金鑰。'],
   'recovery-not-saved': ['securityPasskeyNotSaved', '救援資料沒有儲存。若已設定驗證器，請先輸入驗證碼。'],
+  'keyguard-needs-passkey': ['securityKeyguardNeedsPasskey', '本機金鑰保護開啟時，不能移除最後一把通行金鑰。請先關閉保護。'],
   'passkey-failed': ['securityPasskeyFailed', '通行金鑰操作失敗。']
 };
 
@@ -39,7 +40,7 @@ const formatDate = (value, locale) => {
 };
 
 export function createPasskeyControls({
-  document, window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity, notifySecurity = () => {},
+  document, window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity, notifySecurity = () => {}, isKeyguardOn = () => false,
   passkey = { availability: passkeyPrfAvailability, register: registerRecoveryPasskey, readAny: readAnyRecoveryPasskey },
   store = createRecoverySlotsStore({ getSupabase })
 }) {
@@ -172,6 +173,8 @@ export function createPasskeyControls({
   async function remove(slotId) {
     await ensure();
     const last = state.slots.length === 1;
+    // With the protection of the keys on, the passkey is the way to unlock them: the last one stays until the protection is off.
+    if (last && isKeyguardOn()) throw Object.assign(new Error(), { code: 'keyguard-needs-passkey' });
     if (!window.confirm(last
       ? text('securityPasskeyRemoveLastConfirm', '這是最後一把。移除後，忘記同步密碼就無法救援，只能重新開始。確定要移除嗎？')
       : text('securityPasskeyRemoveConfirm', '移除這把通行金鑰的救援資料？（裝置上的通行金鑰本身不會被刪除。）'))) return;
@@ -227,5 +230,5 @@ export function createPasskeyControls({
     elements.passkeyAddButton.addEventListener('click', guard(async () => { if (await confirmIdentity({ onlyIfSet: true })) await add(); }));
   }
 
-  return { bind, refresh, openKey, unlockWithPasskey, syncPanels, hasSlots: async () => (await ensure()).slots.length > 0 };
+  return { bind, refresh, availability: () => availability, openKey, unlockWithPasskey, syncPanels, hasSlots: async () => (await ensure()).slots.length > 0 };
 }

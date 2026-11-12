@@ -142,3 +142,7 @@
   #settings-modal #security-section .sp-chevron { flex: none; display: inline-flex; }
   #settings-modal #security-section :is(.sp-heading, .sp-chevron, .sp-chevron svg) { color: var(--text-secondary) !important; }
 }
+
+/* The days an unlock of the keys lasts (Security and sign-in → Protect the keys on this device). */
+#settings-modal :is(#user-section, #security-section) .us-select { height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: transparent; color: var(--text-primary); font: inherit; font-size: 1rem; }
+#settings-modal :is(#user-section, #security-section) .us-field.hidden { display: none; }

@@ -176,3 +176,51 @@ test('a failed re-seal undoes the choice and leaves the keys as they were', asyn
   assert.equal(await f.storage.getItem(KEY), KEYS);
   assert.match(f.rawOf(), /^nd1\./);
 });
+
+test('clearing the sync password with the protection on seals the keys with the key of the device first, so nothing is lost; starting over (locked) drops them', async () => {
+  const { releaseKeysBeforeVaultRemoval } = await import('../../src/app/runtime/security/local-key-protection.js');
+  const f = await fixture();
+  await f.protection.enable({ days: 7 });
+  await releaseKeysBeforeVaultRemoval({ storage: f.storage, username: USER, area: f.localStorage, target: f.window });
+  assert.equal(f.protection.isProtected(), false);
+  assert.match(f.rawOf(), /^nd1\./);
+  assert.equal(await f.storage.getItem(KEY), KEYS, 'the keys are still there, sealed with the key of the device');
+
+  const g = await fixture();
+  await g.protection.enable({ days: 7 });
+  await g.protection.lockNow();
+  await releaseKeysBeforeVaultRemoval({ storage: g.storage, username: USER, area: g.localStorage, target: g.window });
+  assert.equal(g.protection.isProtected(), false);
+  assert.equal(g.rawOf(), undefined, 'the sealed keys cannot be read without the vault, so they are dropped');
+
+  const none = await fixture();
+  await releaseKeysBeforeVaultRemoval({ storage: none.storage, username: USER, area: none.localStorage, target: none.window });
+  assert.match(none.rawOf(), /^nd1\./, 'no protection: nothing is touched');
+});
+
+// Where a key or the sync password could end up by mistake: the storage of the page, the choice kept in localStorage, the events, the remembered unlock.
+test('no key and no sync password is written in the clear anywhere: not with the protection off, not on, not locked, not unlocked', async () => {
+  const SECRETS = ['AIzaSy-secret-gemini', 'sk-or-secret', 'a long sync password'];
+  const f = await fixture();
+  const everything = () => {
+    const rows = [];
+    for (const database of f.idb.databases.values()) for (const store of database.stores.values()) for (const row of store.rows.values()) rows.push(row);
+    const keyDatabase = f.idb.databases.get('NoureonDeviceKey');
+    // (The key of the device is an object that the browser keeps; its bytes are not in the rows at all.)
+    return JSON.stringify([rows.map((row) => (row.key instanceof Object && 'type' in row.key ? { ...row, key: '[CryptoKey]' } : row)), [...f.area.entries()], keyDatabase ? 'has-device-key' : '', f.events]);
+  };
+  const assertClean = (when) => { for (const secret of SECRETS) assert.equal(everything().includes(secret), false, `${when}: ${secret}`); };
+
+  assertClean('protection off');
+  await f.protection.enable({ days: 7 });
+  assertClean('protection on, unlocked');
+  const remembered = JSON.parse(await f.storage.getItem(getRememberedSyncVaultStorageKey(USER)));
+  assert.ok(remembered.k, 'what is remembered is the data key of the vault, not the password');
+  assert.equal(JSON.stringify(f.idb.databases.get('ChatAppDB').stores.get('keyValue').rows.get(getRememberedSyncVaultStorageKey(USER))).includes(remembered.k), false, 'and it is sealed on disk');
+  await f.protection.lockNow();
+  assertClean('locked');
+  await f.protection.unlockWithPassword('a long sync password');
+  assertClean('unlocked again');
+  await f.protection.disable();
+  assertClean('protection off again');
+});

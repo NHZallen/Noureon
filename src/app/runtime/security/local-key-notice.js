@@ -8,7 +8,7 @@ export function startLocalKeyNotice({ window, getText, showNotification }) {
   const tell = () => {
     if (told) return;
     told = true;
-    showNotification(getText('localKeysUnreadable', '這台裝置上保存的 API 金鑰讀不到（瀏覽器資料可能被清除過）。請從雲端同步取回，或重新輸入金鑰。'), 'error');
+    showNotification(getText('localKeysUnreadable', 'API 金鑰讀不到，請重新輸入。'), 'error');
   };
   window?.addEventListener?.('noureon:local-keys-unreadable', tell);
   // A key that was found unreadable before this started is told now.

@@ -419,3 +419,18 @@ test('a passkey can be renamed later; only the label changes, nothing secret is 
   await flush();
   assert.equal(fixture.table.row.slots[0].label, 'Work laptop', 'an empty name changes nothing');
 });
+
+test('with the protection of the keys on, the last passkey cannot be removed (it is the way to unlock them), and another one can', async () => {
+  const fixture = await setup();
+  await addPasskey(fixture);
+  fixture.window.localStorage.setItem(`noureonLocalKeyProtection_v1_${user.username}`, JSON.stringify({ enabled: true, days: 7 }));
+  chooseRowAction(fixture, 'remove');
+  await flush();
+  assert.equal(fixture.table.row.slots.length, 1, 'the last one stays');
+  assert.match(fixture.notices.at(-1).message, /不能移除最後一把/);
+
+  fixture.window.localStorage.removeItem(`noureonLocalKeyProtection_v1_${user.username}`);
+  chooseRowAction(fixture, 'remove');
+  await flush();
+  assert.equal(fixture.table.row.slots.length, 0, 'with the protection off it goes');
+});

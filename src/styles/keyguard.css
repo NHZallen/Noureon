@@ -1,0 +1,95 @@
+/* The unlock of the keys kept on this device (security/local-key-runtime.js): the small lock at the top right and the dialog it opens. Colours are the names of tokens.css. */
+.keyguard-lock {
+  flex: none;
+  margin-left: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Where the page has no header to put it in (it is found by the button of the left menu), it floats at the top right. */
+.keyguard-lock.is-floating {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
+  right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
+  z-index: 60;
+  margin: 0;
+}
+.keyguard-lock.hidden { display: none; }
+.keyguard-lock:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) { .keyguard-lock:hover { background: var(--hover-bg); } }
+.keyguard-lock svg { width: 1.1rem; height: 1.1rem; }
+
+.keyguard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--scrim);
+  animation: keyguard-fade 150ms var(--ease-out);
+}
+.keyguard-card {
+  width: min(24rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  animation: keyguard-rise 180ms var(--ease-out);
+}
+.keyguard-title { margin: 0; font-size: 1rem; font-weight: 500; }
+.keyguard-desc, .keyguard-error { margin: 0; font-size: 0.875rem; color: var(--text-secondary); }
+.keyguard-error { color: var(--text-primary); }
+.keyguard-error.hidden { display: none; }
+.keyguard-field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.875rem; }
+.keyguard-field input {
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 1rem;
+}
+.keyguard-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+.keyguard-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.keyguard-btn.is-primary { background: var(--gpt-primary-action-bg, var(--text-primary)); color: var(--gpt-primary-action-text, var(--modal-bg)); border-color: transparent; }
+.keyguard-btn.is-block { width: 100%; }
+.keyguard-btn.hidden { display: none; }
+.keyguard-btn:active { transform: scale(0.97); }
+.keyguard-btn:disabled { opacity: 0.6; cursor: default; }
+@media (hover: hover) and (pointer: fine) { .keyguard-btn:not(.is-primary):hover:not(:disabled) { background: var(--hover-bg); } }
+@keyframes keyguard-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes keyguard-rise { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+html[data-motion="reduced"] .keyguard-overlay, html[data-motion="reduced"] .keyguard-card { animation: none; }

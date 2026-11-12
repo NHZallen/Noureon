@@ -156,6 +156,10 @@
     {
       "path": "src/app/ui/greeting/greeting-texts.js",
       "table": "GREETING_TEXTS"
+    },
+    {
+      "path": "src/data/i18n/parts/keyguard.js",
+      "table": "default"
     }
   ]
 }

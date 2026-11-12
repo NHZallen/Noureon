@@ -11,6 +11,7 @@ import { mountSecurityPage, togglePasswordEye } from './settings-security-page.j
 import { createRecoverySlotsStore } from './settings-vault-recovery-slots-store.js';
 import { createAuthenticatorControls } from './settings-security-authenticator.js';
 import { createPasskeyControls } from './settings-security-passkey.js';
+import { readProtection } from '../security/local-key-rules.js';
 import { createSecurityErrors } from './settings-security-errors.js';
 import { createIdentityConfirmation } from './settings-identity-confirmation.js';
 import { createSecurityNotifier } from './settings-security-notice.js';
@@ -115,7 +116,11 @@ export function createSettingsSyncVaultControls({
   const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity });
   // The passkeys ask the person to confirm through the same function the other actions use, which asks them (the passkeys) in turn.
   const identity = {};
-  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity, ...(passkeyApi && { passkey: passkeyApi }) });
+  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity, isKeyguardOn: () => keyguard?.isProtected(), ...(passkeyApi && { passkey: passkeyApi }) });
+  // The card of the protection of the keys with a passkey is loaded when the settings draw it (it is only for the people who use it).
+  let keyguardLoaded = null;
+  const keyguardApi = () => (keyguardLoaded ||= import('./settings-security-keyguard.js').then((module) => module.createKeyguardControls({ window, storage, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), passkeys })));
+  const keyguard = { bind: () => void keyguardApi().then((api) => api.bind()), refresh: async () => (await keyguardApi()).refresh(), isProtected: () => Boolean(readProtection(getCurrentUser?.()?.username, window.localStorage)) };
   identity.confirm = createIdentityConfirmation({ authenticator, passkeys });
   const devices = createDevicesControls({ window, storage, reloadPage, scheduleTimeout, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity });
 
@@ -204,9 +209,11 @@ export function createSettingsSyncVaultControls({
     await refreshAccountLinking();
     authenticator.bind();
     passkeys.bind();
+    keyguard.bind();
     devices.bind();
     devices.refresh().catch(() => {});
     void authenticator.refresh();
+    keyguard.refresh().catch(() => {});
     passkeys.refresh().catch((error) => globalThis.console?.warn?.('The passkey card could not be drawn.', error));
     const user = getCurrentUser?.();
     const elements = getElements();

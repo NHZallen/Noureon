@@ -1,5 +1,5 @@
 import { SERVICES, getService } from '../runtime/services.js';
-import { readProtection } from '../runtime/security/local-key-rules.js';
+import { readProtection, writeProtection } from '../runtime/security/local-key-rules.js';
 const VAULT_VERSION = 1; // the version of the encrypted API keys (the payload), which did not change
 const LEGACY_RECORD_VERSION = 1;
 const RECORD_VERSION = 2;
@@ -364,6 +364,7 @@ export async function removeSyncVault({ storage, username } = {}) {
   await storage.removeItem(getSyncVaultRotationStorageKey(username));
   await storage.removeItem(getSyncVaultBackupStorageKey(username));
   await forgetRememberedSyncVault({ storage, username });
+  try { writeProtection(username, null); } catch { /* no localStorage */ }
   await markVaultCloudSyncPending();
   unlockedVaultKeys.delete(username);
   previousVaultKeys.delete(username);

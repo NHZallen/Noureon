@@ -27,6 +27,14 @@ export const getUserSectionElements = (document) => ({
   passkeyList: document.getElementById('security-passkey-list'),
   recoveryPasskeyButton: document.getElementById('sync-vault-recovery-passkey-btn'),
   totpCard: document.getElementById('security-totp-card'),
+  keyguardCard: document.getElementById('security-keyguard-card'),
+  keyguardSwitch: document.getElementById('security-keyguard-switch'),
+  keyguardOptions: document.getElementById('security-keyguard-options'),
+  keyguardDays: document.getElementById('security-keyguard-days'),
+  keyguardNote: document.getElementById('security-keyguard-note'),
+  keyguardFoot: document.getElementById('security-keyguard-foot'),
+  keyguardState: document.getElementById('security-keyguard-state'),
+  keyguardLock: document.getElementById('security-keyguard-lock-btn'),
   totpOff: document.getElementById('security-totp-off'),
   totpSetup: document.getElementById('security-totp-setup'),
   totpOn: document.getElementById('security-totp-on'),
@@ -102,6 +110,7 @@ function markupKit(text) {
   const ICONS = {
     mail: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>',
     key: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
     shield: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8.2 7 10 4-1.8 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>',
     copy: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 19z"/></svg>',
@@ -373,6 +382,37 @@ export function buildSecuritySectionMarkup(text) {
               <button id="security-totp-cancel-btn" type="button" class="us-link" data-lang-key="securityTotpCancel">取消</button>
               <button id="security-totp-confirm-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityTotpConfirm">啟用驗證器</button>
             </div>
+          </div>
+        </section>
+        <section id="security-keyguard-card" class="us-card hidden" data-page="keyguard">
+          <div class="us-row">
+            <span class="us-mark">${ICONS.lock}</span>
+            <div class="us-row-text">
+              <span class="us-row-title" data-lang-key="securityKeyguardTitle">本機金鑰保護</span>
+              <span class="us-row-desc" data-lang-key="securityKeyguardDesc">用通行金鑰鎖住這台裝置上的 API 金鑰。</span>
+            </div>
+          </div>
+          <div class="us-panel">
+            <label class="us-check">
+              <input id="security-keyguard-switch" type="checkbox">
+              <span><span data-lang-key="securityKeyguardSwitch">開啟保護</span><small data-lang-key="securityKeyguardSwitchHint">開啟後，API 金鑰要先解鎖才讀得到。</small></span>
+            </label>
+            <div id="security-keyguard-options" class="us-field hidden">
+              <label for="security-keyguard-days" data-lang-key="securityKeyguardDaysLabel">多久重新認證一次</label>
+              <select id="security-keyguard-days" class="us-select">
+                <option value="0" data-lang-key="securityKeyguardDays0">每次開啟</option>
+                <option value="1" data-lang-key="securityKeyguardDays1">1 天</option>
+                <option value="3" data-lang-key="securityKeyguardDays3">3 天</option>
+                <option value="7" data-lang-key="securityKeyguardDays7">7 天</option>
+                <option value="14" data-lang-key="securityKeyguardDays14">14 天</option>
+                <option value="30" data-lang-key="securityKeyguardDays30">30 天</option>
+              </select>
+            </div>
+          </div>
+          <p id="security-keyguard-note" class="us-note hidden"></p>
+          <div id="security-keyguard-foot" class="us-foot hidden">
+            <span id="security-keyguard-state" class="us-hint"></span>
+            <button id="security-keyguard-lock-btn" type="button" class="us-btn" data-lang-key="securityKeyguardLock">現在鎖定</button>
           </div>
         </section>
         <section id="security-devices-card" class="us-card hidden" data-page="devices">
