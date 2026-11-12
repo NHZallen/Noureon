@@ -132,8 +132,7 @@ test('the user page has the identity card, folded password settings and a place 
   assert.ok(document.getElementById('user-avatar-input'));
   assert.equal(document.getElementById('login-password-panel').classList.contains('hidden'), true, 'the password settings start folded');
   assert.equal(document.getElementById('login-password-signout-all').checked, true, 'signing out of every device is the default');
-  assert.equal(document.getElementById('sync-vault-turnstile-slot').classList.contains('hidden'), true, 'no check, no box');
-  assert.ok(document.getElementById('sync-vault-turnstile-anchor'), 'the check goes into its own box');
+  assert.equal(document.getElementById('sync-vault-turnstile-slot'), null, 'forgetting the sync password needs no human check any more: nothing is sent by Email');
   for (const id of ['sync-vault-manage-toggle', 'sync-vault-manage-panel', 'login-password-row', 'login-password-toggle']) assert.ok(document.getElementById(id), id);
 });
 
@@ -500,55 +499,56 @@ test('a new Email is told to wait for the mail, as before', async () => {
   assert.equal(values.has('chat_pendingCloudLink_v1'), true, 'the local data waits for the confirmation');
 });
 
-// Start over: the password is forgotten and nothing else can open the vault. The Email sign-in of the recovery is the proof (no current password).
-const startOverFixture = async ({ serverAnswer }) => {
+// Start over: the password is forgotten and nothing else can open the vault. Nothing is sent by Email; the person confirms like for any change that is hard to undo.
+const startOverFixture = async ({ deleteError = null } = {}) => {
   const requests = [];
-  const supabase = { auth: { getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
+  const supabase = {
+    from: (table) => ({ delete: () => ({ eq: async () => { requests.push({ table, action: 'delete' }); return { error: deleteError }; } }) }),
+    auth: { getSession: async () => ({ data: { session: { access_token: 'token-1', user: { id: 'user-1' } } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) }
+  };
   const notices = [];
   const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }) });
   fixture.window.confirm = () => true;
-  fixture.window.fetch = async (url, init) => { requests.push({ url, body: JSON.parse(init.body) }); return serverAnswer(); };
   fixture.setCurrentUser(cloudUser);
   await createAndUnlockSyncVault({ storage: fixture.storage, username: cloudUser.username, password: 'old-password-123' });
-  await fixture.storage.setItem(`chatSyncVaultRecovery_v1_${cloudUser.username}`, 'state-1');
-  fixture.window.happyDOM.setURL('https://noureon.test/?vault_recovery=state-1');
+  lockSyncVault(cloudUser.username);
   fixture.controls.ensureSyncVaultSettings();
   await fixture.controls.refreshSyncVaultControls();
+  fixture.window.document.getElementById('sync-vault-forgot-btn').click();
+  await new Promise((resolve) => setTimeout(resolve, 30));
   return { ...fixture, requests, notices };
 };
-const answer = (status, body) => () => ({ ok: status < 400, status, json: async () => body });
 
-test('start over: the recovery panel offers it, asks the server to delete the recovery data with no password, and clears the local vault', async () => {
-  const { window, requests, notices, values } = await startOverFixture({ serverAnswer: answer(200, { deleted: true }) });
+test('start over: "forgot" opens the recovery panel with nothing sent, and starting over removes the cloud recovery data and clears the local vault', async () => {
+  const { window, requests, notices, values } = await startOverFixture();
   assert.equal(window.document.getElementById('sync-vault-recovery-panel').classList.contains('hidden'), false);
+  assert.equal(window.document.getElementById('sync-vault-unlock-panel').classList.contains('hidden'), true);
   assert.ok(window.document.getElementById('sync-vault-start-over-btn'));
   assert.ok(values.has(`chatSyncVault_v1_${cloudUser.username}`));
+  assert.equal(requests.length, 0, 'opening the panel sends nothing');
 
   window.document.getElementById('sync-vault-start-over-btn').click();
   await new Promise((resolve) => setTimeout(resolve, 30));
 
-  assert.deepEqual(requests.map((request) => request.body), [{ action: 'delete' }], 'no password is sent: the Email sign-in is the proof');
+  assert.deepEqual(requests, [{ table: 'user_vault_recovery', action: 'delete' }]);
   assert.equal(values.has(`chatSyncVault_v1_${cloudUser.username}`), false, 'the vault record of this device is gone');
-  assert.equal(values.has(`chatSyncVaultRecovery_v1_${cloudUser.username}`), false, 'the recovery state is gone');
-  assert.equal(new URL(window.location.href).searchParams.has('vault_recovery'), false, 'and the address is clean');
   assert.equal(window.document.getElementById('sync-vault-recovery-panel').classList.contains('hidden'), true);
   assert.equal(window.document.getElementById('sync-vault-create-panel').classList.contains('hidden'), false, 'a new sync password can be made now');
   assert.match(notices.at(-1).message, /重新開始/);
 });
 
-test('start over: an Email sign-in that is too old changes nothing and says to ask for a new verification Email', async () => {
-  const { window, notices, values } = await startOverFixture({ serverAnswer: answer(403, { error: 'The current sync password is required', code: 'current_password_required' }) });
+test('start over: a failure to remove the cloud data changes nothing here and says so', async () => {
+  const { window, notices, values } = await startOverFixture({ deleteError: new Error('Could not remove it.') });
 
   window.document.getElementById('sync-vault-start-over-btn').click();
   await new Promise((resolve) => setTimeout(resolve, 30));
 
   assert.ok(values.has(`chatSyncVault_v1_${cloudUser.username}`), 'the vault is kept');
   assert.equal(notices.at(-1).type, 'error');
-  assert.match(notices.at(-1).message, /逾時/);
 });
 
 test('start over: declining the confirmation does nothing', async () => {
-  const { window, requests, values } = await startOverFixture({ serverAnswer: answer(200, { deleted: true }) });
+  const { window, requests, values } = await startOverFixture();
   window.confirm = () => false;
 
   window.document.getElementById('sync-vault-start-over-btn').click();
@@ -620,7 +620,8 @@ const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLeve
     { id: 's-mac', created_at: '2026-11-01T10:00:00Z', last_active_at: '2026-11-11T09:30:00Z', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', ip: '198.51.100.4', is_current: false }
   ];
   state.revoked = [];
-  const supabase = { rpc: async (name, args) => {
+  const requests = [];
+  const supabase = { from: (table) => ({ delete: () => ({ eq: async () => { requests.push({ table, action: 'delete' }); return { error: null }; } }) }), rpc: async (name, args) => {
     if (name === 'list_my_sessions') return { data: state.sessions, error: null };
     if (name === 'revoke_my_session') {
       if (state.requireCode && state.aal.currentLevel !== 'aal2') return { data: null, error: { message: 'mfa_required' } };
@@ -629,13 +630,11 @@ const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLeve
       return { data: found, error: null };
     }
     return { data: null, error: { message: 'unknown' } };
-  }, auth: { mfa, signOut: async (options) => { state.signedOut.push(options?.scope); return { error: null }; }, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
+  }, auth: { mfa, signOut: async (options) => { state.signedOut.push(options?.scope); return { error: null }; }, getSession: async () => ({ data: { session: { access_token: 'token-1', user: { id: 'user-1' } } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
   const notices = [];
   const events = [];
   const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }), notifySecurity: (event, target) => { events.push(event); if (target) events.targets = [...(events.targets || []), target]; } });
   fixture.window.confirm = () => true;
-  const requests = [];
-  fixture.window.fetch = async (url, init) => { requests.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ deleted: true }) }; };
   fixture.setCurrentUser(cloudUser);
   await createAndUnlockSyncVault({ storage: fixture.storage, username: cloudUser.username, password: 'old-password-123' });
   fixture.controls.ensureSyncVaultSettings();
@@ -692,6 +691,9 @@ test('authenticator: cancelling the setup removes the unfinished factor', async 
   assert.equal(byId('security-totp-off').classList.contains('hidden'), false);
 });
 
+// The sync password is checked first (a key is derived from it), which takes a moment.
+const slowFlush = () => new Promise((resolve) => setTimeout(resolve, 900));
+
 test('authenticator: with one set up, the six digits are asked for before the recovery is changed, and the action goes on only after they are right', async () => {
   const { byId, state, requests, values } = await mfaFixture({
     factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }],
@@ -701,23 +703,23 @@ test('authenticator: with one set up, the six digits are asked for before the re
 
   byId('sync-vault-current-password').value = 'old-password-123';
   byId('sync-vault-reset-btn').click();
-  await flush();
+  await slowFlush();
   assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false, 'the code is asked for');
-  assert.equal(requests.length, 0, 'nothing is sent to the server yet');
+  assert.equal(requests.length, 0, 'nothing is removed yet');
 
   byId('security-mfa-code').value = '999999';
   byId('security-mfa-confirm-btn').click();
-  await flush();
+  await slowFlush();
   assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false, 'a wrong code keeps it open');
   assert.equal(byId('security-mfa-error').classList.contains('hidden'), false);
   assert.equal(requests.length, 0);
 
   byId('security-mfa-code').value = '123456';
   byId('security-mfa-confirm-btn').click();
-  await flush();
+  await slowFlush();
   assert.deepEqual(state.verified.map((entry) => entry.code), ['999999', '123456']);
   assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), true);
-  assert.deepEqual(requests, [{ action: 'delete', currentPassword: 'old-password-123' }], 'the action went on');
+  assert.deepEqual(requests, [{ table: 'user_vault_recovery', action: 'delete' }], 'the action went on');
   assert.equal(values.has(`chatSyncVault_v1_${cloudUser.username}`), false);
 });
 
@@ -725,16 +727,16 @@ test('authenticator: giving up at the code stops the action, and a session that 
   const asked = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
   asked.byId('sync-vault-current-password').value = 'old-password-123';
   asked.byId('sync-vault-reset-btn').click();
-  await flush();
+  await slowFlush();
   asked.byId('security-mfa-cancel-btn').click();
-  await flush();
+  await slowFlush();
   assert.equal(asked.requests.length, 0);
   assert.equal(asked.byId('security-mfa-challenge').classList.contains('hidden'), true);
 
   const done = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal2', nextLevel: 'aal2' } });
   done.byId('sync-vault-current-password').value = 'old-password-123';
   done.byId('sync-vault-reset-btn').click();
-  await flush();
+  await slowFlush();
   assert.equal(done.byId('security-mfa-challenge').classList.contains('hidden'), true);
   assert.equal(done.requests.length, 1);
 });

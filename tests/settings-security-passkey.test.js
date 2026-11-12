@@ -41,12 +41,13 @@ const fakePasskeys = ({ availability = 'yes', cancel = false } = {}) => {
 const fakeTable = (row = null, { blockWrites = false } = {}) => {
   const table = { row, writes: [] };
   table.from = () => ({
-    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table.row ? { slots: table.row.slots ?? [], recovery_payload: table.row.recovery_payload ?? null } : null, error: null }) }) }),
+    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table.row ? { slots: table.row.slots ?? [] } : null, error: null }) }) }),
+    delete: () => ({ eq: async () => { table.row = null; return { error: null }; } }),
     upsert: (next) => ({
       select: async () => {
         table.writes.push(next);
         if (blockWrites) return { data: [], error: null };
-        table.row = { recovery_payload: null, slots: [], ...table.row, ...next };
+        table.row = { slots: [], ...table.row, ...next };
         return { data: [{ slots: table.row.slots }], error: null };
       }
     })
@@ -79,14 +80,17 @@ const setup = async ({ row = null, availability = 'yes', password = 'old-passwor
     showNotification: (message, type) => notices.push({ message, type }), loadStyles: async () => {}, getSupabase: () => supabase, passkeyApi: passkey, notifySecurity: (event) => events.push(event)
   });
   if (withVault) await createAndUnlockSyncVault({ storage, username: user.username, password });
-  if (recovery) {
-    await storage.setItem(`chatSyncVaultRecovery_v1_${user.username}`, 'state-1');
-    window.happyDOM.setURL('https://noureon.test/?vault_recovery=state-1');
-  }
   controls.ensureSyncVaultSettings();
   await controls.refreshSyncVaultControls();
   await flush();
   const byId = (id) => window.document.getElementById(id);
+  // The password is forgotten: the vault is locked and the person pressed "forgot the sync password", which opens the recovery panel.
+  if (recovery) {
+    lockSyncVault(user.username);
+    await controls.refreshSyncVaultControls();
+    byId('sync-vault-forgot-btn').click();
+    await flush();
+  }
   return { window, controls, storage, values, table, passkey, notices, requests, events, byId };
 };
 
@@ -123,14 +127,13 @@ test('passkey card: it shows for a cloud account that has a sync password, and n
   assert.equal(empty.byId('security-passkey-add').classList.contains('hidden'), true);
 });
 
-test('passkey card: adding one seals the data key of the vault in the browser, keeps only the sealed text, and drops what the server kept', async () => {
-  const fixture = await setup({ row: { recovery_payload: { version: 1, ciphertext: 'server-sealed' }, slots: [] } });
+test('passkey card: adding one seals the data key of the vault in the browser and keeps only the sealed text', async () => {
+  const fixture = await setup();
   await addPasskey(fixture);
   const { table, byId, notices, storage, passkey } = fixture;
 
   assert.equal(passkey.calls.register, 1);
   assert.equal(table.row.slots.length, 1);
-  assert.equal(table.row.recovery_payload, null, 'the old recovery of the server is dropped');
   assert.doesNotMatch(JSON.stringify(table.row.slots), /old-password-123/, 'the password is not in the stored text');
   const { keyBytes } = await openRecoverySlot(table.row.slots[0], secretFor('cred-1'));
   assert.deepEqual([...keyBytes], [...await openSyncVaultRecordKeyBytes('old-password-123', await readSyncVaultRecord(storage, user.username))], 'it is the data key of this vault');
@@ -222,7 +225,7 @@ test('a person with no passkey sees no passkey button in the unlock panel', asyn
   assert.equal(fixture.byId('sync-vault-unlock-passkey-btn').classList.contains('hidden'), true);
 });
 
-// Forgot the sync password: the Email sign-in is done (the address carries the state), the passkey opens the slot.
+// Forgot the sync password: the person pressed "forgot" (nothing is sent by Email), the passkey opens the slot.
 const forgotten = async () => {
   const seed = await setup();
   await addPasskey(seed);
@@ -239,7 +242,7 @@ test('forgot the sync password: the recovery panel offers the passkey only, and 
   const fixture = await forgotten();
   assert.equal(fixture.byId('sync-vault-recovery-panel').classList.contains('hidden'), false);
   assert.equal(fixture.byId('sync-vault-recovery-passkey-btn').classList.contains('hidden'), false);
-  assert.equal(fixture.byId('sync-vault-recovery-save-btn').classList.contains('hidden'), true, 'no recovery of the server is kept, so that button is not offered');
+  assert.equal(fixture.byId('sync-vault-recovery-no-passkey').classList.contains('hidden'), true);
 
   fixture.byId('sync-vault-recovery-password').value = 'a-completely-new-password';
   fixture.byId('sync-vault-recovery-confirmation').value = 'a-completely-new-password';
@@ -269,22 +272,34 @@ test('forgot the sync password: a passkey that is not the one of this vault chan
   assert.deepEqual(await readSyncVaultRecord(other.storage, user.username), before);
 });
 
-test('an account that only has the old recovery of the server keeps working the old way, and sees no passkey button in the recovery panel', async () => {
-  const fixture = await setup({ row: { recovery_payload: { version: 1, ciphertext: 'server-sealed' }, slots: [] }, recovery: true });
+test('forgot the sync password with no passkey: the panel says it cannot be recovered and offers starting over only', async () => {
+  const fixture = await setup({ recovery: true });
+  assert.equal(fixture.byId('sync-vault-recovery-panel').classList.contains('hidden'), false);
   assert.equal(fixture.byId('sync-vault-recovery-passkey-btn').classList.contains('hidden'), true);
-  assert.equal(fixture.byId('sync-vault-recovery-save-btn').classList.contains('hidden'), false);
+  assert.equal(fixture.byId('sync-vault-recovery-fields').classList.contains('hidden'), true);
+  assert.equal(fixture.byId('sync-vault-recovery-no-passkey').classList.contains('hidden'), false);
+  assert.equal(fixture.byId('sync-vault-start-over-btn').classList.contains('hidden'), false);
+  assert.equal(fixture.requests.length, 0, 'nothing was sent anywhere: no Email, no request to the server');
 });
 
-test('a person who still has the server\'s copy: changing the password keeps it up to date, and a new vault makes no copy at all', async () => {
-  const legacy = await setup({ row: { recovery_payload: { version: 1, ciphertext: 'server-sealed' }, slots: [] } });
-  legacy.byId('sync-vault-manage-toggle').click();
-  legacy.byId('sync-vault-current-password').value = 'old-password-123';
-  legacy.byId('sync-vault-next-password').value = 'brand-new-password-1';
-  legacy.byId('sync-vault-next-confirmation').value = 'brand-new-password-1';
-  legacy.byId('sync-vault-change-btn').click();
+test('forgot the sync password: cancelling goes back to the unlock panel', async () => {
+  const fixture = await setup({ recovery: true });
+  fixture.byId('sync-vault-recovery-cancel-btn').click();
   await flush();
-  assert.equal(legacy.requests.length, 1);
-  assert.equal(legacy.requests[0].action, 'store');
+  assert.equal(fixture.byId('sync-vault-recovery-panel').classList.contains('hidden'), true);
+  assert.equal(fixture.byId('sync-vault-unlock-panel').classList.contains('hidden'), false);
+});
+
+test('changing the password and making a new vault send nothing to the server: no copy of a sync password is kept anywhere', async () => {
+  const changed = await setup();
+  changed.byId('sync-vault-manage-toggle').click();
+  changed.byId('sync-vault-current-password').value = 'old-password-123';
+  changed.byId('sync-vault-next-password').value = 'brand-new-password-1';
+  changed.byId('sync-vault-next-confirmation').value = 'brand-new-password-1';
+  changed.byId('sync-vault-change-btn').click();
+  await flush();
+  assert.equal(changed.requests.length, 0);
+  assert.deepEqual(changed.events, ['sync-password-changed']);
 
   const fresh = await setup({ withVault: false });
   fresh.byId('sync-vault-create-password').value = 'a-first-sync-password';
@@ -292,7 +307,7 @@ test('a person who still has the server\'s copy: changing the password keeps it 
   fresh.byId('sync-vault-create-btn').click();
   await flush();
   assert.equal(isSyncVaultUnlocked(user.username), true);
-  assert.equal(fresh.requests.length, 0, 'no copy the service could open is made for a new vault');
+  assert.equal(fresh.requests.length, 0);
 });
 
 test('dangerous actions ask for a passkey tap once (no authenticator set up), and not again within ten minutes; adding a passkey asks for none', async () => {
@@ -311,7 +326,8 @@ test('dangerous actions ask for a passkey tap once (no authenticator set up), an
   fixture.byId('sync-vault-reset-btn').click();
   await flush();
   assert.equal(fixture.passkey.calls.readAny, 1, 'the confirmation holds for a while: clearing the sync password asks nothing more');
-  assert.equal(fixture.requests.at(-1).action, 'delete');
+  assert.equal(fixture.table.row, null, 'what is kept in the cloud for the recovery is removed');
+  assert.equal(await readSyncVaultRecord(fixture.storage, user.username), null, 'and the vault of this device');
 });
 
 test('dangerous actions stop when the passkey is not confirmed', async () => {

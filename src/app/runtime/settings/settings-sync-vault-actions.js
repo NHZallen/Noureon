@@ -1,12 +1,11 @@
-// The buttons of the sync password part of the user page (settings-sync-vault-controls.js): create, unlock, recover by email, lock,
-// change and remove the sync password that encrypts the API keys. Moved as they were; `ctx` holds the page's shared helpers.
+// The buttons of the sync password part of the user page (settings-sync-vault-controls.js): create, unlock, recover with a passkey, start over, lock,
+// change and remove the sync password that encrypts the API keys. `ctx` holds the page's shared helpers.
 
 import {
-  cancelSyncVaultRotation,
   changeSyncVaultPassword,
   createAndUnlockSyncVault,
-  getSyncVaultStorageKey,
   lockSyncVault,
+  openSyncVaultRecordKeyBytes,
   readSyncVaultRecord,
   removeSyncVault,
   resetSyncVaultPasswordWithKeyBytes,
@@ -14,9 +13,8 @@ import {
 } from '../../sync/sync-vault.js';
 
 export function bindSyncVaultActions(elements, {
-  window, document, storage, getCurrentUser, showNotification, text, getSupabase, isBusy, setBusy, getAccountTurnstile, notifyError,
-  setAccountMessage, authErrorText, requireMatchingPasswords, refreshSyncVaultControls, requestVaultRecovery, storeVaultRecovery,
-  getRecoveryStorageKey, confirmIdentity, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
+  window, storage, getCurrentUser, showNotification, text, isBusy, setBusy, notifyError, requireMatchingPasswords, refreshSyncVaultControls, recoveryStore,
+  setRecoveryOpen, confirmIdentity, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
   // A form folds away or a panel changes and what is below moves up under the same place of the page: the person is taken back to the sync password, where the result is.
   const stayAtSync = () => elements.status?.scrollIntoView?.({ block: 'center' });
@@ -27,13 +25,7 @@ export function bindSyncVaultActions(elements, {
       if (user.authProvider !== 'supabase') throw new Error(text('cloudSyncRequiresCloudAccount', '請先綁定 Email 或 Google 帳號。'));
       requireMatchingPasswords(elements.createPassword.value, elements.createConfirmation.value);
       setBusy(true);
-      const record = await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
-      try {
-        await passkeys.keepRecovery({ password: elements.createPassword.value, record, serverStore: storeVaultRecovery });
-      } catch (error) {
-        await removeSyncVault({ storage, username: user.username });
-        throw error;
-      }
+      await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
       elements.createPassword.value = '';
       elements.createConfirmation.value = '';
       dispatchUnlocked(user.username);
@@ -78,75 +70,29 @@ export function bindSyncVaultActions(elements, {
       setBusy(false);
     }
   });
+  // Forgot the sync password: the way back is a passkey (it opens a slot with the data key, and a new password wraps that key) or starting over.
+  // Nothing is sent by Email: the passkey is the proof, and starting over asks the person to confirm like any change that is hard to undo.
   elements.forgotButton.addEventListener('click', async () => {
-    if (isBusy()) return;
-    const user = getCurrentUser();
-    try {
-      setBusy(true);
-      const supabase = getSupabase();
-      const { data, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      const email = data.user?.email;
-      if (!email) throw new Error(text('recoveryEmailUnavailable', '此帳號沒有可用的 Email。'));
-      const captchaToken = getAccountTurnstile()?.getToken('sync-vault-recovery');
-      if (getAccountTurnstile()?.enabled && !captchaToken) throw new Error(text('turnstileRequired', '請先完成人機驗證。'));
-      const recoveryState = window.crypto.randomUUID();
-      await storage.setItem(getRecoveryStorageKey(user.username), recoveryState);
-      const recoveryUrl = new URL(window.location.href);
-      recoveryUrl.searchParams.set('vault_recovery', recoveryState);
-      recoveryUrl.hash = '';
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: recoveryUrl.toString(),
-          shouldCreateUser: false,
-          captchaToken: captchaToken || undefined
-        }
-      });
-      getAccountTurnstile()?.reset('sync-vault-recovery');
-      if (error) throw error;
-      setAccountMessage(text('cloudSyncRecoveryEmailSent', '重設驗證信已寄出，請從信件連結返回。'), 'info', 'security');
-    } catch (error) {
-      setAccountMessage(authErrorText(error) || error?.message || text('cloudSyncRecoveryFailed', '無法寄出重設驗證信。'), 'error', 'security');
-    } finally {
-      setBusy(false);
-    }
+    setRecoveryOpen(true);
+    await refreshSyncVaultControls();
+    elements.recoveryPanel.scrollIntoView?.({ block: 'center' });
   });
-  // Forgot the sync password and signed in by Email: the way back is a passkey (it opens a slot with the data key, and a new password wraps that key) or, for a
-  // person who still has one, the old copy of the server's.
-  const bindRecovery = (button, fromPasskey) => button?.addEventListener('click', async () => {
+  elements.recoveryCancelButton?.addEventListener('click', async () => {
+    setRecoveryOpen(false);
+    elements.recoveryPassword.value = '';
+    elements.recoveryConfirmation.value = '';
+    await refreshSyncVaultControls();
+  });
+  elements.recoveryPasskeyButton?.addEventListener('click', async () => {
     if (isBusy()) return;
     const user = getCurrentUser();
     try {
       requireMatchingPasswords(elements.recoveryPassword.value, elements.recoveryConfirmation.value);
       if (!await confirmIdentity({ onlyIfSet: true })) return;
       setBusy(true);
-      const nextPassword = elements.recoveryPassword.value;
-      if (fromPasskey) {
-        await resetSyncVaultPasswordWithKeyBytes({ storage, username: user.username, keyBytes: await passkeys.openKey(), nextPassword });
-        await queueCloudSyncKind('vault');
-      } else {
-        const recovered = await requestVaultRecovery('recover');
-        await queueCloudSyncKind('vault');
-        await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
-        await queueCloudSyncKind('vault');
-        const nextRecord = await changeSyncVaultPassword({ storage, username: user.username, currentPassword: recovered.password, nextPassword });
-        try {
-          await passkeys.keepRecovery({ password: nextPassword, record: nextRecord, currentPassword: recovered.password, serverStore: storeVaultRecovery });
-        } catch (error) {
-          await queueCloudSyncKind('vault');
-          await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
-          await unlockSyncVault({ storage, username: user.username, password: recovered.password });
-          await cancelSyncVaultRotation({ storage, username: user.username });
-          await queueCloudSyncKind('sensitive');
-          await queueCloudSyncKind('vault');
-          throw error;
-        }
-      }
-      await storage.removeItem(getRecoveryStorageKey(user.username));
-      const cleanUrl = new URL(window.location.href);
-      cleanUrl.searchParams.delete('vault_recovery');
-      window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+      await resetSyncVaultPasswordWithKeyBytes({ storage, username: user.username, keyBytes: await passkeys.openKey(), nextPassword: elements.recoveryPassword.value });
+      await queueCloudSyncKind('vault');
+      setRecoveryOpen(false);
       elements.recoveryPassword.value = '';
       elements.recoveryConfirmation.value = '';
       dispatchUnlocked(user.username);
@@ -160,11 +106,9 @@ export function bindSyncVaultActions(elements, {
       setBusy(false);
     }
   });
-  bindRecovery(elements.recoveryButton, false);
-  bindRecovery(elements.recoveryPasskeyButton, true);
-  // No way back into the vault (the password is forgotten and nothing else can open it): start over. The Email sign-in of the recovery is the proof
-  // (the server asks for one made a moment ago, so no current password is needed); the cloud's vault record and its encrypted API keys are
-  // cleared, and the person makes a new sync password and enters the keys again. Conversations and the rest are not in the vault.
+  // No way back into the vault (the password is forgotten and nothing else can open it): start over. The person confirms (the authenticator app's six digits when
+  // one is set up, else a passkey tap); the cloud's vault record and its encrypted API keys are cleared, and the person makes a new sync password and enters the keys
+  // again. Conversations and the rest are not in the vault.
   elements.startOverButton.addEventListener('click', async () => {
     if (isBusy()) return;
     if (!window.confirm(text('cloudSyncStartOverConfirm', '重新開始會清除雲端上的同步密碼和已同步的 API 金鑰，之後要設新的同步密碼，並在各裝置重新輸入 API 金鑰。對話和其他資料不受影響。確定要繼續嗎？'))) return;
@@ -172,14 +116,11 @@ export function bindSyncVaultActions(elements, {
     try {
       if (!await confirmIdentity()) return;
       setBusy(true);
-      await requestVaultRecovery('delete');
+      await recoveryStore.remove();
       await removeSyncVault({ storage, username: user.username });
       await queueCloudSyncKind('vault');
       await queueCloudSyncKind('sensitive');
-      await storage.removeItem(getRecoveryStorageKey(user.username));
-      const cleanUrl = new URL(window.location.href);
-      cleanUrl.searchParams.delete('vault_recovery');
-      window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+      setRecoveryOpen(false);
       elements.recoveryPassword.value = '';
       elements.recoveryConfirmation.value = '';
       notifySecurity('sync-started-over');
@@ -187,9 +128,7 @@ export function bindSyncVaultActions(elements, {
       await refreshSyncVaultControls();
       stayAtSync();
     } catch (error) {
-      // The Email sign-in is older than the server accepts: the way on is a new verification Email, not a password.
-      if (error?.code === 'current_password_required') notifyError(new Error(text('cloudSyncStartOverExpired', 'Email 驗證已逾時，請再按一次「忘記同步密碼」重新寄送驗證信。')));
-      else notifyError(error);
+      notifyError(error);
     } finally {
       setBusy(false);
     }
@@ -204,26 +143,14 @@ export function bindSyncVaultActions(elements, {
     try {
       const user = getCurrentUser();
       requireMatchingPasswords(elements.nextPassword.value, elements.nextConfirmation.value);
-      if (await passkeys.keepsServerCopy() && !await confirmIdentity({ onlyIfSet: true })) return;
       setBusy(true);
-      const previousRecord = await readSyncVaultRecord(storage, user.username);
-      const nextRecord = await changeSyncVaultPassword({
+      // The passkeys' slots hold the data key of the vault, which does not change: only the wrap of the sync password does.
+      await changeSyncVaultPassword({
         storage,
         username: user.username,
         currentPassword: elements.currentPassword.value,
         nextPassword: elements.nextPassword.value
       });
-      try {
-        await passkeys.keepRecovery({ password: elements.nextPassword.value, record: nextRecord, currentPassword: elements.currentPassword.value, serverStore: storeVaultRecovery });
-      } catch (error) {
-        await queueCloudSyncKind('vault');
-        await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(previousRecord));
-        await unlockSyncVault({ storage, username: user.username, password: elements.currentPassword.value });
-        await cancelSyncVaultRotation({ storage, username: user.username });
-        await queueCloudSyncKind('sensitive');
-        await queueCloudSyncKind('vault');
-        throw error;
-      }
       elements.currentPassword.value = '';
       elements.nextPassword.value = '';
       elements.nextConfirmation.value = '';
@@ -249,8 +176,10 @@ export function bindSyncVaultActions(elements, {
     if (!window.confirm(text('cloudSyncPasswordResetConfirm', '清除同步密碼後，既有加密資料將無法解密。確定要繼續嗎？'))) return;
     const user = getCurrentUser();
     try {
+      // The password is the right one, or this throws: whoever only has the session cannot clear it.
+      await openSyncVaultRecordKeyBytes(currentPassword, await readSyncVaultRecord(storage, user.username));
       if (!await confirmIdentity()) return;
-      await requestVaultRecovery('delete', { currentPassword });
+      await recoveryStore.remove();
     } catch (error) {
       notifyError(error);
       return;

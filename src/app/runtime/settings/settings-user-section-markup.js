@@ -66,9 +66,6 @@ export const getUserSectionElements = (document) => ({
   avatar: document.getElementById('user-avatar'),
   signinSummary: document.getElementById('user-signin-summary'),
   syncState: document.getElementById('sync-vault-state'),
-  turnstileSlot: document.getElementById('sync-vault-turnstile-slot'),
-  turnstileAnchor: document.getElementById('sync-vault-turnstile-anchor'),
-  turnstileHint: document.getElementById('sync-vault-turnstile-hint'),
   manageToggle: document.getElementById('sync-vault-manage-toggle'),
   manageDesc: document.getElementById('sync-vault-manage-desc'),
   managePanel: document.getElementById('sync-vault-manage-panel'),
@@ -91,7 +88,9 @@ export const getUserSectionElements = (document) => ({
   recoveryPanel: document.getElementById('sync-vault-recovery-panel'),
   recoveryPassword: document.getElementById('sync-vault-recovery-password'),
   recoveryConfirmation: document.getElementById('sync-vault-recovery-confirmation'),
-  recoveryButton: document.getElementById('sync-vault-recovery-save-btn'),
+  recoveryFields: document.getElementById('sync-vault-recovery-fields'),
+  recoveryNoPasskey: document.getElementById('sync-vault-recovery-no-passkey'),
+  recoveryCancelButton: document.getElementById('sync-vault-recovery-cancel-btn'),
   startOverButton: document.getElementById('sync-vault-start-over-btn'),
   changeButton: document.getElementById('sync-vault-change-btn'),
   lockButton: document.getElementById('sync-vault-lock-btn'),
@@ -278,8 +277,6 @@ export function buildSecuritySectionMarkup(text) {
             <div class="us-panel">
               <button id="sync-vault-unlock-passkey-btn" type="button" class="us-btn is-block hidden" data-lang-key="securityPasskeyUnlock">用通行金鑰解鎖</button>
               ${passwordField({ id: 'sync-vault-unlock-password', label: '同步密碼', labelKey: 'cloudSyncPassword', autocomplete: 'current-password', minlength: minimum })}
-              <div id="sync-vault-turnstile-slot" class="us-slot hidden"><span id="sync-vault-turnstile-anchor"></span></div>
-              <p id="sync-vault-turnstile-hint" class="us-hint hidden" data-lang-key="turnstileForgotHint">忘記同步密碼時，需要先完成這個驗證。</p>
             </div>
             <div class="us-foot">
               <button id="sync-vault-forgot-btn" type="button" class="us-link" data-lang-key="forgotCloudSyncPassword">忘記同步密碼</button>
@@ -288,8 +285,9 @@ export function buildSecuritySectionMarkup(text) {
           </div>
           <div id="sync-vault-recovery-panel" class="hidden">
             <div class="us-panel">
-              <p class="us-desc" data-lang-key="cloudSyncRecoveryWarning">Email 驗證成功後可建立新同步密碼，既有加密同步資料會保留。</p>
-              <div class="us-pair">
+              <p class="us-desc" data-lang-key="cloudSyncRecoveryWarning">用通行金鑰確認是你本人後，可以建立新的同步密碼，既有加密同步資料會保留。</p>
+              <p id="sync-vault-recovery-no-passkey" class="us-desc hidden" data-lang-key="cloudSyncRecoveryNoPasskey">這個帳號沒有設定通行金鑰，所以無法救援，只能重新開始。</p>
+              <div id="sync-vault-recovery-fields" class="us-pair">
                 ${passwordField({ id: 'sync-vault-recovery-password', label: '新的同步密碼（至少 10 碼）', labelKey: 'newCloudSyncPassword', autocomplete: 'new-password', minlength: minimum })}
                 ${passwordField({ id: 'sync-vault-recovery-confirmation', label: '再次輸入同步密碼', labelKey: 'cloudSyncPasswordConfirm', autocomplete: 'new-password', minlength: minimum })}
               </div>
@@ -297,7 +295,7 @@ export function buildSecuritySectionMarkup(text) {
             <div class="us-foot">
               <button id="sync-vault-start-over-btn" type="button" class="us-link" data-lang-key="cloudSyncStartOver">無法救援，重新開始</button>
               <button id="sync-vault-recovery-passkey-btn" type="button" class="us-btn is-primary is-block hidden" data-lang-key="securityPasskeyRecover">用通行金鑰救援</button>
-              <button id="sync-vault-recovery-save-btn" type="button" class="us-btn is-primary is-block" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button>
+              <button id="sync-vault-recovery-cancel-btn" type="button" class="us-btn is-block" data-lang-key="userCancelAction">取消</button>
             </div>
           </div>
           <div id="sync-vault-unlocked-panel" class="hidden">

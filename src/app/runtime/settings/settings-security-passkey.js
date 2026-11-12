@@ -43,7 +43,7 @@ export function createPasskeyControls({
   passkey = { availability: passkeyPrfAvailability, register: registerRecoveryPasskey, readAny: readAnyRecoveryPasskey },
   store = createRecoverySlotsStore({ getSupabase })
 }) {
-  let state = { slots: [], hasServerSlot: false, loaded: false };
+  let state = { slots: [], loaded: false };
   let availability = 'unknown';
   let opened = false; // the form to add one (the sync password) is folded away until asked for
   // What the add flow needs, read when the card is drawn: the browser wants the passkey asked for right after the tap, and a wait before it can be refused.
@@ -148,8 +148,7 @@ export function createPasskeyControls({
       secret: made.secret, credentialId: made.credentialId, prfSalt: made.prfSalt, keyBytes,
       label: nameForNewPasskey()
     });
-    // The recovery the server kept for the person (the old way) is dropped now that the person has one of their own.
-    state = { ...state, slots: await store.save(addRecoverySlot(state.slots, slot), { dropServerSlot: state.hasServerSlot }), hasServerSlot: false };
+    state = { ...state, slots: await store.save(addRecoverySlot(state.slots, slot)) };
     elements.passkeyPassword.value = '';
     opened = false;
     notifySecurity('passkey-added');
@@ -184,15 +183,6 @@ export function createPasskeyControls({
   }
 
   // ----- the recovery of the vault
-  /**
-   * What the sync password changed: the old way (the copy the server keeps) goes on for a person who still has it, until it is retired. A person with a
-   * passkey, and a new vault, have no copy of that kind. Passkey slots hold the data key, which did not change, so there is nothing to do for them.
-   */
-  async function keepRecovery({ password, record, currentPassword = '', serverStore }) {
-    await ensure();
-    if (state.hasServerSlot) await serverStore(password, record, currentPassword);
-  }
-
   /** Opens one of the slots with its passkey (the person confirms) and gives the data key of the vault. It has to be the key of the vault kept here. */
   async function openKey() {
     await ensure();
@@ -211,14 +201,15 @@ export function createPasskeyControls({
     await unlockSyncVaultWithKeyBytes({ storage, username: user.username, keyBytes });
   }
 
-  /** What the panels offer: the passkey button where there are slots, the old Email way only while a copy of the server's is kept. */
+  /** What the panels offer: the passkey button where there are slots (the recovery panel says so when there are none). */
   async function syncPanels({ recovery = false, unlock = false } = {}) {
     const elements = getElements();
     if (!isCloud()) return;
-    const { slots, hasServerSlot, loaded } = await ensure();
+    const { slots } = await ensure();
     if (recovery) {
       show(elements.recoveryPasskeyButton, slots.length > 0);
-      show(elements.recoveryButton, hasServerSlot || !loaded);
+      show(elements.recoveryNoPasskey, slots.length === 0);
+      show(elements.recoveryFields, slots.length > 0);
     }
     if (unlock) show(elements.unlockPasskeyButton, slots.length > 0 && availability !== 'in-app');
   }
@@ -236,5 +227,5 @@ export function createPasskeyControls({
     elements.passkeyAddButton.addEventListener('click', guard(async () => { if (await confirmIdentity({ onlyIfSet: true })) await add(); }));
   }
 
-  return { bind, refresh, keepRecovery, keepsServerCopy: async () => (await ensure()).hasServerSlot, openKey, unlockWithPasskey, syncPanels, hasSlots: async () => (await ensure()).slots.length > 0 };
+  return { bind, refresh, openKey, unlockWithPasskey, syncPanels, hasSlots: async () => (await ensure()).slots.length > 0 };
 }

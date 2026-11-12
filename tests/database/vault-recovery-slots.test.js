@@ -38,9 +38,11 @@ test('a person with passkey slots only has no payload of the server\'s, reads on
   await A1.query('delete from public.user_vault_recovery');
 });
 
-test('the old payload of the server is still kept as before', async () => {
-  const rows = await A1.query('insert into public.user_vault_recovery (user_id, recovery_payload) values ($1, $2::jsonb) returning slots', [ada, JSON.stringify({ version: 1, ciphertext: 'x' })]);
+test('the copy of a sync password sealed with a key of the server can no longer be stored (retired 2026-11-13)', async () => {
+  assert.match((await A1.error('insert into public.user_vault_recovery (user_id, recovery_payload) values ($1, $2::jsonb)', [ada, JSON.stringify({ version: 1, ciphertext: 'x' })]))?.message || 'it worked', /user_vault_recovery_payload_retired/);
+  const rows = await A1.query('insert into public.user_vault_recovery (user_id) values ($1) returning slots, recovery_payload', [ada]);
   assert.deepEqual(rows[0].slots, [], 'no slots by default');
+  assert.equal(rows[0].recovery_payload, null);
   await A1.query('delete from public.user_vault_recovery');
 });
 

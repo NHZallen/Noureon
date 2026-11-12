@@ -8,7 +8,7 @@ import { createTurnstileClient } from '../security/turnstile-client.js';
 import { SERVICES, getService } from '../services.js';
 import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-section-markup.js';
 import { mountSecurityPage, togglePasswordEye } from './settings-security-page.js';
-import { createVaultRecoveryClient, getRecoveryStorageKey } from './settings-vault-recovery-client.js';
+import { createRecoverySlotsStore } from './settings-vault-recovery-slots-store.js';
 import { createAuthenticatorControls } from './settings-security-authenticator.js';
 import { createPasskeyControls } from './settings-security-passkey.js';
 import { createSecurityErrors } from './settings-security-errors.js';
@@ -40,7 +40,6 @@ export function createSettingsSyncVaultControls({
   const userUid = createUserUidControls({ document, getSupabase: () => getSupabase(), isConfigured: () => isConfigured(), getText: text, scheduleTimeout: (...a) => scheduleTimeout(...a) });
   let accountTurnstile;
   let accountTurnstileMounted = false;
-  let recoveryTurnstileMounted = false;
 
   const getElements = () => getUserSectionElements(document);
 
@@ -108,19 +107,10 @@ export function createSettingsSyncVaultControls({
     accountTurnstileMounted = true;
   };
 
-  const ensureRecoveryTurnstile = async () => {
-    if (recoveryTurnstileMounted) return;
-    accountTurnstile ||= createTurnstileClient({ window, document });
-    if (!accountTurnstile.enabled) return;
-    // The check has its own place in the card, so showing it moves nothing.
-    const { turnstileSlot, turnstileHint, turnstileAnchor, forgotButton } = getElements();
-    turnstileSlot?.classList.remove('hidden');
-    turnstileHint?.classList.remove('hidden');
-    await accountTurnstile.mount('sync-vault-recovery', turnstileAnchor || forgotButton);
-    recoveryTurnstileMounted = true;
-  };
-
-  const { request: requestVaultRecovery, store: storeVaultRecovery, isVerifiedMode: isVerifiedRecoveryMode } = createVaultRecoveryClient({ window, storage, getSupabase: () => getSupabase(), text });
+  const recoveryStore = createRecoverySlotsStore({ getSupabase: () => getSupabase() });
+  // The recovery panel (a new sync password with a passkey, or starting over) opens when the person says the sync password is forgotten; nothing is sent by Email.
+  let recoveryOpen = false;
+  const setRecoveryOpen = (open) => { recoveryOpen = Boolean(open); };
 
   const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity });
   // The passkeys ask the person to confirm through the same function the other actions use, which asks them (the passkeys) in turn.
@@ -224,7 +214,7 @@ export function createSettingsSyncVaultControls({
     const record = await readSyncVaultRecord(storage, user.username);
     const unlocked = isSyncVaultUnlocked(user.username);
     const isCloudUser = user.authProvider === 'supabase';
-    const recoveryMode = isCloudUser && await isVerifiedRecoveryMode(user.username);
+    const recoveryMode = isCloudUser && Boolean(record) && !unlocked && recoveryOpen;
     // The line under it already says "local account" for a local one.
     const accountLabel = isCloudUser
       ? (user.email || user.displayName || user.username)
@@ -265,7 +255,6 @@ export function createSettingsSyncVaultControls({
     await passkeys.syncPanels({ recovery: recoveryMode, unlock: true });
     if (!canManage || !unlocked) setManageOpen(false);
     if (isCloudUser && record && unlocked && !recoveryMode) syncNow.refresh();
-    if (isCloudUser && record && !unlocked && !recoveryMode) await ensureRecoveryTurnstile();
   };
 
   const requireMatchingPasswords = (password, confirmation) => {
@@ -338,8 +327,8 @@ export function createSettingsSyncVaultControls({
     const ctx = {
       window, document, storage, getCurrentUser, showNotification, text, getSupabase, reloadPage, scheduleTimeout,
       isBusy: () => busy, setBusy, getAccountTurnstile: () => accountTurnstile, notifyError, setAccountMessage, authErrorText,
-      requireMatchingPasswords, requireMatchingLoginPasswords, refreshAccountLinking, refreshSyncVaultControls, requestVaultRecovery,
-      storeVaultRecovery, getRecoveryStorageKey, confirmIdentity: identity.confirm, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
+      requireMatchingPasswords, requireMatchingLoginPasswords, refreshAccountLinking, refreshSyncVaultControls, recoveryStore, setRecoveryOpen,
+      confirmIdentity: identity.confirm, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
     };
     bindAccountLinkingActions(elements, ctx);
     bindSyncVaultActions(elements, ctx);
