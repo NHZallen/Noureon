@@ -218,3 +218,13 @@ v1 的金鑰是 `PBKDF2(密碼, salt)` 直接當資料金鑰。**搬移時把這
 
 ### 16.5 Email 通知
 新增或移除通行金鑰、設定或移除驗證器、清除或重新開始同步密碼時，寄英文信到帳號 Email，樣式沿用現有信件。
+
+## 17. §16 做完了（2026-11-12，在 `staging`）
+
+- **金鑰庫 v2**（`src/app/sync/sync-vault.js`）：紀錄 `version: 2`（`wrappedKey`、`checkIv`、`check`），舊 v1 在輸入同步密碼成功解鎖時就地升級（同一把金鑰，已加密的資料與備份檔不用動，本機留 `chatSyncVaultV1Backup_v1_<username>`）。換密碼只重包同一把金鑰（不再有 rotation、`previousVaultKeys`）。新函式：`openSyncVaultRecordKeyBytes`、`verifySyncVaultKeyBytes`、`unlockSyncVaultWithKeyBytes`、`resetSyncVaultPasswordWithKeyBytes`、`createLegacySyncVaultRecord`（給測試）。
+- **救援槽 v2**（`vault-recovery-slots.js`）：槽只存資料金鑰，格式 `version: 2`；舊格式（存密碼加紀錄，§15）只在 staging，直接被忽略。§15 的「需要更新」「換密碼時每把確認一次」整段作廢。
+- **通行金鑰解鎖**：解鎖面板的「用通行金鑰解鎖」，開槽後用 `check` 驗證是這個金鑰庫的金鑰；別的金鑰庫的槽會被拒絕（`vault-key-mismatch`）。
+- **確認規則**（`settings-identity-confirmation.js`）：危險動作（清除、重新開始、移除通行金鑰、移除驗證器）確認一次，有驗證器要 6 位數（`requireAal2`），沒有但有通行金鑰就點一下通行金鑰，10 分鐘內不再問；新增通行金鑰、換密碼只要同步密碼（有驗證器時資料表仍要 aal2，所以新增通行金鑰會先問驗證碼）。
+- **新金鑰庫不再產生伺服器那份救援**；已有的人換密碼時仍更新它，新增第一把通行金鑰時移除它。
+- **Email 通知**（`server/security-notices.js`，`POST /v1/security-notice`）：用 `server/mail-layout.js` 的樣式、英文，只寄給 token 對應帳號的 Email（請求裡的任何地址都不採用），每帳號每小時最多 10 封；事件：`passkey-added/removed`、`authenticator-added/removed`、`sync-password-changed/reset/cleared`、`sync-started-over`。**限制**：由頁面在動作完成後通知，所以偷到登入憑證的人若不經過 Noureon 的頁面直接打 Supabase 就不會觸發；驗證器的新增與移除另可在 Supabase 的 Auth 通知信設定打開伺服器端通知。
+- 部署：這次改了 `server/`，要重新部署伺服器；不需要新的 migration。

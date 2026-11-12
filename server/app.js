@@ -11,6 +11,7 @@ import { TOOL_STATES } from '../src/data/connector-catalog.js';
 import { ShareError } from './shares.js';
 import { ProjectReadError } from './project-reader.js';
 import { InviteError } from './project-invites.js';
+import { SecurityNoticeError } from './security-notices.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -75,7 +76,7 @@ export function clientAddress(request) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null, projectInvites = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null, projectInvites = null, securityNotices = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -559,6 +560,22 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           if (error.code === 'rate_limited') throw new RequestError(ERROR_CODES.rateLimited, error.message, { reason: error.code, remaining: 0, limit: error.extra.limit });
           if (error.code === 'invalid_email' || error.code === 'invalid_role') throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
           if (error.code === 'not_allowed' || error.code === 'not_shared' || error.code === 'invite_full') throw new RequestError(ERROR_CODES.wrongPhase, error.message, { reason: error.code });
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
+      }
+      // A mail to the address of the account when something that protects it changed (server/security-notices.js): the page says what happened, the address is never taken from the request.
+      if (route === 'POST /v1/security-notice') {
+        const user = await authenticate(request);
+        if (!securityNotices) throw new RequestError(ERROR_CODES.runsUnavailable, 'Security notices are not set up on the server.');
+        const body = await readJson(request, 512);
+        try {
+          send(response, 202, await securityNotices.send({ userId: user.id, email: user.email, event: String(body?.event || '') }), origin);
+          status = 202;
+          return;
+        } catch (error) {
+          if (!(error instanceof SecurityNoticeError)) throw error;
+          if (error.code === 'invalid_event') throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
+          if (error.code === 'rate_limited') throw new RequestError(ERROR_CODES.rateLimited, error.message, { reason: error.code });
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
       }

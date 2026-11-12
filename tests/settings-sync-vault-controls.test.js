@@ -614,7 +614,8 @@ const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLeve
   };
   const supabase = { auth: { mfa, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
   const notices = [];
-  const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }) });
+  const events = [];
+  const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }), notifySecurity: (event) => events.push(event) });
   fixture.window.confirm = () => true;
   const requests = [];
   fixture.window.fetch = async (url, init) => { requests.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ deleted: true }) }; };
@@ -623,11 +624,11 @@ const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLeve
   fixture.controls.ensureSyncVaultSettings();
   await fixture.controls.refreshSyncVaultControls();
   await flush();
-  return { ...fixture, state, notices, requests, byId: (id) => fixture.window.document.getElementById(id) };
+  return { ...fixture, state, notices, events, requests, byId: (id) => fixture.window.document.getElementById(id) };
 };
 
 test('authenticator: the card shows for a cloud account, setup draws the QR code and the setup key to type in, and six digits turn it on', async () => {
-  const { byId, state, notices } = await mfaFixture();
+  const { byId, state, notices, events } = await mfaFixture();
   assert.equal(byId('security-totp-card').classList.contains('hidden'), false);
   assert.equal(byId('security-totp-off').classList.contains('hidden'), false);
 
@@ -648,6 +649,7 @@ test('authenticator: the card shows for a cloud account, setup draws the QR code
   assert.equal(byId('security-totp-on').classList.contains('hidden'), false);
   assert.equal(byId('security-totp-setup').classList.contains('hidden'), true);
   assert.match(notices.at(-1).message, /驗證器已啟用/);
+  assert.deepEqual(events, ['authenticator-added'], 'the owner gets a mail');
 });
 
 test('authenticator: a wrong code keeps the setup open and nothing is turned on', async () => {
@@ -721,7 +723,7 @@ test('authenticator: giving up at the code stops the action, and a session that 
 });
 
 test('authenticator: removing it asks for the code first and then unenrolls the factor', async () => {
-  const { byId, state } = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+  const { byId, state, events } = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
   byId('security-totp-remove-btn').click();
   await flush();
   assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false);
@@ -730,6 +732,7 @@ test('authenticator: removing it asks for the code first and then unenrolls the 
   await flush();
   assert.deepEqual(state.unenrolled, ['factor-9']);
   assert.equal(byId('security-totp-off').classList.contains('hidden'), false);
+  assert.deepEqual(events, ['authenticator-removed']);
 });
 
 test('authenticator: a client with no auth.mfa hides the card and never asks for a code; a local account has no card', async () => {

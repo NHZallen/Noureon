@@ -62,6 +62,7 @@ const setup = async ({ row = null, availability = 'yes', password = 'old-passwor
   const passkey = fakePasskeys({ availability });
   const notices = [];
   const requests = [];
+  const events = [];
   const supabase = {
     from: table.from,
     auth: {
@@ -74,7 +75,7 @@ const setup = async ({ row = null, availability = 'yes', password = 'old-passwor
   window.fetch = async (url, init) => { requests.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ stored: true, deleted: true }) }; };
   const controls = createSettingsSyncVaultControls({
     window, document: window.document, storage, getCurrentUser: () => user, getText: (_key, fallback) => fallback,
-    showNotification: (message, type) => notices.push({ message, type }), loadStyles: async () => {}, getSupabase: () => supabase, passkeyApi: passkey
+    showNotification: (message, type) => notices.push({ message, type }), loadStyles: async () => {}, getSupabase: () => supabase, passkeyApi: passkey, notifySecurity: (event) => events.push(event)
   });
   if (withVault) await createAndUnlockSyncVault({ storage, username: user.username, password });
   if (recovery) {
@@ -85,7 +86,7 @@ const setup = async ({ row = null, availability = 'yes', password = 'old-passwor
   await controls.refreshSyncVaultControls();
   await flush();
   const byId = (id) => window.document.getElementById(id);
-  return { window, controls, storage, values, table, passkey, notices, requests, byId };
+  return { window, controls, storage, values, table, passkey, notices, requests, events, byId };
 };
 
 const addPasskey = async (fixture, password = 'old-password-123') => {
@@ -320,4 +321,41 @@ test('passkey card: inside an app\'s own browser it says to open Safari or Chrom
   assert.equal(fixture.byId('security-passkey-add').classList.contains('hidden'), true);
   assert.equal(fixture.byId('security-passkey-add-btn').parentElement.classList.contains('hidden'), true);
   assert.equal(fixture.byId('security-passkey-unsupported').classList.contains('hidden'), true);
+});
+
+test('each change that protects the account tells the server, so the owner gets a mail: a passkey added or removed, the sync password changed, cleared, reset', async () => {
+  const fixture = await setup();
+  await addPasskey(fixture);
+  assert.deepEqual(fixture.events, ['passkey-added']);
+
+  fixture.byId('sync-vault-manage-toggle').click();
+  fixture.byId('sync-vault-current-password').value = 'old-password-123';
+  fixture.byId('sync-vault-next-password').value = 'brand-new-password-1';
+  fixture.byId('sync-vault-next-confirmation').value = 'brand-new-password-1';
+  fixture.byId('sync-vault-change-btn').click();
+  await flush();
+  assert.deepEqual(fixture.events, ['passkey-added', 'sync-password-changed']);
+
+  fixture.byId('security-passkey-list').querySelector('[data-action="remove"]').click();
+  await flush();
+  fixture.byId('sync-vault-current-password').value = 'brand-new-password-1';
+  fixture.byId('sync-vault-reset-btn').click();
+  await flush();
+  assert.deepEqual(fixture.events, ['passkey-added', 'sync-password-changed', 'passkey-removed', 'sync-password-cleared']);
+
+  const recovered = await forgotten();
+  recovered.byId('sync-vault-recovery-password').value = 'a-completely-new-password';
+  recovered.byId('sync-vault-recovery-confirmation').value = 'a-completely-new-password';
+  recovered.byId('sync-vault-recovery-passkey-btn').click();
+  await flush();
+  assert.deepEqual(recovered.events, ['sync-password-reset']);
+});
+
+test('a change that did not happen tells nobody: a passkey that was not confirmed, a wrong password', async () => {
+  const cancelled = await setup();
+  cancelled.passkey.cancel = true;
+  await addPasskey(cancelled);
+  const wrong = await setup();
+  await addPasskey(wrong, 'not-the-password');
+  assert.deepEqual([...cancelled.events, ...wrong.events], []);
 });

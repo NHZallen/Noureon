@@ -12,6 +12,7 @@ import { createVaultRecoveryClient, getRecoveryStorageKey } from './settings-vau
 import { createAuthenticatorControls } from './settings-security-authenticator.js';
 import { createPasskeyControls, passkeyErrorText } from './settings-security-passkey.js';
 import { createIdentityConfirmation } from './settings-identity-confirmation.js';
+import { createSecurityNotifier } from './settings-security-notice.js';
 import { bindAccountLinkingActions } from './settings-account-linking-actions.js';
 import { bindSyncVaultActions } from './settings-sync-vault-actions.js';
 
@@ -26,6 +27,7 @@ export function createSettingsSyncVaultControls({
   loadStyles = () => import('../../../styles/user-settings.css'),
   getSupabase = getSupabaseClient,
   passkeyApi,
+  notifySecurity = createSecurityNotifier(),
   isConfigured = isSupabaseConfigured,
   reloadPage = () => window.location.reload(),
   scheduleTimeout = (callback, delay) => window.setTimeout(callback, delay)
@@ -141,10 +143,10 @@ export function createSettingsSyncVaultControls({
 
   const { request: requestVaultRecovery, store: storeVaultRecovery, isVerifiedMode: isVerifiedRecoveryMode } = createVaultRecoveryClient({ window, storage, getSupabase: () => getSupabase(), text });
 
-  const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError });
+  const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity });
   // The passkeys ask the person to confirm through the same function the other actions use, which asks them (the passkeys) in turn.
   const identity = {};
-  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), ...(passkeyApi && { passkey: passkeyApi }) });
+  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity, ...(passkeyApi && { passkey: passkeyApi }) });
   identity.confirm = createIdentityConfirmation({ authenticator, passkeys });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
@@ -355,7 +357,7 @@ export function createSettingsSyncVaultControls({
       window, document, storage, getCurrentUser, showNotification, text, getSupabase, reloadPage, scheduleTimeout,
       isBusy: () => busy, setBusy, getAccountTurnstile: () => accountTurnstile, notifyError, setAccountMessage, authErrorText,
       requireMatchingPasswords, requireMatchingLoginPasswords, refreshAccountLinking, refreshSyncVaultControls, requestVaultRecovery,
-      storeVaultRecovery, getRecoveryStorageKey, confirmIdentity: identity.confirm, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
+      storeVaultRecovery, getRecoveryStorageKey, confirmIdentity: identity.confirm, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
     };
     bindAccountLinkingActions(elements, ctx);
     bindSyncVaultActions(elements, ctx);

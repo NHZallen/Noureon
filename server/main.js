@@ -27,6 +27,7 @@ import { createServiceClient } from './supabase-rest.js';
 import { createShares } from './shares.js';
 import { createProjectReader } from './project-reader.js';
 import { createProjectInvites } from './project-invites.js';
+import { createSecurityNotices } from './security-notices.js';
 import { createShareReportMailer } from './share-reports.js';
 import { createShareStore } from './share-store.js';
 import { canDrawSlides } from './slides/available.js';
@@ -49,6 +50,7 @@ let memoryRebuild = null;
 let shares = null;
 let projectReader = null;
 let projectInvites = null;
+let securityNotices = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -89,6 +91,7 @@ if (config.runsConfigured) {
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
     projectReader = createProjectReader({ db, files });
     projectInvites = createProjectInvites({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), appUrl: config.appUrl, log });
+    securityNotices = createSecurityNotices({ mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), appUrl: config.appUrl, log });
     shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log, reportMail: createShareReportMailer({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), to: config.reportTo, appUrl: config.appUrl, log }) });
   } catch (error) {
     log('config_error', { message: error.message });
@@ -96,7 +99,7 @@ if (config.runsConfigured) {
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares, projectReader, projectInvites }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares, projectReader, projectInvites, securityNotices }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;

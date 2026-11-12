@@ -16,7 +16,7 @@ import {
 export function bindSyncVaultActions(elements, {
   window, document, storage, getCurrentUser, showNotification, text, getSupabase, isBusy, setBusy, getAccountTurnstile, notifyError,
   setAccountMessage, authErrorText, requireMatchingPasswords, refreshSyncVaultControls, requestVaultRecovery, storeVaultRecovery,
-  getRecoveryStorageKey, confirmIdentity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
+  getRecoveryStorageKey, confirmIdentity, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
   elements.createButton.addEventListener('click', async () => {
     if (isBusy()) return;
@@ -147,6 +147,7 @@ export function bindSyncVaultActions(elements, {
       elements.recoveryPassword.value = '';
       elements.recoveryConfirmation.value = '';
       dispatchUnlocked(user.username);
+      notifySecurity('sync-password-reset');
       showNotification(text('cloudSyncPasswordReset', '同步密碼已重設，既有加密同步資料仍可繼續使用。'));
       await refreshSyncVaultControls();
     } catch (error) {
@@ -177,6 +178,7 @@ export function bindSyncVaultActions(elements, {
       window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
       elements.recoveryPassword.value = '';
       elements.recoveryConfirmation.value = '';
+      notifySecurity('sync-started-over');
       showNotification(text('cloudSyncStartedOver', '已重新開始。請建立新的同步密碼。'));
       await refreshSyncVaultControls();
     } catch (error) {
@@ -221,6 +223,7 @@ export function bindSyncVaultActions(elements, {
       elements.nextPassword.value = '';
       elements.nextConfirmation.value = '';
       dispatchUnlocked(user.username);
+      notifySecurity('sync-password-changed');
       showNotification(text('cloudSyncPasswordChanged', '同步密碼已變更。'));
       setManageOpen(false);
       await refreshSyncVaultControls();
@@ -250,6 +253,7 @@ export function bindSyncVaultActions(elements, {
     await removeSyncVault({ storage, username: user.username });
     await queueCloudSyncKind('vault');
     await queueCloudSyncKind('sensitive');
+    notifySecurity('sync-password-cleared');
     showNotification(text('cloudSyncPasswordRemoved', '同步密碼已清除。'));
     await refreshSyncVaultControls();
   });

@@ -4,7 +4,7 @@
 
 const CODE = /^\d{6}$/;
 
-export function createAuthenticatorControls({ document, window, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError }) {
+export function createAuthenticatorControls({ document, window, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity = () => {} }) {
   let factorId = null; // the confirmed factor
   let pendingId = null; // a factor being set up (not confirmed yet)
   let secret = '';
@@ -130,6 +130,7 @@ export function createAuthenticatorControls({ document, window, getSupabase, get
     pendingId = null;
     secret = '';
     await refresh();
+    notifySecurity('authenticator-added');
     showNotification(text('securityTotpEnabledNotice', '驗證器已啟用。'));
   }
 
@@ -140,6 +141,7 @@ export function createAuthenticatorControls({ document, window, getSupabase, get
     if (error) throw error;
     factorId = null;
     await refresh();
+    notifySecurity('authenticator-removed');
     showNotification(text('securityTotpRemovedNotice', '驗證器已移除。'));
   }
 

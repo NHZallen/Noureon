@@ -37,7 +37,7 @@ const formatDate = (value, locale) => {
 };
 
 export function createPasskeyControls({
-  document, window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity,
+  document, window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity, notifySecurity = () => {},
   passkey = { availability: passkeyPrfAvailability, register: registerRecoveryPasskey, readAny: readAnyRecoveryPasskey },
   store = createRecoverySlotsStore({ getSupabase })
 }) {
@@ -142,6 +142,7 @@ export function createPasskeyControls({
     // The recovery the server kept for the person (the old way) is dropped now that the person has one of their own.
     state = { ...state, slots: await store.save(addRecoverySlot(state.slots, slot), { dropServerSlot: state.hasServerSlot }), hasServerSlot: false };
     elements.passkeyPassword.value = '';
+    notifySecurity('passkey-added');
     showNotification(text('securityPasskeyAdded', '通行金鑰已新增。忘記同步密碼時，可以用它救援，也可以用它解鎖。'));
     await refresh();
   }
@@ -154,6 +155,7 @@ export function createPasskeyControls({
       : text('securityPasskeyRemoveConfirm', '移除這把通行金鑰的救援資料？（裝置上的通行金鑰本身不會被刪除。）'))) return;
     if (!await confirmIdentity()) return;
     state = { ...state, slots: await store.save(removeRecoverySlot(state.slots, slotId)) };
+    notifySecurity('passkey-removed');
     showNotification(text('securityPasskeyRemoved', '已移除。'));
     await refresh();
   }
