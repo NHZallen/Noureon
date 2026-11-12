@@ -124,3 +124,21 @@
 #settings-modal :is(#user-section, #security-section) .us-pk-text { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 0.125rem; }
 #settings-modal :is(#user-section, #security-section) .us-pk-text .us-pk-name { flex: none; }
 #settings-modal :is(#user-section, #security-section) .us-pk-sub { overflow: hidden; color: var(--text-secondary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The security page on a phone: a list of rows that open one card at a time (settings-security-pages.js). On a computer every card is on the page and the list is not shown. */
+#security-section .sp-index { display: none; }
+@media (max-width: 768px) {
+  #security-section .sp-index { display: block; margin-top: 1rem; }
+  #security-section[data-page]:not([data-page=""]) .sp-index { display: none; }
+  #security-section .us > .us-card[data-page] { display: none; }
+  #security-section[data-page="login"] #security-login-card, #security-section[data-page="sync"] #security-sync-card, #security-section[data-page="passkey"] #security-passkey-card,
+  #security-section[data-page="totp"] #security-totp-card, #security-section[data-page="devices"] #security-devices-card { display: block; }
+  #security-section[data-page="devices"] #security-devices-toggle { display: none; }
+  #security-section[data-page="devices"] #security-devices-panel { display: block; }
+  #settings-modal #security-section .sp-group + .sp-group { margin-top: 1.25rem; }
+  #settings-modal #security-section .sp-heading { padding: 0 0.25rem; font-size: 0.8125rem; }
+  #settings-modal #security-section .sp-list { margin-top: 0.4rem; }
+  #settings-modal #security-section .sp-row + .sp-row { border-top: 1px solid var(--border-color); }
+  #settings-modal #security-section .sp-chevron { flex: none; display: inline-flex; }
+  #settings-modal #security-section :is(.sp-heading, .sp-chevron, .sp-chevron svg) { color: var(--text-secondary) !important; }
+}

@@ -110,7 +110,7 @@ test('main css is an ordered split manifest with every imported file under the s
 
   // The sheets only the settings dialog uses load with it (settings-dialog.css); it is added last, so it repeats, in the same order, the
   // page sheets that came after the first of them, which keep winning over them.
-  const dialogOnly = ['settings-cards.css', 'update-log.css', 'charts.css', 'settings-mobile.css', 'settings-api-keys.css',
+  const dialogOnly = ['settings-cards.css', 'update-log.css', 'charts.css', 'settings-mobile.css', 'settings-card-pages.css', 'settings-api-keys.css',
     'settings-output-translator.css', 'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css', 'permissions.css',
     'conversation-search.css'];
   const dialogImports = [...readSource('src/styles/settings-dialog.css').matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);

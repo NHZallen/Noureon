@@ -4,6 +4,7 @@ import {
 } from '../features/settings-mobile-metadata.js';
 
 import { tryHandleSettingsBack } from './settings-section-back.js';
+import { mountCardPages } from './settings-card-pages.js';
 
 const SETTINGS_MOBILE_VIEW_TRANSITION_MS = 280;
 
@@ -147,6 +148,7 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
     clearSettingsMobileViewTransition();
     const targetSection = document.getElementById(`${sectionName}-section`);
     if (!targetSection) return;
+    mountCardPages({ document, window, section: targetSection });
     ALL_ELEMENTS.settingsModal.classList.remove('settings-mobile-returning');
     document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
     targetSection.classList.add('active');

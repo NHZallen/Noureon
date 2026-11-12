@@ -1,0 +1,9 @@
+/* Cards of a long settings page as rows that open one card at a time, on a phone (settings-card-pages.js). On a computer nothing changes. */
+@media (max-width: 768px) {
+  #settings-modal .settings-section[data-cp="on"] .pz-card:not(.cp-open) > :not(.pz-head) { display: none; }
+  #settings-modal .settings-section[data-cp="on"] .pz-card:not(.cp-open) > .pz-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 3.5rem; cursor: pointer; }
+  #settings-modal .settings-section[data-cp="on"] .pz-card:not(.cp-open) > .pz-head::after { content: ""; flex: none; width: 0.5rem; height: 0.5rem; border: solid var(--text-secondary); border-width: 0 2px 2px 0; transform: rotate(-45deg); }
+  #settings-modal .settings-section[data-cp="on"] .pz-card:not(.cp-open) > .pz-head h3 { font-size: 1rem; font-weight: var(--astra-font-medium); }
+  #settings-modal .settings-section[data-cp="on"][data-cp-page="open"] .pz-card:not(.cp-open) { display: none; }
+  #settings-modal .settings-section[data-cp="on"] .pz-card.cp-open > .pz-head { display: none; }
+}

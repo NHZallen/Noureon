@@ -11,6 +11,7 @@
 @import './charts.css';
 @import './settings.css';
 @import './settings-mobile.css';
+@import './settings-card-pages.css';
 @import './settings-api-keys.css';
 @import './settings-output-translator.css';
 @import './settings-theme-bubble.css';

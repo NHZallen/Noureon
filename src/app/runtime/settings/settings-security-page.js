@@ -2,6 +2,7 @@
 // show/hide button of its password boxes.
 
 import { buildSecuritySectionMarkup } from './settings-user-section-markup.js';
+import { mountSecurityPages } from './settings-security-pages.js';
 
 /** The entry and the page of security and sign-in right after the user page's. Returns the page. */
 export function mountSecurityPage({ document, text, userNav, userSection }) {
@@ -17,6 +18,7 @@ export function mountSecurityPage({ document, text, userNav, userSection }) {
   section.className = 'settings-section';
   section.innerHTML = buildSecuritySectionMarkup(text);
   if (!section.parentNode) userSection.after(section);
+  mountSecurityPages({ document, window: document.defaultView, text, section });
   return section;
 }
 

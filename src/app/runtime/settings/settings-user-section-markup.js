@@ -220,7 +220,8 @@ export function buildSecuritySectionMarkup(text) {
             <button id="security-mfa-confirm-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityMfaConfirm">確認</button>
           </div>
         </section>
-        <section class="us-card">
+        <div id="security-pages" class="sp-index"></div>
+        <section id="security-login-card" class="us-card" data-page="login">
           <div id="login-password-row" class="us-row hidden">
             <span class="us-mark">${ICONS.key}</span>
             <div class="us-row-text">
@@ -250,7 +251,7 @@ export function buildSecuritySectionMarkup(text) {
           </div>
         </section>
 
-        <section class="us-card">
+        <section id="security-sync-card" class="us-card" data-page="sync">
           <div class="us-head">
             <div class="us-head-main">
               <span class="us-mark">${ICONS.cloud}</span>
@@ -324,7 +325,7 @@ export function buildSecuritySectionMarkup(text) {
             </div>
           </div>
         </section>
-        <section id="security-passkey-card" class="us-card hidden">
+        <section id="security-passkey-card" class="us-card hidden" data-page="passkey">
           <div class="us-row">
             <span class="us-mark">${ICONS.key}</span>
             <div class="us-row-text">
@@ -344,7 +345,7 @@ export function buildSecuritySectionMarkup(text) {
             <div class="us-foot is-end"><button id="security-passkey-add-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityPasskeyAdd">新增通行金鑰</button></div>
           </div>
         </section>
-        <section id="security-totp-card" class="us-card hidden">
+        <section id="security-totp-card" class="us-card hidden" data-page="totp">
           <div class="us-row">
             <span class="us-mark">${ICONS.shield}</span>
             <div class="us-row-text">
@@ -376,7 +377,7 @@ export function buildSecuritySectionMarkup(text) {
             </div>
           </div>
         </section>
-        <section id="security-devices-card" class="us-card hidden">
+        <section id="security-devices-card" class="us-card hidden" data-page="devices">
           <button id="security-devices-toggle" type="button" class="us-row" aria-expanded="false" aria-controls="security-devices-panel">
             <span class="us-mark">${ICONS.devices}</span>
             <span class="us-row-text">
