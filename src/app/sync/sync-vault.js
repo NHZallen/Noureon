@@ -19,14 +19,6 @@ async function markVaultCloudSyncPending() {
   }
 }
 
-async function markSensitiveCloudSyncPending() {
-  try {
-    return await getService(SERVICES.workspaceSync)?.queueLocalChange?.('sensitive');
-  } catch {
-    return false;
-  }
-}
-
 function bytesToBase64(bytes) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
