@@ -497,3 +497,61 @@ test('a new Email is told to wait for the mail, as before', async () => {
   assert.match(document.getElementById('user-section').textContent, /驗證信已寄出/);
   assert.equal(values.has('chat_pendingCloudLink_v1'), true, 'the local data waits for the confirmation');
 });
+
+// Start over: the password is forgotten and nothing else can open the vault. The Email sign-in of the recovery is the proof (no current password).
+const startOverFixture = async ({ serverAnswer }) => {
+  const requests = [];
+  const supabase = { auth: { getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
+  const notices = [];
+  const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }) });
+  fixture.window.confirm = () => true;
+  fixture.window.fetch = async (url, init) => { requests.push({ url, body: JSON.parse(init.body) }); return serverAnswer(); };
+  fixture.setCurrentUser(cloudUser);
+  await createAndUnlockSyncVault({ storage: fixture.storage, username: cloudUser.username, password: 'old-password-123' });
+  await fixture.storage.setItem(`chatSyncVaultRecovery_v1_${cloudUser.username}`, 'state-1');
+  fixture.window.happyDOM.setURL('https://noureon.test/?vault_recovery=state-1');
+  fixture.controls.ensureSyncVaultSettings();
+  await fixture.controls.refreshSyncVaultControls();
+  return { ...fixture, requests, notices };
+};
+const answer = (status, body) => () => ({ ok: status < 400, status, json: async () => body });
+
+test('start over: the recovery panel offers it, asks the server to delete the recovery data with no password, and clears the local vault', async () => {
+  const { window, requests, notices, values } = await startOverFixture({ serverAnswer: answer(200, { deleted: true }) });
+  assert.equal(window.document.getElementById('sync-vault-recovery-panel').classList.contains('hidden'), false);
+  assert.ok(window.document.getElementById('sync-vault-start-over-btn'));
+  assert.ok(values.has(`chatSyncVault_v1_${cloudUser.username}`));
+
+  window.document.getElementById('sync-vault-start-over-btn').click();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.deepEqual(requests.map((request) => request.body), [{ action: 'delete' }], 'no password is sent: the Email sign-in is the proof');
+  assert.equal(values.has(`chatSyncVault_v1_${cloudUser.username}`), false, 'the vault record of this device is gone');
+  assert.equal(values.has(`chatSyncVaultRecovery_v1_${cloudUser.username}`), false, 'the recovery state is gone');
+  assert.equal(new URL(window.location.href).searchParams.has('vault_recovery'), false, 'and the address is clean');
+  assert.equal(window.document.getElementById('sync-vault-recovery-panel').classList.contains('hidden'), true);
+  assert.equal(window.document.getElementById('sync-vault-create-panel').classList.contains('hidden'), false, 'a new sync password can be made now');
+  assert.match(notices.at(-1).message, /重新開始/);
+});
+
+test('start over: an Email sign-in that is too old changes nothing and says to ask for a new verification Email', async () => {
+  const { window, notices, values } = await startOverFixture({ serverAnswer: answer(403, { error: 'The current sync password is required', code: 'current_password_required' }) });
+
+  window.document.getElementById('sync-vault-start-over-btn').click();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.ok(values.has(`chatSyncVault_v1_${cloudUser.username}`), 'the vault is kept');
+  assert.equal(notices.at(-1).type, 'error');
+  assert.match(notices.at(-1).message, /逾時/);
+});
+
+test('start over: declining the confirmation does nothing', async () => {
+  const { window, requests, values } = await startOverFixture({ serverAnswer: answer(200, { deleted: true }) });
+  window.confirm = () => false;
+
+  window.document.getElementById('sync-vault-start-over-btn').click();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.equal(requests.length, 0);
+  assert.ok(values.has(`chatSyncVault_v1_${cloudUser.username}`));
+});

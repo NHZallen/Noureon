@@ -56,6 +56,7 @@ export const getUserSectionElements = (document) => ({
   recoveryPassword: document.getElementById('sync-vault-recovery-password'),
   recoveryConfirmation: document.getElementById('sync-vault-recovery-confirmation'),
   recoveryButton: document.getElementById('sync-vault-recovery-save-btn'),
+  startOverButton: document.getElementById('sync-vault-start-over-btn'),
   changeButton: document.getElementById('sync-vault-change-btn'),
   lockButton: document.getElementById('sync-vault-lock-btn'),
   resetButton: document.getElementById('sync-vault-reset-btn')
@@ -219,7 +220,10 @@ export function buildUserSectionMarkup(text) {
                 ${passwordField({ id: 'sync-vault-recovery-confirmation', label: '再次輸入同步密碼', labelKey: 'cloudSyncPasswordConfirm', autocomplete: 'new-password', minlength: minimum })}
               </div>
             </div>
-            <div class="us-foot is-end"><button id="sync-vault-recovery-save-btn" type="button" class="us-btn is-primary is-block" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button></div>
+            <div class="us-foot">
+              <button id="sync-vault-start-over-btn" type="button" class="us-link" data-lang-key="cloudSyncStartOver">無法救援，重新開始</button>
+              <button id="sync-vault-recovery-save-btn" type="button" class="us-btn is-primary is-block" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button>
+            </div>
           </div>
           <div id="sync-vault-unlocked-panel" class="hidden">
             <div class="us-body">${syncNowMarkup()}</div>

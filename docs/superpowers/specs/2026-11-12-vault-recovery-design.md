@@ -122,3 +122,17 @@ Allen 問：所有救援都沒了，要怎麼重新建立？查 `settings-sync-v
 - 清掉本機金鑰庫後，雲端舊的 `sensitive_config` 如果沒一起清，其他裝置同步下來會「解不開」（`cloud-workspace-sync.js` 的 `No sync-vault key could decrypt`）；要確認清除時會把雲端那份一起清成空，以及其他裝置收到後的行為。
 - 驗證器（C）登記後，這個「重新開始」要不要也要求 `aal2`：要，否則有 Email 的人能直接清掉別人的救援（登記了驗證器的帳號才適用）。
 - 與「仍保有金鑰的另一台裝置」的關係：那台裝置不需要重新開始，直接用新同步密碼重建即可（§10 層次 1）。
+
+### 11.1 做完了（2026-11-12，在 `staging`）
+
+「無法救援，重新開始」已做：
+- 位置：忘記同步密碼的 Email 驗證後出現的「重設同步密碼」面板，在「重設」按鈕旁（`sync-vault-start-over-btn`）。
+- 流程：確認視窗 → 伺服器 `delete`（伺服器本來就允許 10 分鐘內 Email 登入過者不需舊密碼，**伺服器端沒有改**）→ 移除本機金鑰庫紀錄 → 排入 `vault` 與 `sensitive` 同步（本機沒有金鑰庫時，`prepareUpload` 對兩者都上傳 null，雲端的金鑰庫紀錄與加密的 API 金鑰就被清成空）→ 清掉救援狀態與網址參數 → 回到「建立同步密碼」畫面；本機還留著的 API 金鑰在新密碼建立後會用新金鑰重新加密上傳。
+- Email 驗證過期（伺服器回 `current_password_required`）時，顯示「Email 驗證已逾時，請再按一次忘記同步密碼」，不動任何東西。
+- 五語文字：`cloudSyncStartOver`、`cloudSyncStartOverConfirm`、`cloudSyncStartedOver`、`cloudSyncStartOverExpired`。
+- 測試：`tests/settings-sync-vault-controls.test.js` 三個（成功、驗證過期、取消）。
+
+沒驗證：
+- 沒在瀏覽器實際看過畫面，也沒用真實帳號走過；要在 `staging` 用有雲端金鑰庫的帳號走一遍。
+- 其他已登入的裝置收到「雲端金鑰庫被清空」之後的行為：讀程式看，`applyRemote` 收到空的 `sensitive_config` 會把那台裝置本機的金鑰設定也移除，所以其他裝置上的 API 金鑰可能也會被清掉（與既有「清除同步密碼」按鈕相同）；確認視窗只寫「要在各裝置重新輸入」。要在兩台裝置上實測。
+- 驗證器（C）上線後，這個流程要加 `aal2` 條件（§11 第二點）。

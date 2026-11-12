@@ -63,7 +63,7 @@ export function createSettingsSyncVaultControls({
   const setBusy = (nextBusy) => {
     busy = nextBusy;
     const elements = getElements();
-    for (const button of [elements.emailButton, elements.googleButton, elements.loginPasswordButton, elements.forgotLoginPasswordButton, elements.createButton, elements.unlockButton, elements.forgotButton, elements.recoveryButton, elements.changeButton, elements.lockButton, elements.resetButton]) {
+    for (const button of [elements.emailButton, elements.googleButton, elements.loginPasswordButton, elements.forgotLoginPasswordButton, elements.createButton, elements.unlockButton, elements.forgotButton, elements.recoveryButton, elements.startOverButton, elements.changeButton, elements.lockButton, elements.resetButton]) {
       if (button) button.disabled = nextBusy;
     }
   };
@@ -147,8 +147,8 @@ export function createSettingsSyncVaultControls({
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      if (result.code === 'current_password_required') throw new Error(text('cloudSyncCurrentPasswordRequired', '請在「目前同步密碼」輸入現在的同步密碼。忘記的話，請用「忘記同步密碼」。'));
-      throw new Error(result.error || text('cloudSyncRecoveryFailed', '同步密碼復原服務失敗。'));
+      if (result.code === 'current_password_required') throw Object.assign(new Error(text('cloudSyncCurrentPasswordRequired', '請在「目前同步密碼」輸入現在的同步密碼。忘記的話，請用「忘記同步密碼」。')), { code: result.code });
+      throw Object.assign(new Error(result.error || text('cloudSyncRecoveryFailed', '同步密碼復原服務失敗。')), { code: result.code });
     }
     return result;
   };

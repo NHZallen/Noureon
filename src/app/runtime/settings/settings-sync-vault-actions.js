@@ -134,6 +134,35 @@ export function bindSyncVaultActions(elements, {
       setBusy(false);
     }
   });
+  // No way back into the vault (the password is forgotten and nothing else can open it): start over. The Email sign-in of the recovery is the proof
+  // (the server asks for one made a moment ago, so no current password is needed); the cloud's vault record and its encrypted API keys are
+  // cleared, and the person makes a new sync password and enters the keys again. Conversations and the rest are not in the vault.
+  elements.startOverButton.addEventListener('click', async () => {
+    if (isBusy()) return;
+    if (!window.confirm(text('cloudSyncStartOverConfirm', '重新開始會清除雲端上的同步密碼和已同步的 API 金鑰，之後要設新的同步密碼，並在各裝置重新輸入 API 金鑰。對話和其他資料不受影響。確定要繼續嗎？'))) return;
+    const user = getCurrentUser();
+    try {
+      setBusy(true);
+      await requestVaultRecovery('delete');
+      await removeSyncVault({ storage, username: user.username });
+      await queueCloudSyncKind('vault');
+      await queueCloudSyncKind('sensitive');
+      await storage.removeItem(getRecoveryStorageKey(user.username));
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('vault_recovery');
+      window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+      elements.recoveryPassword.value = '';
+      elements.recoveryConfirmation.value = '';
+      showNotification(text('cloudSyncStartedOver', '已重新開始。請建立新的同步密碼。'));
+      await refreshSyncVaultControls();
+    } catch (error) {
+      // The Email sign-in is older than the server accepts: the way on is a new verification Email, not a password.
+      if (error?.code === 'current_password_required') notifyError(new Error(text('cloudSyncStartOverExpired', 'Email 驗證已逾時，請再按一次「忘記同步密碼」重新寄送驗證信。')));
+      else notifyError(error);
+    } finally {
+      setBusy(false);
+    }
+  });
   elements.lockButton.addEventListener('click', async () => {
     const user = getCurrentUser();
     lockSyncVault(user.username);
