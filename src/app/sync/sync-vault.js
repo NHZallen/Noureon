@@ -56,6 +56,60 @@ async function deriveVaultKey(password, salt, iterations, cryptoProvider) {
   );
 }
 
+// Remembering the unlock on this device. After the sync password (or a passkey) has opened the vault, the data key is kept on this device so that a reload or a
+// new visit does not ask again, until the person locks the vault, signs out or removes the vault. It is kept sealed by the storage (security/local-key-seal.js:
+// the key of the device, which no script can read): where the browser cannot seal, nothing is kept and the person unlocks as before. The protection with a passkey
+// switches this off (setSyncVaultRememberPolicy): then the unlock is asked again after the days the person chose.
+export const getRememberedSyncVaultStorageKey = (username) => (username ? `chatSyncVaultRemembered_v1_${username}` : null);
+let rememberPolicy = () => true;
+/** `policy(username)`: whether an unlock of this person may be remembered (true unless the person has chosen the protection with a passkey). */
+export function setSyncVaultRememberPolicy(policy) {
+  rememberPolicy = typeof policy === 'function' ? policy : () => true;
+}
+
+async function rememberUnlock(storage, username, keyBytes) {
+  const storageKey = getRememberedSyncVaultStorageKey(username);
+  if (!storageKey || !keyBytes || !storage?.setItem) return;
+  try {
+    if (!await rememberPolicy(username)) return;
+    await storage.setItem(storageKey, bytesToBase64(keyBytes));
+  } catch {
+    // The browser cannot seal it (a private window): the person unlocks as before.
+  }
+}
+
+/** Forgets the unlock kept on this device (locking, signing out, removing the vault). */
+export async function forgetRememberedSyncVault({ storage, username } = {}) {
+  const storageKey = getRememberedSyncVaultStorageKey(username);
+  if (!storageKey || !storage?.removeItem) return;
+  try {
+    await storage.removeItem(storageKey);
+  } catch {
+    // Nothing more can be done here.
+  }
+}
+
+/** Opens the vault again from the unlock kept on this device. True when it is open now. A key that is not the key of the record kept here is dropped. */
+export async function restoreRememberedSyncVault({ storage, username, cryptoProvider = globalThis.crypto } = {}) {
+  if (unlockedVaultKeys.has(username)) return true;
+  const storageKey = getRememberedSyncVaultStorageKey(username);
+  if (!storageKey || !storage?.getItem) return false;
+  try {
+    const saved = await storage.getItem(storageKey);
+    if (!saved || !await rememberPolicy(username)) return false;
+    const record = await readSyncVaultRecord(storage, username);
+    const keyBytes = base64ToBytes(saved);
+    if (!record || !await verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider })) {
+      await forgetRememberedSyncVault({ storage, username });
+      return false;
+    }
+    unlockedVaultKeys.set(username, await importDataKey(keyBytes, cryptoProvider));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getSyncVaultStorageKey(username) {
   return username ? `chatSyncVault_v1_${username}` : null;
 }
@@ -188,10 +242,11 @@ async function writeRecord(storage, username, record) {
 
 export async function createAndUnlockSyncVault({ storage, username, password, cryptoProvider } = {}) {
   if (!getSyncVaultStorageKey(username)) throw new TypeError('A user is required to create a sync vault.');
-  const { record, key } = await createSyncVaultRecord(password, { cryptoProvider });
+  const { record, key, keyBytes } = await createSyncVaultRecord(password, { cryptoProvider });
   await writeRecord(storage, username, record);
   previousVaultKeys.delete(username);
   unlockedVaultKeys.set(username, key);
+  await rememberUnlock(storage, username, keyBytes);
   return record;
 }
 
@@ -213,6 +268,7 @@ export async function unlockSyncVault({ storage, username, password, cryptoProvi
   const keyBytes = await openAndUpgrade({ storage, username, password, cryptoProvider });
   const key = await importDataKey(keyBytes, cryptoProvider);
   unlockedVaultKeys.set(username, key);
+  await rememberUnlock(storage, username, keyBytes);
   return key;
 }
 
@@ -223,6 +279,7 @@ export async function unlockSyncVaultWithKeyBytes({ storage, username, keyBytes,
   if (!await verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider })) throw withCode(new Error('This key does not open this vault.'), 'vault-key-mismatch');
   const key = await importDataKey(keyBytes, cryptoProvider);
   unlockedVaultKeys.set(username, key);
+  await rememberUnlock(storage, username, keyBytes);
   return key;
 }
 
@@ -238,6 +295,7 @@ export async function changeSyncVaultPassword({
   const { record, key } = await buildRecord(nextPassword, keyBytes, { cryptoProvider });
   await writeRecord(storage, username, record);
   unlockedVaultKeys.set(username, key);
+  await rememberUnlock(storage, username, keyBytes);
   return record;
 }
 
@@ -257,6 +315,7 @@ export async function removeSyncVault({ storage, username } = {}) {
   await storage.removeItem(storageKey);
   await storage.removeItem(getSyncVaultRotationStorageKey(username));
   await storage.removeItem(getSyncVaultBackupStorageKey(username));
+  await forgetRememberedSyncVault({ storage, username });
   await markVaultCloudSyncPending();
   unlockedVaultKeys.delete(username);
   previousVaultKeys.delete(username);
@@ -337,8 +396,10 @@ export function isSyncVaultUnlocked(username) {
   return unlockedVaultKeys.has(username);
 }
 
-export function lockSyncVault(username) {
+/** Locks the vault. With `storage`, the unlock kept on this device is forgotten too (the person pressed lock, or signed out). */
+export function lockSyncVault(username, { storage } = {}) {
   unlockedVaultKeys.delete(username);
+  if (storage) void forgetRememberedSyncVault({ storage, username });
 }
 
 export const syncVaultPolicy = Object.freeze({

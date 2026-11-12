@@ -11,6 +11,7 @@ export function getStoredUserWorkspaceKeys(username) {
     `chatSensitiveConfig_v1_${username}`,
     `chatSyncVault_v1_${username}`,
     `chatSyncVaultRecovery_v1_${username}`,
+    `chatSyncVaultRemembered_v1_${username}`,
     `chatSyncVaultRotationPending_v1_${username}`,
     `chatCloudSyncMeta_v1_${username}`,
     `chatCloudSyncJournal_v1_${username}`,

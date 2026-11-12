@@ -8,7 +8,8 @@ import {
   getSyncVaultRotationStorageKey,
   getSyncVaultStorageKey,
   getUnlockedSyncVaultKey,
-  lockSyncVault
+  lockSyncVault,
+  restoreRememberedSyncVault
 } from './sync-vault.js';
 import { createCloudAssetTransport } from './cloud-assets.js';
 import { repairCloudWorkspaceGeneratedImageKeys } from './cloud-workspace-image-repair.js';
@@ -590,7 +591,9 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   else provideService(SERVICES.workspaceSync, api);
   window.addEventListener('online', handleOnline);
   window.addEventListener('astra:sync-vault-unlocked', handleSyncVaultUnlocked);
-  if (bootstrapQueue?.takePendingVaultUnlock?.()) {
+  // The unlock kept on this device (until the person locks or signs out): the vault opens by itself, so a new visit does not ask for the sync password again.
+  const restoredUnlock = await restoreRememberedSyncVault({ storage, username });
+  if (bootstrapQueue?.takePendingVaultUnlock?.() || restoredUnlock) {
     await handleSyncVaultUnlocked({ detail: { username } });
   }
 

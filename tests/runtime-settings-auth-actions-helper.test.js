@@ -205,6 +205,7 @@ test('login as another stored owner removes the previous workspace data', async 
     ['removeItem', 'chatSensitiveConfig_v1_alice'],
     ['removeItem', 'chatSyncVault_v1_alice'],
     ['removeItem', 'chatSyncVaultRecovery_v1_alice'],
+    ['removeItem', 'chatSyncVaultRemembered_v1_alice'],
     ['removeItem', 'chatSyncVaultRotationPending_v1_alice'],
     ['removeItem', 'chatCloudSyncMeta_v1_alice'],
     ['removeItem', 'chatCloudSyncJournal_v1_alice'],

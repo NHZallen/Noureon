@@ -1,8 +1,24 @@
+import { sealRuleOf } from '../security/local-key-rules.js';
+
+// The seal does the cryptography and is loaded the first time one of the sealed keys is read or written (most pages of the app never need it before the keys are read).
+const lazySeal = (make) => {
+  let loaded = null;
+  const load = () => (loaded ||= import('../security/local-key-seal.js').then(make));
+  return {
+    available: async () => (await load()).available(),
+    seal: async (key, text) => (await load()).seal(key, text),
+    open: async (key, stored) => (await load()).open(key, stored)
+  };
+};
+
 export function createRuntimeStorageAdapter({
   indexedDBFactory = indexedDB,
   dbName = 'ChatAppDB',
   storeName = 'keyValue',
-  version = 1
+  version = 1,
+  // The values of some keys (the API keys, the remembered unlock of the sync vault) are sealed at rest: see security/local-key-seal.js. The page's own browser
+  // storage shares one seal; a storage that is given another factory (tests) has its own.
+  seal = lazySeal((module) => (indexedDBFactory === globalThis.indexedDB ? module.getSharedLocalKeySeal() : module.createLocalKeySeal({ indexedDBFactory })))
 } = {}) {
   let db;
 
@@ -22,7 +38,7 @@ export function createRuntimeStorageAdapter({
     });
   }
 
-  async function getItem(key) {
+  async function getRaw(key) {
     const idb = await openDB();
     return new Promise((resolve, reject) => {
       const transaction = idb.transaction(storeName, 'readonly');
@@ -33,6 +49,20 @@ export function createRuntimeStorageAdapter({
     });
   }
 
+  // What is read back from a key whose value is sealed. A text kept in plain (before the seal existed) is given as it is and sealed in the background.
+  async function unsealed(key, stored) {
+    if (!sealRuleOf(key) || typeof stored !== 'string') return stored;
+    const opened = await seal.open(key, stored);
+    if (!opened.sealed && opened.value && await seal.available()) {
+      void setItem(key, opened.value).catch(() => {});
+    }
+    return opened.value;
+  }
+
+  async function getItem(key) {
+    return unsealed(key, await getRaw(key));
+  }
+
   async function readItems(keys) {
     if (!Array.isArray(keys) || keys.some(key => typeof key !== 'string')) {
       throw new TypeError('Atomic storage read keys must be an array of strings.');
@@ -41,14 +71,16 @@ export function createRuntimeStorageAdapter({
     const idb = await openDB();
     const transaction = idb.transaction(storeName, 'readonly');
     const store = transaction.objectStore(storeName);
-    return Promise.all(keys.map(key => new Promise((resolve, reject) => {
+    const stored = await Promise.all(keys.map(key => new Promise((resolve, reject) => {
       const request = store.get(key);
       request.onsuccess = () => resolve(request.result ? request.result.value : null);
       request.onerror = event => reject(request.error || event?.target?.error || event);
     })));
+    return keys.some(sealRuleOf) ? Promise.all(stored.map((value, index) => unsealed(keys[index], value))) : stored;
   }
 
   async function setItem(key, value) {
+    if (sealRuleOf(key)) value = await seal.seal(key, value);
     const idb = await openDB();
     return new Promise((resolve, reject) => {
       const transaction = idb.transaction(storeName, 'readwrite');
@@ -74,6 +106,10 @@ export function createRuntimeStorageAdapter({
       }
     }
     if (puts.length === 0 && removes.length === 0) return;
+    // (The sealing is done before the transaction opens: a transaction does not wait for anything but its own requests.)
+    if (puts.some((entry) => sealRuleOf(entry.key))) {
+      puts = await Promise.all(puts.map(async (entry) => (sealRuleOf(entry.key) ? { ...entry, value: await seal.seal(entry.key, entry.value) } : entry)));
+    }
 
     const idb = await openDB();
     return new Promise((resolve, reject) => {

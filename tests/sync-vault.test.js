@@ -18,7 +18,11 @@ import {
   lockSyncVault,
   migrateSyncVaultRecord,
   readSyncVaultRecord,
+  forgetRememberedSyncVault,
+  getRememberedSyncVaultStorageKey,
   removeSyncVault,
+  restoreRememberedSyncVault,
+  setSyncVaultRememberPolicy,
   syncVaultPolicy,
   takePreviousSyncVaultKey,
   openSyncVaultRecordKeyBytes,
@@ -229,13 +233,84 @@ test('sync vault creation and removal mark cloud sync before and after storage m
       password: 'ordered vault password',
       cryptoProvider: webcrypto
     });
-    assert.deepEqual(order, ['mark:vault', 'write', 'mark:vault']);
+    assert.deepEqual(order, ['mark:vault', 'write', 'mark:vault', 'write'], 'the last write is the unlock this device remembers');
 
     order.length = 0;
     await removeSyncVault({ storage, username: 'supabase:ordered-vault' });
-    assert.deepEqual(order, ['mark:vault', 'remove', 'remove', 'remove', 'mark:vault']);
+    assert.deepEqual(order, ['mark:vault', 'remove', 'remove', 'remove', 'remove', 'mark:vault'], 'the record, the rotation, the backup and the remembered unlock');
   } finally {
     if (previousSync) provideService(SERVICES.workspaceSync, previousSync);
     else withdrawService(SERVICES.workspaceSync, sync);
+  }
+});
+
+// The unlock this device remembers (until lock, sign-out or removal), so a new visit does not ask for the sync password again.
+const REMEMBER_USER = 'supabase:remembered';
+test('an unlock is remembered on this device and opens the vault again in a new visit, until it is locked', async () => {
+  const storage = createStorage();
+  await createAndUnlockSyncVault({ storage, username: REMEMBER_USER, password: 'a remembered password', cryptoProvider: webcrypto });
+  assert.ok(storage.values.get(getRememberedSyncVaultStorageKey(REMEMBER_USER)), 'the data key is kept (the storage seals it)');
+
+  lockSyncVault(REMEMBER_USER); // a reload: the memory is gone, what the device keeps is not
+  assert.equal(isSyncVaultUnlocked(REMEMBER_USER), false);
+  assert.equal(await restoreRememberedSyncVault({ storage, username: REMEMBER_USER, cryptoProvider: webcrypto }), true);
+  assert.equal(isSyncVaultUnlocked(REMEMBER_USER), true);
+  const payload = await encryptSyncVaultPayload({ apiKeys: { gemini: 'k' } }, getUnlockedSyncVaultKey(REMEMBER_USER));
+  assert.deepEqual(await decryptSyncVaultPayload(payload, getUnlockedSyncVaultKey(REMEMBER_USER)), { apiKeys: { gemini: 'k' } });
+
+  lockSyncVault(REMEMBER_USER, { storage });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(storage.values.has(getRememberedSyncVaultStorageKey(REMEMBER_USER)), false, 'locking forgets it');
+  assert.equal(await restoreRememberedSyncVault({ storage, username: REMEMBER_USER, cryptoProvider: webcrypto }), false);
+  await removeSyncVault({ storage, username: REMEMBER_USER });
+});
+
+test('every way of opening the vault remembers the unlock: the password, the data key of a passkey, a changed password', async () => {
+  const storage = createStorage();
+  const keyOf = () => storage.values.get(getRememberedSyncVaultStorageKey(REMEMBER_USER));
+  await createAndUnlockSyncVault({ storage, username: REMEMBER_USER, password: 'first password 123', cryptoProvider: webcrypto });
+  const first = keyOf();
+  await forgetRememberedSyncVault({ storage, username: REMEMBER_USER });
+  lockSyncVault(REMEMBER_USER);
+
+  await unlockSyncVault({ storage, username: REMEMBER_USER, password: 'first password 123', cryptoProvider: webcrypto });
+  assert.equal(keyOf(), first, 'the same data key');
+  await forgetRememberedSyncVault({ storage, username: REMEMBER_USER });
+  await unlockSyncVaultWithKeyBytes({ storage, username: REMEMBER_USER, keyBytes: await openSyncVaultRecordKeyBytes('first password 123', await readSyncVaultRecord(storage, REMEMBER_USER)), cryptoProvider: webcrypto });
+  assert.equal(keyOf(), first);
+  await forgetRememberedSyncVault({ storage, username: REMEMBER_USER });
+  await changeSyncVaultPassword({ storage, username: REMEMBER_USER, currentPassword: 'first password 123', nextPassword: 'second password 123', cryptoProvider: webcrypto });
+  assert.equal(keyOf(), first, 'a new password wraps the same data key');
+  await removeSyncVault({ storage, username: REMEMBER_USER });
+  assert.equal(keyOf(), undefined, 'removing the vault forgets it');
+});
+
+test('a remembered key that is not the key of the vault kept here is dropped and opens nothing', async () => {
+  const storage = createStorage();
+  await createAndUnlockSyncVault({ storage, username: REMEMBER_USER, password: 'a remembered password', cryptoProvider: webcrypto });
+  lockSyncVault(REMEMBER_USER);
+  storage.values.set(getRememberedSyncVaultStorageKey(REMEMBER_USER), Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString('base64'));
+  assert.equal(await restoreRememberedSyncVault({ storage, username: REMEMBER_USER, cryptoProvider: webcrypto }), false);
+  assert.equal(isSyncVaultUnlocked(REMEMBER_USER), false);
+  assert.equal(storage.values.has(getRememberedSyncVaultStorageKey(REMEMBER_USER)), false, 'dropped');
+  await removeSyncVault({ storage, username: REMEMBER_USER });
+});
+
+test('nothing is remembered where the storage cannot seal it, or where the protection with a passkey says no', async () => {
+  const unsealable = { ...createStorage(), setItem: async (key) => { if (key.startsWith('chatSyncVaultRemembered_')) throw new Error('This browser cannot keep a key of its own.'); } };
+  await createAndUnlockSyncVault({ storage: unsealable, username: REMEMBER_USER, password: 'a remembered password', cryptoProvider: webcrypto });
+  assert.equal(isSyncVaultUnlocked(REMEMBER_USER), true, 'the vault is open for this visit all the same');
+  lockSyncVault(REMEMBER_USER);
+
+  const storage = createStorage();
+  setSyncVaultRememberPolicy(() => false);
+  try {
+    await createAndUnlockSyncVault({ storage, username: REMEMBER_USER, password: 'a remembered password', cryptoProvider: webcrypto });
+    assert.equal(storage.values.has(getRememberedSyncVaultStorageKey(REMEMBER_USER)), false);
+    lockSyncVault(REMEMBER_USER);
+    assert.equal(await restoreRememberedSyncVault({ storage, username: REMEMBER_USER, cryptoProvider: webcrypto }), false);
+  } finally {
+    setSyncVaultRememberPolicy(null);
+    lockSyncVault(REMEMBER_USER);
   }
 });

@@ -557,6 +557,13 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
       console.warn('Supabase sign out failed; clearing local session marker anyway.', error);
     }
     activeCloudSession = null;
+    // The unlock of the sync vault that this device keeps lasts until the person signs out.
+    try {
+      const { forgetRememberedSyncVault } = await import('../sync/sync-vault.js');
+      await forgetRememberedSyncVault({ storage, username: await storage.getItem('chat_lastUser') });
+    } catch (error) {
+      console.warn('The remembered unlock could not be forgotten.', error);
+    }
     await storage.removeItem('chat_lastUser');
     window.location.reload();
   }, true);

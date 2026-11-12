@@ -10,6 +10,7 @@ import { createChatScrollLifecycle } from '../features/chat-scroll-lifecycle.js'
 import { createLatestUpdateNotice } from '../features/latest-update-notice.js';
 import { createMobileContextMenus } from '../features/mobile-context-menus.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
+import { startLocalKeyNotice } from '../security/local-key-notice.js';
 
 export function createPageFeatures({
     window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper, loadChart, loadCropper,
@@ -27,6 +28,8 @@ export function createPageFeatures({
     const getConfig = () => runtimeConfigAccess.getConfig();
     const getUiLanguage = () => runtimeConfigAccess.getUiLanguage();
     const getConversations = () => liveConversationsBridge.getConversations();
+    // Says once if the API keys kept on this device cannot be read (security/local-key-seal.js).
+    startLocalKeyNotice({ window, getText: (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback, showNotification });
     const themeAppearanceLifecycle = createThemeAppearanceLifecycle({
         window,
         document,

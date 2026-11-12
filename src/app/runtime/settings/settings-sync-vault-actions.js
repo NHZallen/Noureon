@@ -135,7 +135,7 @@ export function bindSyncVaultActions(elements, {
   });
   elements.lockButton.addEventListener('click', async () => {
     const user = getCurrentUser();
-    lockSyncVault(user.username);
+    lockSyncVault(user.username, { storage });
     await refreshSyncVaultControls();
   });
   elements.changeButton.addEventListener('click', async () => {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { initializeCloudWorkspaceSync } from '../src/app/sync/cloud-workspace-sync.js';
-import { createAndUnlockSyncVault, getSyncVaultStorageKey, lockSyncVault } from '../src/app/sync/sync-vault.js';
+import { createAndUnlockSyncVault, getSyncVaultStorageKey, getUnlockedSyncVaultKey, lockSyncVault } from '../src/app/sync/sync-vault.js';
 import { digestSettings } from '../src/data/settings-merge.js';
 import { SERVICES, getService, withdrawService } from '../src/app/runtime/services.js';
 
@@ -232,13 +232,34 @@ test('the same change queued many times is sent once, and nothing is sent while 
   } finally { await api.stop(); cleanup(); }
 });
 
+test('a new visit with the unlock remembered on this device opens the vault by itself: the keys go up encrypted without asking for the password', async () => {
+  await withNavigator(true, async () => {
+    const cloud = makeCloud(null);
+    const storage = makeStorage({ chat_lastUser: USERNAME });
+    await createAndUnlockSyncVault({ storage, username: USERNAME, password: 'a long sync password' });
+    lockSyncVault(USERNAME); // the page was closed: the memory is gone, the device still remembers
+    await storage.setItem(KEYS.sensitive, JSON.stringify({ apiKeys: { openrouter: 'sk-secret-plain-key' } }));
+    const { api } = await start({ cloud, storage });
+    try {
+      assert.equal(getUnlockedSyncVaultKey(USERNAME) !== null, true, 'it is open');
+      await api.queueLocalChange('sensitive');
+      await api.flush();
+      const upload = cloud.state.upserts.find((payload) => 'sensitive_config' in payload);
+      assert.ok(upload);
+      assert.doesNotMatch(JSON.stringify(upload), /sk-secret-plain-key/);
+      assert.equal(api.getStatus().kinds.sensitive.state, 'synced');
+    } finally { await api.stop(); lockSyncVault(USERNAME, { storage }); cleanup(); }
+  });
+});
+
 test('API keys are never sent while the sync password is locked, and are sent encrypted (never as they are) once it is open', async () => {
   await withNavigator(true, async () => {
     const cloud = makeCloud(null);
     const storage = makeStorage({ chat_lastUser: USERNAME });
     // The sync password is set up on this device, then locked again.
     await createAndUnlockSyncVault({ storage, username: USERNAME, password: 'a long sync password' });
-    lockSyncVault(USERNAME);
+    lockSyncVault(USERNAME, { storage }); // locking also forgets the unlock this device keeps
+    await new Promise((resolve) => setTimeout(resolve, 0));
     await storage.setItem(KEYS.sensitive, JSON.stringify({ apiKeys: { openrouter: 'sk-secret-plain-key' } }));
     const { api } = await start({ cloud, storage });
     try {
