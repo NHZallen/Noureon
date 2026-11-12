@@ -11,9 +11,9 @@
         -webkit-backdrop-filter: none !important;
     }
 
-    /* Going away, the page slides down (typography.css: 320 ms) over the chat, whole and not faded, and the window is put away when it has gone (the fade of 150 ms that every dialog has cut the slide short). */
+    /* Going away, the page slides down (typography.css: 320 ms) over the chat, whole and not faded, and the window is put away when it has gone (the fade of 150 ms that every dialog has cut the slide short). The pale veil that settings.css gives the window has to go too, or it stays over the chat for the whole slide. */
     #settings-modal:not(.visible) {
-        background: transparent;
+        background: transparent !important;
         transition: opacity 0s linear 320ms, visibility 0s linear 320ms;
     }
 
