@@ -25,6 +25,9 @@ export async function loadSplitWorkspace({ storage, user, context, logger = cons
     reason: selection.reason || null,
     problems: selection.loaded?.problems || [],
     migrationAttempts: selection.migration?.attempts || 0,
+    // On-demand loading: how many conversations came as stubs and how many had to be read whole (a stub that is not of the stored version is not used).
+    stubCount: selection.loaded?.stubCount ?? null,
+    fullCount: selection.loaded?.fullCount ?? null,
     rollbackFailed: Boolean(selection.rollback && selection.rollback.state !== 'exported')
   };
   if (selection.mode !== 'v2') return null;
