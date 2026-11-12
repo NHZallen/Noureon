@@ -19,6 +19,9 @@ create schema extensions;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean not null default false, raw_user_meta_data jsonb not null default '{}'::jsonb);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 create function auth.role() returns text language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
+-- The claims of the token of a request (as Supabase has them: aal is aal1 after a sign-in and aal2 once the code of the authenticator app was confirmed), and the factors of the sign-in service (the role of a person cannot read them).
+create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, factor_type text not null, status text not null default 'unverified');
 create table storage.buckets (id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid, created_at timestamptz default now(), updated_at timestamptz default now(), metadata jsonb);
 alter table storage.objects enable row level security;
@@ -55,7 +58,7 @@ export async function createDatabase({ upTo = null } = {}) {
   }
 
   /** The database as one role sees it: a request of that role (with that person for `authenticated`), one transaction for each call. */
-  const as = (role, userId = null, headers = null) => ({
+  const as = (role, userId = null, headers = null, claims = null) => ({
     role,
     userId,
     async query(sql, params = []) {
@@ -64,6 +67,8 @@ export async function createDatabase({ upTo = null } = {}) {
         await tx.exec(`select set_config('request.jwt.claim.sub', ${quote(userId || '')}, true), set_config('request.jwt.claim.role', ${quote(role)}, true)`);
         // The headers of the request (the gateway of the project puts the address of the caller in them).
         if (headers) await tx.exec(`select set_config('request.headers', ${quote(JSON.stringify(headers))}, true)`);
+        // The claims of the token (`aal`...): a request carries them next to the person.
+        if (claims) await tx.exec(`select set_config('request.jwt.claims', ${quote(JSON.stringify({ sub: userId || undefined, role, ...claims }))}, true)`);
         return (await tx.query(sql, params)).rows;
       });
     },
@@ -80,7 +85,7 @@ export async function createDatabase({ upTo = null } = {}) {
     /** A request that comes from one network address. */
     anonFrom: (address) => as('anon', null, { 'x-forwarded-for': address }),
     service: as('service_role'),
-    asUser: (userId) => as('authenticated', userId),
+    asUser: (userId, claims = null) => as('authenticated', userId, null, claims),
     /** A person of the sign-in service. */
     async createUser(email = `${crypto.randomUUID()}@example.test`) {
       const { rows } = await db.query('insert into auth.users (email) values ($1) returning id', [email]);

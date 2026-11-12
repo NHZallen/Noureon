@@ -136,3 +136,23 @@ Allen 問：所有救援都沒了，要怎麼重新建立？查 `settings-sync-v
 - 沒在瀏覽器實際看過畫面，也沒用真實帳號走過；要在 `staging` 用有雲端金鑰庫的帳號走一遍。
 - 其他已登入的裝置收到「雲端金鑰庫被清空」之後的行為：讀程式看，`applyRemote` 收到空的 `sensitive_config` 會把那台裝置本機的金鑰設定也移除，所以其他裝置上的 API 金鑰可能也會被清掉（與既有「清除同步密碼」按鈕相同）；確認視窗只寫「要在各裝置重新輸入」。要在兩台裝置上實測。
 - 驗證器（C）上線後，這個流程要加 `aal2` 條件（§11 第二點）。
+
+## 12. 實作紀錄（2026-11-12，在 `staging`）
+
+Allen 的決定：通行金鑰（B）與驗證器（C）一起做，iPhone 與電腦都要能用。
+
+**P0／P1 做完：**
+- `src/app/sync/vault-recovery-slots.js`：槽格式、HKDF-SHA-256 派生、AES-GCM 封存與開啟、換密碼重包、清單（上限 8、去重、移除）。純函式。
+- `src/app/sync/passkey-prf.js`：`passkeyPrfAvailability`（yes／no／unknown）、`registerRecoveryPasskey`（登記，必要時再問一次取值）、`readAnyRecoveryPasskey`（一次問所有槽的通行金鑰，各用自己的鹽，回報是哪一把答的）。
+- 測試 `tests/vault-recovery-slots.test.js`（8 個，假瀏覽器）。另外用 Playwright 的 Chromium 虛擬驗證器（PRF 開）跑過真實的 WebAuthn：登記兩把、任一把都能救回同步密碼、換一把的金鑰打不開另一個槽、同一把同一個鹽兩次取值相同、已存在的通行金鑰會被擋（`passkey-exists`）。這證明程式流程在 Chromium 能通，**不是** Face ID／Touch ID／Windows Hello／實體金鑰的實測。
+- 查到：同一台裝置（或同步到同一個 iCloud 鑰匙圈的裝置）不能對同一把通行金鑰再登記一次（`excludeCredentials`），所以「第二把」要真的是另一個通行金鑰（另一個驗證器、另一個密碼管理員或實體金鑰）；同步到 iCloud／Google 的通行金鑰本來就在每台裝置上都能用。
+
+**P2 做完（只寫檔，Allen 先套測試專案再套正式）：**
+- `supabase/migrations/20261112100000_vault_recovery_slots.sql`：`recovery_payload` 可為空、新增 `slots jsonb`（陣列、最多 8、64 KB）、函式 `user_has_verified_totp()`（security definer，只回答本人）、三條 restrictive 規則（insert／update／delete）：有已驗證的 TOTP 因子的人，要 `aal2` 才能新增、改、刪救援資料；讀取不限制。
+- 用 PGlite 真實 SQL 測：`tests/database/vault-recovery-slots.test.js`（6 個）；測試基礎 `tests/helpers/database/supabase-database.js` 加了 `auth.jwt()`、`auth.mfa_factors` 與 `asUser(id, claims)`。
+- 測試抓到兩個我寫錯的地方：規則名稱超過 63 字元會被截斷，三條同名互相覆蓋（改短且各自不同）；restrictive 規則要綁本人的 `auth.uid()`（既有測試要求）。
+- 行為提醒：被規則擋掉的 update／delete 不會報錯，只是 0 列受影響；頁面程式碼要檢查「改了幾列」，不能只看有沒有錯誤。insert 才會報錯。
+
+**還沒做：**
+- P3 通行金鑰畫面、P4 驗證器畫面與伺服器 `api/sync-vault-recovery.js` 的 `aal2` 檢查、P5 文字與政策。畫面版面要先給 Allen 看（AGENTS.md）。
+- Allen 要確認兩個 Supabase 專案（正式 `clctveoosifoapbafhrl`、測試 `nnousccvghbkucloewrs`）的 Authentication → Multi-Factor 裡 TOTP 的「Enroll」與「Verify」是開的。
