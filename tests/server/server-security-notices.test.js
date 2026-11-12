@@ -5,7 +5,7 @@ import test from 'node:test';
 import { createApp } from '../../server/app.js';
 import { loadConfig } from '../../server/config.js';
 import { createLogger } from '../../server/log.js';
-import { SECURITY_EVENTS, SECURITY_NOTICE_LIMIT, createSecurityNotices, securityNoticeMailFor } from '../../server/security-notices.js';
+import { SECURITY_EVENTS, SECURITY_NOTICE_LIMIT, createSecurityNotices, originLines, securityNoticeMailFor } from '../../server/security-notices.js';
 
 // The mail for a change that protects an account or the API keys: English, in the look of the other mails, to the address of the account only, at most 10 an hour.
 
@@ -78,4 +78,32 @@ test('POST /v1/security-notice mails the address of the sign-in (never one in th
     assert.equal((await post(base, { event: 'passkey-added' })).status, 429);
   }, { securityNotices: limited.notices });
   await withServer(async (base) => { assert.equal((await post(base, { event: 'passkey-added' })).status, 503); }, { securityNotices: null });
+});
+
+test('the mail says where the change came from: the device, the approximate place and the address, each only when it is known, and nothing that is not a plain line', () => {
+  const mail = securityNoticeMailFor({ event: 'passkey-added', time: TIME, origin: { device: 'iPhone · Safari', ip: '203.0.113.9', location: 'Taipei, TW' } });
+  assert.match(mail.text, /Device: iPhone · Safari\nLocation: Taipei, TW \(approximate, from the IP address\)\nIP address: 203\.0\.113\.9/);
+  assert.match(mail.html, /Device: iPhone · Safari/);
+  assert.match(mail.html, /IP address: 203\.0\.113\.9/);
+  assert.deepEqual(originLines({ device: 'Mac · Chrome', ip: 'not an address <b>', location: '' }), ['Device: Mac · Chrome'], 'an address that is not one, and an empty place, are left out');
+  assert.deepEqual(originLines({ ip: '2001:db8::1' }), ['IP address: 2001:db8::1']);
+  assert.deepEqual(originLines({ device: 'A\r\nBcc: x@evil.test' }), ['Device: A Bcc: x@evil.test'], 'a line break cannot start another line');
+  assert.doesNotMatch(securityNoticeMailFor({ event: 'passkey-added', time: TIME }).text, /Device:|IP address:|Location:/);
+  assert.ok(SECURITY_EVENTS['login-password-changed'] && SECURITY_EVENTS['signed-out-others']);
+});
+
+test('the route reads the device, the address and the place from the request itself, not from its body', async () => {
+  const { sent, notices } = setup();
+  await withServer(async (base) => {
+    const done = await fetch(`${base}/v1/security-notice`, {
+      method: 'POST',
+      headers: { ...headers, 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', 'X-Forwarded-For': '198.51.100.1, 203.0.113.9', 'CF-IPCity': 'Taipei', 'CF-IPCountry': 'TW' },
+      body: JSON.stringify({ event: 'signed-out-others', device: 'Mac · Chrome', ip: '1.1.1.1', location: 'Nowhere' })
+    });
+    assert.equal(done.status, 202);
+    assert.match(sent[0].text, /Device: iPhone · Safari/);
+    assert.match(sent[0].text, /Location: Taipei, TW/);
+    assert.match(sent[0].text, /IP address: 203\.0\.113\.9/, 'the address the host\'s proxy wrote, the last one');
+    assert.doesNotMatch(sent[0].text, /Nowhere|1\.1\.1\.1|Mac · Chrome/);
+  }, { securityNotices: notices });
 });

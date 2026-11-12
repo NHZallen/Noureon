@@ -691,6 +691,10 @@
     {
       "path": "src/data/project-media.js",
       "note": "Reviewed 2026-11-01: pure functions (the windows of a video or a recording, the names and hashes of their pieces, the ffmpeg commands; the ffmpeg itself is given); no browser globals."
+    },
+    {
+      "path": "src/app/runtime/security/device-name.js",
+      "note": "Reviewed 2026-11-12: no browser globals (a short name for the device and the browser from a User-Agent text: the passkey list and the mails about a change of the account)."
     }
   ]
 }

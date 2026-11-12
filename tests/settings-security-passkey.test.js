@@ -4,6 +4,7 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 import { createSettingsSyncVaultControls } from '../src/app/runtime/settings/settings-sync-vault-controls.js';
 import { createAndUnlockSyncVault, getUnlockedSyncVaultKey, isSyncVaultUnlocked, lockSyncVault, openSyncVaultRecordKeyBytes, readSyncVaultRecord, unlockSyncVault } from '../src/app/sync/sync-vault.js';
+import { deviceName } from '../src/app/runtime/security/device-name.js';
 import { bytesToBase64, openRecoverySlot } from '../src/app/sync/vault-recovery-slots.js';
 
 const user = { username: 'supabase:user-123', email: 'person@example.com', authProvider: 'supabase' };
@@ -358,4 +359,14 @@ test('a change that did not happen tells nobody: a passkey that was not confirme
   const wrong = await setup();
   await addPasskey(wrong, 'not-the-password');
   assert.deepEqual([...cancelled.events, ...wrong.events], []);
+});
+
+test('a passkey is named after the device and the browser it was made on, and a second of the same kind gets a number', async () => {
+  const fixture = await setup();
+  const base = deviceName(fixture.window.navigator.userAgent);
+  await addPasskey(fixture);
+  assert.equal(fixture.table.row.slots[0].label, base);
+  assert.match(fixture.byId('security-passkey-list').textContent, new RegExp(base));
+  await addPasskey(fixture);
+  assert.equal(fixture.table.row.slots[1].label, `${base} 2`);
 });

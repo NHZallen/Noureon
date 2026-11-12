@@ -224,7 +224,8 @@ test('updating the login password signs out every device, this one too, and load
 test('with the box unticked the password is updated and nobody is signed out', async () => {
   const { client, calls } = fakeSupabase();
   let reloads = 0;
-  const { window, controls, setCurrentUser } = createFixture({ getSupabase: () => client, reloadPage: () => { reloads += 1; }, scheduleTimeout: (callback) => callback() });
+  const events = [];
+  const { window, controls, setCurrentUser } = createFixture({ getSupabase: () => client, reloadPage: () => { reloads += 1; }, scheduleTimeout: (callback) => callback(), notifySecurity: (event) => events.push(event) });
   setCurrentUser(cloudUser);
   controls.ensureSyncVaultSettings();
   window.document.getElementById('login-password-signout-all').checked = false;
@@ -234,6 +235,7 @@ test('with the box unticked the password is updated and nobody is signed out', a
   assert.deepEqual(calls, ['signIn', 'update']);
   assert.equal(reloads, 0);
   assert.equal(window.document.getElementById('security-message').textContent, '登入密碼已更新。');
+  assert.deepEqual(events, ['login-password-changed'], 'the owner gets a mail');
 });
 
 test('when signing out of the other devices fails the person is told, and the page is not reloaded', async () => {
@@ -612,7 +614,8 @@ const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLeve
     unenroll: async ({ factorId }) => { state.unenrolled.push(factorId); state.factors = state.factors.filter((factor) => factor.id !== factorId); return { data: {}, error: null }; },
     getAuthenticatorAssuranceLevel: async () => ({ data: state.aal, error: null })
   };
-  const supabase = { auth: { mfa, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
+  state.signedOut = [];
+  const supabase = { auth: { mfa, signOut: async (options) => { state.signedOut.push(options?.scope); return { error: null }; }, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
   const notices = [];
   const events = [];
   const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }), notifySecurity: (event) => events.push(event) });
@@ -742,4 +745,41 @@ test('authenticator: a client with no auth.mfa hides the card and never asks for
   local.controls.ensureSyncVaultSettings();
   await local.controls.refreshSyncVaultControls();
   assert.equal(local.window.document.getElementById('security-totp-card').classList.contains('hidden'), true);
+});
+
+test('sign out of other devices: a card for a cloud account only; it asks, signs out the others (not this one) and tells the owner', async () => {
+  const { byId, state, events, window } = await mfaFixture();
+  assert.equal(byId('security-devices-card').classList.contains('hidden'), false);
+  window.confirm = () => false;
+  byId('security-signout-others-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, [], 'declining does nothing');
+  window.confirm = () => true;
+  byId('security-signout-others-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, ['others']);
+  assert.deepEqual(events, ['signed-out-others']);
+
+  const local = createFixture();
+  local.controls.ensureSyncVaultSettings();
+  await local.controls.refreshSyncVaultControls();
+  assert.equal(local.window.document.getElementById('security-devices-card').classList.contains('hidden'), true);
+});
+
+test('sign out of other devices asks for the authenticator code first when one is set up, and does nothing without it', async () => {
+  const { byId, state, window } = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+  window.confirm = () => true;
+  byId('security-signout-others-btn').click();
+  await flush();
+  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false);
+  assert.deepEqual(state.signedOut, []);
+  byId('security-mfa-cancel-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, [], 'giving up at the code signs nobody out');
+  byId('security-signout-others-btn').click();
+  await flush();
+  byId('security-mfa-code').value = '123456';
+  byId('security-mfa-confirm-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, ['others']);
 });

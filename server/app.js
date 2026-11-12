@@ -12,6 +12,7 @@ import { ShareError } from './shares.js';
 import { ProjectReadError } from './project-reader.js';
 import { InviteError } from './project-invites.js';
 import { SecurityNoticeError } from './security-notices.js';
+import { deviceName } from '../src/app/runtime/security/device-name.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -64,6 +65,18 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
   } catch {
     throw new RequestError(ERROR_CODES.badRequest, 'The body is not valid JSON.');
   }
+}
+
+/**
+ * Who sent a request, for the mail about a change of the account: the kind of device and browser (from the User-Agent), the address, and the city and country when the host's
+ * proxy gives them (Cloudflare's `CF-IPCity` and `CF-IPCountry`; with no proxy that says so, the mail has the address alone).
+ */
+export function requestOrigin(request) {
+  const header = (name) => String(request.headers?.[name] || '');
+  const country = /^[A-Za-z]{2}$/.test(header('cf-ipcountry')) && !['XX', 'T1'].includes(header('cf-ipcountry').toUpperCase()) ? header('cf-ipcountry').toUpperCase() : '';
+  let city = '';
+  try { city = decodeURIComponent(header('cf-ipcity')); } catch { city = header('cf-ipcity'); }
+  return { device: deviceName(header('user-agent')), ip: clientAddress(request), location: [city, country].filter(Boolean).join(', ') };
 }
 
 /**
@@ -569,7 +582,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (!securityNotices) throw new RequestError(ERROR_CODES.runsUnavailable, 'Security notices are not set up on the server.');
         const body = await readJson(request, 512);
         try {
-          send(response, 202, await securityNotices.send({ userId: user.id, email: user.email, event: String(body?.event || '') }), origin);
+          send(response, 202, await securityNotices.send({ userId: user.id, email: user.email, event: String(body?.event || ''), origin: requestOrigin(request) }), origin);
           status = 202;
           return;
         } catch (error) {

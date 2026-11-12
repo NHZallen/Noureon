@@ -8,7 +8,7 @@ import { EMAIL_PASSWORD_MARK, isRepeatedSignUp } from '../../auth/email-login-st
 
 export function bindAccountLinkingActions(elements, {
   window, document, storage, getCurrentUser, text, getSupabase, reloadPage, scheduleTimeout, isBusy, setBusy, getAccountTurnstile,
-  setAccountMessage, authErrorText, requireMatchingLoginPasswords, refreshAccountLinking, setLoginPasswordOpen
+  setAccountMessage, authErrorText, requireMatchingLoginPasswords, refreshAccountLinking, setLoginPasswordOpen, notifySecurity = () => {}
 }) {
   elements.emailForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -130,6 +130,7 @@ export function bindAccountLinkingActions(elements, {
       elements.loginCurrentPassword.value = '';
       elements.loginNewPassword.value = '';
       elements.loginConfirmation.value = '';
+      notifySecurity('login-password-changed');
       if (!elements.loginSignOutAll?.checked) {
         setAccountMessage(text('loginPasswordChanged', '登入密碼已更新。'), 'info', 'security');
         setLoginPasswordOpen(false);

@@ -10,6 +10,7 @@ const TABLE = 'user_vault_recovery';
 
 export function createRecoverySlotsStore({ getSupabase }) {
   const userId = async () => {
+    if (typeof getSupabase()?.auth?.getSession !== 'function') throw Object.assign(new Error('Sign in again.'), { code: 'session-required' });
     const { data, error } = await getSupabase().auth.getSession();
     const id = data?.session?.user?.id;
     if (error || !id) throw Object.assign(error || new Error('Sign in again.'), { code: 'session-required' });

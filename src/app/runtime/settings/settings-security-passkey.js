@@ -8,6 +8,7 @@ import { openSyncVaultRecordKeyBytes, readSyncVaultRecord, unlockSyncVaultWithKe
 import { addRecoverySlot, createPasskeySlot, openRecoverySlot, removeRecoverySlot } from '../../sync/vault-recovery-slots.js';
 import { passkeyPrfAvailability, readAnyRecoveryPasskey, registerRecoveryPasskey } from '../../sync/passkey-prf.js';
 import { createRecoverySlotsStore } from './settings-vault-recovery-slots-store.js';
+import { deviceName } from '../security/device-name.js';
 
 const ERROR_TEXTS = {
   'passkey-cancelled': ['securityPasskeyCancelled', '沒有確認通行金鑰，所以沒有完成。'],
@@ -64,7 +65,7 @@ export function createPasskeyControls({
     try {
       state = { ...await store.load(), loaded: true };
     } catch (error) {
-      globalThis.console?.warn?.('The recovery data could not be read.', error);
+      if (error?.code !== 'session-required') globalThis.console?.warn?.('The recovery data could not be read.', error);
       state = { ...state, loaded: false };
     }
     return state;
@@ -82,7 +83,7 @@ export function createPasskeyControls({
       item.dataset.slotId = slot.id;
       const name = document.createElement('span');
       name.className = 'us-pk-name';
-      name.textContent = slot.label || text('securityPasskeyDefaultName', '通行金鑰');
+      name.textContent = slot.label || text('securityPasskeyDefaultName', '通行金鑰'); // the device and browser it was made on
       const meta = document.createElement('span');
       meta.className = 'us-pk-meta';
       meta.textContent = formatDate(slot.createdAt, window.document?.documentElement?.lang);
@@ -121,6 +122,13 @@ export function createPasskeyControls({
     renderList();
   }
 
+  // The name of a passkey is the device and the browser it was made on ("iPhone · Safari"), so a person knows which is which; a second one of the same kind gets a number.
+  const nameForNewPasskey = () => {
+    const base = deviceName(window.navigator?.userAgent);
+    const taken = state.slots.filter((slot) => slot.label === base || slot.label?.startsWith(`${base} `)).length;
+    return taken ? `${base} ${taken + 1}` : base;
+  };
+
   // ----- adding one (the passkey is asked for first: the browser wants it right after the tap), taking one away
   async function add() {
     const user = getCurrentUser();
@@ -137,7 +145,7 @@ export function createPasskeyControls({
     const keyBytes = await openSyncVaultRecordKeyBytes(password, record); // the sync password is the right one, or this throws
     const slot = await createPasskeySlot({
       secret: made.secret, credentialId: made.credentialId, prfSalt: made.prfSalt, keyBytes,
-      label: `${text('securityPasskeyDefaultName', '通行金鑰')} ${state.slots.length + 1}`
+      label: nameForNewPasskey()
     });
     // The recovery the server kept for the person (the old way) is dropped now that the person has one of their own.
     state = { ...state, slots: await store.save(addRecoverySlot(state.slots, slot), { dropServerSlot: state.hasServerSlot }), hasServerSlot: false };

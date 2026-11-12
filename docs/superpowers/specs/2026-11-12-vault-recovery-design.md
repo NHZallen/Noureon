@@ -228,3 +228,12 @@ v1 的金鑰是 `PBKDF2(密碼, salt)` 直接當資料金鑰。**搬移時把這
 - **新金鑰庫不再產生伺服器那份救援**；已有的人換密碼時仍更新它，新增第一把通行金鑰時移除它。
 - **Email 通知**（`server/security-notices.js`，`POST /v1/security-notice`）：用 `server/mail-layout.js` 的樣式、英文，只寄給 token 對應帳號的 Email（請求裡的任何地址都不採用），每帳號每小時最多 10 封；事件：`passkey-added/removed`、`authenticator-added/removed`、`sync-password-changed/reset/cleared`、`sync-started-over`。**限制**：由頁面在動作完成後通知，所以偷到登入憑證的人若不經過 Noureon 的頁面直接打 Supabase 就不會觸發；驗證器的新增與移除另可在 Supabase 的 Auth 通知信設定打開伺服器端通知。
 - 部署：這次改了 `server/`，要重新部署伺服器；不需要新的 migration。
+
+## 18. 手機回饋後的修正（2026-11-12 晚，在 `staging`）
+
+- 通行金鑰的名字改成「設備＋瀏覽器」（`src/app/runtime/security/device-name.js`，例如 `iPhone · Safari`、`Mac · Chrome`；瀏覽器不會透露手機型號，所以只到這個程度；同一種第二把加編號）。這個模組伺服器也用（已列入 `scripts/server-shared-modules.json`）。
+- 通知信多了來源三行：`Device`（從請求的 User-Agent）、`Location`（有 Cloudflare 的 `CF-IPCity`／`CF-IPCountry` 標頭時才有，想要城市要在 Cloudflare 開「Add visitor location headers」）、`IP address`（`clientAddress`，取代理伺服器寫的最後一個）。都從請求本身讀，不信請求內容裡自報的；只放進信裡，不保存。隱私政策與協助中心五語已補（含 §6 的截止日說法與 `PRIVACY.md`）。
+- 新事件：`login-password-changed`、`signed-out-others`。
+- 安全性頁新增「登入的裝置」卡片：「登出其他所有裝置」（`supabase.auth.signOut({ scope: 'others' })`，這台不受影響；屬於需要確認一次的動作，會寄通知信）。登入密碼卡片原本就有「連同這台一起登出所有裝置」的選項。
+- 手機設定頁的標題：`language-apply.js` 重畫語言時用桌面選單的 active 項目當標題，所以在「安全性與登入」會變成「個人化」；改成以目前打開的 `.settings-section.active` 為準。
+- 換密碼、清除、重設、重新開始、用通行金鑰解鎖之後，頁面回到同步密碼那一格（表單收起來後下面的內容會往上跑，原本停在通行金鑰卡片）。

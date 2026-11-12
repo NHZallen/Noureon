@@ -10,9 +10,11 @@ import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-
 import { mountSecurityPage, togglePasswordEye } from './settings-security-page.js';
 import { createVaultRecoveryClient, getRecoveryStorageKey } from './settings-vault-recovery-client.js';
 import { createAuthenticatorControls } from './settings-security-authenticator.js';
-import { createPasskeyControls, passkeyErrorText } from './settings-security-passkey.js';
+import { createPasskeyControls } from './settings-security-passkey.js';
+import { createSecurityErrors } from './settings-security-errors.js';
 import { createIdentityConfirmation } from './settings-identity-confirmation.js';
 import { createSecurityNotifier } from './settings-security-notice.js';
+import { createDevicesControls } from './settings-security-devices.js';
 import { bindAccountLinkingActions } from './settings-account-linking-actions.js';
 import { bindSyncVaultActions } from './settings-sync-vault-actions.js';
 
@@ -79,30 +81,7 @@ export function createSettingsSyncVaultControls({
     }
   };
 
-  // Errors of the sync vault carry a code; the message is shown in the person's language.
-  const vaultErrorText = (error) => {
-    if (error?.code === 'vault-password-too-short') return text('cloudSyncPasswordTooShort', '同步密碼至少需要 10 碼。');
-    if (error?.code === 'vault-password-incorrect' || error?.message?.includes('Incorrect')) return text('cloudSyncPasswordIncorrect', '同步密碼不正確。');
-    if (error?.code === 'vault-not-configured') return text('cloudSyncPasswordNotSet', '尚未設定同步密碼');
-    return passkeyErrorText(error, text);
-  };
-
-  // The errors Supabase answers with (in English) that a person is likely to meet on this page.
-  const authErrorText = (error) => {
-    const code = error?.code || '';
-    const message = String(error?.message || '');
-    if (code === 'invalid_credentials' || /invalid login credentials/i.test(message)) return text('loginPasswordCurrentIncorrect', '目前登入密碼不正確。');
-    if (code === 'same_password' || /different from the old password/i.test(message)) return text('loginPasswordSameAsOld', '新密碼不能和目前的密碼相同。');
-    if (/rate_limit/.test(code) || error?.status === 429 || /rate limit/i.test(message)) return text('authRateLimited', '嘗試次數過多，請稍後再試。');
-    return '';
-  };
-
-  const notifyError = (error) => {
-    showNotification(
-      vaultErrorText(error) || authErrorText(error) || error?.message || text('cloudSyncPasswordError', '同步密碼操作失敗。'),
-      'error'
-    );
-  };
+  const { authErrorText, notifyError } = createSecurityErrors({ text, showNotification });
 
   // `page`: 'user' (linking Email and Google) or 'security' (the passwords).
   const setAccountMessage = (message, type = 'info', page = 'user') => {
@@ -148,6 +127,7 @@ export function createSettingsSyncVaultControls({
   const identity = {};
   const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity, ...(passkeyApi && { passkey: passkeyApi }) });
   identity.confirm = createIdentityConfirmation({ authenticator, passkeys });
+  const devices = createDevicesControls({ window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), notifySecurity });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
   const emailBindLabel = () => (getCurrentUser?.()?.authProvider === 'supabase'
@@ -234,6 +214,8 @@ export function createSettingsSyncVaultControls({
     await refreshAccountLinking();
     authenticator.bind();
     passkeys.bind();
+    devices.bind();
+    devices.refresh();
     void authenticator.refresh();
     passkeys.refresh().catch((error) => globalThis.console?.warn?.('The passkey card could not be drawn.', error));
     const user = getCurrentUser?.();

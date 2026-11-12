@@ -11,6 +11,8 @@ export const getUserSectionElements = (document) => ({
   securityNav: document.getElementById('security-section-nav'),
   securitySection: document.getElementById('security-section'),
   securityMessage: document.getElementById('security-message'),
+  devicesCard: document.getElementById('security-devices-card'),
+  signOutOthersButton: document.getElementById('security-signout-others-btn'),
   passkeyCard: document.getElementById('security-passkey-card'),
   passkeyState: document.getElementById('security-passkey-state'),
   passkeyUnsupported: document.getElementById('security-passkey-unsupported'),
@@ -102,6 +104,7 @@ function markupKit(text) {
     shield: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8.2 7 10 4-1.8 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>',
     copy: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 19z"/></svg>',
+    devices: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="10" rx="2"/><path d="M7 19h5M9.5 15v4"/><rect x="18" y="9" width="3" height="10" rx="1"/></svg>',
     pencil: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
     // Hidden (dots): the eye with a slash. Shown (text): the open eye. The button's aria-pressed picks which one is drawn (user-settings.css).
@@ -384,6 +387,18 @@ export function buildSecuritySectionMarkup(text) {
           <div id="security-totp-on" class="hidden">
             <div class="us-foot is-end"><button id="security-totp-remove-btn" type="button" class="us-btn is-danger" data-lang-key="securityTotpRemove">移除驗證器</button></div>
           </div>
+        </section>
+        <section id="security-devices-card" class="us-card hidden">
+          <div class="us-head">
+            <div class="us-head-main">
+              <span class="us-mark">${ICONS.devices}</span>
+              <div class="us-head-text">
+                <div class="us-head-line"><h3 data-lang-key="securityDevicesTitle">登入的裝置</h3></div>
+                <p class="us-desc" data-lang-key="securityDevicesDesc">用在別的地方登入過的裝置遺失，或懷疑帳號被別人用過時，可以把其他所有裝置登出。這台裝置不受影響。</p>
+              </div>
+            </div>
+          </div>
+          <div class="us-foot is-end"><button id="security-signout-others-btn" type="button" class="us-btn is-danger" data-lang-key="securityDevicesSignOut">登出其他所有裝置</button></div>
         </section>
         <p class="us-footnote" data-lang-key="passwordKindsNote">登入密碼用來登入帳號；同步密碼用來加密你的 API 金鑰，只在你的裝置上使用，兩者不同。</p>
         <p id="security-message" class="us-message hidden"></p>

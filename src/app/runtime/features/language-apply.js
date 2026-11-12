@@ -66,7 +66,10 @@ export function createLanguageApply({
             }
         });
         const mobileSettingsTitle = document.getElementById('settings-mobile-title');
-        const activeSettingsItem = document.querySelector('#settings-nav .settings-nav-item.active');
+        // The page open now (on a phone it is the one the list opened, which the desktop menu does not know), else the item the menu marks.
+        const openSection = document.querySelector('.settings-section.active');
+        const activeSettingsItem = (openSection && document.querySelector(`#settings-nav .settings-nav-item[data-section="${openSection.id.replace(/-section$/, '')}"]`))
+            || document.querySelector('#settings-nav .settings-nav-item.active');
         if (mobileSettingsTitle && activeSettingsItem) {
             const activeTitleKey = activeSettingsItem.dataset.langKey;
             const showsSectionTitle = ALL_ELEMENTS.settingsModal?.classList.contains('settings-mobile-detail-open');

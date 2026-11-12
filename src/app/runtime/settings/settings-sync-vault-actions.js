@@ -18,6 +18,8 @@ export function bindSyncVaultActions(elements, {
   setAccountMessage, authErrorText, requireMatchingPasswords, refreshSyncVaultControls, requestVaultRecovery, storeVaultRecovery,
   getRecoveryStorageKey, confirmIdentity, notifySecurity, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
+  // A form folds away or a panel changes and what is below moves up under the same place of the page: the person is taken back to the sync password, where the result is.
+  const stayAtSync = () => elements.status?.scrollIntoView?.({ block: 'center' });
   elements.createButton.addEventListener('click', async () => {
     if (isBusy()) return;
     try {
@@ -69,6 +71,7 @@ export function bindSyncVaultActions(elements, {
       dispatchUnlocked(user.username);
       showNotification(text('cloudSyncUnlockedNotice', '雲端同步已解鎖。'));
       await refreshSyncVaultControls();
+      stayAtSync();
     } catch (error) {
       notifyError(error);
     } finally {
@@ -150,6 +153,7 @@ export function bindSyncVaultActions(elements, {
       notifySecurity('sync-password-reset');
       showNotification(text('cloudSyncPasswordReset', '同步密碼已重設，既有加密同步資料仍可繼續使用。'));
       await refreshSyncVaultControls();
+      stayAtSync();
     } catch (error) {
       notifyError(error);
     } finally {
@@ -181,6 +185,7 @@ export function bindSyncVaultActions(elements, {
       notifySecurity('sync-started-over');
       showNotification(text('cloudSyncStartedOver', '已重新開始。請建立新的同步密碼。'));
       await refreshSyncVaultControls();
+      stayAtSync();
     } catch (error) {
       // The Email sign-in is older than the server accepts: the way on is a new verification Email, not a password.
       if (error?.code === 'current_password_required') notifyError(new Error(text('cloudSyncStartOverExpired', 'Email 驗證已逾時，請再按一次「忘記同步密碼」重新寄送驗證信。')));
@@ -227,6 +232,7 @@ export function bindSyncVaultActions(elements, {
       showNotification(text('cloudSyncPasswordChanged', '同步密碼已變更。'));
       setManageOpen(false);
       await refreshSyncVaultControls();
+      stayAtSync();
     } catch (error) {
       notifyError(error);
     } finally {
@@ -256,5 +262,6 @@ export function bindSyncVaultActions(elements, {
     notifySecurity('sync-password-cleared');
     showNotification(text('cloudSyncPasswordRemoved', '同步密碼已清除。'));
     await refreshSyncVaultControls();
+    stayAtSync();
   });
 }
