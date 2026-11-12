@@ -1,5 +1,7 @@
 import { SERVICES, getService } from '../runtime/services.js';
-const VAULT_VERSION = 1;
+const VAULT_VERSION = 1; // the version of the encrypted API keys (the payload), which did not change
+const LEGACY_RECORD_VERSION = 1;
+const RECORD_VERSION = 2;
 const VAULT_ITERATIONS = 310000;
 const VAULT_MIN_PASSWORD_LENGTH = 10;
 const VAULT_CHECK_TEXT = 'ASTRACHAT_SYNC_VAULT_V1';
@@ -70,22 +72,76 @@ export function getSyncVaultRotationStorageKey(username) {
   return username ? `chatSyncVaultRotationPending_v1_${username}` : null;
 }
 
-export async function createSyncVaultRecord(password, {
-  cryptoProvider = globalThis.crypto,
-  iterations = VAULT_ITERATIONS
-} = {}) {
+// The record of version 1 kept here when it is turned into version 2 (docs/superpowers/specs/2026-11-12-vault-recovery-design.md, §16.3).
+const getSyncVaultBackupStorageKey = (username) => (username ? `chatSyncVaultV1Backup_v1_${username}` : null);
+
+// ----- The key of the vault (docs/superpowers/specs/2026-11-12-vault-recovery-design.md, §16.2)
+// Version 2 has one random data key. It encrypts the API keys, and it never changes. The sync password only wraps it (and so does each passkey), so
+// changing the password wraps the same key again and nothing has to be encrypted twice. Version 1 used the key made from the password as the data key:
+// that key is taken as the data key of version 2 when a record of version 1 is opened, so what was encrypted before stays readable.
+
+const importDataKey = (keyBytes, cryptoProvider) => cryptoProvider.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
+
+async function deriveLegacyKeyBytes(password, salt, iterations, cryptoProvider) {
+  const material = await cryptoProvider.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+  return new Uint8Array(await cryptoProvider.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, material, 256));
+}
+
+const checkIvOf = (record) => (record.version === LEGACY_RECORD_VERSION ? record.iv : record.checkIv);
+
+/** Whether these key bytes are the data key of this record (its check text opens with them). */
+export async function verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider = globalThis.crypto } = {}) {
+  try {
+    const key = await importDataKey(keyBytes, cryptoProvider);
+    const plaintext = await cryptoProvider.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(checkIvOf(record)) }, key, base64ToBytes(record.check));
+    return decoder.decode(plaintext) === VAULT_CHECK_TEXT;
+  } catch {
+    return false;
+  }
+}
+
+async function buildRecord(password, keyBytes, { cryptoProvider, iterations = VAULT_ITERATIONS }) {
+  requireVaultPassword(password);
+  const salt = cryptoProvider.getRandomValues(new Uint8Array(16));
+  const iv = cryptoProvider.getRandomValues(new Uint8Array(12));
+  const checkIv = cryptoProvider.getRandomValues(new Uint8Array(12));
+  const wrappingKey = await deriveVaultKey(password, salt, iterations, cryptoProvider);
+  const key = await importDataKey(keyBytes, cryptoProvider);
+  const wrapped = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, keyBytes);
+  const check = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv: checkIv }, key, encoder.encode(VAULT_CHECK_TEXT));
+  return {
+    record: {
+      version: RECORD_VERSION,
+      algorithm: 'AES-GCM',
+      kdf: 'PBKDF2-SHA-256',
+      iterations,
+      salt: bytesToBase64(salt),
+      iv: bytesToBase64(iv),
+      wrappedKey: bytesToBase64(new Uint8Array(wrapped)),
+      checkIv: bytesToBase64(checkIv),
+      check: bytesToBase64(new Uint8Array(check)),
+      createdAt: new Date().toISOString()
+    },
+    key,
+    keyBytes
+  };
+}
+
+/** A new record. With no `keyBytes` a new random data key is made; with them, the same key is wrapped by this password (a changed password). */
+export async function createSyncVaultRecord(password, { cryptoProvider = globalThis.crypto, iterations = VAULT_ITERATIONS, keyBytes } = {}) {
+  return buildRecord(password, keyBytes || cryptoProvider.getRandomValues(new Uint8Array(32)), { cryptoProvider, iterations });
+}
+
+/** A record of version 1 (what the app made before 2026-11-12), kept for tests of the move to version 2. */
+export async function createLegacySyncVaultRecord(password, { cryptoProvider = globalThis.crypto, iterations = VAULT_ITERATIONS } = {}) {
   requireVaultPassword(password);
   const salt = cryptoProvider.getRandomValues(new Uint8Array(16));
   const iv = cryptoProvider.getRandomValues(new Uint8Array(12));
   const key = await deriveVaultKey(password, salt, iterations, cryptoProvider);
-  const check = await cryptoProvider.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encoder.encode(VAULT_CHECK_TEXT)
-  );
+  const check = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(VAULT_CHECK_TEXT));
   return {
     record: {
-      version: VAULT_VERSION,
+      version: LEGACY_RECORD_VERSION,
       algorithm: 'AES-GCM',
       kdf: 'PBKDF2-SHA-256',
       iterations,
@@ -98,30 +154,30 @@ export async function createSyncVaultRecord(password, {
   };
 }
 
-export async function unlockSyncVaultRecord(password, record, {
-  cryptoProvider = globalThis.crypto
-} = {}) {
+/** The bytes of the data key of a record, opened with the sync password (a record of version 1 or 2). A wrong password throws `vault-password-incorrect`. */
+export async function openSyncVaultRecordKeyBytes(password, record, { cryptoProvider = globalThis.crypto } = {}) {
   requireVaultPassword(password);
-  if (!record || record.version !== VAULT_VERSION || record.algorithm !== 'AES-GCM') {
+  if (!record || record.algorithm !== 'AES-GCM' || ![LEGACY_RECORD_VERSION, RECORD_VERSION].includes(record.version)) {
     throw new TypeError('Unsupported sync vault record.');
   }
-  const key = await deriveVaultKey(
-    password,
-    base64ToBytes(record.salt),
-    record.iterations,
-    cryptoProvider
-  );
-  try {
-    const plaintext = await cryptoProvider.subtle.decrypt(
-      { name: 'AES-GCM', iv: base64ToBytes(record.iv) },
-      key,
-      base64ToBytes(record.check)
-    );
-    if (decoder.decode(plaintext) !== VAULT_CHECK_TEXT) throw new Error('Invalid vault check.');
-  } catch {
-    throw withCode(new Error('Incorrect sync vault password.'), 'vault-password-incorrect');
+  const salt = base64ToBytes(record.salt);
+  const incorrect = () => withCode(new Error('Incorrect sync vault password.'), 'vault-password-incorrect');
+  if (record.version === LEGACY_RECORD_VERSION) {
+    const keyBytes = await deriveLegacyKeyBytes(password, salt, record.iterations, cryptoProvider);
+    if (!await verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider })) throw incorrect();
+    return keyBytes;
   }
-  return key;
+  const wrappingKey = await deriveVaultKey(password, salt, record.iterations, cryptoProvider);
+  try {
+    return new Uint8Array(await cryptoProvider.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(record.iv) }, wrappingKey, base64ToBytes(record.wrappedKey)));
+  } catch {
+    throw incorrect();
+  }
+}
+
+/** The data key of a record as a key to use (the API keys are encrypted with it). */
+export async function unlockSyncVaultRecord(password, record, { cryptoProvider = globalThis.crypto } = {}) {
+  return importDataKey(await openSyncVaultRecordKeyBytes(password, record, { cryptoProvider }), cryptoProvider);
 }
 
 export async function readSyncVaultRecord(storage, username) {
@@ -132,43 +188,73 @@ export async function readSyncVaultRecord(storage, username) {
   return JSON.parse(saved);
 }
 
+async function writeRecord(storage, username, record) {
+  await markVaultCloudSyncPending();
+  await storage.setItem(getSyncVaultStorageKey(username), JSON.stringify(record));
+  await markVaultCloudSyncPending();
+}
+
 export async function createAndUnlockSyncVault({ storage, username, password, cryptoProvider } = {}) {
-  const storageKey = getSyncVaultStorageKey(username);
-  if (!storageKey) throw new TypeError('A user is required to create a sync vault.');
+  if (!getSyncVaultStorageKey(username)) throw new TypeError('A user is required to create a sync vault.');
   const { record, key } = await createSyncVaultRecord(password, { cryptoProvider });
-  await markVaultCloudSyncPending();
-  await storage.setItem(storageKey, JSON.stringify(record));
-  await markVaultCloudSyncPending();
+  await writeRecord(storage, username, record);
   previousVaultKeys.delete(username);
   unlockedVaultKeys.set(username, key);
   return record;
 }
 
-export async function unlockSyncVault({ storage, username, password, cryptoProvider } = {}) {
+// Opens the record kept here with the password and gives its data key; a record of version 1 is turned into version 2 on the way (the password is known
+// now): a new salt, the same key wrapped again, and the record of version 1 kept beside it.
+async function openAndUpgrade({ storage, username, password, cryptoProvider }) {
   const record = await readSyncVaultRecord(storage, username);
   if (!record) throw withCode(new Error('No sync vault password has been configured.'), 'vault-not-configured');
-  const key = await unlockSyncVaultRecord(password, record, { cryptoProvider });
+  const keyBytes = await openSyncVaultRecordKeyBytes(password, record, { cryptoProvider });
+  if (record.version !== LEGACY_RECORD_VERSION) return keyBytes;
+  const upgraded = await buildRecord(password, keyBytes, { cryptoProvider });
+  await storage.setItem(getSyncVaultBackupStorageKey(username), JSON.stringify(record));
+  await writeRecord(storage, username, upgraded.record);
+  return keyBytes;
+}
+
+/** Opens the vault with the sync password. */
+export async function unlockSyncVault({ storage, username, password, cryptoProvider = globalThis.crypto } = {}) {
+  const keyBytes = await openAndUpgrade({ storage, username, password, cryptoProvider });
+  const key = await importDataKey(keyBytes, cryptoProvider);
   unlockedVaultKeys.set(username, key);
   return key;
 }
 
+/** Opens the vault with the data key itself (from a passkey): it has to be the key of the record kept here. */
+export async function unlockSyncVaultWithKeyBytes({ storage, username, keyBytes, cryptoProvider = globalThis.crypto } = {}) {
+  const record = await readSyncVaultRecord(storage, username);
+  if (!record) throw withCode(new Error('No sync vault password has been configured.'), 'vault-not-configured');
+  if (!await verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider })) throw withCode(new Error('This key does not open this vault.'), 'vault-key-mismatch');
+  const key = await importDataKey(keyBytes, cryptoProvider);
+  unlockedVaultKeys.set(username, key);
+  return key;
+}
+
+/** A new sync password for the same data key: the key is wrapped again, nothing else changes (and nothing is encrypted again). */
 export async function changeSyncVaultPassword({
   storage,
   username,
   currentPassword,
   nextPassword,
-  cryptoProvider
+  cryptoProvider = globalThis.crypto
 } = {}) {
-  const previousRecord = await readSyncVaultRecord(storage, username);
-  const previousKey = await unlockSyncVault({ storage, username, password: currentPassword, cryptoProvider });
-  const retainedKeys = previousVaultKeys.get(username) || [];
-  await storage.setItem(getSyncVaultRotationStorageKey(username), JSON.stringify({
-    state: 'pending',
-    previousRecord
-  }));
-  const record = await createAndUnlockSyncVault({ storage, username, password: nextPassword, cryptoProvider });
-  previousVaultKeys.set(username, [...retainedKeys, previousKey]);
-  await markSensitiveCloudSyncPending();
+  const keyBytes = await openAndUpgrade({ storage, username, password: currentPassword, cryptoProvider });
+  const { record, key } = await buildRecord(nextPassword, keyBytes, { cryptoProvider });
+  await writeRecord(storage, username, record);
+  unlockedVaultKeys.set(username, key);
+  return record;
+}
+
+/** The sync password is forgotten and the data key came from a passkey: the same key wrapped by a new password. */
+export async function resetSyncVaultPasswordWithKeyBytes({ storage, username, keyBytes, nextPassword, cryptoProvider = globalThis.crypto } = {}) {
+  await unlockSyncVaultWithKeyBytes({ storage, username, keyBytes, cryptoProvider });
+  const { record, key } = await buildRecord(nextPassword, keyBytes, { cryptoProvider });
+  await writeRecord(storage, username, record);
+  unlockedVaultKeys.set(username, key);
   return record;
 }
 
@@ -178,6 +264,7 @@ export async function removeSyncVault({ storage, username } = {}) {
   await markVaultCloudSyncPending();
   await storage.removeItem(storageKey);
   await storage.removeItem(getSyncVaultRotationStorageKey(username));
+  await storage.removeItem(getSyncVaultBackupStorageKey(username));
   await markVaultCloudSyncPending();
   unlockedVaultKeys.delete(username);
   previousVaultKeys.delete(username);

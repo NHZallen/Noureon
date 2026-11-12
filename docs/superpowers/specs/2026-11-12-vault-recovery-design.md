@@ -188,3 +188,33 @@ S2（驗證器）、S3（通行金鑰）在這一頁加卡片：
 - Forgot the password: the recovery panel shows "Recover with a passkey" when there are slots, and the old button only while a server copy exists. One tap opens the slot, a slot of an earlier password is refused (`recovery-slot-stale`), and the slot that opened is sealed again with the new password.
 - Not verified on real devices (iPhone Face ID, Windows Hello, a security key): only the Playwright virtual authenticator (P0) and the tests with a fake passkey. Safari may want the tap to be fresh: the add flow asks the passkey first, and the cached state avoids a wait before it.
 - Still to do (P5): the texts of the privacy policy and help center, the reminder for old users, retiring the server copy after 2026-12-31 23:59 (UTC+8) and removing `SYNC_VAULT_RECOVERY_KEY`.
+
+## 16. 簡化版（Allen 2026-11-12 決定：三級確認、通行金鑰解鎖、Email 通知、金鑰庫 v2 一起做）
+
+### 16.1 為什麼要簡化
+S2、S3 做完後，「改什麼要什麼」散在每個動作裡（同步密碼、Email 10 分鐘、通行金鑰、6 位數混著用），換同步密碼還會讓通行金鑰的救援資料過期（「需要更新」）。根源是救援槽裡存的是**同步密碼本身**。
+
+### 16.2 金鑰庫 v2：固定資料金鑰（DEK）
+- 一把隨機的 256 位元資料金鑰（DEK）加密 API 金鑰（payload 格式不變：`version 1`、AES-GCM）。
+- 同步密碼只負責「包」這把 DEK：`record = { version: 2, kdf: PBKDF2-SHA-256, iterations, salt, iv, wrappedKey, checkIv, check, createdAt }`。`wrappedKey = AES-GCM(PBKDF2(密碼, salt), DEK)`；`check = AES-GCM(DEK, 固定字串)`，用來驗證「拿到的 DEK 是不是這個金鑰庫的」。
+- 通行金鑰救援槽也只包 DEK：`{ version: 2, type: 'passkey', …, ciphertext = AES-GCM(HKDF(PRF 密鑰), { key: DEK }) }`。
+- **換同步密碼 = 用新密碼重包同一把 DEK**。資料不用重新加密、不用換代（`previousVaultKeys` 與 rotation 機制對 v2 用不到），**通行金鑰槽完全不受影響**：沒有「需要更新」、換密碼不用刷多次 Face ID。
+- 忘記密碼用通行金鑰救援：開槽得到 DEK，用新密碼重包即可，不需要舊密碼。
+- 用通行金鑰解鎖：開槽得到 DEK，驗證 `check`，直接解鎖。
+
+### 16.3 從 v1 搬過來（不重新加密、不丟資料）
+v1 的金鑰是 `PBKDF2(密碼, salt)` 直接當資料金鑰。**搬移時把這把 v1 金鑰當作 DEK**：已加密的雲端資料與備份檔完全不用動。
+- 時機：v1 的紀錄在使用者輸入同步密碼成功解鎖時，當場換成 v2（新 salt、重包同一把金鑰）；本機另留一份 v1 備份（`chatSyncVaultV1Backup_v1_<username>`）。
+- 備份檔裡的 v1 紀錄照樣能用密碼解（DEK 沒變），匯入不受影響。
+- v2 紀錄會被雲端同步到各裝置；**還沒更新到新版的舊裝置看不懂 v2**（顯示無法解鎖，更新頁面即可）。
+- 舊的救援槽（密碼加紀錄那種）只存在 staging，沒有真實使用者；格式直接換掉，舊格式被忽略。
+- 舊的「伺服器救援」（`recovery_payload`，存 `{密碼, 紀錄}`）不受影響：v2 紀錄加同一個密碼照樣能解。
+
+### 16.4 三級確認
+- 日常：解鎖，只要同步密碼，或通行金鑰。
+- 改設定（換同步密碼、新增通行金鑰）：要同步密碼（本來就要），不再疊別的。
+- 危險動作（清除同步密碼、重新開始、移除通行金鑰、移除驗證器）：先「確認是你」一次。有驗證器就輸入 6 位數（伺服器和資料庫規則會擋，是真正的防護）；沒有驗證器但有通行金鑰就用通行金鑰（只在畫面上確認，擋不了被偷走的登入憑證）。10 分鐘內不再問。
+- 忘記同步密碼：Email 驗證後，通行金鑰救援，或重新開始。新使用者不再產生伺服器那份救援；已有的人保留到截止日或新增通行金鑰時移除。
+
+### 16.5 Email 通知
+新增或移除通行金鑰、設定或移除驗證器、清除或重新開始同步密碼時，寄英文信到帳號 Email，樣式沿用現有信件。

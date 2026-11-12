@@ -7,6 +7,7 @@ import {
   cancelSyncVaultRotation,
   changeSyncVaultPassword,
   createAndUnlockSyncVault,
+  createLegacySyncVaultRecord,
   createSyncVaultRecord,
   decryptSyncVaultPayload,
   encryptSyncVaultPayload,
@@ -20,8 +21,12 @@ import {
   removeSyncVault,
   syncVaultPolicy,
   takePreviousSyncVaultKey,
+  openSyncVaultRecordKeyBytes,
+  resetSyncVaultPasswordWithKeyBytes,
   unlockSyncVault,
-  unlockSyncVaultRecord
+  unlockSyncVaultRecord,
+  unlockSyncVaultWithKeyBytes,
+  verifySyncVaultKeyBytes
 } from '../src/app/sync/sync-vault.js';
 
 function createStorage() {
@@ -38,8 +43,9 @@ test('sync vault stores only a salted encrypted verifier and rejects a wrong pas
   const password = 'correct horse battery staple';
   const { record } = await createSyncVaultRecord(password, { cryptoProvider: webcrypto });
 
-  assert.equal(record.version, 1);
+  assert.equal(record.version, 2);
   assert.equal(record.algorithm, 'AES-GCM');
+  assert.ok(record.wrappedKey, 'the data key is kept wrapped by the password, never in the clear');
   assert.equal(record.kdf, 'PBKDF2-SHA-256');
   assert.equal(record.iterations, syncVaultPolicy.iterations);
   assert.equal('password' in record, false);
@@ -115,40 +121,87 @@ test('sync vault encrypts and decrypts private cloud payloads without exposing p
   );
 });
 
-test('changing the sync password exposes the previous key exactly once for cloud re-encryption', async () => {
+test('changing the sync password wraps the same data key again: what was encrypted stays readable and nothing is rotated', async () => {
   const storage = createStorage();
   const username = 'supabase:rotation-user';
-  await createAndUnlockSyncVault({
-    storage,
-    username,
-    password: 'old encryption password',
-    cryptoProvider: webcrypto
-  });
-  const encrypted = await encryptSyncVaultPayload(
-    { apiKeys: { tavily: 'preserved-secret' } },
-    getUnlockedSyncVaultKey(username),
-    { cryptoProvider: webcrypto }
-  );
-  await changeSyncVaultPassword({
-    storage,
-    username,
-    currentPassword: 'old encryption password',
-    nextPassword: 'new encryption password',
-    cryptoProvider: webcrypto
-  });
+  await createAndUnlockSyncVault({ storage, username, password: 'old encryption password', cryptoProvider: webcrypto });
+  const encrypted = await encryptSyncVaultPayload({ apiKeys: { tavily: 'preserved-secret' } }, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto });
+  const before = await readSyncVaultRecord(storage, username);
+  await changeSyncVaultPassword({ storage, username, currentPassword: 'old encryption password', nextPassword: 'new encryption password', cryptoProvider: webcrypto });
+  const after = await readSyncVaultRecord(storage, username);
 
-  const rotation = JSON.parse(storage.values.get(getSyncVaultRotationStorageKey(username)));
-  assert.equal(rotation.state, 'pending');
-  assert.equal(rotation.previousRecord.version, 1);
-
-  const previousKey = takePreviousSyncVaultKey(username);
-  assert.deepEqual(
-    await decryptSyncVaultPayload(encrypted, previousKey, { cryptoProvider: webcrypto }),
-    { apiKeys: { tavily: 'preserved-secret' } }
-  );
+  assert.notEqual(after.wrappedKey, before.wrappedKey);
+  assert.notEqual(after.salt, before.salt);
+  assert.equal(storage.values.has(getSyncVaultRotationStorageKey(username)), false, 'no rotation: the data key did not change');
   assert.equal(takePreviousSyncVaultKey(username), null);
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto }), { apiKeys: { tavily: 'preserved-secret' } });
+  lockSyncVault(username);
+  await assert.rejects(() => unlockSyncVault({ storage, username, password: 'old encryption password', cryptoProvider: webcrypto }), /Incorrect sync vault password/);
+  await unlockSyncVault({ storage, username, password: 'new encryption password', cryptoProvider: webcrypto });
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto }), { apiKeys: { tavily: 'preserved-secret' } });
   await cancelSyncVaultRotation({ storage, username });
-  assert.equal(storage.values.has(getSyncVaultRotationStorageKey(username)), false);
+});
+
+test('a vault of version 1 is turned into version 2 when it is opened with its password: the same data key, the old record kept, what was encrypted before still opens', async () => {
+  const storage = createStorage();
+  const username = 'supabase:legacy-user';
+  const password = 'legacy vault password';
+  const { record: legacy, key: legacyKey } = await createLegacySyncVaultRecord(password, { cryptoProvider: webcrypto });
+  const encrypted = await encryptSyncVaultPayload({ apiKeys: { gemini: 'from-the-old-days' } }, legacyKey, { cryptoProvider: webcrypto });
+  await storage.setItem(getSyncVaultStorageKey(username), JSON.stringify(legacy));
+
+  await assert.rejects(() => unlockSyncVault({ storage, username, password: 'not the password', cryptoProvider: webcrypto }), /Incorrect sync vault password/);
+  assert.equal((await readSyncVaultRecord(storage, username)).version, 1, 'a wrong password changes nothing');
+
+  await unlockSyncVault({ storage, username, password, cryptoProvider: webcrypto });
+  const upgraded = await readSyncVaultRecord(storage, username);
+  assert.equal(upgraded.version, 2);
+  assert.notEqual(upgraded.salt, legacy.salt);
+  assert.deepEqual(JSON.parse(storage.values.get(`chatSyncVaultV1Backup_v1_${username}`)), legacy);
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto }), { apiKeys: { gemini: 'from-the-old-days' } });
+
+  // The same password opens either record, and a backup file made with the old record still opens with the key of the new one.
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, await unlockSyncVaultRecord(password, upgraded, { cryptoProvider: webcrypto }), { cryptoProvider: webcrypto }), { apiKeys: { gemini: 'from-the-old-days' } });
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, await unlockSyncVaultRecord(password, legacy, { cryptoProvider: webcrypto }), { cryptoProvider: webcrypto }), { apiKeys: { gemini: 'from-the-old-days' } });
+  await removeSyncVault({ storage, username });
+  assert.equal(storage.values.has(`chatSyncVaultV1Backup_v1_${username}`), false, 'clearing the vault clears the kept record too');
+});
+
+test('changing the password of a vault of version 1 upgrades it on the way, and the data key stays', async () => {
+  const storage = createStorage();
+  const username = 'supabase:legacy-change';
+  const { record: legacy, key: legacyKey } = await createLegacySyncVaultRecord('legacy first password', { cryptoProvider: webcrypto });
+  const encrypted = await encryptSyncVaultPayload({ apiKeys: { a: 'kept' } }, legacyKey, { cryptoProvider: webcrypto });
+  await storage.setItem(getSyncVaultStorageKey(username), JSON.stringify(legacy));
+  await changeSyncVaultPassword({ storage, username, currentPassword: 'legacy first password', nextPassword: 'legacy second password', cryptoProvider: webcrypto });
+  assert.equal((await readSyncVaultRecord(storage, username)).version, 2);
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto }), { apiKeys: { a: 'kept' } });
+});
+
+test('the data key itself (what a passkey keeps) opens the vault only when it is the key of the record, and a forgotten password is replaced with it', async () => {
+  const storage = createStorage();
+  const username = 'supabase:key-user';
+  await createAndUnlockSyncVault({ storage, username, password: 'the first password', cryptoProvider: webcrypto });
+  const record = await readSyncVaultRecord(storage, username);
+  const encrypted = await encryptSyncVaultPayload({ apiKeys: { b: 'secret' } }, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto });
+  const keyBytes = await openSyncVaultRecordKeyBytes('the first password', record, { cryptoProvider: webcrypto });
+  assert.equal(keyBytes.length, 32);
+  assert.equal(await verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider: webcrypto }), true);
+  assert.equal(await verifySyncVaultKeyBytes(record, new Uint8Array(32), { cryptoProvider: webcrypto }), false);
+
+  lockSyncVault(username);
+  await assert.rejects(() => unlockSyncVaultWithKeyBytes({ storage, username, keyBytes: new Uint8Array(32), cryptoProvider: webcrypto }), { code: 'vault-key-mismatch' });
+  assert.equal(isSyncVaultUnlocked(username), false);
+  await unlockSyncVaultWithKeyBytes({ storage, username, keyBytes, cryptoProvider: webcrypto });
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto }), { apiKeys: { b: 'secret' } });
+
+  // The password is forgotten: the key from the passkey is wrapped by a new one, and the old one no longer works.
+  lockSyncVault(username);
+  await resetSyncVaultPasswordWithKeyBytes({ storage, username, keyBytes, nextPassword: 'a brand new password', cryptoProvider: webcrypto });
+  lockSyncVault(username);
+  await assert.rejects(() => unlockSyncVault({ storage, username, password: 'the first password', cryptoProvider: webcrypto }), /Incorrect sync vault password/);
+  await unlockSyncVault({ storage, username, password: 'a brand new password', cryptoProvider: webcrypto });
+  assert.deepEqual(await decryptSyncVaultPayload(encrypted, getUnlockedSyncVaultKey(username), { cryptoProvider: webcrypto }), { apiKeys: { b: 'secret' } });
 });
 
 test('sync vault creation and removal mark cloud sync before and after storage mutation', async () => {
@@ -180,7 +233,7 @@ test('sync vault creation and removal mark cloud sync before and after storage m
 
     order.length = 0;
     await removeSyncVault({ storage, username: 'supabase:ordered-vault' });
-    assert.deepEqual(order, ['mark:vault', 'remove', 'remove', 'mark:vault']);
+    assert.deepEqual(order, ['mark:vault', 'remove', 'remove', 'remove', 'mark:vault']);
   } finally {
     if (previousSync) provideService(SERVICES.workspaceSync, previousSync);
     else withdrawService(SERVICES.workspaceSync, sync);
