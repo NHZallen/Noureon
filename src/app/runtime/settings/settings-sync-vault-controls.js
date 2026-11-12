@@ -229,7 +229,7 @@ export function createSettingsSyncVaultControls({
     authenticator.bind();
     passkeys.bind();
     void authenticator.refresh();
-    void passkeys.refresh();
+    passkeys.refresh().catch((error) => globalThis.console?.warn?.('The passkey card could not be drawn.', error));
     const user = getCurrentUser?.();
     const elements = getElements();
     if (!user?.username || !elements.section) return;

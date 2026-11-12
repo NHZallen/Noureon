@@ -107,7 +107,7 @@ export function createPasskeyControls({
     availability = await passkey.availability();
     await load();
     const record = await currentRecord();
-    cached = { record, userId: await userIdOf() };
+    cached = { record, userId: await userIdOf().catch(() => '') };
     const has = state.slots.length > 0;
     const label = elements.passkeyState.querySelector('.us-state-text');
     if (label) label.textContent = has ? text('securityPasskeyStateOn', '已設定') : text('securityPasskeyStateOff', '尚未設定');
