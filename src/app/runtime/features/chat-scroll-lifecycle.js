@@ -1,4 +1,5 @@
 import { sendAnchor } from './send-anchor.js';
+import { followEndFromNow } from '../../ui/motion/reader-scroll-guard.js';
 
 // The scrolling of a conversation: the button that goes down to the latest message, and the outline beside the messages that marks the
 // one being read.
@@ -38,6 +39,8 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, requestAnima
                 top: chatContainer.scrollHeight - sendAnchor.room(),
                 behavior: 'smooth'
             });
+            // A reply that is still being written keeps being followed from here (until the reader touches the chat).
+            followEndFromNow(chatContainer);
             const scrollEndTimer = setTimeout(() => {
                 autoScrolling = false;
                 updateScrollButtonVisibility();

@@ -12,7 +12,7 @@
 import { createWorkspaceStoreV2 } from './workspace-store-v2.js';
 
 export const WS2_FLAG_KEY = 'noureon_ws2';
-// On-demand loading (docs/superpowers/specs/2026-11-12-on-demand-loading-design.md): off unless asked for. ?ws3=1 turns it on in this browser, ?ws3=0 off.
+// On-demand loading (docs/superpowers/specs/2026-11-12-on-demand-loading-design.md): on by default (since the owner tried it on the test site, 2026-11-12). ?ws3=0 turns it off in this browser, ?ws3=1 on again.
 export const WS3_FLAG_KEY = 'noureon_ws3';
 export const MAX_MIGRATION_ATTEMPTS = 3;
 
@@ -42,11 +42,12 @@ export function isWorkspaceV2Enabled({ location = globalThis.location, localStor
 export function isOnDemandLoadingEnabled({ location = globalThis.location, localStorage = globalThis.localStorage } = {}) {
   try {
     const requested = new URLSearchParams(location?.search || '').get('ws3');
-    if (requested === '1') localStorage?.setItem(WS3_FLAG_KEY, '1');
-    else if (requested === '0') localStorage?.removeItem(WS3_FLAG_KEY);
-    return localStorage?.getItem(WS3_FLAG_KEY) === '1';
+    if (requested === '1') localStorage?.removeItem(WS3_FLAG_KEY);
+    else if (requested === '0') localStorage?.setItem(WS3_FLAG_KEY, '0');
+    return localStorage?.getItem(WS3_FLAG_KEY) !== '0';
   } catch {
-    return false;
+    // Storage that cannot be read: the default (on) applies.
+    return true;
   }
 }
 

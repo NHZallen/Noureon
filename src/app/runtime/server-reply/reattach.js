@@ -23,6 +23,19 @@ export function createServerReplyReattach({
   now = () => Date.now()
 }) {
   let reattaching = false;
+  // A message of the person that came from another device (through the cloud) with no reply under way yet: the server may only be registering
+  // the reply, so it is looked for again every few seconds for a while, not only when the chat changes or the page is opened.
+  const WAIT_LOOKS = 30;
+  const WAIT_SECONDS = 2;
+  const FRESH_MESSAGE_MS = 5 * 60 * 1000;
+  let waitLooks = 0;
+  let waitConversationId = null;
+  const awaitingReply = (conv) => {
+    const last = conv.messages?.at(-1);
+    if (last?.role !== 'user') return false;
+    const at = Date.parse(last.createdAt || '');
+    return Number.isFinite(at) && now() - at < FRESH_MESSAGE_MS;
+  };
 
   // The reply the server is making, shown in the message it writes now: the half-written copy of the message the cloud gave this page is taken out, a place-holder stands
   // in its place, and the reply is followed to its end and kept like any other. `abortController` is the person's way to stop it.
@@ -72,10 +85,16 @@ export function createServerReplyReattach({
       // No reply under way, but the server may have failed one that never reached the chat (while the page was closed): it is told then.
       if (!run) {
         const failed = await serverReply.failedReply?.(conv).catch(() => null);
+        if (waitConversationId !== conv.id) { waitConversationId = conv.id; waitLooks = 0; }
+        if (!failed && waitLooks < WAIT_LOOKS && awaitingReply(conv) && getActiveConversation()?.id === conv.id) {
+          waitLooks += 1;
+          scheduleLook(WAIT_SECONDS * 1000);
+        }
         if (!failed || getAbortController() || conv.__astraPendingResponse || getActiveConversation()?.id !== conv.id) return false;
         addMessageToUI(failed, conv.messages.length, true, true, { conversation: conv });
         return true;
       }
+      waitLooks = 0;
       // The visual check of a presentation that the server is making: its progress is shown under the last message, and the chat is locked.
       if (run.kind === 'vision') {
         void serverReply.followVision({ runId: run.runId, conversation: conv });

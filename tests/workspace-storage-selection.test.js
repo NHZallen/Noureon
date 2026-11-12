@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, isWorkspaceV2Enabled, readWorkspaceV2Request, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
+import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, WS3_FLAG_KEY, isOnDemandLoadingEnabled, isWorkspaceV2Enabled, readWorkspaceV2Request, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
 import { loadSplitWorkspace } from '../src/app/runtime/kernel/workspace-loading.js';
 import { getActiveWorkspaceStore, setActiveWorkspaceStore } from '../src/app/runtime/kernel/workspace-store-registry.js';
 import { createWorkspaceStoreV2, getWorkspaceV2Keys } from '../src/app/runtime/kernel/workspace-store-v2.js';
@@ -266,4 +266,19 @@ test('a rollback request for a user without a split storage changes nothing', as
   const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify(legacyWorkspace('c1')) });
   assert.deepEqual(await select(storage, false, { request: 'rollback' }), { mode: 'legacy', reason: 'not-enabled' });
   assert.equal(storage.applies.length, 0);
+});
+
+test('on-demand loading is on by default; ?ws3=0 turns it off and the browser remembers it; ?ws3=1 turns it on again; unreadable storage means on', () => {
+  const environment = createFlagEnvironment('', null);
+  assert.equal(isOnDemandLoadingEnabled(environment), true, 'on by default');
+  environment.location.search = '?ws3=0';
+  assert.equal(isOnDemandLoadingEnabled(environment), false);
+  assert.equal(environment.values.get(WS3_FLAG_KEY), '0');
+  environment.location.search = '';
+  assert.equal(isOnDemandLoadingEnabled(environment), false, 'remembered');
+  environment.location.search = '?ws3=1';
+  assert.equal(isOnDemandLoadingEnabled(environment), true);
+  environment.location.search = '';
+  assert.equal(isOnDemandLoadingEnabled(environment), true, 'remembered');
+  assert.equal(isOnDemandLoadingEnabled({ location: null, localStorage: { getItem() { throw new Error('blocked'); } } }), true);
 });

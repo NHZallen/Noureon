@@ -1,4 +1,4 @@
-import { followTop, isReaderScrolling, setScrollTopQuietly, watchReader } from '../../ui/motion/reader-scroll-guard.js';
+import { followTop, isPinnedToEnd, isReaderScrolling, setScrollTopQuietly, watchReader } from '../../ui/motion/reader-scroll-guard.js';
 
 // While a reply streams the chat follows its end, but only for a reader who is at the end, and it is never moved
 // while a person is scrolling it: on iPhone, setting the position under a finger (or during a flick) stops the
@@ -12,7 +12,10 @@ export function createChatScrollPosition(elements) {
   };
   const isChatNearBottom = (threshold = 16) => {
     const chatContainer = guarded();
-    if (!chatContainer || isReaderScrolling(chatContainer)) return false;
+    if (!chatContainer) return false;
+    // Sent to the end by the button: it goes on following, also while the scroll the button started is still moving.
+    if (isPinnedToEnd(chatContainer)) return true;
+    if (isReaderScrolling(chatContainer)) return false;
     return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight <= threshold;
   };
   const keepChatPositionAfterRender = (shouldStick, previousTop) => {

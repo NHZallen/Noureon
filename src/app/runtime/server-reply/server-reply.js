@@ -31,6 +31,7 @@ const LIVE_IDLE_MS = 40_000;
 // The live channel is joined again at most this many times, this long apart, while the reply goes on.
 const MAX_LIVE_JOINS = 60;
 const LIVE_REJOIN_MS = 1500;
+const LIVE_OVER_CHECK_MS = 3000;
 
 // Why a reply is made in the browser, for the ones that are not a failure (nothing is said about these).
 export const LOCAL_REASONS = Object.freeze({
@@ -517,6 +518,17 @@ export function createServerReply({
         liveAbort = new AbortController();
         let lastData = now();
         const watchdog = setRepeating(() => { if (now() - lastData > LIVE_IDLE_MS) liveAbort.abort(); }, 5000);
+        // A stop from another device (or any end the channel is slow to tell): the run itself is looked at every few seconds, and the channel is let go
+        // when it is over, so this page does not wait for the channel's own end.
+        let looking = false;
+        const overWatch = setRepeating(() => {
+          if (looking) return;
+          looking = true;
+          void request('GET', `/v1/runs/${runId}`, { timeoutMs: 6000 })
+            .then((status) => { if (status.ok && isTerminalRun(status.data?.run?.status)) liveAbort.abort(); })
+            .catch(() => {})
+            .finally(() => { looking = false; });
+        }, LIVE_OVER_CHECK_MS);
         try {
           const response = await fetchImpl(`${getBaseUrl()}/v1/runs/${runId}/stream`, { headers: { Authorization: `Bearer ${token}` }, signal: liveAbort.signal });
           if (!response.ok || !response.body) return null;
@@ -547,6 +559,7 @@ export function createServerReply({
           // The reply is read from the message instead.
         } finally {
           clearRepeating(watchdog);
+          clearRepeating(overWatch);
           liveAbort.abort();
         }
         return null;

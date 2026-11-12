@@ -144,6 +144,18 @@ export function isFollowingEnd(box, threshold = 24) {
   return Boolean(guard?.pinned) || box.scrollHeight - box.scrollTop - box.clientHeight < threshold;
 }
 
+/** The button that takes the chat down to its end: the box follows its end from now on (a reply still growing is not left behind when the smooth scroll arrives short), until the reader touches or wheels it. */
+export function followEndFromNow(box) {
+  const guard = watchReader(box);
+  if (guard) guard.pinned = true;
+}
+
+/** Whether the box was sent to its end and the reader has not touched it since (a finger that is down now is not following). */
+export function isPinnedToEnd(box) {
+  const guard = watchReader(box);
+  return Boolean(guard?.pinned) && !guard.holding;
+}
+
 /** Sends the box to its newest end and keeps it following from there until the reader scrolls it. */
 export function pinToEnd(box) {
   const guard = watchReader(box);

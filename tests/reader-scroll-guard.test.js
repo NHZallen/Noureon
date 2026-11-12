@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { giveEndRoom, isReaderScrolling, setScrollTopQuietly, takeBackEndRoom, watchReader } from '../src/app/ui/motion/reader-scroll-guard.js';
+import { followEndFromNow, giveEndRoom, isPinnedToEnd, isReaderScrolling, setScrollTopQuietly, takeBackEndRoom, watchReader } from '../src/app/ui/motion/reader-scroll-guard.js';
 
 const makeBox = (top = 0, height = 1000, client = 200) => {
   const listeners = {};
@@ -328,4 +328,19 @@ test('a finger whose touchend never arrived does not stop the room being given a
     stop();
     window.happyDOM.abort();
   }
+});
+
+test('the button that goes to the end keeps the chat following until the reader touches or wheels it', () => {
+  const box = makeBox(100);
+  watchReader(box);
+  assert.equal(isPinnedToEnd(box), false);
+  followEndFromNow(box);
+  assert.equal(isPinnedToEnd(box), true, 'following, also while the smooth scroll it started moves the box');
+  box.listeners.scroll();
+  assert.equal(isPinnedToEnd(box), true, 'its own scroll events do not end it');
+  box.listeners.wheel();
+  assert.equal(isPinnedToEnd(box), false);
+  followEndFromNow(box);
+  box.listeners.touchstart({ touches: [{}] });
+  assert.equal(isPinnedToEnd(box), false, 'a finger on the chat ends it');
 });

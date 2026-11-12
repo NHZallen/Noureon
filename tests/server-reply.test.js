@@ -765,3 +765,32 @@ test('the key for a search by meaning goes among the secrets of the request, onc
   await without.reply.start(startArgs());
   assert.equal('memory' in JSON.parse(without.calls[0].options.body).tools, false, 'no memory part when there is none');
 });
+
+test('a reply stopped from another device ends here within a few seconds even when the live channel stays open and says nothing', async () => {
+  const ticks = [];
+  const live = sseBody([{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'Half' }], { end: false });
+  let status = 'running';
+  const { reply } = harness({
+    fetchImpl: async (url, options) => {
+      // (A real fetch ends the body when its signal is aborted; this fake body has to be told.)
+      if (String(url).endsWith('/stream')) { options?.signal?.addEventListener('abort', () => { try { live.close(); } catch { /* already closed */ } }); return new Response(live.body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }); }
+      if (/\/v1\/runs\/run-1$/.test(String(url))) return new Response(JSON.stringify({ run: { status } }), { status: 200 });
+      return new Response(JSON.stringify({ runId: 'run-1' }), { status: 202 });
+    },
+    readMessage: async () => row('Half', 'complete'),
+    setRepeating: (callback, ms) => { ticks.push({ callback, ms }); return ticks.length; },
+    clearRepeating: () => {}
+  });
+  const { run } = await reply.start(startArgs());
+  const pending = run.follow({});
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const check = ticks.find((tick) => tick.ms <= 3000);
+  assert.ok(check, 'the run is looked at every few seconds while the channel is open');
+  check.callback();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  status = 'stopped';
+  check.callback();
+  const result = await Promise.race([pending, new Promise((resolve) => setTimeout(() => resolve('still waiting'), 1500))]);
+  assert.notEqual(result, 'still waiting');
+  assert.equal(result.text, 'Half');
+});

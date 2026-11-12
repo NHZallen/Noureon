@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { createServerReplyReattach } from '../src/app/runtime/server-reply/reattach.js';
 
-const harness = ({ messages, run = { assistantMessageId: 'a1', follow: async () => ({}) }, hasAccount = true, abortController = null, find } = {}) => {
+const harness = ({ messages, run = { assistantMessageId: 'a1', follow: async () => ({}) }, hasAccount = true, abortController = null, find, schedule = () => null } = {}) => {
   const conv = { id: 'c1', messages };
   const calls = { completed: [], busy: [], removed: [], added: [] };
   const partialElement = { __astraRenderedMessage: { id: 'a1' }, remove: () => calls.removed.push('partial') };
@@ -18,7 +18,7 @@ const harness = ({ messages, run = { assistantMessageId: 'a1', follow: async () 
     completeReply: async (prepared, options) => { calls.completed.push({ prepared, options, pending: Boolean(conv.__astraPendingResponse), messages: [...conv.messages] }); },
     document: null,
     window: null,
-    scheduleTimeout: () => null
+    scheduleTimeout: schedule
   });
   return { conv, calls, lifecycle };
 };
@@ -97,4 +97,36 @@ test('a deep research the server is running is followed as a card, not shown as 
   assert.deepEqual(messages.map((message) => message.id), ['u1', 'a1'], 'the message stays: its card is drawn from it');
   assert.equal(followed[0].run.runId, 'run-5');
   assert.equal(followed[0].conversation, conv);
+});
+
+test('a question that came from another device is looked for again every few seconds until its reply is found (not only when the page changes)', async () => {
+  const timers = [];
+  const fresh = new Date(Date.now() - 5000).toISOString();
+  let asked = 0;
+  const run = { assistantMessageId: 'a1', follow: async () => ({}) };
+  const { conv, calls, lifecycle } = harness({
+    messages: [{ id: 'u1', role: 'user', createdAt: fresh, parts: [{ text: 'tell a story' }] }],
+    find: async () => (++asked < 3 ? null : run),
+    schedule: (callback, ms) => { timers.push({ callback, ms }); return timers.length; }
+  });
+  assert.equal(await lifecycle.reattachServerReply(), false);
+  const looks = timers.filter((timer) => timer.ms >= 2000 && timer.ms <= 2100).length;
+  assert.ok(looks >= 1, 'a new look is planned');
+  assert.equal(await lifecycle.reattachServerReply(), false);
+  conv.messages.push({ id: 'a1', role: 'model', parts: [{ text: 'Once' }] });
+  assert.equal(await lifecycle.reattachServerReply(), true, 'found at the third look');
+  assert.equal(calls.completed.length, 1);
+});
+
+test('an old question with no reply is not looked for again and again', async () => {
+  const timers = [];
+  const old = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { lifecycle } = harness({
+    messages: [{ id: 'u1', role: 'user', createdAt: old, parts: [{ text: 'q' }] }],
+    find: async () => null,
+    schedule: (callback, ms) => { timers.push(ms); return timers.length; }
+  });
+  const before = timers.length;
+  await lifecycle.reattachServerReply();
+  assert.equal(timers.length, before, 'no look is planned');
 });
