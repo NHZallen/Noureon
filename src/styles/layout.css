@@ -79,6 +79,9 @@ input:not([type="checkbox"]):not([type="radio"]):not(:focus), textarea:not(:focu
     transition-duration: 0s;
 }
 
+/* A select opened with a finger or a mouse has no frame of focus (ui/forms/select-blur.js): the picker of a phone closes and the field keeps the focus, and with it the frame, for a long time after. */
+select[data-pointer] { outline: none; box-shadow: none; }
+
 /* Reduced motion: what moves or scales stands still, fades and colours stay (the files that set their own rules keep them). */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

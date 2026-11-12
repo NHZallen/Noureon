@@ -42,3 +42,18 @@ test('choosing in a select takes the focus off it, and other fields are left alo
   input.dispatchEvent(new window.Event('change', { bubbles: true }));
   assert.equal(document.activeElement, input);
 });
+
+test('a select opened with a finger is marked until it loses the focus (no frame of focus), and one reached with the keyboard is not', () => {
+  const window = new Window();
+  const { document } = window;
+  document.body.innerHTML = '<select id="s"><option>a</option></select>';
+  installSelectBlur(document);
+  const select = document.getElementById('s');
+  select.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+  assert.equal(select.dataset.pointer, '1');
+  select.dispatchEvent(new window.Event('focusout', { bubbles: true }));
+  assert.equal(select.dataset.pointer, undefined);
+  select.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+  select.dispatchEvent(new window.Event('keydown', { bubbles: true }));
+  assert.equal(select.dataset.pointer, undefined, 'the keyboard brings the frame back');
+});
