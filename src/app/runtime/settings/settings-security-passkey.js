@@ -9,6 +9,7 @@ import { addRecoverySlot, createPasskeySlot, openRecoverySlot, removeRecoverySlo
 import { passkeyPrfAvailability, readAnyRecoveryPasskey, registerRecoveryPasskey } from '../../sync/passkey-prf.js';
 import { createRecoverySlotsStore } from './settings-vault-recovery-slots-store.js';
 import { deviceName } from '../security/device-name.js';
+import { createRowMoreButton } from './settings-row-menu.js';
 
 const ERROR_TEXTS = {
   'passkey-cancelled': ['securityPasskeyCancelled', '沒有確認通行金鑰，所以沒有完成。'],
@@ -88,17 +89,15 @@ export function createPasskeyControls({
       const meta = document.createElement('span');
       meta.className = 'us-pk-meta';
       meta.textContent = formatDate(slot.createdAt, window.document?.documentElement?.lang);
-      const rename = document.createElement('button');
-      rename.type = 'button';
-      rename.className = 'us-link';
-      rename.dataset.action = 'rename';
-      rename.textContent = text('securityPasskeyRename', '改名');
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'us-link';
-      remove.dataset.action = 'remove';
-      remove.textContent = text('securityPasskeyRemove', '移除');
-      item.append(name, meta, rename, remove);
+      const more = createRowMoreButton({
+        document,
+        label: text('securityPasskeyMore', '更多'),
+        getItems: () => [
+          { label: text('securityPasskeyRename', '改名'), icon: 'rename', action: () => guard(() => rename(slot.id))() },
+          { label: text('securityPasskeyRemove', '移除'), icon: 'trash', danger: true, action: () => guard(() => remove(slot.id))() }
+        ]
+      });
+      item.append(name, meta, more);
       list.append(item);
     }
   }
@@ -235,11 +234,6 @@ export function createPasskeyControls({
     elements.passkeyCard.dataset.bound = 'true';
     elements.passkeyOpen.addEventListener('click', () => { opened = !opened; show(elements.passkeyAdd, opened); elements.passkeyOpen.setAttribute('aria-expanded', String(opened)); });
     elements.passkeyAddButton.addEventListener('click', guard(async () => { if (await confirmIdentity({ onlyIfSet: true })) await add(); }));
-    elements.passkeyList.addEventListener('click', (event) => {
-      const target = event.target.closest?.('[data-action]');
-      const slotId = target?.closest('[data-slot-id]')?.dataset.slotId;
-      if (slotId) guard(() => (target.dataset.action === 'rename' ? rename(slotId) : remove(slotId)))(event);
-    });
   }
 
   return { bind, refresh, keepRecovery, keepsServerCopy: async () => (await ensure()).hasServerSlot, openKey, unlockWithPasskey, syncPanels, hasSlots: async () => (await ensure()).slots.length > 0 };

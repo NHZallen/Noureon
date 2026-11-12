@@ -96,6 +96,13 @@ const addPasskey = async (fixture, password = 'old-password-123') => {
   await flush();
 };
 
+// A row's ⋯ button opens a menu; its items are in the order rename, remove.
+function chooseRowAction(fixture, action) {
+  fixture.byId('security-passkey-list').querySelector('.us-more').click();
+  const items = fixture.window.document.body.querySelectorAll('.pj-menu .pj-menu-item');
+  items[action === 'rename' ? 0 : 1].click();
+}
+
 test('passkey card: it shows for a cloud account that has a sync password, and not where passkeys cannot do it', async () => {
   const ok = await setup();
   assert.equal(ok.byId('security-passkey-card').classList.contains('hidden'), false);
@@ -293,7 +300,7 @@ test('dangerous actions ask for a passkey tap once (no authenticator set up), an
   await addPasskey(fixture);
   assert.equal(fixture.passkey.calls.readAny, 0, 'adding needs only the sync password');
 
-  fixture.byId('security-passkey-list').querySelector('[data-action="remove"]').click();
+  chooseRowAction(fixture, 'remove');
   await flush();
   assert.equal(fixture.passkey.calls.readAny, 1, 'removing a passkey asks the person to confirm');
   assert.equal(fixture.table.row.slots.length, 0);
@@ -342,7 +349,7 @@ test('each change that protects the account tells the server, so the owner gets 
   await flush();
   assert.deepEqual(fixture.events, ['passkey-added', 'sync-password-changed']);
 
-  fixture.byId('security-passkey-list').querySelector('[data-action="remove"]').click();
+  chooseRowAction(fixture, 'remove');
   await flush();
   fixture.byId('sync-vault-current-password').value = 'brand-new-password-1';
   fixture.byId('sync-vault-reset-btn').click();
@@ -384,7 +391,7 @@ test('a passkey can be renamed later; only the label changes, nothing secret is 
 
   const sealedBefore = fixture.table.row.slots[0].ciphertext;
   fixture.window.prompt = () => 'Work laptop';
-  fixture.byId('security-passkey-list').querySelector('[data-action="rename"]').click();
+  chooseRowAction(fixture, 'rename');
   await flush();
   assert.equal(fixture.table.row.slots[0].label, 'Work laptop');
   assert.equal(fixture.table.row.slots[0].ciphertext, sealedBefore, 'the sealed text is as it was');
@@ -392,7 +399,7 @@ test('a passkey can be renamed later; only the label changes, nothing secret is 
   assert.match(fixture.byId('security-passkey-list').textContent, /Work laptop/);
 
   fixture.window.prompt = () => '   ';
-  fixture.byId('security-passkey-list').querySelector('[data-action="rename"]').click();
+  chooseRowAction(fixture, 'rename');
   await flush();
   assert.equal(fixture.table.row.slots[0].label, 'Work laptop', 'an empty name changes nothing');
 });

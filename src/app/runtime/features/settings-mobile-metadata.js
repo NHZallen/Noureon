@@ -22,13 +22,19 @@ export const getSettingsMobileGroups = (getText) => {
 
   return [
     {
-      title: text('customizeNoureon', 'Customize Noureon'),
+      title: text('settingsGroupAccount', 'Account'),
       items: [
         { section: 'user', label: text('userSettings', '使用者') },
-        { section: 'security', label: text('securitySettings', '安全性與登入') },
+        { section: 'security', label: text('securitySettings', '安全性與登入') }
+      ]
+    },
+    {
+      title: text('customizeNoureon', 'Customize Noureon'),
+      items: [
         { section: 'personalization', label: text('personalization', '個人化') },
         { section: 'memory', label: text('memoryManagement', '記憶管理') },
-        { section: 'model-management', label: text('modelManagement', '模型管理') }
+        { section: 'model-management', label: text('modelManagement', '模型管理') },
+        { section: 'tool-models', label: text('toolModels', '可呼叫的模型') }
       ]
     },
     {
@@ -37,7 +43,6 @@ export const getSettingsMobileGroups = (getText) => {
         { section: 'data-management', label: text('dataManagement', '資料管理') },
         { section: 'privacy', label: text('privacy', '隱私') },
         { section: 'permissions', label: text('permissions', '權限') },
-        { section: 'tool-models', label: text('toolModels', '可呼叫的模型') },
         { section: 'accessibility', label: text('accessibility', '輔助功能') },
         { section: 'trash', label: text('trash', '垃圾桶') }
       ]

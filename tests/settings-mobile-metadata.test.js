@@ -29,10 +29,11 @@ test('settings mobile metadata preserves section order', () => {
   const groups = getSettingsMobileGroups((key, fallback) => fallback);
   const sections = groups.flatMap((group) => group.items.map((item) => item.section));
 
-  assert.deepEqual(sections, expectedSections);
+  assert.deepEqual([...sections].sort(), [...expectedSections].sort());
   assert.deepEqual(groups.map((group) => group.items.map((item) => item.section)), [
-    ['user', 'security', 'personalization', 'memory', 'model-management'],
-    ['data-management', 'privacy', 'permissions', 'tool-models', 'accessibility', 'trash'],
+    ['user', 'security'],
+    ['personalization', 'memory', 'model-management', 'tool-models'],
+    ['data-management', 'privacy', 'permissions', 'accessibility', 'trash'],
     ['about']
   ]);
 });
@@ -65,20 +66,21 @@ test('settings mobile labels use injected text resolution without DOM access', (
   assert.equal(labelsBySection.personalization, 'Personalization');
   assert.equal(labelsBySection.user, 'User');
   assert.equal(labelsBySection.about, 'About');
-  assert.equal(groups[1].title, 'Application settings');
+  assert.equal(groups[2].title, 'Application settings');
   assert.equal(labelsBySection.memory, '記憶管理');
   assert.deepEqual(calls.map(([key]) => key), [
-    'customizeNoureon',
+    'settingsGroupAccount',
     'userSettings',
     'securitySettings',
+    'customizeNoureon',
     'personalization',
     'memoryManagement',
     'modelManagement',
+    'toolModels',
     'appSettings',
     'dataManagement',
     'privacy',
     'permissions',
-    'toolModels',
     'accessibility',
     'trash',
     'getHelp',

@@ -172,10 +172,10 @@ test('mobile settings groups preserve the expected section order', () => {
     'personalization',
     'memory',
     'model-management',
+    'tool-models',
     'data-management',
     'privacy',
     'permissions',
-    'tool-models',
     'accessibility',
     'trash',
     'about'

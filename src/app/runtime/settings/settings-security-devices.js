@@ -5,6 +5,10 @@
 // each one tells the owner by mail (server/security-notices.js).
 
 import { deviceName } from '../security/device-name.js';
+import { createRowIconButton } from './settings-row-menu.js';
+
+// The sign-out glyph (a door and an arrow), as the apps of the big vendors draw it at the right of a device.
+const SIGN_OUT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>';
 
 export function createDevicesControls({
   window, storage, getSupabase, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity, notifySecurity = () => {},
@@ -35,12 +39,12 @@ export function createDevicesControls({
       block.append(name, sub);
       item.append(block);
       if (!row.is_current) {
-        const button = window.document.createElement('button');
-        button.type = 'button';
-        button.className = 'us-link';
-        button.dataset.action = 'sign-out';
-        button.textContent = text('securityDevicesSignOutOne', '登出');
-        item.append(button);
+        item.append(createRowIconButton({
+          document: window.document,
+          label: text('securityDevicesSignOutOne', '登出'),
+          icon: SIGN_OUT_ICON,
+          action: 'sign-out'
+        }));
       }
       list.append(item);
     }

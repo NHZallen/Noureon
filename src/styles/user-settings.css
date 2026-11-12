@@ -118,6 +118,9 @@
 #settings-modal :is(#user-section, #security-section) .us-pk-meta.is-warn { color: var(--state-warning); }
 
 /* One device of the list of signed-in devices: its name, and under it when it was last used and the address. */
+#settings-modal :is(#user-section, #security-section) .us-more { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary); }
+#settings-modal :is(#user-section, #security-section) .us-more:active, #settings-modal :is(#user-section, #security-section) .us-more[aria-expanded="true"] { background: var(--hover-bg); }
+@media (hover: hover) { #settings-modal :is(#user-section, #security-section) .us-more:hover { background: var(--hover-bg); } }
 #settings-modal :is(#user-section, #security-section) .us-pk-text { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 0.125rem; }
 #settings-modal :is(#user-section, #security-section) .us-pk-text .us-pk-name { flex: none; }
 #settings-modal :is(#user-section, #security-section) .us-pk-sub { overflow: hidden; color: var(--text-secondary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
