@@ -289,7 +289,7 @@ test('a remembered key that is not the key of the vault kept here is dropped and
   const storage = createStorage();
   await createAndUnlockSyncVault({ storage, username: REMEMBER_USER, password: 'a remembered password', cryptoProvider: webcrypto });
   lockSyncVault(REMEMBER_USER);
-  storage.values.set(getRememberedSyncVaultStorageKey(REMEMBER_USER), Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString('base64'));
+  storage.values.set(getRememberedSyncVaultStorageKey(REMEMBER_USER), JSON.stringify({ k: Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString('base64'), exp: null }));
   assert.equal(await restoreRememberedSyncVault({ storage, username: REMEMBER_USER, cryptoProvider: webcrypto }), false);
   assert.equal(isSyncVaultUnlocked(REMEMBER_USER), false);
   assert.equal(storage.values.has(getRememberedSyncVaultStorageKey(REMEMBER_USER)), false, 'dropped');

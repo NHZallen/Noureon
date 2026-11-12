@@ -1,4 +1,5 @@
 import { SERVICES, getService } from '../runtime/services.js';
+import { readProtection } from '../runtime/security/local-key-rules.js';
 const VAULT_VERSION = 1; // the version of the encrypted API keys (the payload), which did not change
 const LEGACY_RECORD_VERSION = 1;
 const RECORD_VERSION = 2;
@@ -61,21 +62,63 @@ async function deriveVaultKey(password, salt, iterations, cryptoProvider) {
 // the key of the device, which no script can read): where the browser cannot seal, nothing is kept and the person unlocks as before. The protection with a passkey
 // switches this off (setSyncVaultRememberPolicy): then the unlock is asked again after the days the person chose.
 export const getRememberedSyncVaultStorageKey = (username) => (username ? `chatSyncVaultRemembered_v1_${username}` : null);
-let rememberPolicy = () => true;
-/** `policy(username)`: whether an unlock of this person may be remembered (true unless the person has chosen the protection with a passkey). */
+// By default the person's choice of the protection with a passkey decides (kept on this device, security/local-key-rules.js): none: until lock or sign-out; with it:
+// the days chosen, or never (0).
+const protectionPolicy = (username) => {
+  const protection = readProtection(username);
+  return !protection ? true : protection.days > 0 ? { days: protection.days } : false;
+};
+let rememberPolicy = protectionPolicy;
+/**
+ * `policy(username)`: whether an unlock of this person may be remembered: true (until lock or sign-out), false (never: the unlock is asked at every visit), or
+ * { days } (for that many days). It is `true` unless the person has chosen the protection with a passkey.
+ */
 export function setSyncVaultRememberPolicy(policy) {
-  rememberPolicy = typeof policy === 'function' ? policy : () => true;
+  rememberPolicy = typeof policy === 'function' ? policy : protectionPolicy;
 }
+
+// What is kept: the data key and, with a number of days, when it stops being used.
+const expiryOf = (policy, now = Date.now()) => (policy && typeof policy === 'object' && policy.days > 0 ? now + policy.days * 24 * 60 * 60 * 1000 : null);
 
 async function rememberUnlock(storage, username, keyBytes) {
   const storageKey = getRememberedSyncVaultStorageKey(username);
   if (!storageKey || !keyBytes || !storage?.setItem) return;
   try {
-    if (!await rememberPolicy(username)) return;
-    await storage.setItem(storageKey, bytesToBase64(keyBytes));
+    const policy = await rememberPolicy(username);
+    if (!policy) {
+      await forgetRememberedSyncVault({ storage, username });
+      return;
+    }
+    await storage.setItem(storageKey, JSON.stringify({ k: bytesToBase64(keyBytes), exp: expiryOf(policy) }));
   } catch {
     // The browser cannot seal it (a private window): the person unlocks as before.
   }
+}
+
+function parseRemembered(text) {
+  try {
+    const parsed = JSON.parse(text || 'null');
+    return parsed && typeof parsed.k === 'string' ? { k: parsed.k, exp: Number(parsed.exp) || null } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** When the unlock kept on this device ends (a time), or null when it is kept until lock or sign-out, or when none is kept. */
+export async function rememberedSyncVaultExpiry({ storage, username } = {}) {
+  const saved = parseRemembered(await storage?.getItem?.(getRememberedSyncVaultStorageKey(username)));
+  return saved?.exp || null;
+}
+
+/** The protection was turned on or off, or the days changed: what is kept gets the new end (or is forgotten when the unlock is not to be kept). */
+export async function applyRememberPolicyToKeptUnlock({ storage, username } = {}) {
+  const storageKey = getRememberedSyncVaultStorageKey(username);
+  if (!storageKey) return;
+  const saved = parseRemembered(await storage.getItem(storageKey));
+  if (!saved) return;
+  const policy = await rememberPolicy(username);
+  if (!policy) await forgetRememberedSyncVault({ storage, username });
+  else await storage.setItem(storageKey, JSON.stringify({ k: saved.k, exp: expiryOf(policy) }));
 }
 
 /** Forgets the unlock kept on this device (locking, signing out, removing the vault). */
@@ -95,10 +138,15 @@ export async function restoreRememberedSyncVault({ storage, username, cryptoProv
   const storageKey = getRememberedSyncVaultStorageKey(username);
   if (!storageKey || !storage?.getItem) return false;
   try {
-    const saved = await storage.getItem(storageKey);
+    const saved = parseRemembered(await storage.getItem(storageKey));
     if (!saved || !await rememberPolicy(username)) return false;
+    if (saved.exp && Date.now() > saved.exp) {
+      // The days the person chose are over: the unlock is asked for again.
+      await forgetRememberedSyncVault({ storage, username });
+      return false;
+    }
     const record = await readSyncVaultRecord(storage, username);
-    const keyBytes = base64ToBytes(saved);
+    const keyBytes = base64ToBytes(saved.k);
     if (!record || !await verifySyncVaultKeyBytes(record, keyBytes, { cryptoProvider })) {
       await forgetRememberedSyncVault({ storage, username });
       return false;

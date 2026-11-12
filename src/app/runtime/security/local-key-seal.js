@@ -13,8 +13,10 @@ const DATABASE = 'NoureonDeviceKey';
 const STORE = 'keys';
 const KEY_ID = 'device-v1';
 export const DEVICE_PREFIX = 'nd1';
+export const VAULT_PREFIX = 'nv1';
 
-import { LocalKeyError, markLocalKeysUnreadable, sealRuleOf } from './local-key-rules.js';
+import { LocalKeyError, markLocalKeysUnreadable, readProtection, sealRuleOf, sensitiveKeyOwner } from './local-key-rules.js';
+import { getUnlockedSyncVaultKey } from '../../sync/sync-vault.js';
 
 export { LocalKeyError, sealRuleOf, localKeysWereUnreadable } from './local-key-rules.js';
 
@@ -36,10 +38,27 @@ const request = (idbRequest) => new Promise((resolve, reject) => {
 export function createLocalKeySeal({
   indexedDBFactory = globalThis.indexedDB,
   cryptoProvider = globalThis.crypto,
-  onUnreadable = () => {}
+  onUnreadable = () => {},
+  getProtection = (username) => readProtection(username),
+  getVaultKey = (username) => getUnlockedSyncVaultKey(username)
 } = {}) {
   let deviceKeyPromise = null;
-  let vaultSealer = null; // set by the protection with a passkey (nv1), see setVaultSealer
+  // The protection with a passkey: the API keys are sealed with the data key of the sync vault instead of the key of the device, so they open only while the vault is
+  // unlocked (a passkey, or the sync password, unlocked it). `getProtection(username)` and `getVaultKey(username)` are the page's (injected in tests).
+  const vaultSealer = {
+    active: (storageKey) => Boolean(sensitiveKeyOwner(storageKey) && getProtection(sensitiveKeyOwner(storageKey))),
+    owns: (stored) => stored.startsWith(`${VAULT_PREFIX}.`),
+    async seal(storageKey, text) {
+      const key = getVaultKey(sensitiveKeyOwner(storageKey));
+      if (!key) throw new LocalKeyError('local-keys-locked', 'The keys on this device are locked.');
+      return encryptWith(key, text, storageKey, VAULT_PREFIX);
+    },
+    async open(storageKey, stored) {
+      const key = getVaultKey(sensitiveKeyOwner(storageKey));
+      if (!key) throw new LocalKeyError('local-keys-locked', 'The keys on this device are locked.');
+      return decryptWith(key, stored, storageKey);
+    }
+  };
 
   const openDatabase = () => new Promise((resolve, reject) => {
     const opening = indexedDBFactory.open(DATABASE, 1);
@@ -70,10 +89,10 @@ export function createLocalKeySeal({
     return deviceKeyPromise;
   };
 
-  async function encryptWith(key, text, storageKey) {
+  async function encryptWith(key, text, storageKey, prefix = DEVICE_PREFIX) {
     const iv = cryptoProvider.getRandomValues(new Uint8Array(12));
     const sealed = await cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(storageKey) }, key, new TextEncoder().encode(text));
-    return `${DEVICE_PREFIX}.${bytesToBase64(iv)}.${bytesToBase64(new Uint8Array(sealed))}`;
+    return `${prefix}.${bytesToBase64(iv)}.${bytesToBase64(new Uint8Array(sealed))}`;
   }
 
   async function decryptWith(key, stored, storageKey) {
@@ -93,7 +112,7 @@ export function createLocalKeySeal({
     async seal(storageKey, text) {
       const rule = sealRuleOf(storageKey);
       if (!rule || typeof text !== 'string') return text;
-      if (vaultSealer?.active(storageKey)) return vaultSealer.seal(storageKey, text);
+      if (vaultSealer.active(storageKey)) return vaultSealer.seal(storageKey, text);
       const key = await deviceKey();
       if (!key) {
         if (rule.required) throw new LocalKeyError('local-seal-unavailable', 'This browser cannot keep a key of its own.');
@@ -118,10 +137,11 @@ export function createLocalKeySeal({
           return { value: null, sealed: true, unreadable: true };
         }
       }
-      if (vaultSealer?.owns(stored)) {
+      if (vaultSealer.owns(stored)) {
         try {
           return { value: await vaultSealer.open(storageKey, stored), sealed: true };
         } catch (error) {
+          // Locked: not unreadable. The caller must not take it for "there are no keys".
           if (error?.code === 'local-keys-locked') return { value: null, sealed: true, locked: true };
           onUnreadable(storageKey);
           return { value: null, sealed: true, unreadable: true };
@@ -129,9 +149,6 @@ export function createLocalKeySeal({
       }
       return { value: stored, sealed: false };
     },
-
-    /** The protection with a passkey (settings-local-key-protection.js) puts its own way of sealing here. */
-    setVaultSealer(sealer) { vaultSealer = sealer || null; }
   };
 }
 

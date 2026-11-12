@@ -240,7 +240,14 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   }
 
   async function prepareUpload(kind) {
-    const value = await readLocal(kind);
+    let value;
+    try {
+      value = await readLocal(kind);
+    } catch (error) {
+      // The keys of this device are locked (the protection with a passkey): that is not "no keys", so nothing is sent and the keys in the cloud stay; it waits.
+      if (error?.code === 'local-keys-locked') return undefined;
+      throw error;
+    }
     if (kind === 'config') return value ? assets.externalize(await mergeConfigWithCloud(value)) : null;
     const rotation = parseJson(await storage.getItem(rotationKey));
     if (kind === 'vault') {
@@ -360,7 +367,14 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     const definition = CLOUD_SYNC_KINDS[kind];
     if (!definition) return false;
     await refreshMeta();
-    const local = await readLocal(kind);
+    let local;
+    try {
+      local = await readLocal(kind);
+    } catch (error) {
+      // Locked (the protection with a passkey): the cloud's copy cannot be opened either until the vault is unlocked; nothing is decided now.
+      if (error?.code === 'local-keys-locked') return false;
+      throw error;
+    }
     const remoteValue = remote?.[definition.column];
     const remoteUpdatedAt = remote?.[definition.timestamp] || remote?.updated_at;
 

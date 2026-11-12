@@ -1,4 +1,4 @@
-import { sealRuleOf } from '../security/local-key-rules.js';
+import { LocalKeyError, sealRuleOf } from '../security/local-key-rules.js';
 
 // The seal does the cryptography and is loaded the first time one of the sealed keys is read or written (most pages of the app never need it before the keys are read).
 const lazySeal = (make) => {
@@ -53,6 +53,8 @@ export function createRuntimeStorageAdapter({
   async function unsealed(key, stored) {
     if (!sealRuleOf(key) || typeof stored !== 'string') return stored;
     const opened = await seal.open(key, stored);
+    // Locked (the protection with a passkey, and the vault is not unlocked) is not the same as missing: it is told, so nobody takes it for "no keys" and writes nothing over it.
+    if (opened.locked) throw new LocalKeyError('local-keys-locked', 'The keys on this device are locked.');
     if (!opened.sealed && opened.value && await seal.available()) {
       void setItem(key, opened.value).catch(() => {});
     }

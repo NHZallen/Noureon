@@ -94,6 +94,8 @@ export function createSensitiveConfigStore({
   };
 }
 
+const isLockedError = (error) => error?.code === 'local-keys-locked';
+
 export function createSensitiveConfigPersistence({
   getCurrentUser,
   getItem,
@@ -101,7 +103,8 @@ export function createSensitiveConfigPersistence({
   removeItem,
   getApiKeys,
   replaceApiKeys,
-  onSaved = () => {}
+  onSaved = () => {},
+  eventTarget = globalThis.window
 } = {}) {
   async function markCloudSyncPending() {
     try {
@@ -118,7 +121,18 @@ export function createSensitiveConfigPersistence({
   async function loadSensitiveConfig() {
     const key = getSensitiveConfigKey();
     if (!key) return null;
-    const saved = await getItem(key);
+    let saved;
+    try {
+      saved = await getItem(key);
+    } catch (error) {
+      // The keys of this device are locked (the protection with a passkey, and the sync vault is not unlocked): there are none to show yet, and nothing is
+      // written over what is kept. They are read again when the vault is unlocked.
+      if (isLockedError(error)) {
+        replaceApiKeys({});
+        return null;
+      }
+      throw error;
+    }
     if (!saved) return null;
 
     const parsed = JSON.parse(saved);
@@ -134,7 +148,13 @@ export function createSensitiveConfigPersistence({
     if (!key) return;
     const serializedConfig = JSON.stringify({ apiKeys: getApiKeys() });
     await markCloudSyncPending();
-    await setItem(key, serializedConfig);
+    try {
+      await setItem(key, serializedConfig);
+    } catch (error) {
+      // Locked: what is kept stays as it is (the page holds no keys now, and must not replace them with nothing).
+      if (isLockedError(error)) return;
+      throw error;
+    }
     await markCloudSyncPending();
   }
 
@@ -146,6 +166,22 @@ export function createSensitiveConfigPersistence({
     replaceApiKeys({});
     await markCloudSyncPending();
   }
+
+  // The protection with a passkey (security/local-key-protection.js): locking takes the keys out of the page's memory; unlocking the sync vault reads them again.
+  const isMine = (username) => Boolean(username) && getCurrentUser?.()?.username === username;
+  eventTarget?.addEventListener?.('noureon:local-keys-locked', (event) => {
+    if (isMine(event?.detail?.username)) replaceApiKeys({});
+  });
+  eventTarget?.addEventListener?.('astra:sync-vault-unlocked', async (event) => {
+    if (!isMine(event?.detail?.username)) return;
+    try {
+      const loaded = await loadSensitiveConfig();
+      // The rest of the page (the usage rings, the models that need a key) follows the keys it is given.
+      if (loaded) eventTarget.dispatchEvent(new eventTarget.CustomEvent('astra:cloud-sensitive-config', { detail: { apiKeys: loaded } }));
+    } catch (error) {
+      globalThis.console?.warn?.('The API keys could not be read after the unlock.', error);
+    }
+  });
 
   return {
     getSensitiveConfigKey,
