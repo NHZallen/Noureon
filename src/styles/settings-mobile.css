@@ -258,10 +258,14 @@
         color: var(--text-primary);
     }
 
-    #settings-modal .settings-mobile-row-icon svg,
-    #settings-modal .settings-mobile-row-icon svg * {
+    /* Only the svg is sized: a width and height on the shapes inside it (a rect) would replace their own and push them out of the frame. */
+    #settings-modal .settings-mobile-row-icon svg {
         width: 1.65rem;
         height: 1.65rem;
+    }
+
+    #settings-modal .settings-mobile-row-icon svg,
+    #settings-modal .settings-mobile-row-icon svg * {
         color: inherit;
         stroke: currentColor;
     }

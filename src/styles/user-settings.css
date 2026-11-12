@@ -109,4 +109,3 @@
 #settings-modal :is(#user-section, #security-section) #security-totp-secret { letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
 #settings-modal :is(#user-section, #security-section) #security-totp-code, #settings-modal :is(#user-section, #security-section) #security-mfa-code { letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
 #settings-modal :is(#user-section, #security-section) .us-hint.is-error { color: var(--state-danger) !important; }
-#settings-modal :is(#user-section, #security-section) .us-hint a { color: inherit; text-decoration: underline; }

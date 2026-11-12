@@ -109,7 +109,6 @@ export function createAuthenticatorControls({ document, window, getSupabase, get
     secret = String(data.totp?.secret || '');
     elements.totpQr.src = data.totp?.qr_code || '';
     elements.totpSecret.value = secret.replace(/(.{4})/g, '$1 ').trim();
-    elements.totpOpen.href = data.totp?.uri || '#';
     elements.totpCode.value = '';
     await refresh();
     elements.totpCode.focus?.();
@@ -161,7 +160,6 @@ export function createAuthenticatorControls({ document, window, getSupabase, get
       await window.navigator.clipboard.writeText(secret);
       showNotification(text('securityTotpCopied', '已複製設定金鑰。'));
     }));
-    elements.totpOpen.addEventListener('click', (event) => { if (!pendingId) event.preventDefault(); });
     elements.mfaConfirm.addEventListener('click', guard(confirmAsk));
     elements.mfaCancel.addEventListener('click', () => closeAsk(false));
     for (const input of [elements.totpCode, elements.mfaCode]) {

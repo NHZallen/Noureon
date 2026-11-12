@@ -155,8 +155,7 @@ samp,
         height: 2.05rem !important;
     }
 
-    #settings-modal #settings-mobile-list .settings-mobile-row-icon svg,
-    #settings-modal #settings-mobile-list .settings-mobile-row-icon svg * {
+    #settings-modal #settings-mobile-list .settings-mobile-row-icon svg {
         width: 1.42rem !important;
         height: 1.42rem !important;
     }

@@ -636,7 +636,6 @@ test('authenticator: the card shows for a cloud account, setup draws the QR code
   assert.equal(byId('security-totp-setup').classList.contains('hidden'), false);
   assert.match(byId('security-totp-qr').getAttribute('src'), /^data:image/);
   assert.equal(byId('security-totp-secret').value, 'ABCD EFGH JKLM NPQR', 'the key to type in, in groups of four');
-  assert.match(byId('security-totp-open').getAttribute('href'), /^otpauth:\/\/totp\//);
 
   byId('security-totp-code').value = '12ab34';
   byId('security-totp-code').dispatchEvent(new (byId('security-totp-code').ownerDocument.defaultView.Event)('input'));

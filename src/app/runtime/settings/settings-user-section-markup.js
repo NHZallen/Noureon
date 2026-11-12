@@ -20,7 +20,6 @@ export const getUserSectionElements = (document) => ({
   totpQr: document.getElementById('security-totp-qr'),
   totpSecret: document.getElementById('security-totp-secret'),
   totpCopy: document.getElementById('security-totp-copy'),
-  totpOpen: document.getElementById('security-totp-open'),
   totpCode: document.getElementById('security-totp-code'),
   totpConfirm: document.getElementById('security-totp-confirm-btn'),
   totpCancel: document.getElementById('security-totp-cancel-btn'),
@@ -333,7 +332,6 @@ export function buildSecuritySectionMarkup(text) {
                   <input id="security-totp-secret" type="text" readonly autocomplete="off" spellcheck="false">
                   <button id="security-totp-copy" type="button" class="us-eye" title="複製" aria-label="複製" data-lang-key-title="securityTotpCopy" data-lang-key-aria="securityTotpCopy">${ICONS.copy}</button>
                 </div>
-                <p class="us-hint"><a id="security-totp-open" href="#" data-lang-key="securityTotpOpen">在這台裝置上開啟驗證器 app</a></p>
               </div>
               <div class="us-field">
                 <label for="security-totp-code" data-lang-key="securityTotpStep2">2. 輸入 app 顯示的六位數</label>
