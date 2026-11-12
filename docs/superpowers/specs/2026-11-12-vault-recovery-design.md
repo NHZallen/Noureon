@@ -171,3 +171,11 @@ S2（驗證器）、S3（通行金鑰）在這一頁加卡片：
 - 驗證器卡：登記時顯示 QR、設定金鑰（分組、可複製）與 `otpauth://` 連結（在手機上點一下就開驗證器 app），再輸入六位數確認；已啟用時顯示狀態與移除。
 - 通行金鑰卡：已登記清單（名稱、日期、移除）與「新增通行金鑰」（要輸入同步密碼）。
 - 忘記密碼面板：加「用通行金鑰救援」；有驗證器的人，重設、重新開始、新增或移除通行金鑰前要先輸入六位數。
+
+## 14. S2 done: the authenticator app (2026-11-12)
+
+- `src/app/runtime/settings/settings-security-authenticator.js`: Supabase TOTP factor. Setup draws the QR code, shows the setup key in groups of four with a copy button and an `otpauth://` link (for people who cannot scan), then six digits turn it on. Cancelling removes the unfinished factor. Removing it asks for the code first.
+- `requireAal2()` is called before create, change, reset, recover and start over (`settings-sync-vault-actions.js`). When the session's `nextLevel` is `aal2` and the current level is not, the six digits are asked for; a client with no `auth.mfa`, or an account without a confirmed factor, is never asked.
+- The server (`api/sync-vault-recovery.js`) answers `mfa_required` for store, recover and delete when the token's `aal` is not `aal2` and the account has a confirmed factor; the table's restrictive rules (migration `20261112100000`) are the second wall.
+- Texts: 23 keys (`securityTotp*`, `securityMfa*`) in five languages. Tests: seven new in `tests/settings-sync-vault-controls.test.js`.
+- Still to do: S3 (passkey card, "rescue with passkey" in the forgot panel, re-wrap on password change), P5 (texts, privacy policy, old-user reminder, retire the server slot after 2026-12-31 23:59 UTC+8). Allen: apply the migration (test project first) and turn on TOTP in both Supabase projects.
