@@ -21,6 +21,8 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 create function auth.role() returns text language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
 -- The claims of the token of a request (as Supabase has them: aal is aal1 after a sign-in and aal2 once the code of the authenticator app was confirmed), and the factors of the sign-in service (the role of a person cannot read them).
 create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+-- The devices that are signed in (one row for each), as the sign-in service keeps them: the browser's text and the address, and session_id in the claims of a token tells which one a request is.
+create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), updated_at timestamptz, not_after timestamptz, refreshed_at timestamp, user_agent text, ip inet);
 create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, factor_type text not null, status text not null default 'unverified');
 create table storage.buckets (id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid, created_at timestamptz default now(), updated_at timestamptz default now(), metadata jsonb);

@@ -44,6 +44,7 @@ export function createPasskeyControls({
 }) {
   let state = { slots: [], hasServerSlot: false, loaded: false };
   let availability = 'unknown';
+  let opened = false; // the form to add one (the sync password) is folded away until asked for
   // What the add flow needs, read when the card is drawn: the browser wants the passkey asked for right after the tap, and a wait before it can be refused.
   let cached = { record: null, userId: '' };
   const rpId = () => window.location.hostname;
@@ -112,19 +113,14 @@ export function createPasskeyControls({
     const record = await currentRecord();
     cached = { record, userId: await userIdOf().catch(() => '') };
     const has = state.slots.length > 0;
-    const label = elements.passkeyState.querySelector('.us-state-text');
-    if (label) label.textContent = has ? text('securityPasskeyStateOn', '已設定') : text('securityPasskeyStateOff', '尚未設定');
-    elements.passkeyState.classList.toggle('is-on', has);
-    show(elements.passkeyState, true);
     const usable = availability !== 'no' && availability !== 'in-app';
     show(elements.passkeyUnsupported, availability === 'no');
     show(elements.passkeyInApp, availability === 'in-app');
     show(elements.passkeyNoVault, usable && !record);
-    show(elements.passkeyAdd, usable && Boolean(record));
-    show(elements.passkeyAddButton.parentElement, usable && Boolean(record));
+    show(elements.passkeyOpen, usable && Boolean(record));
+    show(elements.passkeyAdd, usable && Boolean(record) && opened);
+    elements.passkeyOpen.setAttribute('aria-expanded', String(opened));
     show(elements.passkeyList, has);
-    elements.passkeyName.placeholder = nameForNewPasskey(); // what it is called when the person writes nothing
-    elements.passkeyAddButton.textContent = has ? text('securityPasskeyAddAnother', '再新增一把通行金鑰') : text('securityPasskeyAdd', '新增通行金鑰');
     renderList();
   }
 
@@ -151,12 +147,12 @@ export function createPasskeyControls({
     const keyBytes = await openSyncVaultRecordKeyBytes(password, record); // the sync password is the right one, or this throws
     const slot = await createPasskeySlot({
       secret: made.secret, credentialId: made.credentialId, prfSalt: made.prfSalt, keyBytes,
-      label: elements.passkeyName.value.trim().slice(0, 40) || nameForNewPasskey()
+      label: nameForNewPasskey()
     });
     // The recovery the server kept for the person (the old way) is dropped now that the person has one of their own.
     state = { ...state, slots: await store.save(addRecoverySlot(state.slots, slot), { dropServerSlot: state.hasServerSlot }), hasServerSlot: false };
     elements.passkeyPassword.value = '';
-    elements.passkeyName.value = '';
+    opened = false;
     notifySecurity('passkey-added');
     showNotification(text('securityPasskeyAdded', '通行金鑰已新增。忘記同步密碼時，可以用它救援，也可以用它解鎖。'));
     await refresh();
@@ -237,6 +233,7 @@ export function createPasskeyControls({
     const elements = getElements();
     if (!elements.passkeyCard || elements.passkeyCard.dataset.bound === 'true') return;
     elements.passkeyCard.dataset.bound = 'true';
+    elements.passkeyOpen.addEventListener('click', () => { opened = !opened; show(elements.passkeyAdd, opened); elements.passkeyOpen.setAttribute('aria-expanded', String(opened)); });
     elements.passkeyAddButton.addEventListener('click', guard(async () => { if (await confirmIdentity({ onlyIfSet: true })) await add(); }));
     elements.passkeyList.addEventListener('click', (event) => {
       const target = event.target.closest?.('[data-action]');

@@ -215,7 +215,7 @@ export function createSettingsSyncVaultControls({
     authenticator.bind();
     passkeys.bind();
     devices.bind();
-    devices.refresh();
+    devices.refresh().catch(() => {});
     void authenticator.refresh();
     passkeys.refresh().catch((error) => globalThis.console?.warn?.('The passkey card could not be drawn.', error));
     const user = getCurrentUser?.();

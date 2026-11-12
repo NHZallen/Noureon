@@ -17,7 +17,7 @@ export const SECURITY_EVENTS = Object.freeze({
   'authenticator-removed': { subject: 'An authenticator app was removed', title: 'An authenticator app was removed', what: 'The authenticator app was removed from your account.' },
   'login-password-changed': { subject: 'Your login password was changed', title: 'Your login password was changed', what: 'The password you sign in with was changed.' },
   'signed-out-all': { subject: 'You were signed out of all your devices', title: 'Signed out of all devices', what: 'Every device, including the one that asked, was signed out of your account.' },
-  'signed-out-others': { subject: 'You were signed out of your other devices', title: 'Signed out of other devices', what: 'Every other device was signed out of your account.' },
+  'device-signed-out': { subject: 'A device was signed out', title: 'A device was signed out', what: 'One of the devices that were signed in to your account was signed out.' },
   'sync-password-changed': { subject: 'Your sync password was changed', title: 'Your sync password was changed', what: 'The sync password that protects your API keys was changed.' },
   'sync-password-reset': { subject: 'Your sync password was reset', title: 'Your sync password was reset', what: 'A forgotten sync password was replaced with a new one.' },
   'sync-password-cleared': { subject: 'Your sync password was cleared', title: 'Your sync password was cleared', what: 'The sync password was cleared. The API keys that were saved in the cloud can no longer be read.' },

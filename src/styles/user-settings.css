@@ -116,3 +116,8 @@
 #settings-modal :is(#user-section, #security-section) .us-pk-name { flex: 1; min-width: 0; overflow: hidden; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; }
 #settings-modal :is(#user-section, #security-section) .us-pk-meta { color: var(--text-secondary); font-size: 0.8125rem; white-space: nowrap; }
 #settings-modal :is(#user-section, #security-section) .us-pk-meta.is-warn { color: var(--state-warning); }
+
+/* One device of the list of signed-in devices: its name, and under it when it was last used and the address. */
+#settings-modal :is(#user-section, #security-section) .us-pk-text { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 0.125rem; }
+#settings-modal :is(#user-section, #security-section) .us-pk-text .us-pk-name { flex: none; }
+#settings-modal :is(#user-section, #security-section) .us-pk-sub { overflow: hidden; color: var(--text-secondary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }

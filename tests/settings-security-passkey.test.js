@@ -99,12 +99,17 @@ const addPasskey = async (fixture, password = 'old-password-123') => {
 test('passkey card: it shows for a cloud account that has a sync password, and not where passkeys cannot do it', async () => {
   const ok = await setup();
   assert.equal(ok.byId('security-passkey-card').classList.contains('hidden'), false);
+  assert.equal(ok.byId('security-passkey-open-btn').classList.contains('hidden'), false);
+  assert.equal(ok.byId('security-passkey-add').classList.contains('hidden'), true, 'the form is folded away until asked for');
+  ok.byId('security-passkey-open-btn').click();
   assert.equal(ok.byId('security-passkey-add').classList.contains('hidden'), false);
+  assert.equal(ok.byId('security-passkey-open-btn').getAttribute('aria-expanded'), 'true');
   assert.equal(ok.byId('security-passkey-unsupported').classList.contains('hidden'), true);
 
   const no = await setup({ availability: 'no' });
   assert.equal(no.byId('security-passkey-unsupported').classList.contains('hidden'), false);
   assert.equal(no.byId('security-passkey-add').classList.contains('hidden'), true);
+  assert.equal(no.byId('security-passkey-open-btn').classList.contains('hidden'), true);
 
   const empty = await setup({ withVault: false });
   assert.equal(empty.byId('security-passkey-no-vault').classList.contains('hidden'), false);
@@ -320,7 +325,7 @@ test('passkey card: inside an app\'s own browser it says to open Safari or Chrom
   assert.equal(fixture.byId('security-passkey-in-app').classList.contains('hidden'), false);
   assert.match(fixture.byId('security-passkey-in-app').textContent, /Safari/);
   assert.equal(fixture.byId('security-passkey-add').classList.contains('hidden'), true);
-  assert.equal(fixture.byId('security-passkey-add-btn').parentElement.classList.contains('hidden'), true);
+  assert.equal(fixture.byId('security-passkey-open-btn').classList.contains('hidden'), true);
   assert.equal(fixture.byId('security-passkey-unsupported').classList.contains('hidden'), true);
 });
 
@@ -371,14 +376,11 @@ test('a passkey is named after the device and the browser it was made on, and a 
   assert.equal(fixture.table.row.slots[1].label, `${base} 2`);
 });
 
-test('a passkey can be given a name of the person\'s own when it is added, and renamed later; the placeholder shows the name it gets otherwise; nothing secret is touched', async () => {
+test('a passkey can be renamed later; only the label changes, nothing secret is touched, and the form closes after one is added', async () => {
   const fixture = await setup();
-  const base = deviceName(fixture.window.navigator.userAgent);
-  assert.equal(fixture.byId('security-passkey-name').placeholder, base);
-  fixture.byId('security-passkey-name').value = '  Allen\'s iPhone  ';
+  fixture.byId('security-passkey-open-btn').click();
   await addPasskey(fixture);
-  assert.equal(fixture.table.row.slots[0].label, 'Allen\'s iPhone');
-  assert.equal(fixture.byId('security-passkey-name').value, '', 'the box is emptied');
+  assert.equal(fixture.byId('security-passkey-add').classList.contains('hidden'), true, 'the form folds away again');
 
   const sealedBefore = fixture.table.row.slots[0].ciphertext;
   fixture.window.prompt = () => 'Work laptop';

@@ -16,6 +16,7 @@ export function createSecurityErrors({ text, showNotification }) {
     const message = String(error?.message || '');
     if (code === 'invalid_credentials' || /invalid login credentials/i.test(message)) return text('loginPasswordCurrentIncorrect', '目前登入密碼不正確。');
     if (code === 'same_password' || /different from the old password/i.test(message)) return text('loginPasswordSameAsOld', '新密碼不能和目前的密碼相同。');
+    if (/mfa_required/.test(message)) return text('securityMfaRequired', '請先輸入驗證器上的六位數。');
     if (/rate_limit/.test(code) || error?.status === 429 || /rate limit/i.test(message)) return text('authRateLimited', '嘗試次數過多，請稍後再試。');
     return '';
   };

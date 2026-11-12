@@ -615,7 +615,21 @@ const mfaFixture = async ({ factors = [], aal = { currentLevel: 'aal1', nextLeve
     getAuthenticatorAssuranceLevel: async () => ({ data: state.aal, error: null })
   };
   state.signedOut = [];
-  const supabase = { auth: { mfa, signOut: async (options) => { state.signedOut.push(options?.scope); return { error: null }; }, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
+  state.sessions = [
+    { id: 's-here', created_at: '2026-11-12T10:00:00Z', last_active_at: '2026-11-12T12:00:00Z', user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', ip: '203.0.113.9', is_current: true },
+    { id: 's-mac', created_at: '2026-11-01T10:00:00Z', last_active_at: '2026-11-11T09:30:00Z', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', ip: '198.51.100.4', is_current: false }
+  ];
+  state.revoked = [];
+  const supabase = { rpc: async (name, args) => {
+    if (name === 'list_my_sessions') return { data: state.sessions, error: null };
+    if (name === 'revoke_my_session') {
+      if (state.requireCode && state.aal.currentLevel !== 'aal2') return { data: null, error: { message: 'mfa_required' } };
+      const found = state.sessions.some((row) => row.id === args.p_session_id && !row.is_current);
+      if (found) { state.sessions = state.sessions.filter((row) => row.id !== args.p_session_id); state.revoked.push(args.p_session_id); }
+      return { data: found, error: null };
+    }
+    return { data: null, error: { message: 'unknown' } };
+  }, auth: { mfa, signOut: async (options) => { state.signedOut.push(options?.scope); return { error: null }; }, getSession: async () => ({ data: { session: { access_token: 'token-1' } }, error: null }), getUserIdentities: async () => ({ data: { identities: [] }, error: null }), getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }) } };
   const notices = [];
   const events = [];
   const fixture = createFixture({ getSupabase: () => supabase, showNotification: (message, type) => notices.push({ message, type }), notifySecurity: (event) => events.push(event) });
@@ -747,18 +761,21 @@ test('authenticator: a client with no auth.mfa hides the card and never asks for
   assert.equal(local.window.document.getElementById('security-totp-card').classList.contains('hidden'), true);
 });
 
-test('sign out of other devices: a card for a cloud account only; it asks, signs out the others (not this one) and tells the owner', async () => {
-  const { byId, state, events, window } = await mfaFixture();
+test('signed-in devices: a row that opens the list (this device first, with its kind and browser), and a card only for a cloud account', async () => {
+  const { byId } = await mfaFixture();
   assert.equal(byId('security-devices-card').classList.contains('hidden'), false);
-  window.confirm = () => false;
-  byId('security-signout-others-btn').click();
+  assert.equal(byId('security-devices-panel').classList.contains('hidden'), true, 'folded away until asked for');
+  byId('security-devices-toggle').click();
   await flush();
-  assert.deepEqual(state.signedOut, [], 'declining does nothing');
-  window.confirm = () => true;
-  byId('security-signout-others-btn').click();
-  await flush();
-  assert.deepEqual(state.signedOut, ['others']);
-  assert.deepEqual(events, ['signed-out-others']);
+  assert.equal(byId('security-devices-panel').classList.contains('hidden'), false);
+  const rows = [...byId('security-devices-list').children];
+  assert.equal(rows.length, 2);
+  assert.match(rows[0].textContent, /iPhone · Safari/);
+  assert.match(rows[0].textContent, /這台裝置/);
+  assert.equal(rows[0].querySelector('button'), null, 'this device is signed out with "sign out of all"');
+  assert.match(rows[1].textContent, /Mac · Chrome/);
+  assert.match(rows[1].textContent, /198\.51\.100\.4/);
+  assert.ok(rows[1].querySelector('[data-action="sign-out"]'));
 
   const local = createFixture();
   local.controls.ensureSyncVaultSettings();
@@ -766,28 +783,54 @@ test('sign out of other devices: a card for a cloud account only; it asks, signs
   assert.equal(local.window.document.getElementById('security-devices-card').classList.contains('hidden'), true);
 });
 
-test('sign out of other devices asks for the authenticator code first when one is set up, and does nothing without it', async () => {
-  const { byId, state, window } = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+test('signed-in devices: one device is signed out after a confirmation, and the owner is told; declining does nothing', async () => {
+  const { byId, state, events, window } = await mfaFixture();
+  byId('security-devices-toggle').click();
+  await flush();
+  window.confirm = () => false;
+  byId('security-devices-list').querySelector('[data-action="sign-out"]').click();
+  await flush();
+  assert.deepEqual(state.revoked, []);
   window.confirm = () => true;
-  byId('security-signout-others-btn').click();
+  byId('security-devices-list').querySelector('[data-action="sign-out"]').click();
   await flush();
-  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false);
-  assert.deepEqual(state.signedOut, []);
-  byId('security-mfa-cancel-btn').click();
+  assert.deepEqual(state.revoked, ['s-mac']);
+  assert.deepEqual(events, ['device-signed-out']);
+  assert.equal(byId('security-devices-list').children.length, 1, 'the list is drawn again');
+  assert.deepEqual(state.signedOut, [], 'nobody else is signed out');
+});
+
+test('signed-in devices: with an authenticator app set up the code is asked for first, and a device that is gone is told', async () => {
+  const set = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+  set.byId('security-devices-toggle').click();
   await flush();
-  assert.deepEqual(state.signedOut, [], 'giving up at the code signs nobody out');
-  byId('security-signout-others-btn').click();
+  set.window.confirm = () => true;
+  set.byId('security-devices-list').querySelector('[data-action="sign-out"]').click();
   await flush();
-  byId('security-mfa-code').value = '123456';
-  byId('security-mfa-confirm-btn').click();
+  assert.equal(set.byId('security-mfa-challenge').classList.contains('hidden'), false);
+  assert.deepEqual(set.state.revoked, []);
+  set.byId('security-mfa-code').value = '123456';
+  set.byId('security-mfa-confirm-btn').click();
   await flush();
-  assert.deepEqual(state.signedOut, ['others']);
+  assert.deepEqual(set.state.revoked, ['s-mac']);
+
+  const gone = await mfaFixture();
+  gone.byId('security-devices-toggle').click();
+  await flush();
+  gone.state.sessions = gone.state.sessions.filter((row) => row.is_current); // it was signed out somewhere else meanwhile
+  gone.window.confirm = () => true;
+  gone.byId('security-devices-list').querySelector('[data-action="sign-out"]').click();
+  await flush();
+  assert.equal(gone.notices.at(-1).type, 'error');
+  assert.match(gone.notices.at(-1).message, /不在登入清單/);
+  assert.equal(gone.events.length, 0);
 });
 
 test('sign out of all devices: this one too, after a confirmation; it forgets the last user, tells the owner and loads the page again', async () => {
-  let reloads = 0;
   const { byId, state, events, window, values } = await mfaFixture();
   values.set('chat_lastUser', 'supabase:user-123');
+  byId('security-devices-toggle').click();
+  await flush();
   window.confirm = () => false;
   byId('security-signout-all-btn').click();
   await flush();
@@ -798,5 +841,23 @@ test('sign out of all devices: this one too, after a confirmation; it forgets th
   assert.deepEqual(state.signedOut, ['global']);
   assert.deepEqual(events, ['signed-out-all']);
   assert.equal(values.has('chat_lastUser'), false, 'the page asks for a sign-in after it loads');
-  assert.equal(reloads, 0, 'the real reload is the fixture\'s default and is not triggered here');
+});
+
+test('sign out of all devices asks for the authenticator code first when one is set up, and signs nobody out without it', async () => {
+  const { byId, state, window } = await mfaFixture({ factors: [{ id: 'factor-9', factor_type: 'totp', status: 'verified' }], aal: { currentLevel: 'aal1', nextLevel: 'aal2' } });
+  window.confirm = () => true;
+  byId('security-devices-toggle').click();
+  await flush();
+  byId('security-signout-all-btn').click();
+  await flush();
+  assert.equal(byId('security-mfa-challenge').classList.contains('hidden'), false);
+  byId('security-mfa-cancel-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, []);
+  byId('security-signout-all-btn').click();
+  await flush();
+  byId('security-mfa-code').value = '123456';
+  byId('security-mfa-confirm-btn').click();
+  await flush();
+  assert.deepEqual(state.signedOut, ['global']);
 });

@@ -12,21 +12,21 @@ export const getUserSectionElements = (document) => ({
   securitySection: document.getElementById('security-section'),
   securityMessage: document.getElementById('security-message'),
   devicesCard: document.getElementById('security-devices-card'),
-  signOutOthersButton: document.getElementById('security-signout-others-btn'),
+  devicesToggle: document.getElementById('security-devices-toggle'),
+  devicesPanel: document.getElementById('security-devices-panel'),
+  devicesList: document.getElementById('security-devices-list'),
   signOutAllButton: document.getElementById('security-signout-all-btn'),
   passkeyCard: document.getElementById('security-passkey-card'),
-  passkeyState: document.getElementById('security-passkey-state'),
   passkeyUnsupported: document.getElementById('security-passkey-unsupported'),
   passkeyNoVault: document.getElementById('security-passkey-no-vault'),
   passkeyInApp: document.getElementById('security-passkey-in-app'),
   passkeyAdd: document.getElementById('security-passkey-add'),
   passkeyPassword: document.getElementById('security-passkey-password'),
-  passkeyName: document.getElementById('security-passkey-name'),
+  passkeyOpen: document.getElementById('security-passkey-open-btn'),
   passkeyAddButton: document.getElementById('security-passkey-add-btn'),
   passkeyList: document.getElementById('security-passkey-list'),
   recoveryPasskeyButton: document.getElementById('sync-vault-recovery-passkey-btn'),
   totpCard: document.getElementById('security-totp-card'),
-  totpState: document.getElementById('security-totp-state'),
   totpOff: document.getElementById('security-totp-off'),
   totpSetup: document.getElementById('security-totp-setup'),
   totpOn: document.getElementById('security-totp-on'),
@@ -325,49 +325,34 @@ export function buildSecuritySectionMarkup(text) {
           </div>
         </section>
         <section id="security-passkey-card" class="us-card hidden">
-          <div class="us-head">
-            <div class="us-head-main">
-              <span class="us-mark">${ICONS.key}</span>
-              <div class="us-head-text">
-                <div class="us-head-line">
-                  <h3 data-lang-key="securityPasskeyTitle">通行金鑰救援</h3>
-                  ${statusMarkup('security-passkey-state', ' hidden')}
-                </div>
-                <p class="us-desc" data-lang-key="securityPasskeyDesc">忘記同步密碼時，用這台裝置的 Face ID、指紋或螢幕鎖救回，平常也能用它解鎖。救援資料在你的裝置上加密，我們看不到。</p>
-              </div>
+          <div class="us-row">
+            <span class="us-mark">${ICONS.key}</span>
+            <div class="us-row-text">
+              <span class="us-row-title" data-lang-key="securityPasskeyTitle">通行金鑰</span>
+              <span class="us-row-desc" data-lang-key="securityPasskeyDesc">忘記同步密碼時用 Face ID 或指紋救回，平常也能用它解鎖。</span>
             </div>
+            <button id="security-passkey-open-btn" type="button" class="us-btn hidden" aria-expanded="false" aria-controls="security-passkey-add" data-lang-key="securityPasskeyOpen">新增</button>
           </div>
           <ul id="security-passkey-list" class="us-pk-list hidden"></ul>
-          <div class="us-panel">
-            <p id="security-passkey-unsupported" class="us-hint hidden" data-lang-key="securityPasskeyUnsupported">這個瀏覽器還不能用通行金鑰救援。請換用 Safari、Chrome 或 Edge 的新版本。</p>
-            <p id="security-passkey-in-app" class="us-hint hidden" data-lang-key="securityPasskeyInApp">你現在用的是 app 裡的瀏覽器（例如 Google app），它不能用通行金鑰。請用 Safari 或 Chrome 開啟這個網址。</p>
-            <p id="security-passkey-no-vault" class="us-hint hidden" data-lang-key="securityPasskeyNoVault">先在上面設定同步密碼，才能新增通行金鑰。</p>
-            <div id="security-passkey-add" class="hidden">
-              ${passwordField({ id: 'security-passkey-password', label: '目前的同步密碼（新增或更新時需要）', labelKey: 'securityPasskeyPasswordLabel', autocomplete: 'current-password' })}
-              <div class="us-field">
-                <label for="security-passkey-name" data-lang-key="securityPasskeyNameLabel">這把通行金鑰的名稱（選填）</label>
-                <div class="us-input"><input id="security-passkey-name" type="text" maxlength="40" autocomplete="off" spellcheck="false"></div>
-              </div>
-              <p class="us-hint" data-lang-key="securityPasskeyHint">建議多新增一把（例如另一台裝置），其中一把遺失時還能救援。</p>
+          <p id="security-passkey-unsupported" class="us-note hidden" data-lang-key="securityPasskeyUnsupported">這個瀏覽器還不能用通行金鑰救援。請換用 Safari、Chrome 或 Edge 的新版本。</p>
+          <p id="security-passkey-in-app" class="us-note hidden" data-lang-key="securityPasskeyInApp">你現在用的是 app 裡的瀏覽器（例如 Google app），它不能用通行金鑰。請用 Safari 或 Chrome 開啟這個網址。</p>
+          <p id="security-passkey-no-vault" class="us-note hidden" data-lang-key="securityPasskeyNoVault">先在上面設定同步密碼，才能新增通行金鑰。</p>
+          <div id="security-passkey-add" class="hidden">
+            <div class="us-panel">
+              ${passwordField({ id: 'security-passkey-password', label: '目前的同步密碼', labelKey: 'securityPasskeyPasswordLabel', autocomplete: 'current-password' })}
             </div>
+            <div class="us-foot is-end"><button id="security-passkey-add-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityPasskeyAdd">新增通行金鑰</button></div>
           </div>
-          <div class="us-foot is-end"><button id="security-passkey-add-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityPasskeyAdd">新增通行金鑰</button></div>
         </section>
         <section id="security-totp-card" class="us-card hidden">
-          <div class="us-head">
-            <div class="us-head-main">
-              <span class="us-mark">${ICONS.shield}</span>
-              <div class="us-head-text">
-                <div class="us-head-line">
-                  <h3 data-lang-key="securityTotpTitle">驗證器</h3>
-                  ${statusMarkup('security-totp-state', ' hidden')}
-                </div>
-                <p class="us-desc" data-lang-key="securityTotpDesc">用驗證器 app 的六位數，保護重設同步密碼、重新開始與救援資料的變更。</p>
-              </div>
+          <div class="us-row">
+            <span class="us-mark">${ICONS.shield}</span>
+            <div class="us-row-text">
+              <span class="us-row-title" data-lang-key="securityTotpTitle">驗證器</span>
+              <span class="us-row-desc" data-lang-key="securityTotpDesc">用驗證器 app 的六位數保護重要的變更。</span>
             </div>
-          </div>
-          <div id="security-totp-off" class="hidden">
-            <div class="us-foot is-end"><button id="security-totp-start-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityTotpStart">設定驗證器</button></div>
+            <span id="security-totp-off" class="hidden"><button id="security-totp-start-btn" type="button" class="us-btn" data-lang-key="securityTotpStart">設定</button></span>
+            <span id="security-totp-on" class="hidden"><button id="security-totp-remove-btn" type="button" class="us-btn is-danger" data-lang-key="securityTotpRemove">移除</button></span>
           </div>
           <div id="security-totp-setup" class="hidden">
             <div class="us-panel">
@@ -390,26 +375,21 @@ export function buildSecuritySectionMarkup(text) {
               <button id="security-totp-confirm-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityTotpConfirm">啟用驗證器</button>
             </div>
           </div>
-          <div id="security-totp-on" class="hidden">
-            <div class="us-foot is-end"><button id="security-totp-remove-btn" type="button" class="us-btn is-danger" data-lang-key="securityTotpRemove">移除驗證器</button></div>
-          </div>
         </section>
         <section id="security-devices-card" class="us-card hidden">
-          <div class="us-head">
-            <div class="us-head-main">
-              <span class="us-mark">${ICONS.devices}</span>
-              <div class="us-head-text">
-                <div class="us-head-line"><h3 data-lang-key="securityDevicesTitle">登入的裝置</h3></div>
-                <p class="us-desc" data-lang-key="securityDevicesDesc">用在別的地方登入過的裝置遺失，或懷疑帳號被別人用過時，可以把其他所有裝置登出（這台不受影響），也可以連這台一起登出。</p>
-              </div>
-            </div>
-          </div>
-          <div class="us-foot">
-            <button id="security-signout-all-btn" type="button" class="us-link" data-lang-key="securityDevicesSignOutAll">登出所有裝置（包含這台）</button>
-            <button id="security-signout-others-btn" type="button" class="us-btn is-danger is-block" data-lang-key="securityDevicesSignOut">登出其他所有裝置</button>
+          <button id="security-devices-toggle" type="button" class="us-row" aria-expanded="false" aria-controls="security-devices-panel">
+            <span class="us-mark">${ICONS.devices}</span>
+            <span class="us-row-text">
+              <span class="us-row-title" data-lang-key="securityDevicesTitle">登入的裝置</span>
+              <span class="us-row-desc" data-lang-key="securityDevicesDesc">查看哪些裝置已登入，或把它們登出。</span>
+            </span>
+            <span class="us-chevron">${ICONS.chevron}</span>
+          </button>
+          <div id="security-devices-panel" class="hidden">
+            <ul id="security-devices-list" class="us-pk-list"></ul>
+            <div class="us-foot is-end"><button id="security-signout-all-btn" type="button" class="us-btn is-danger" data-lang-key="securityDevicesSignOutAll">登出所有裝置</button></div>
           </div>
         </section>
-        <p class="us-footnote" data-lang-key="passwordKindsNote">登入密碼用來登入帳號；同步密碼用來加密你的 API 金鑰，只在你的裝置上使用，兩者不同。</p>
         <p id="security-message" class="us-message hidden"></p>
       </div>
     `;

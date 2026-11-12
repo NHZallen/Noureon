@@ -1,11 +1,16 @@
 // A short name for the device and the browser a request or a passkey came from, made from the User-Agent text: "iPhone · Safari", "Mac · Chrome", "Windows PC · Edge". It is what the
 // list of passkeys shows and what the mails about a change of the account say, so a person can tell their own devices from one they do not know. A browser says little about the
-// device (an iPhone does not give its model), so this is the kind of device and the browser, no more. Pure text, no browser objects (the server uses it too).
+// device (an iPhone does not give its model), so this is the kind of device and the browser, no more (an Android browser that still gives its model, "Pixel 8", is named by it; Chrome now hides it as "K"). Pure text, no browser objects (the server uses it too).
+
+const androidModel = (agent) => {
+  const model = /Android [\d.]+; ([^;)]+)/.exec(agent)?.[1]?.trim() || '';
+  return model && model !== 'K' && model.length <= 30 && !/^(Mobile|wv|Linux)$/i.test(model) ? model : '';
+};
 
 const OS = [
   [/iPhone/i, 'iPhone'],
   [/iPad/i, 'iPad'],
-  [/Android/i, (agent) => (/Mobile/i.test(agent) ? 'Android phone' : 'Android tablet')],
+  [/Android/i, (agent) => androidModel(agent) || (/Mobile/i.test(agent) ? 'Android phone' : 'Android tablet')],
   [/CrOS/i, 'Chromebook'],
   [/Macintosh|Mac OS X/i, 'Mac'],
   [/Windows/i, 'Windows PC'],

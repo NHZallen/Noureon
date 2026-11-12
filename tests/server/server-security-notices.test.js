@@ -89,7 +89,7 @@ test('the mail says where the change came from: the device, the approximate plac
   assert.deepEqual(originLines({ ip: '2001:db8::1' }), ['IP address: 2001:db8::1']);
   assert.deepEqual(originLines({ device: 'A\r\nBcc: x@evil.test' }), ['Device: A Bcc: x@evil.test'], 'a line break cannot start another line');
   assert.doesNotMatch(securityNoticeMailFor({ event: 'passkey-added', time: TIME }).text, /Device:|IP address:|Location:/);
-  assert.ok(SECURITY_EVENTS['login-password-changed'] && SECURITY_EVENTS['signed-out-others'] && SECURITY_EVENTS['signed-out-all']);
+  assert.ok(SECURITY_EVENTS['login-password-changed'] && SECURITY_EVENTS['device-signed-out'] && SECURITY_EVENTS['signed-out-all']);
 });
 
 test('the route reads the device, the address and the place from the request itself, not from its body', async () => {
@@ -98,7 +98,7 @@ test('the route reads the device, the address and the place from the request its
     const done = await fetch(`${base}/v1/security-notice`, {
       method: 'POST',
       headers: { ...headers, 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', 'X-Forwarded-For': '198.51.100.1, 203.0.113.9', 'CF-IPCity': 'Taipei', 'CF-IPCountry': 'TW' },
-      body: JSON.stringify({ event: 'signed-out-others', device: 'Mac · Chrome', ip: '1.1.1.1', location: 'Nowhere' })
+      body: JSON.stringify({ event: 'signed-out-all', device: 'Mac · Chrome', ip: '1.1.1.1', location: 'Nowhere' })
     });
     assert.equal(done.status, 202);
     assert.match(sent[0].text, /Device: iPhone · Safari/);

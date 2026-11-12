@@ -35,10 +35,6 @@ export function createAuthenticatorControls({ document, window, getSupabase, get
       globalThis.console?.warn?.('The authenticator state could not be read.', error);
     }
     const on = Boolean(factorId);
-    const label = elements.totpState?.querySelector('.us-state-text');
-    if (label) label.textContent = on ? text('securityTotpStateOn', '已啟用') : text('securityTotpStateOff', '未啟用');
-    elements.totpState?.classList.toggle('is-on', on);
-    show(elements.totpState, true);
     show(elements.totpOff, !on && !pendingId);
     show(elements.totpSetup, Boolean(pendingId));
     show(elements.totpOn, on && !pendingId);
