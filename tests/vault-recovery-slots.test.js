@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  MAX_RECOVERY_SLOTS, addRecoverySlot, createPasskeySlot, findRecoverySlotByCredential, normalizeRecoverySlots, openRecoverySlot, removeRecoverySlot, rewrapRecoverySlot
+  MAX_RECOVERY_SLOTS, addRecoverySlot, createPasskeySlot, findRecoverySlotByCredential, isSlotCurrent, normalizeRecoverySlots, openRecoverySlot, removeRecoverySlot, rewrapRecoverySlot
 } from '../src/app/sync/vault-recovery-slots.js';
 import { passkeyPrfAvailability, readAnyRecoveryPasskey, registerRecoveryPasskey } from '../src/app/sync/passkey-prf.js';
 
@@ -117,4 +117,14 @@ test('the browser says whether passkeys with PRF can be used: yes, no, or it can
   assert.equal(await passkeyPrfAvailability({ pkc: { getClientCapabilities: async () => ({ 'extension:prf': false }) }, nav }), 'no');
   assert.equal(await passkeyPrfAvailability({ pkc: {}, nav }), 'unknown');
   assert.equal(await passkeyPrfAvailability({ pkc: { getClientCapabilities: async () => { throw new Error('x'); } }, nav }), 'unknown');
+});
+
+test('a slot keeps the fingerprint of its vault record in the open, so one sealed for an earlier password can be told from a current one', async () => {
+  const slot = await make();
+  assert.equal(slot.recordFingerprint, record.check);
+  assert.equal(isSlotCurrent(slot, record), true);
+  assert.equal(isSlotCurrent(slot, { ...record, check: 'another-record' }), false);
+  const sealed = await rewrapRecoverySlot(slot, secretA(), { password: 'sync-password-2', record: { ...record, check: 'another-record' } });
+  assert.equal(isSlotCurrent(sealed, { ...record, check: 'another-record' }), true);
+  assert.equal(isSlotCurrent({ ...slot, recordFingerprint: undefined }, record), false, 'a slot with no fingerprint is not taken for current');
 });

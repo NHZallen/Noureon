@@ -11,6 +11,15 @@ export const getUserSectionElements = (document) => ({
   securityNav: document.getElementById('security-section-nav'),
   securitySection: document.getElementById('security-section'),
   securityMessage: document.getElementById('security-message'),
+  passkeyCard: document.getElementById('security-passkey-card'),
+  passkeyState: document.getElementById('security-passkey-state'),
+  passkeyUnsupported: document.getElementById('security-passkey-unsupported'),
+  passkeyNoVault: document.getElementById('security-passkey-no-vault'),
+  passkeyAdd: document.getElementById('security-passkey-add'),
+  passkeyPassword: document.getElementById('security-passkey-password'),
+  passkeyAddButton: document.getElementById('security-passkey-add-btn'),
+  passkeyList: document.getElementById('security-passkey-list'),
+  recoveryPasskeyButton: document.getElementById('sync-vault-recovery-passkey-btn'),
   totpCard: document.getElementById('security-totp-card'),
   totpState: document.getElementById('security-totp-state'),
   totpOff: document.getElementById('security-totp-off'),
@@ -278,6 +287,7 @@ export function buildSecuritySectionMarkup(text) {
             </div>
             <div class="us-foot">
               <button id="sync-vault-start-over-btn" type="button" class="us-link" data-lang-key="cloudSyncStartOver">無法救援，重新開始</button>
+              <button id="sync-vault-recovery-passkey-btn" type="button" class="us-btn is-primary is-block hidden" data-lang-key="securityPasskeyRecover">用通行金鑰救援</button>
               <button id="sync-vault-recovery-save-btn" type="button" class="us-btn is-primary is-block" data-lang-key="confirmCloudSyncPasswordReset">重設同步密碼</button>
             </div>
           </div>
@@ -305,6 +315,30 @@ export function buildSecuritySectionMarkup(text) {
               <button id="sync-vault-change-btn" type="button" class="us-btn is-primary is-block" data-lang-key="saveCloudSyncPassword">儲存新密碼</button>
             </div>
           </div>
+        </section>
+        <section id="security-passkey-card" class="us-card hidden">
+          <div class="us-head">
+            <div class="us-head-main">
+              <span class="us-mark">${ICONS.key}</span>
+              <div class="us-head-text">
+                <div class="us-head-line">
+                  <h3 data-lang-key="securityPasskeyTitle">通行金鑰救援</h3>
+                  ${statusMarkup('security-passkey-state', ' hidden')}
+                </div>
+                <p class="us-desc" data-lang-key="securityPasskeyDesc">忘記同步密碼時，用這台裝置的 Face ID、指紋或螢幕鎖救回。救援資料在你的裝置上加密，我們看不到。</p>
+              </div>
+            </div>
+          </div>
+          <ul id="security-passkey-list" class="us-pk-list hidden"></ul>
+          <div class="us-panel">
+            <p id="security-passkey-unsupported" class="us-hint hidden" data-lang-key="securityPasskeyUnsupported">這個瀏覽器還不能用通行金鑰救援。請換用 Safari、Chrome 或 Edge 的新版本。</p>
+            <p id="security-passkey-no-vault" class="us-hint hidden" data-lang-key="securityPasskeyNoVault">先在上面設定同步密碼，才能新增通行金鑰。</p>
+            <div id="security-passkey-add" class="hidden">
+              ${passwordField({ id: 'security-passkey-password', label: '目前的同步密碼（新增或更新時需要）', labelKey: 'securityPasskeyPasswordLabel', autocomplete: 'current-password' })}
+              <p class="us-hint" data-lang-key="securityPasskeyHint">建議多新增一把（例如另一台裝置），其中一把遺失時還能救援。</p>
+            </div>
+          </div>
+          <div class="us-foot is-end"><button id="security-passkey-add-btn" type="button" class="us-btn is-primary is-block" data-lang-key="securityPasskeyAdd">新增通行金鑰</button></div>
         </section>
         <section id="security-totp-card" class="us-card hidden">
           <div class="us-head">

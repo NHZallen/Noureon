@@ -10,6 +10,7 @@ import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-
 import { mountSecurityPage, togglePasswordEye } from './settings-security-page.js';
 import { createVaultRecoveryClient, getRecoveryStorageKey } from './settings-vault-recovery-client.js';
 import { createAuthenticatorControls } from './settings-security-authenticator.js';
+import { createPasskeyControls, passkeyErrorText } from './settings-security-passkey.js';
 import { bindAccountLinkingActions } from './settings-account-linking-actions.js';
 import { bindSyncVaultActions } from './settings-sync-vault-actions.js';
 
@@ -23,6 +24,7 @@ export function createSettingsSyncVaultControls({
   // The page's stylesheet loads with it, keeping the startup CSS small.
   loadStyles = () => import('../../../styles/user-settings.css'),
   getSupabase = getSupabaseClient,
+  passkeyApi,
   isConfigured = isSupabaseConfigured,
   reloadPage = () => window.location.reload(),
   scheduleTimeout = (callback, delay) => window.setTimeout(callback, delay)
@@ -79,7 +81,7 @@ export function createSettingsSyncVaultControls({
     if (error?.code === 'vault-password-too-short') return text('cloudSyncPasswordTooShort', '同步密碼至少需要 10 碼。');
     if (error?.code === 'vault-password-incorrect' || error?.message?.includes('Incorrect')) return text('cloudSyncPasswordIncorrect', '同步密碼不正確。');
     if (error?.code === 'vault-not-configured') return text('cloudSyncPasswordNotSet', '尚未設定同步密碼');
-    return '';
+    return passkeyErrorText(error, text);
   };
 
   // The errors Supabase answers with (in English) that a person is likely to meet on this page.
@@ -139,6 +141,7 @@ export function createSettingsSyncVaultControls({
   const { request: requestVaultRecovery, store: storeVaultRecovery, isVerifiedMode: isVerifiedRecoveryMode } = createVaultRecoveryClient({ window, storage, getSupabase: () => getSupabase(), text });
 
   const authenticator = createAuthenticatorControls({ document, window, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError });
+  const passkeys = createPasskeyControls({ document, window, storage, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, requireAal2: authenticator.requireAal2, ...(passkeyApi && { passkey: passkeyApi }) });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
   const emailBindLabel = () => (getCurrentUser?.()?.authProvider === 'supabase'
@@ -224,7 +227,9 @@ export function createSettingsSyncVaultControls({
     ensureSyncVaultSettings();
     await refreshAccountLinking();
     authenticator.bind();
+    passkeys.bind();
     void authenticator.refresh();
+    void passkeys.refresh();
     const user = getCurrentUser?.();
     const elements = getElements();
     if (!user?.username || !elements.section) return;
@@ -269,6 +274,7 @@ export function createSettingsSyncVaultControls({
         ? text('manageSyncPasswordDesc', '變更或清除同步密碼')
         : text('manageSyncPasswordLockedDesc', '變更或清除同步密碼，解鎖後才能使用');
     }
+    if (recoveryMode) await passkeys.syncRecoveryPanel();
     if (!canManage || !unlocked) setManageOpen(false);
     if (isCloudUser && record && unlocked && !recoveryMode) syncNow.refresh();
     if (isCloudUser && record && !unlocked && !recoveryMode) await ensureRecoveryTurnstile();
@@ -345,7 +351,7 @@ export function createSettingsSyncVaultControls({
       window, document, storage, getCurrentUser, showNotification, text, getSupabase, reloadPage, scheduleTimeout,
       isBusy: () => busy, setBusy, getAccountTurnstile: () => accountTurnstile, notifyError, setAccountMessage, authErrorText,
       requireMatchingPasswords, requireMatchingLoginPasswords, refreshAccountLinking, refreshSyncVaultControls, requestVaultRecovery,
-      storeVaultRecovery, getRecoveryStorageKey, requireAal2: authenticator.requireAal2, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
+      storeVaultRecovery, getRecoveryStorageKey, requireAal2: authenticator.requireAal2, passkeys, dispatchUnlocked, queueCloudSyncKind, setLoginPasswordOpen, setManageOpen
     };
     bindAccountLinkingActions(elements, ctx);
     bindSyncVaultActions(elements, ctx);

@@ -15,7 +15,7 @@ import {
 export function bindSyncVaultActions(elements, {
   window, document, storage, getCurrentUser, showNotification, text, getSupabase, isBusy, setBusy, getAccountTurnstile, notifyError,
   setAccountMessage, authErrorText, requireMatchingPasswords, refreshSyncVaultControls, requestVaultRecovery, storeVaultRecovery,
-  getRecoveryStorageKey, requireAal2, dispatchUnlocked, queueCloudSyncKind, setManageOpen
+  getRecoveryStorageKey, requireAal2, passkeys, dispatchUnlocked, queueCloudSyncKind, setManageOpen
 }) {
   // With an authenticator app set up, the six digits are asked for before the recovery of the sync password is made, changed or taken away.
   const guarded = async () => await requireAal2();
@@ -29,7 +29,7 @@ export function bindSyncVaultActions(elements, {
       setBusy(true);
       const record = await createAndUnlockSyncVault({ storage, username: user.username, password: elements.createPassword.value });
       try {
-        await storeVaultRecovery(elements.createPassword.value, record);
+        await passkeys.keepRecovery({ password: elements.createPassword.value, record, serverStore: storeVaultRecovery });
       } catch (error) {
         await removeSyncVault({ storage, username: user.username });
         throw error;
@@ -95,14 +95,15 @@ export function bindSyncVaultActions(elements, {
       setBusy(false);
     }
   });
-  elements.recoveryButton.addEventListener('click', async () => {
+  // Forgot the sync password and signed in by Email: the recovery comes from the passkey (a slot opened here) or from the old way of the server.
+  const bindRecovery = (button, fromPasskey) => button?.addEventListener('click', async () => {
     if (isBusy()) return;
     const user = getCurrentUser();
     try {
       requireMatchingPasswords(elements.recoveryPassword.value, elements.recoveryConfirmation.value);
       if (!await guarded()) return;
       setBusy(true);
-      const recovered = await requestVaultRecovery('recover');
+      const recovered = fromPasskey ? await passkeys.recover() : await requestVaultRecovery('recover');
       await queueCloudSyncKind('vault');
       await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
       await queueCloudSyncKind('vault');
@@ -113,7 +114,7 @@ export function bindSyncVaultActions(elements, {
         nextPassword: elements.recoveryPassword.value
       });
       try {
-        await storeVaultRecovery(elements.recoveryPassword.value, nextRecord, recovered.password);
+        await passkeys.keepRecovery({ password: elements.recoveryPassword.value, record: nextRecord, currentPassword: recovered.password, secrets: recovered.secrets, serverStore: storeVaultRecovery });
       } catch (error) {
         await queueCloudSyncKind('vault');
         await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
@@ -138,6 +139,8 @@ export function bindSyncVaultActions(elements, {
       setBusy(false);
     }
   });
+  bindRecovery(elements.recoveryButton, false);
+  bindRecovery(elements.recoveryPasskeyButton, true);
   // No way back into the vault (the password is forgotten and nothing else can open it): start over. The Email sign-in of the recovery is the proof
   // (the server asks for one made a moment ago, so no current password is needed); the cloud's vault record and its encrypted API keys are
   // cleared, and the person makes a new sync password and enters the keys again. Conversations and the rest are not in the vault.
@@ -181,6 +184,7 @@ export function bindSyncVaultActions(elements, {
       if (!await guarded()) return;
       setBusy(true);
       const previousRecord = await readSyncVaultRecord(storage, user.username);
+      const secrets = await passkeys.collectSecrets();
       const nextRecord = await changeSyncVaultPassword({
         storage,
         username: user.username,
@@ -188,7 +192,7 @@ export function bindSyncVaultActions(elements, {
         nextPassword: elements.nextPassword.value
       });
       try {
-        await storeVaultRecovery(elements.nextPassword.value, nextRecord, elements.currentPassword.value);
+        await passkeys.keepRecovery({ password: elements.nextPassword.value, record: nextRecord, currentPassword: elements.currentPassword.value, secrets, serverStore: storeVaultRecovery });
       } catch (error) {
         await queueCloudSyncKind('vault');
         await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(previousRecord));

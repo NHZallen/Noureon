@@ -109,3 +109,10 @@
 #settings-modal :is(#user-section, #security-section) #security-totp-secret { letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
 #settings-modal :is(#user-section, #security-section) #security-totp-code, #settings-modal :is(#user-section, #security-section) #security-mfa-code { letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
 #settings-modal :is(#user-section, #security-section) .us-hint.is-error { color: var(--state-danger) !important; }
+
+/* The passkeys of the recovery (settings-security-passkey.js): one row for each, with its date or "needs update" and the actions as links. */
+#settings-modal :is(#user-section, #security-section) .us-pk-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border-color); }
+#settings-modal :is(#user-section, #security-section) .us-pk { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border-color); }
+#settings-modal :is(#user-section, #security-section) .us-pk-name { flex: 1; min-width: 0; overflow: hidden; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; }
+#settings-modal :is(#user-section, #security-section) .us-pk-meta { color: var(--text-secondary); font-size: 0.8125rem; white-space: nowrap; }
+#settings-modal :is(#user-section, #security-section) .us-pk-meta.is-warn { color: var(--state-warning); }

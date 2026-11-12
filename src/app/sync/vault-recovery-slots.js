@@ -23,6 +23,13 @@ export const base64ToBytes = (value) => Uint8Array.from(atob(value), (character)
 export const bytesToBase64Url = (bytes) => bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 export const base64UrlToBytes = (value) => base64ToBytes(String(value).replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(String(value).length / 4) * 4, '='));
 
+/**
+ * What tells one vault record from the next (every new sync password makes a new one): the slot keeps it in the open, next to the sealed text, so
+ * a slot that was sealed for an earlier password can be told from one that is current without opening it.
+ */
+export const recordFingerprint = (record) => String(record?.check || '');
+export const isSlotCurrent = (slot, record) => Boolean(slot?.recordFingerprint) && slot.recordFingerprint === recordFingerprint(record);
+
 const toBytes = (value) => (value instanceof Uint8Array ? value : new Uint8Array(value));
 
 async function deriveSlotKey(secret, salt, cryptoProvider) {
@@ -60,6 +67,7 @@ export async function createPasskeySlot({ secret, credentialId, prfSalt, passwor
     credentialId: String(credentialId),
     prfSalt: String(prfSalt),
     label: String(label || '').slice(0, 60),
+    recordFingerprint: recordFingerprint(record),
     createdAt: now,
     updatedAt: now,
     ...await seal({ secret, prfSalt, password, record, cryptoProvider })
@@ -85,7 +93,7 @@ export async function openRecoverySlot(slot, secret, { cryptoProvider = globalTh
 export async function rewrapRecoverySlot(slot, secret, { password, record }, { cryptoProvider = globalThis.crypto } = {}) {
   if (!isRecoverySlot(slot)) throw withCode(new TypeError('Unsupported recovery slot.'), 'recovery-slot-invalid');
   if (typeof password !== 'string' || !password || !record) throw withCode(new TypeError('A slot needs the sync password and its record.'), 'recovery-slot-invalid');
-  return { ...slot, updatedAt: new Date().toISOString(), ...await seal({ secret, prfSalt: slot.prfSalt, password, record, cryptoProvider }) };
+  return { ...slot, recordFingerprint: recordFingerprint(record), updatedAt: new Date().toISOString(), ...await seal({ secret, prfSalt: slot.prfSalt, password, record, cryptoProvider }) };
 }
 
 export function isRecoverySlot(slot) {
