@@ -132,7 +132,7 @@
   #security-section[data-page]:not([data-page=""]) .sp-index { display: none; }
   #security-section .us > .us-card[data-page] { display: none; }
   #security-section[data-page="login"] #security-login-card, #security-section[data-page="sync"] #security-sync-card, #security-section[data-page="passkey"] #security-passkey-card,
-  #security-section[data-page="totp"] #security-totp-card, #security-section[data-page="devices"] #security-devices-card { display: block; }
+  #security-section[data-page="totp"] #security-totp-card, #security-section[data-page="keyguard"] #security-keyguard-card, #security-section[data-page="devices"] #security-devices-card { display: block; }
   #security-section[data-page="devices"] #security-devices-toggle { display: none; }
   #security-section[data-page="devices"] #security-devices-panel { display: block; }
   #settings-modal #security-section .sp-group + .sp-group { margin-top: 1.25rem; }

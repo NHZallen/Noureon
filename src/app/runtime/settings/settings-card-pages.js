@@ -57,7 +57,9 @@ export function mountCardPages({ document, window, section }) {
   section.addEventListener('keydown', pressed);
   const Observer = window?.MutationObserver;
   if (Observer) {
-    new Observer(apply).observe(section, { childList: true });
+    // Cards are drawn again inside the page (the speech card after a tap, the Privacy page after a language change): a card that replaces the open one has no mark, and every
+    // other card is hidden while a page is open, so the screen would be blank. The whole subtree is watched; `apply` only changes attributes, so it does not call itself.
+    new Observer(apply).observe(section, { childList: true, subtree: true });
     new Observer(() => { if (!section.classList.contains('active') && open >= 0) { open = -1; apply(); } }).observe(section, { attributes: true, attributeFilter: ['class'] });
   }
   onSettingsSectionBack(section.id, back);

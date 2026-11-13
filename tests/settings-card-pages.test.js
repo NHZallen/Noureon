@@ -39,3 +39,24 @@ test('a page that is drawn again keeps its open card, and a section that is not 
   const other = fixture('about-section');
   assert.equal(other.section.dataset.cp, undefined);
 });
+
+test('a card drawn again inside the page (a tap in the speech card) keeps the page open instead of leaving it blank', async () => {
+  const { section, wait } = fixture('model-management-section');
+  const pz = section.querySelector('.pz');
+  const fresh = (title) => {
+    const card = section.ownerDocument.createElement('section');
+    card.className = 'pz-card';
+    card.innerHTML = `<div class="pz-head"><h3>${title}</h3></div><div>body</div>`;
+    return card;
+  };
+  // A card appended after the page was mounted (the speech card is added by its own module), then opened.
+  pz.append(fresh('Speech'));
+  await wait();
+  section.querySelectorAll('.pz-head')[2].click();
+  assert.equal(section.querySelectorAll('.pz-card')[2].classList.contains('cp-open'), true);
+  // Its content is drawn again (the card is replaced by a new one): the new card must be the open one.
+  section.querySelectorAll('.pz-card')[2].replaceWith(fresh('Speech'));
+  await wait();
+  assert.equal(section.dataset.cpPage, 'open');
+  assert.equal(section.querySelectorAll('.pz-card')[2].classList.contains('cp-open'), true);
+});

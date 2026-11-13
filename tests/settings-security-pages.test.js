@@ -57,3 +57,36 @@ test('the list of devices is opened for the person when its page opens, and leav
   await wait();
   assert.equal(section.dataset.page, '');
 });
+
+test('every page of the security list has a rule in the stylesheet that shows its card (otherwise the page opens blank on a phone)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/app/runtime/settings/settings-security-pages.js', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../src/styles/user-settings.css', import.meta.url), 'utf8');
+  const pages = [...source.matchAll(/\{ id: '([a-z]+)', card: '([a-z-]+)'/g)].map((match) => ({ id: match[1], card: match[2] }));
+  assert.ok(pages.length >= 6);
+  for (const { id, card } of pages) {
+    assert.ok(css.includes(`#security-section[data-page="${id}"] #${card}`), `user-settings.css has no rule that shows #${card} on page "${id}"`);
+  }
+});
+
+test('a card whose parts are all hidden (the login password of a local account) has no row, and gets one back when a part is shown', async () => {
+  const { document, section, rows, wait } = fixture();
+  const login = section.querySelector('#security-login-card');
+  login.innerHTML = '<div id="login-password-row" class="us-row hidden"></div><div id="login-password-unavailable" class="us-note hidden"></div><div class="hidden"></div>';
+  await wait();
+  assert.deepEqual(rows(), ['sync']);
+  document.getElementById('login-password-unavailable').classList.remove('hidden');
+  await wait();
+  assert.deepEqual(rows(), ['login', 'sync']);
+});
+
+test('a page that is open when its card goes away goes back to the list instead of staying blank', async () => {
+  const { section, wait } = fixture();
+  section.querySelector('#security-passkey-card').classList.remove('hidden');
+  await wait();
+  section.querySelector('.sp-row[data-page="passkey"]').click();
+  assert.equal(section.dataset.page, 'passkey');
+  section.querySelector('#security-passkey-card').classList.add('hidden');
+  await wait();
+  assert.equal(section.dataset.page, '');
+});

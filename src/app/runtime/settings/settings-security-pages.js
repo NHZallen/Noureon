@@ -69,14 +69,20 @@ export function mountSecurityPages({ document, window, text, section }) {
     sync();
   }
 
+  // A card with nothing on show (every part of it hidden: the login password of a local account) would open as a blank page, so it has no row.
+  const hasContent = (target) => [...target.children].some((child) => !child.classList.contains('hidden'));
+
   // A row follows its card: the card of a passkey is hidden for an account that is not in the cloud, and its row goes too; a heading with no row goes with them.
   function sync() {
     for (const page of PAGES) {
       const row = host.querySelector(`[data-page="${page.id}"]`);
       const target = card(page);
-      if (row) row.classList.toggle('hidden', !target || target.classList.contains('hidden'));
+      if (row) row.classList.toggle('hidden', !target || target.classList.contains('hidden') || !hasContent(target));
     }
     for (const wrap of host.querySelectorAll('.sp-group')) wrap.classList.toggle('hidden', !wrap.querySelector('.sp-row:not(.hidden)'));
+    // A page that is open when its card goes away (a refresh that hides it, signing out of the cloud) would be blank: it goes back to the list.
+    const openRow = section.dataset.page ? host.querySelector(`[data-page="${section.dataset.page}"]`) : null;
+    if (openRow?.classList.contains('hidden')) back();
   }
 
   function open(id) {
@@ -108,7 +114,7 @@ export function mountSecurityPages({ document, window, text, section }) {
   const Observer = window?.MutationObserver;
   if (Observer) {
     const observer = new Observer(sync);
-    for (const page of PAGES) { const target = card(page); if (target) observer.observe(target, { attributes: true, attributeFilter: ['class'] }); }
+    for (const page of PAGES) { const target = card(page); if (target) observer.observe(target, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true }); }
     // Leaving the section (the list of settings, a closed window) puts it back on its list for the next time.
     new Observer(() => { if (!section.classList.contains('active') && section.dataset.page) section.dataset.page = ''; }).observe(section, { attributes: true, attributeFilter: ['class'] });
   }
