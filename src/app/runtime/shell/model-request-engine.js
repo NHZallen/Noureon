@@ -19,7 +19,8 @@ import { createProviderRequestSupport } from '../reply/provider-request-support.
 import { createSettingsProviderStructuredHelpers } from '../settings/settings-provider-structured-helpers.js';
 import { createSettingsTitleSummaryHelpers } from '../settings/settings-title-summary-helpers.js';
 import { createMemoryModelRunner } from './memory-model-runner.js';
-import { getModelReasoningConfig, modelSupportsToolCalling, normalizeReasoningEffort } from './model-registry.js';
+import { getModelReasoningConfig, isCouncilEnabled, modelSupportsToolCalling, normalizeReasoningEffort } from './model-registry.js';
+import { createCurrentModelJson } from './current-model-json.js';
 import { opencodeModelReadsOfficeViaPdf } from './opencode-models.js';
 import { createPageCouncilMembers } from '../council/council-members-page.js';
 
@@ -110,9 +111,14 @@ export function createModelRequestEngine({
         cheapModelId: CHEAP_MODEL_ID,
         logger: console
     });
-    const {
-        callApiWithSchema
-    } = structuredHelpers;
+    // The title of a conversation and the keywords of a search are asked of the model the person chose (a council: its synthesizer); the small Gemini model is the fallback.
+    const callApiWithSchema = createCurrentModelJson({
+        runMemoryModel,
+        getActiveConversation,
+        modelFor: (conv) => (conv ? (isCouncilEnabled(conv) ? getCouncilSelectedModels(conv)?.synthesizer : normalizeConversationModel(conv)) : null),
+        fallback: structuredHelpers.callApiWithSchema,
+        logger: console
+    });
     const titleSummaryHelpers = createSettingsTitleSummaryHelpers({
         callApiWithSchema
     });

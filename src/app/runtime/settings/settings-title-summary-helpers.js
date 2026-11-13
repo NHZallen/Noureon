@@ -61,7 +61,7 @@ export function createSettingsTitleSummaryHelpers({
 
   async function requestTitleSummary(conversation, signal, options = {}) {
     const prompt = buildTitleSummaryPrompt(conversation, options);
-    const data = await callApiWithSchema(prompt, TITLE_SUMMARY_RESPONSE_SCHEMA, signal);
+    const data = await callApiWithSchema(prompt, TITLE_SUMMARY_RESPONSE_SCHEMA, signal, { conversation });
     return normalizeTitleSummaryResponse(data);
   }
 
