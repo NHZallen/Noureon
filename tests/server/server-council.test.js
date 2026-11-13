@@ -484,7 +484,7 @@ test('a synthesis with the visual check gives the run manager what the check nee
 test('the members look into the files of the project the chat is in, read-only; only a member that can see pictures can look at them; the synthesizer is not given them', async () => {
   const HASH = 'a'.repeat(64);
   const projectFiles = { vector: { provider: 'gemini' }, entries: [{ id: 's1', name: 'plan.md', size: 60, text: 'The Hsinchu office opens in March with ten people.' }], media: [{ id: 'p1', name: 'office.png', kind: 'image', size: 90, fileHash: HASH, mimeType: 'image/png', attached: false }] };
-  const raw = rawSpec({ participants: [MEMBER_A, 'nvidia/z-ai/glm-5.3'] });
+  const raw = rawSpec({ participants: [MEMBER_A, 'z-ai/glm-5.3'] });
   raw.tools.projectFiles = projectFiles;
   raw.secrets.embeddingKey = 'g-key';
   const checked = validateRunSpec(raw);

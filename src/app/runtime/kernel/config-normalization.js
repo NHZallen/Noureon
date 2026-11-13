@@ -9,6 +9,7 @@ import { normalizeSettingsStamps } from '../../../data/settings-merge.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
 import { normalizeLocalKeyPolicy } from '../security/local-key-policy.js';
+import { normalizeDecisionModel } from '../decisions/decision-models.js';
 
 // The keyboard shortcuts the person changed: { id: { combo?: string, enabled?: false } }. Only the shape is checked here (the server shares this file and knows no shortcut);
 // ui/shortcuts/shortcut-config.js checks the ids and the combinations when the shortcuts read them.
@@ -201,6 +202,7 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.sandboxNetwork = normalizedConfig.sandboxNetwork === 'off' ? 'off' : 'on';
   normalizedConfig.keyboardShortcuts = normalizeKeyboardShortcutItems(normalizedConfig.keyboardShortcuts);
   normalizedConfig.localKeyProtection = normalizeLocalKeyPolicy(normalizedConfig.localKeyProtection);
+  normalizedConfig.decisionModel = normalizeDecisionModel(normalizedConfig.decisionModel);
   normalizedConfig.reduceMotion = normalizedConfig.reduceMotion === 'on' ? 'on' : 'system';
   normalizedConfig.replyInputMode = ['steer', 'queue', 'send-now'].includes(normalizedConfig.replyInputMode) ? normalizedConfig.replyInputMode : 'steer';
   normalizedConfig.openaiWebSearch = normalizedConfig.openaiWebSearch === 'provider' ? 'provider' : 'official';

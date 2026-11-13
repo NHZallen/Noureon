@@ -69,3 +69,10 @@
 - 判斷與翻譯同時進行，不增加等待；生成中的佔位框與縮圖佔位格會依說出的比例與張數更新。
 - 隱私：圖片提示詞、模型的張數與參考圖上限、附了幾張參考圖（不含圖片本身）送到 Decisions API；五語言隱私政策與 PRIVACY.md 已改。
 - 待 owner 驗證：重跑 `decisions-image-probe.mjs`（現在跑的是頁面真正用的題目與讀法），看「Sentences read as expected」。
+
+## 8. 判斷模型可在設定選擇（2026-11-13，NOU-190）
+
+- **要求（Allen）**：判斷模型增加 OpenRouter 的 `google/gemini-decision-1` 與 Gemini 官方的 `gemini-decision-1`，並讓使用者在設定裡選擇要用誰。
+- **做了什麼**：設定 `decisionModel`（預設 `typesafe/jev-1.14`）；「設定 → 隱私」多一張「判斷模型」卡片（單選，五語）。選項是 `typesafe/jev-1.14` 與 `google/gemini-decision-1`，都走 OpenRouter 的 Decisions API，用使用者的 OpenRouter 金鑰。`decision-models.js` 只放 id（設定的正規化會讀它，所以在伺服器共用清單裡，待 Allen 確認）；名稱、供應商與文字在 `decision-model-list.js`，卡片在 `settings-privacy-decision.js`，兩者都是用到才載入。呼叫前由 `decision-client.js` 依所選模型取對應供應商的金鑰，送出的請求帶所選模型的 id。選到已不提供的模型就用預設。隱私政策五語與 `PRIVACY.md` 已改成「模型可在設定選擇」。
+- **還沒做：Gemini 官方的 `gemini-decision-1`**。公開文件找不到它怎麼呼叫（網址、請求格式、回應格式都不知道），不猜。`scripts/gemini-decision-probe.mjs`（也在 `scripts/model-probe-all.mjs` 的 `decisions` 部分）會問服務本身：模型頁（支援的方法）、名稱含 decision 的模型清單，再把同一個問題用幾種可能的形式送出，印出每一個的狀態與回應；Allen 跑完貼結果，再把它加進 `DECISION_MODELS`（供應商 `gemini`，用 Gemini 金鑰）與呼叫的轉接。
+- **OpenRouter 的 `google/gemini-decision-1`** 也還沒實測：`scripts/decisions-probe.mjs --model google/gemini-decision-1 --compare typesafe/jev-1.14`（`model-probe-all.mjs` 一併跑）會先列出 OpenRouter 現在提供的判斷模型（`GET /api/v1/models?output_modalities=decisions`），再用頁面真正送的 11 則題目比較兩個模型的答案、時間（頁面等 1 秒）與 CORS。若它的題型或回應格式與 jev 不同，結果會看得出來。

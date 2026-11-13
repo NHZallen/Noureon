@@ -12,9 +12,9 @@ export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/inference/go/v1';
 export const OPENCODE_FORMATS = Object.freeze(['chat', 'responses', 'messages', 'gemini']);
 
 // The text of the price/privacy line of a model (`<key>_tier_paid` or `_tier_free` in the texts of the models).
-const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc', hiddenGo: 'model_opencode_hiddengo_desc', argon: 'model_opencode_argon_desc' });
+const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc', hiddenGo: 'model_opencode_hiddengo_desc', argon: 'model_opencode_argon_desc', longcat25: 'model_opencode_longcat25_desc' });
 
-// [id at OpenCode, name, company, form of API, takes pictures, line of text, tier, hidden (a test model that is not in the list of the documents)]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
+// [id at OpenCode, name, company, form of API, takes pictures, line of text, tier, hidden (a test model that is not in the list of the documents), the day it was put in the list (else ADDED_AT)]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
 const ROWS = [
   ['kimi-k3.1-pro', 'Kimi K3.1 Pro', 'moonshotai', 'chat', true, DESC.go],
   ['kimi-k3', 'Kimi K3', 'moonshotai', 'chat', true, DESC.go],
@@ -31,6 +31,11 @@ const ROWS = [
   ['longcat-2.0', 'LongCat 2.0', 'meituan', 'chat', false, DESC.go],
   ['hy4-preview', 'Hy4 Preview', 'tencent', 'chat', false, DESC.go],
   ['hy3', 'Hy3', 'tencent', 'chat', false, DESC.go],
+  // The probe of 2026-11-13 (the owner ran scripts/model-probe-all.mjs): Hy4 reads pictures (24 of 24 right: red, blue, green and the number 7294), calls tools (and the answer of the tool), takes a text file as nothing (it says it
+  // sees no document, so no file goes to it as it is), and `reasoning_effort: none` turns its thinking off. LongCat 2.5 Free is free for a time: it reads the digits of a picture (6 of 6) but not its plain colours (0 of 18),
+  // calls tools, refuses a file (400) and a `max_tokens` over 262144; `thinking: { type: 'disabled' }` turns its thinking off and its depths change nothing.
+  ['hy4', 'Hy4', 'tencent', 'chat', true, DESC.go, undefined, false, 20261113],
+  ['longcat-2.5-free', 'LongCat 2.5 Free', 'meituan', 'chat', true, DESC.longcat25, 'free', false, 20261113],
   ['step-5-preview', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.go],
   // The probe of 2026-10-20 (scripts/opencode-probe.mjs, the owner ran it): the ids were guessed right. MiniMax M3.1 Flash speaks the Messages form, sees pictures, reads a PDF (and the pictures in it).
   // Beam is text only (a picture is refused: "Beam supports text input only"; a file part is refused too) and a test model (the owner, 2026-10-20): hidden, with the window the first time it is chosen,
@@ -69,7 +74,7 @@ const LEGACY_API_IDS = {
   'step-5-preview': ['step-5-preview-free']
 };
 
-export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company, format, vision, descriptionKey, tier, hidden]) => Object.freeze({
+export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company, format, vision, descriptionKey, tier, hidden, addedAt]) => Object.freeze({
   id: `${OPENCODE_GO_PROVIDER}/${apiId}`,
   ...(LEGACY_API_IDS[apiId] ? { legacyIds: LEGACY_API_IDS[apiId].map((legacy) => `${OPENCODE_GO_PROVIDER}/${legacy}`) } : {}),
   apiId,
@@ -84,7 +89,7 @@ export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company,
   ...(hidden ? { hiddenModel: true, requiresStealthTermsAcknowledgement: true } : {}),
   opencodeFormat: format,
   opencodeVision: vision,
-  releasedAt: ADDED_AT,
+  releasedAt: addedAt || ADDED_AT,
   outputPricePerMillion: 0
 })));
 
@@ -167,9 +172,13 @@ const THINKING = {
   'mimo-v2.5-pro': ['effort', ['none', 'high'], 'high'],
   'mimo-v2.5': ['effort', ['none', 'high'], 'high'],
   'hy4-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
+  // The probe of 2026-11-13: `none` turns the thinking off (0 tokens); minimal to max are taken, the app offers the same depths as Hy4 Preview.
+  'hy4': ['effort', ['none', 'low', 'medium', 'high', 'max'], 'high'],
   'hy3': ['effort', ['none', 'high'], 'high'],
   'step-5-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
   'longcat-2.0': ['toggle', ['none', 'high'], 'high'],
+  // The probe of 2026-11-13: `thinking: { type: 'disabled' }` turns the thinking off, `reasoning_effort: none` does not; the depths change nothing.
+  'longcat-2.5-free': ['toggle', ['none', 'high'], 'high'],
   'grok-4.7': ['responses', ['low', 'medium', 'high', 'xhigh'], 'high'],
   'gpt-6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'gpt-5.6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],

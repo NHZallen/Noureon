@@ -13,14 +13,21 @@ import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCO
 // The anonymous test model of OpenRouter (written in several lists below).
 const CROUTON_ALPHA = 'stealth/crouton-alpha';
 
-const MODEL_RELEASE_METADATA = Object.freeze({
-    'gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
+// The Gemini models of Google's own API; the same ones reached through OpenRouter (one key instead of Google's) have the same list prices and release day (`google/<id>`).
+const GEMINI_RELEASES = {
+    // Gemini 4 Hydrogen and Gemini 4 Carbon (the owner's probe of 2026-11-13): $1.5 / $7.5 and $2 / $10 per million tokens (OpenRouter's prices, which are Google's list prices).
+    'gemini-4-hydrogen': { releasedAt: 20261113, outputPricePerMillion: 7.5 },
+    'gemini-4-carbon': { releasedAt: 20261113, outputPricePerMillion: 10 },
     'gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     // Gemini 4 Argon: $2 / $10 per million tokens to 2026-11-30, $4 / $20 from 2026-12-01 (the price used here is the one in force; the texts of the models give both).
-    'gemini-4-argon': { releasedAt: 20261013, outputPricePerMillion: 10 },
+    'gemini-4-argon': { releasedAt: 20261013, outputPricePerMillion: 10 }
+};
+const GEMINI_IDS = Object.keys(GEMINI_RELEASES);
+const MODEL_RELEASE_METADATA = Object.freeze({
+    ...GEMINI_RELEASES,
+    ...Object.fromEntries(Object.entries(GEMINI_RELEASES).map(([id, release]) => [`google/${id}`, release])),
     'nvidia/deepseek-ai/deepseek-v4.1-flash': { releasedAt: 20260918, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.3-flash': { releasedAt: 20260825, outputPricePerMillion: 0 },
-    'nvidia/z-ai/glm-5.3': { releasedAt: 20260827, outputPricePerMillion: 0 },
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 0 },
     'nvidia/minimaxai/minimax-m3.1-flash': { releasedAt: 20261024, outputPricePerMillion: 0 },
@@ -28,13 +35,9 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'anthropic/claude-haiku-5.5': { releasedAt: 20261007, outputPricePerMillion: 0.5 },
     'anthropic/claude-sonnet-5.5': { releasedAt: 20260928, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
-    'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
+    // Claude Fable 5.2 (the probe of 2026-11-13): $8 in and $40 out per million.
+    'anthropic/claude-fable-5.2': { releasedAt: 20261113, outputPricePerMillion: 40 },
     'deepseek/deepseek-v4.1-flash-1017': { releasedAt: 20261017, outputPricePerMillion: 0.5 },
-    // The same Gemini models as the native ones above, reached through OpenRouter (one key instead of Google's): same list prices; the release day is the one OpenRouter
-    // gives (3.8 Flash: 2 September, the native entry says 3 September).
-    'google/gemini-3.8-flash': { releasedAt: 20260902, outputPricePerMillion: 3.75 },
-    'google/gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
-    'google/gemini-4-argon': { releasedAt: 20261013, outputPricePerMillion: 10 },
     'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 30 },
     // Priced per image, not per token: no outputPricePerMillion.
     'black-forest-labs/flux-3-image': { releasedAt: 20261001 },
@@ -93,14 +96,16 @@ const GPT_IMAGE_RESOLUTIONS = Object.freeze([]);
 
 export const MODEL_CATALOG = [
     // Gemini Models (Native)
-    { id: 'gemini-3.8-flash', legacyIds: ['gemini-3.7-flash'], name: 'Gemini 3.8 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_8_flash_desc' },
+    // Gemini 4 Hydrogen takes the place of Gemini 3.8 Flash (2026-11-13: pictures, video, PDF, audio, tools and search all tried with a real key); Gemini 4 Carbon is the dearer one.
+    { id: 'gemini-4-hydrogen', legacyIds: ['gemini-3.8-flash', 'gemini-3.7-flash'], name: 'Gemini 4 Hydrogen', provider: 'gemini', descriptionKey: 'model_gemini_4_hydrogen_desc' },
+    { id: 'gemini-4-carbon', name: 'Gemini 4 Carbon', provider: 'gemini', descriptionKey: 'model_gemini_4_carbon_desc' },
     { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_lite_desc' },
     { id: 'gemini-4-argon', legacyIds: ['gemini-3.1-pro-preview'], name: 'Gemini 4 Argon', provider: 'gemini', descriptionKey: 'model_gemini_4_argon_desc' },
 
     // NVIDIA Build Free Models
     { id: 'nvidia/deepseek-ai/deepseek-v4.1-flash', apiId: 'deepseek-ai/deepseek-v4.1-flash', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash', 'nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA DeepSeek V4.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_1_flash_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/z-ai/glm-5.3', apiId: 'z-ai/glm-5.3', legacyIds: ['nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_desc', tier: ['free'], category: 'general' },
+    // GLM-5.3 (the full one) was taken out on 2026-11-13: a choice or a conversation that names it goes to GLM-5.3 Flash.
+    { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', legacyIds: ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
     { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
@@ -121,14 +126,15 @@ export const MODEL_CATALOG = [
     { id: 'anthropic/claude-haiku-5.5', legacyIds: ['anthropic/claude-haiku-4.5'], name: 'Claude Haiku 5.5', provider: 'openrouter', descriptionKey: 'model_claude_haiku_5_5_desc' },
     { id: 'anthropic/claude-sonnet-5.5', legacyIds: ['anthropic/claude-sonnet-5'], name: 'Claude Sonnet 5.5', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_5_5_desc' },
     { id: 'anthropic/claude-opus-5.5', legacyIds: ['anthropic/claude-opus-5'], name: 'Claude Opus 5.5', provider: 'openrouter', descriptionKey: 'model_claude_opus_5_5_desc' },
-    { id: 'anthropic/claude-fable-5.1', legacyIds: ['anthropic/claude-fable-5'], name: 'Claude Fable 5.1', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_1_desc' },
+    { id: 'anthropic/claude-fable-5.2', legacyIds: ['anthropic/claude-fable-5.1', 'anthropic/claude-fable-5'], name: 'Claude Fable 5.2', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_2_desc' },
 
     // OpenRouter Paid Models (DeepSeek)
     { id: 'deepseek/deepseek-v4.1-flash-1017', legacyIds: ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash 1017', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
 
     // OpenRouter Paid Models (Google): the same models as the native ones at the top, for those who have an OpenRouter key and no Google key.
     // They share the price line of the native ones (descriptionKey); their search is the one OpenRouter models have (Tavily), not Google's own.
-    { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider: 'openrouter', descriptionKey: 'model_gemini_3_8_flash_desc', category: 'general' },
+    { id: 'google/gemini-4-hydrogen', legacyIds: ['google/gemini-3.8-flash'], name: 'Gemini 4 Hydrogen', provider: 'openrouter', descriptionKey: 'model_gemini_4_hydrogen_desc', category: 'general' },
+    { id: 'google/gemini-4-carbon', name: 'Gemini 4 Carbon', provider: 'openrouter', descriptionKey: 'model_gemini_4_carbon_desc', category: 'general' },
     { id: 'google/gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'openrouter', descriptionKey: 'model_gemini_3_5_flash_lite_desc', category: 'general' },
     { id: 'google/gemini-4-argon', legacyIds: ['google/gemini-3.1-pro-preview'], name: 'Gemini 4 Argon', provider: 'openrouter', descriptionKey: 'model_gemini_4_argon_desc', category: 'general' },
 
@@ -220,13 +226,11 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
-    'google/gemini-3.8-flash',
-    'google/gemini-3.5-flash-lite',
-    'google/gemini-4-argon',
+    ...GEMINI_IDS.map((id) => `google/${id}`),
     'anthropic/claude-haiku-5.5',
     'anthropic/claude-sonnet-5.5',
     'anthropic/claude-opus-5.5',
-    'anthropic/claude-fable-5.1',
+    'anthropic/claude-fable-5.2',
     'deepseek/deepseek-v4.1-flash-1017',
     'minimax/minimax-m3',
     // Tried with a real key on 2026-10-20 (scripts/nvidia-probe.mjs --openrouter): a picture and a video are read.
@@ -248,8 +252,8 @@ export const OPENROUTER_VISION_MODELS = [
     'z-ai/glm-5.3-flash',
     'x-ai/grok-4.6'
 ];
-// Models that see pictures but refuse a video (400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
-export const NO_VIDEO_MODEL_IDS = Object.freeze(['deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'openai/gpt-6.1-terra']);
+// Models that see pictures but refuse a video (Claude Fable 5.2 through OpenRouter: 404 "No endpoints found that support input video", the probe of 2026-11-13; 400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['anthropic/claude-fable-5.2', 'deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'openai/gpt-6.1-terra']);
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
@@ -266,16 +270,11 @@ export const NVIDIA_VISION_MODELS = [
 // left out until they are tried with a real key. A model not listed is
 // treated as not supporting tools.
 export const TOOL_CALLING_MODEL_IDS = Object.freeze([
-    'gemini-3.8-flash',
-    'gemini-3.5-flash-lite',
-    'gemini-4-argon',
-    'google/gemini-3.8-flash',
-    'google/gemini-3.5-flash-lite',
-    'google/gemini-4-argon',
+    ...GEMINI_IDS.flatMap((id) => [id, `google/${id}`]),
     'anthropic/claude-haiku-5.5',
     'anthropic/claude-sonnet-5.5',
     'anthropic/claude-opus-5.5',
-    'anthropic/claude-fable-5.1',
+    'anthropic/claude-fable-5.2',
     'deepseek/deepseek-v4.1-flash-1017',
     'minimax/minimax-m3',
     // Tried with a real key on 2026-10-20: a call, and the answer after the result of the tool.
@@ -290,7 +289,6 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     // Tried with a real key on 2026-10-16 (scripts/nvidia-probe.mjs): a call, and the answer after the result of the tool.
     'nvidia/deepseek-ai/deepseek-v4.1-flash',
     'nvidia/z-ai/glm-5.3-flash',
-    'nvidia/z-ai/glm-5.3',
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
     'nvidia/stepfun-ai/step-5-preview',
     // The probe of 2026-10-24: a call, and the answer after the result of the tool.
@@ -317,11 +315,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
 ]);
 // Text models without tool calling (or not yet shown to have it).
 export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([]);
-export const GEMINI_DOCUMENT_MODELS = [
-    'gemini-3.8-flash',
-    'gemini-3.5-flash-lite',
-    'gemini-4-argon'
-];
+export const GEMINI_DOCUMENT_MODELS = GEMINI_IDS;
 const REASONING_EFFORT_LABELS = Object.freeze({
     none: ['快速模式', 'Fast', 'Rapide', 'Быстро', 'Rápido'],
     minimal: ['極低', 'Minimal', 'Très bas', 'Минимальный', 'Mínimo'],
@@ -341,12 +335,13 @@ const NVIDIA_REASONING_EFFORT = 'nvidiaReasoningEffort';
 const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
 const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
 export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs([
-    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-3.8-flash']],
+    // Gemini 4 Hydrogen and Carbon (the probe of 2026-11-13): low, medium and high are taken, minimal is refused (400); Hydrogen cannot stop thinking (a budget of 0 changes nothing), Carbon thinks nothing at low.
+    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-hydrogen', 'gemini-4-carbon']],
     [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
     // Gemini 4 Argon: low, medium and high, medium by default, and the thinking cannot be turned off (Google's thinking page, 2026-10-13).
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-argon']],
     [NVIDIA_REASONING_EFFORT, ['low', 'medium', 'high', 'max'], 'max', ['nvidia/deepseek-ai/deepseek-v4.1-flash'], { effortValues: { low: 25, medium: 50, high: 75, max: 100 } }],
-    [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.3-flash']],
+    [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3-flash']],
     // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step).
     // Nemotron also takes "none" (fast, no thinking: 3 tokens for the answer); Step 5 Preview still thinks with "none", so it cannot be turned off.
     [NVIDIA_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b']],
@@ -358,12 +353,14 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', [CROUTON_ALPHA]],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-haiku-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
+    // Claude Fable 5.2 (the probe of 2026-11-13): the thinking is mandatory (`none` is refused: "Reasoning is mandatory"); low to max are taken.
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.2']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-opus-5.5']],
     // DeepSeek V4.1 Flash 1017: the official levels are low, high and max (the other levels are accepted by OpenRouter, but not offered).
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4.1-flash-1017']],
     // The Gemini models through OpenRouter take the same levels as their native twins (OpenRouter maps the effort to Gemini's thinking level).
-    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-3.8-flash']],
+    // Gemini 4 Hydrogen and Carbon through OpenRouter (the probe of 2026-11-13): the thinking is mandatory (`none` is refused); low to max are taken, the app offers the three levels of the native ones.
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-hydrogen', 'google/gemini-4-carbon']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-argon']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],

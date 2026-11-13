@@ -14,7 +14,7 @@ const marker = (hash, mimeType = 'image/png', userId = USER) => ({ __astraCloudA
 const runBlock = (extra = {}) => formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: 4000, tools: [{ kind: 'memory', key: 'memorySearching', count: 2, ids: ['n1'] }, { kind: 'skill', name: 'pdf' }], thought: 'private thinking about the plan', ...extra });
 
 const readOf = (overrides = {}) => ({
-  conversation: { id: CONVERSATION, title: 'Strawberry cake', model: 'gemini-3.8-flash', provider: 'gemini', created_at: '2026-10-30T00:00:00.000Z' },
+  conversation: { id: CONVERSATION, title: 'Strawberry cake', model: 'gemini-4-hydrogen', provider: 'gemini', created_at: '2026-10-30T00:00:00.000Z' },
   active_shares: 0,
   messages: [
     { role: 'user', created_at: '2026-10-30T00:00:01.000Z', sequence: 0, parts: [{ text: 'How do I bake it?' }, { inlineData: { mimeType: 'image/png', name: 'cake.png', data: marker(HASH_A) } }] },
@@ -75,7 +75,7 @@ test('a share is made: the snapshot has no memory, the files are copied once int
   assert.equal(calls.filter((call) => call[0] === 'copy').length, 1, 'the same file is copied once');
   const finish = calls.find((call) => call[0] === 'server_finish_conversation_share')[1];
   const snapshot = finish.p_snapshot;
-  assert.deepEqual([snapshot.v, snapshot.title, snapshot.modelName], [1, 'Strawberry cake', 'Gemini 3.8 Flash']);
+  assert.deepEqual([snapshot.v, snapshot.title, snapshot.modelName], [1, 'Strawberry cake', 'Gemini 4 Hydrogen']);
   assert.equal(snapshot.messages.length, 2);
   const attachment = snapshot.messages[0].parts[1].inlineData.data.__astraSharedAsset;
   assert.deepEqual([attachment.path, attachment.mimeType, attachment.size], [`${create.p_share_id}/${HASH_A}`, 'image/png', 1000]);

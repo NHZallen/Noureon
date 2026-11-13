@@ -215,7 +215,8 @@ const buildGeminiRequest = ({
 }) => {
   // Through OpenCode only what was tried is sent: no sampling numbers, no Google search (the search tool of the app does that); the depth of thinking is put in by opencode-request.js, the summaries of the thinking are asked for here.
   const supportsSamplingParameters = !viaOpencode && ![
-    'gemini-3.8-flash',
+    'gemini-4-hydrogen',
+    'gemini-4-carbon',
     'gemini-3.5-flash-lite',
     // Gemini 4 Argon ignores temperature, topP and topK (Google's page of the latest models): they are not sent.
     'gemini-4-argon'

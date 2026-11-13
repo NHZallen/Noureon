@@ -8,7 +8,7 @@ const hasFilePart = (message) => (message?.parts || []).some((part) => part?.inl
  * model may use by itself are put to the question (the ones chosen with "@" are always given).
  */
 export function createAsk({ getApiKeyForProvider, getConfig, logger } = {}) {
-  const decisionService = createDecisionService({ fetchImpl: (...args) => globalThis.fetch(...args), getApiKey: () => getApiKeyForProvider('openrouter'), logger });
+  const decisionService = createDecisionService({ fetchImpl: (...args) => globalThis.fetch(...args), getApiKey: (provider) => getApiKeyForProvider(provider), getModel: () => getConfig?.()?.decisionModel, logger });
   const ask = ({ conversation, userMessage, uploadedFiles = [], signal } = {}) => {
     const config = getConfig();
     const messages = conversation?.messages || [];

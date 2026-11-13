@@ -54,7 +54,7 @@ test('a run asks each model in each way, leaves out a provider with no key, and 
     return stream(body.reasoning ? [thinks('t'.repeat(300))] : [answers('ok')]);
   };
   const lines = [];
-  const result = await runProbe({ fetchImpl, env: { OPENROUTER_API_KEY: KEY }, providers: ['openrouter', 'nvidia'], only: ['openai/gpt-6-luna', 'z-ai/glm-5.3'], log: (line) => lines.push(line), delayMs: 0 });
+  const result = await runProbe({ fetchImpl, env: { OPENROUTER_API_KEY: KEY }, providers: ['openrouter', 'nvidia'], only: ['openai/gpt-6-luna', 'z-ai/glm-5.3-flash'], log: (line) => lines.push(line), delayMs: 0 });
   assert.deepEqual(result.skipped, [{ provider: 'nvidia', reason: 'no NVIDIA_API_KEY' }]);
   const luna = result.rows.find((row) => row.apiId === 'openai/gpt-6-luna');
   assert.equal(luna.verdict, 'only when asked');

@@ -59,8 +59,8 @@ test('text models are all marked with or without tool calling', () => {
   // A model that has retired (its retirementDate has come) is out of MODELS but may stay in the lists until it is taken out of the catalog.
   const catalogTextModels = MODEL_CATALOG.filter((model) => model.outputModality !== 'image').map((model) => model.id);
   assert.ok(TOOL_CALLING_MODEL_IDS.every((id) => catalogTextModels.includes(id)), 'no stale ids');
-  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'gemini-3.8-flash')), true);
-  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3')), true, 'tried with a real key on 2026-10-16');
+  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'gemini-4-hydrogen')), true);
+  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash')), true, 'tried with a real key on 2026-10-16');
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free')), true);
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.outputModality === 'image')), false);
 });

@@ -56,6 +56,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     keyboardShortcuts: {},
     // What the person chose for the protection of the keys on their devices, { on, days }, or null before any choice (security/local-key-policy.js); goes to the cloud with the other settings, and each device follows it.
     localKeyProtection: null,
+    // The small model that answers the questions put while a message is sent (decisions/decision-models.js); chosen in Settings → Privacy, goes to the cloud with the other settings.
+    decisionModel: 'typesafe/jev-1.14',
     // Reduce motion: 'system' follows the device, 'on' cuts every transition and animation (ui/motion/motion-preference.js); goes to the cloud with the other settings.
     reduceMotion: 'system',
     // What Send does while a reply is running: 'steer', 'queue' or 'send-now' (features/reply-steering.js).

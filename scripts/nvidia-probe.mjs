@@ -7,7 +7,7 @@
 //   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter --model deepseek/deepseek-v4.1-flash-1017   (any OpenRouter id)
 //   node scripts/nvidia-probe.mjs --only video --video ./clip.mp4            (one check; a video of your own instead of the made one)
 //   node scripts/nvidia-probe.mjs --model stepfun-ai/step-5-preview          (one model id as the provider lists it; several: --model a,b)
-//   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs --others          (the three other NVIDIA models of the app: DeepSeek V4.1 Flash, GLM-5.3 Flash, GLM-5.3)
+//   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs --others          (the two other NVIDIA models of the app: DeepSeek V4.1 Flash, GLM-5.3 Flash)
 //
 // Checks: list (is the id in /v1/models), info (what the service says of the model: pictures, video, audio and files in, the settings it takes,
 // the context, the price; OpenRouter only, costs nothing), endpoints (the providers behind the id and what each takes; OpenRouter only, costs nothing),
@@ -32,7 +32,7 @@ if (!key) {
   process.exit(1);
 }
 const BASE = viaOpenRouter ? 'https://openrouter.ai/api/v1' : 'https://integrate.api.nvidia.com/v1';
-const OTHER_NVIDIA_MODELS = ['deepseek-ai/deepseek-v4.1-flash', 'z-ai/glm-5.3-flash', 'z-ai/glm-5.3'];
+const OTHER_NVIDIA_MODELS = ['deepseek-ai/deepseek-v4.1-flash', 'z-ai/glm-5.3-flash'];
 const models = option('--model')
   ? option('--model').split(',').map((id) => id.trim()).filter(Boolean)
   : args.includes('--others') ? OTHER_NVIDIA_MODELS

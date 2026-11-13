@@ -2,6 +2,10 @@
 
 export const SERVER_REPLY_TEXTS = Object.freeze({
   'zh-TW': {
+    decideTitle: '判斷模型',
+    decideDesc: '送出訊息時，由一個小模型快速判斷這則訊息要不要上網搜尋、做成檔案、畫圖表或用命令工具。訊息文字（含前兩則的短摘錄）會送到你選的模型；沒有金鑰、太慢或失敗時，就改用內建的關鍵字判斷。',
+    decideJevDesc: 'Typesafe 的判斷模型，經 OpenRouter，用你的 OpenRouter 金鑰（預設）。',
+    decideGeminiDesc: 'Google 的判斷模型，經 OpenRouter，用你的 OpenRouter 金鑰。',
     navPrivacy: '隱私',
     runTitle: '回覆在哪裡執行',
     runServer: '伺服器（建議）',
@@ -41,6 +45,10 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     working: '回覆正在伺服器上產生'
   },
   en: {
+    decideTitle: 'Judgement model',
+    decideDesc: 'While a message is sent, a small model quickly judges whether it needs a web search, a file, a chart or a command tool. The text of the message (with short excerpts of the previous two) goes to the model you choose; with no key, a slow answer or a failure, the built-in keyword lists decide instead.',
+    decideJevDesc: 'Typesafe’s judgement model, through OpenRouter, with your OpenRouter key (the default).',
+    decideGeminiDesc: 'Google’s judgement model, through OpenRouter, with your OpenRouter key.',
     navPrivacy: 'Privacy',
     runTitle: 'Where replies run',
     runServer: 'Server (recommended)',
@@ -80,6 +88,10 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     working: 'The reply is being made on the server'
   },
   fr: {
+    decideTitle: 'Modèle de jugement',
+    decideDesc: 'À l’envoi d’un message, un petit modèle juge rapidement s’il faut une recherche web, un fichier, un graphique ou un outil en ligne de commande. Le texte du message (avec de courts extraits des deux précédents) est envoyé au modèle choisi ; sans clé, en cas de lenteur ou d’échec, ce sont les listes de mots-clés intégrées qui décident.',
+    decideJevDesc: 'Le modèle de jugement de Typesafe, via OpenRouter, avec votre clé OpenRouter (par défaut).',
+    decideGeminiDesc: 'Le modèle de jugement de Google, via OpenRouter, avec votre clé OpenRouter.',
     navPrivacy: 'Confidentialité',
     runTitle: 'Où les réponses sont générées',
     runServer: 'Serveur (recommandé)',
@@ -119,6 +131,10 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     working: 'La réponse est en cours de génération sur le serveur'
   },
   ru: {
+    decideTitle: 'Модель оценки',
+    decideDesc: 'При отправке сообщения небольшая модель быстро оценивает, нужен ли веб-поиск, файл, диаграмма или инструмент командной строки. Текст сообщения (с короткими фрагментами двух предыдущих) отправляется выбранной модели; без ключа, при медленном ответе или сбое решают встроенные списки ключевых слов.',
+    decideJevDesc: 'Модель оценки Typesafe через OpenRouter, с вашим ключом OpenRouter (по умолчанию).',
+    decideGeminiDesc: 'Модель оценки Google через OpenRouter, с вашим ключом OpenRouter.',
     navPrivacy: 'Конфиденциальность',
     runTitle: 'Где создаются ответы',
     runServer: 'Сервер (рекомендуется)',
@@ -158,6 +174,10 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     working: 'Ответ создаётся на сервере'
   },
   es: {
+    decideTitle: 'Modelo de criterio',
+    decideDesc: 'Al enviar un mensaje, un modelo pequeño juzga rápidamente si hace falta una búsqueda web, un archivo, un gráfico o una herramienta de línea de comandos. El texto del mensaje (con extractos breves de los dos anteriores) se envía al modelo que elijas; sin clave, con una respuesta lenta o un fallo, deciden las listas de palabras clave integradas.',
+    decideJevDesc: 'El modelo de criterio de Typesafe, a través de OpenRouter, con tu clave de OpenRouter (el predeterminado).',
+    decideGeminiDesc: 'El modelo de criterio de Google, a través de OpenRouter, con tu clave de OpenRouter.',
     navPrivacy: 'Privacidad',
     runTitle: 'Dónde se generan las respuestas',
     runServer: 'Servidor (recomendado)',

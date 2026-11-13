@@ -22,3 +22,4 @@ openai-probe-*.json
 gemini-probe-result.json
 opencode-probe-result.json
 model-probe-all.log
+gemini-decision-probe-result.json

@@ -15,7 +15,7 @@ const toolbox = (log, found = { duration: 130, hasVideo: true, hasAudio: true })
 
 test('only a video that the model cannot take itself is looked at with the tool, and only when the model can look (sees pictures, calls tools)', () => {
   const blind = MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash');
-  const hearing = MODEL('gemini-3.8-flash');
+  const hearing = MODEL('gemini-4-hydrogen');
   const parts = [{ text: 'hi' }, video('a.mp4'), { inlineData: { mimeType: 'image/png', name: 'p.png', data: 'AAAA' } }];
   assert.equal(lookableVideoParts(parts, blind, true).length, 1);
   assert.equal(lookableVideoParts(parts, blind, false).length, 0, 'a model that cannot look: no');

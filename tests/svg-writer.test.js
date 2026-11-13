@@ -213,7 +213,7 @@ test('a drawing sent back from the editor is changed by the text model with its 
 test('only a text model that looks at pictures has Edit on a drawing', async () => {
   const { syncSvgEditGate } = await import('../src/app/runtime/images/svg-edit-gate.js');
   const root = { attrs: new Set(), toggleAttribute(name, on) { if (on) this.attrs.add(name); else this.attrs.delete(name); } };
-  assert.equal(syncSvgEditGate(root, { provider: 'gemini', id: 'gemini-3.8-flash' }), true);
+  assert.equal(syncSvgEditGate(root, { provider: 'gemini', id: 'gemini-4-hydrogen' }), true);
   assert.ok(root.attrs.has('data-model-vision'));
   assert.equal(syncSvgEditGate(root, { provider: 'openrouter', id: 'nvidia/nemotron-3.5-lightning' }), false);
   assert.ok(!root.attrs.has('data-model-vision'));

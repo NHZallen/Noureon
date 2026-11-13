@@ -8,7 +8,7 @@ import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/runtime/rep
 import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { applyOpenAiTools, modelThinkingKind } from '../src/app/runtime/features/tool-call-formats.js';
 import { MODELS, getCanonicalModelId, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsDocumentUpload, modelSupportsToolCalling, modelSupportsUploadedFile, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/shell/model-registry.js';
-import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
+import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeModelReadsFile, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
 import { createUpstreamFetch } from '../server/upstream-fetch.js';
 
 const model = (apiId) => MODELS.find((entry) => entry.id === `opencode-go/${apiId}`);
@@ -19,9 +19,9 @@ const byteStream = (chunks) => {
 const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
-  // The list of the page of limits of OpenCode (the owner's screenshots of 2026-10-23): 30 models, not one more or less.
-  assert.equal(OPENCODE_GO_MODELS.length, 30);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 30);
+  // The list of the page of limits of OpenCode (the owner's screenshots of 2026-10-23, and Hy4 and LongCat 2.5 Free of 2026-11-13): 32 models, not one more or less.
+  assert.equal(OPENCODE_GO_MODELS.length, 32);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 32);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -37,6 +37,12 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
   assert.deepEqual(noPictures, ['beam-free', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'iceman-contributor-free', 'longcat-2.0', 'mimo-v2.5-pro']);
   assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('gemini-4-argon')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
+  // The probe of 2026-11-13: Hy4 and LongCat 2.5 Free read pictures; neither reads a file as it is; LongCat 2.5 Free is free for a time.
+  assert.ok(modelSupportsVision(model('hy4')) && modelSupportsVision(model('longcat-2.5-free')));
+  assert.equal(opencodeModelReadsFile(model('hy4'), 'application/pdf'), false);
+  assert.equal(opencodeModelReadsFile(model('longcat-2.5-free'), 'application/pdf'), false);
+  assert.deepEqual(getModelTiers(model('longcat-2.5-free')), ['free']);
+  assert.deepEqual(getModelTiers(model('hy4')), ['paid']);
   // Step 5 Preview and MiniMax M3.1 Flash have a price on the page of limits now (they were free, with `-free` ids the service refuses); Beam and Iceman are free.
   for (const apiId of ['step-5-preview', 'minimax-m3.1-flash']) assert.deepEqual(getModelTiers(model(apiId)), ['paid'], apiId);
   for (const apiId of ['iceman-contributor-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
@@ -412,7 +418,7 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 29);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 31);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
@@ -425,6 +431,11 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('deepseek-v4-pro', 'max'), { reasoning_effort: 'max' });
   assert.deepEqual(fields('longcat-2.0', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('longcat-2.0', 'high'), {});
+  // The probe of 2026-11-13: Hy4 is turned off with `none` and takes the depths as `reasoning_effort`; LongCat 2.5 Free is turned off with `thinking: disabled` and its depths change nothing.
+  assert.deepEqual(fields('hy4', 'none'), { reasoning_effort: 'none' });
+  assert.deepEqual(fields('hy4', 'max'), { reasoning_effort: 'max' });
+  assert.deepEqual(fields('longcat-2.5-free', 'none'), { thinking: { type: 'disabled' } });
+  assert.deepEqual(fields('longcat-2.5-free', 'high'), {});
   assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
   assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal', summary: 'auto' } });

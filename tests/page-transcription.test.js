@@ -95,7 +95,7 @@ test('a model that cannot take the file is given the words in its place, one tha
   assert.match(out[1].text, /^\[File 1 of 1 in this message: memo\.mp3\]\nTranscript of what is said in this recording, written by a speech to text model \(openai\/whisper-large-v3\)/);
   assert.match(out[1].text, /\[0:00\] hello$/);
   assert.equal(out[2], picture);
-  const hearing = MODEL('gemini-3.8-flash');
+  const hearing = MODEL('gemini-4-hydrogen');
   assert.equal(withTranscriptText([recording], hearing)[0], recording, 'a model that takes the recording itself is given the recording');
   const nothing = [{ text: 'x' }, picture];
   assert.equal(withTranscriptText(nothing, blind), nothing, 'the same list when there is nothing to replace');

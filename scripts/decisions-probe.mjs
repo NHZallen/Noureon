@@ -5,6 +5,8 @@
 //
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model typesafe/jev-1.14 --compare openai/gpt-6-luna-decisions
+//   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model google/gemini-decision-1 --compare typesafe/jev-1.14     (2026-11-13: the new Google one, against the one the app has)
+// Before the questions it asks OpenRouter which decision models it lists (GET /api/v1/models?output_modalities=decisions) and says whether each model asked about is among them.
 
 import { DECISION_MODEL, DECISION_THRESHOLD, DECISION_TIMEOUT_MS, DECISION_URL, buildDecisionRequest, parseDecisionResponse, verdictOf } from '../src/app/runtime/decisions/decision-client.js';
 
@@ -57,6 +59,22 @@ async function ask(model, testCase) {
   try { body = JSON.parse(text); } catch { /* not JSON */ }
   const decisions = body ? parseDecisionResponse(body) : null;
   return { ok: response.ok && Boolean(decisions), status: response.status, ms, decisions, raw: text.slice(0, 600) };
+}
+
+// The decision models OpenRouter lists now (what the settings of the app may offer).
+try {
+  const listing = await fetch('https://openrouter.ai/api/v1/models?output_modalities=decisions', { headers: { Authorization: `Bearer ${key}` } });
+  const json = await listing.json().catch(() => null);
+  const entries = json?.data || [];
+  console.log(`OpenRouter lists ${entries.length} decision models (HTTP ${listing.status}): ${entries.map((entry) => entry.id).join(', ') || '(none)'}`);
+  for (const model of models) {
+    const entry = entries.find((item) => item.id === model);
+    console.log(entry
+      ? `  ${model}: listed  context ${entry.context_length ?? '?'}  in ${(entry.architecture?.input_modalities || []).join('+') || '?'}  price ${JSON.stringify(entry.pricing || {})}`
+      : `  ${model}: NOT in that list${entries.length ? `; close ids: ${entries.filter((item) => /gemini|google|decision/i.test(item.id)).map((item) => item.id).join(', ') || '(none)'}` : ''}`);
+  }
+} catch (error) {
+  console.log(`The list of decision models could not be read (${error?.message || error}).`);
 }
 
 for (const model of models) {

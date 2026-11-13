@@ -173,3 +173,35 @@ test('the address question is asked only when the message has an address, the tw
   const all = parseDecisionResponse({ answers: { url: { noul: 0.9 }, exact: { noul: 0.2 }, verbatim: { noul: 0.1 } } });
   assert.deepEqual(all, { search: null, file: null, chart: null, tool: null, url: 0.9, exact: 0.2, verbatim: 0.1, svg: null });
 });
+
+test('the decision model chosen in the settings is the one asked, with the key of its provider; a choice that is not offered is the default one', async () => {
+  const { DEFAULT_DECISION_MODEL, DECISION_MODEL_IDS, normalizeDecisionModel } = await import('../src/app/runtime/decisions/decision-models.js');
+  const { DECISION_MODELS, decisionModelOf } = await import('../src/app/runtime/decisions/decision-model-list.js');
+  assert.deepEqual(DECISION_MODEL_IDS, DECISION_MODELS.map((model) => model.id), 'the ids and the table are the same list');
+  assert.deepEqual(DECISION_MODELS.map((model) => model.id), ['typesafe/jev-1.14', 'google/gemini-decision-1']);
+  assert.equal(normalizeDecisionModel('google/gemini-decision-1'), 'google/gemini-decision-1');
+  assert.equal(normalizeDecisionModel('something/else'), DEFAULT_DECISION_MODEL);
+  assert.equal(normalizeDecisionModel(undefined), DEFAULT_DECISION_MODEL);
+  assert.equal(decisionModelOf('google/gemini-decision-1').provider, 'openrouter');
+
+  const sent = [];
+  const keysAsked = [];
+  let chosen = 'google/gemini-decision-1';
+  const service = createDecisionService({
+    fetchImpl: async (url, init) => { sent.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ answers: { search: { noul: 0.9 }, file: { noul: 0.1 } } }) }; },
+    getApiKey: (provider) => { keysAsked.push(provider); return 'sk-or-test'; },
+    getModel: () => chosen
+  });
+  assert.equal((await service.decide({ message: 'What is the news today?' })).search, 0.9);
+  assert.equal(sent[0].model, 'google/gemini-decision-1');
+  chosen = 'typesafe/jev-1.14';
+  await service.decide({ message: 'What is the news today?' });
+  assert.equal(sent[1].model, 'typesafe/jev-1.14');
+  chosen = 'nothing/offered';
+  await service.decide({ message: 'What is the news today?' });
+  assert.equal(sent[2].model, 'typesafe/jev-1.14', 'the default one');
+  assert.deepEqual([...new Set(keysAsked)], ['openrouter']);
+  const image = await service.decideImage({ message: 'two pictures of grass', limits: { maxImages: 4 } });
+  assert.ok(image === null || typeof image === 'object');
+  assert.equal(sent[3].model, 'typesafe/jev-1.14');
+});

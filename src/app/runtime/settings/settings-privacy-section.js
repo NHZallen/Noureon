@@ -4,6 +4,7 @@
 
 import { serverReplyText } from '../server-reply/server-reply-texts.js';
 import { SERVICES, getService } from '../services.js';
+import { normalizeDecisionModel } from '../decisions/decision-models.js';
 
 const SECTION_ID = 'privacy-section';
 const NAV_ID = 'privacy-section-nav';
@@ -122,13 +123,31 @@ export function ensurePrivacySettingsSection({ document, elements, config, saveC
       }
     }
   });
-  render(config.uiLanguage);
+  // The card of the decision model is its own module, loaded after the tab is drawn (it sits after the card of the network).
+  const withDecisionCard = (language) => {
+    render(language);
+    void import('./settings-privacy-decision.js').then(({ addDecisionCard }) => addDecisionCard({
+      document,
+      section,
+      language,
+      decisionModel: config.decisionModel,
+      onChange: async (value) => {
+        config.decisionModel = normalizeDecisionModel(value);
+        try {
+          await saveConfig();
+        } catch (error) {
+          console.warn('Saving the decision model failed.', error);
+        }
+      }
+    })).catch((error) => console.warn('The card of the decision model did not load.', error));
+  };
+  withDecisionCard(config.uiLanguage);
   // The language menu applies at once while the settings stay open.
   const languageSelect = elements.uiLanguageSelect;
   if (languageSelect?.addEventListener && !languageBound.has(languageSelect)) {
     languageBound.add(languageSelect);
     languageSelect.addEventListener('change', (event) => {
-      render(event.target.value);
+      withDecisionCard(event.target.value);
       const navItem = document.getElementById(NAV_ID);
       if (navItem) navItem.textContent = serverReplyText(event.target.value, 'navPrivacy');
     });

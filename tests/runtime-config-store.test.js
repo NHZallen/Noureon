@@ -21,6 +21,7 @@ const expectedConfig = (defaultModelId) => ({
   replyInputMode: 'steer',
   keyboardShortcuts: {},
   localKeyProtection: null,
+  decisionModel: 'typesafe/jev-1.14',
     reduceMotion: 'system',
   openaiWebSearch: 'official',
   openaiSafetyIdentifier: true,

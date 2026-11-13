@@ -108,8 +108,8 @@ test('the model asked is the one that is answering: the reply\'s own, with its o
   assert.deepEqual(calls.map((call) => call.options.modelInfo.id), ['anthropic/claude-opus-5.5'], 'not a cheaper one, whatever other keys there are');
 
   const nvidia = createHarness({ keys: { nvidia: 'nv' } });
-  await nvidia.rewrite({ text: '你去查阿', messages: conversation, modelInfo: { id: 'nvidia/z-ai/glm-5.3', name: 'GLM', provider: 'nvidia' } });
-  assert.deepEqual(nvidia.calls.map((call) => call.options.modelInfo.id), ['nvidia/z-ai/glm-5.3']);
+  await nvidia.rewrite({ text: '你去查阿', messages: conversation, modelInfo: { id: 'nvidia/z-ai/glm-5.3-flash', name: 'GLM', provider: 'nvidia' } });
+  assert.deepEqual(nvidia.calls.map((call) => call.options.modelInfo.id), ['nvidia/z-ai/glm-5.3-flash']);
 });
 
 test('no query when the model cannot be asked, fails, or says nothing; the search goes on without one', async () => {

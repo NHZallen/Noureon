@@ -16,6 +16,7 @@
 
 import { DECISION_THRESHOLD, verdictOf } from './decision-store.js';
 import { buildImageDecisionRequest, parseImageDecisionResponse } from './image-decisions.js';
+import { decisionModelOf } from './decision-model-list.js';
 
 export { DECISION_THRESHOLD, verdictOf };
 
@@ -106,6 +107,8 @@ export function parseDecisionResponse(body) {
 export function createDecisionService({
   fetchImpl = (...args) => globalThis.fetch(...args),
   getApiKey = () => '',
+  // The decision model chosen in the settings (decision-models.js); the key asked for is the one of its provider.
+  getModel = () => DECISION_MODEL,
   now = () => Date.now(),
   setTimer = (callback, ms) => setTimeout(callback, ms),
   clearTimer = (id) => clearTimeout(id),
@@ -128,9 +131,10 @@ export function createDecisionService({
   /** The answers for one request (built by `build`, read by `parse`), or null. Never rejects. */
   const ask = async (build, parse, input = {}, { signal } = {}) => {
     try {
-      const apiKey = String(getApiKey() || '').trim();
+      const chosen = decisionModelOf(getModel());
+      const apiKey = String(getApiKey(chosen.provider) || '').trim();
       if (!apiKey || now() < pausedUntil) return null;
-      const request = build(input);
+      const request = build({ ...input, model: chosen.id });
       if (!request) return null;
       const controller = new AbortController();
       const abort = () => controller.abort();
