@@ -43,46 +43,19 @@ test('with a council the badge follows its validation; with no conversation it i
   assert.equal(none.isHidden(), true);
 });
 
-test('with a wait to settle, the warning is not shown before the keys have had their time, and shows if they do not come', () => {
-  const timers = [];
-  const listeners = new Map();
-  const eventTarget = { addEventListener: (name, fn) => listeners.set(name, fn) };
+test('the warning waits until the places the keys come from have answered, and then tells a missing key at once', () => {
+  let settled = false;
   const hidden = new Set(['hidden']);
-  const badge = { classList: { toggle: (name, force) => (force ? hidden.add(name) : hidden.delete(name)) } };
-  const keys = {};
   const update = createApiKeyWarningBadgeUpdater({
-    elements: { apiKeyWarningBadge: badge },
+    elements: { apiKeyWarningBadge: { classList: { toggle: (name, force) => (force ? hidden.add(name) : hidden.delete(name)) } } },
     getActiveConversation: () => ({ id: 'c' }),
     normalizeConversationModel: () => ({ provider: 'gemini' }),
-    getApiKeyForProvider: (provider) => keys[provider] || '',
-    settleMs: 4000,
-    setTimer: (fn, ms) => timers.push({ fn, ms }),
-    eventTarget
+    getApiKeyForProvider: () => '',
+    keysSettled: () => settled
   });
   update();
   assert.equal(hidden.has('hidden'), true, 'no flash while the keys may still come');
-  // The keys arrive (the sync): the warning never showed.
-  keys.gemini = 'k';
-  listeners.get('astra:cloud-sensitive-config')();
-  assert.equal(hidden.has('hidden'), true);
-  keys.gemini = '';
+  settled = true;
   update();
-  assert.equal(hidden.has('hidden'), false, 'once settled, a missing key is told at once');
-
-  // No keys came: the wait ends and the warning shows.
-  const later = new Set(['hidden']);
-  const timersLater = [];
-  const updateLater = createApiKeyWarningBadgeUpdater({
-    elements: { apiKeyWarningBadge: { classList: { toggle: (name, force) => (force ? later.add(name) : later.delete(name)) } } },
-    getActiveConversation: () => ({ id: 'c' }),
-    normalizeConversationModel: () => ({ provider: 'gemini' }),
-    settleMs: 4000,
-    setTimer: (fn, ms) => timersLater.push({ fn, ms }),
-    eventTarget: null
-  });
-  updateLater();
-  assert.equal(later.has('hidden'), true);
-  assert.equal(timersLater[0].ms, 4000);
-  timersLater[0].fn();
-  assert.equal(later.has('hidden'), false);
+  assert.equal(hidden.has('hidden'), false, 'a person with no key is told');
 });

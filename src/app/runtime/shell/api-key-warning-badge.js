@@ -1,6 +1,6 @@
 // The badge in the header that says the model of the open conversation (or a member of its council) needs an API key.
-// Keys also reach the page after it was drawn (the sync, the unlock of the vault that is remembered). A warning shown before they had their time would flash and go,
-// so with `settleMs` it is held back until the first keys arrive or that wait is over: a key that is really missing is told a moment later.
+// Keys also reach the page after it was drawn (the sync, the unlock of the vault that is remembered). A warning shown before the places they come from have answered would
+// flash and go (security/keys-settled.js): it waits for that, and a key that is really missing is told as soon as they have.
 export function createApiKeyWarningBadgeUpdater({
     elements,
     getActiveConversation,
@@ -8,12 +8,9 @@ export function createApiKeyWarningBadgeUpdater({
     isCouncilEnabled = () => false,
     getCouncilValidation = () => ({ reason: '' }),
     getApiKeyForProvider = () => '',
-    settleMs = 0,
-    setTimer = globalThis.setTimeout,
-    eventTarget = globalThis.window
+    keysSettled = () => true
 }) {
-    let settled = !(settleMs > 0);
-    const update = () => {
+    return () => {
         const conv = getActiveConversation();
         if (!conv) {
             elements.apiKeyWarningBadge?.classList.add('hidden');
@@ -26,16 +23,6 @@ export function createApiKeyWarningBadgeUpdater({
         } else if (modelInfo) {
             needsKey = !getApiKeyForProvider(modelInfo.provider);
         }
-        elements.apiKeyWarningBadge?.classList.toggle('hidden', !(needsKey && settled));
+        elements.apiKeyWarningBadge?.classList.toggle('hidden', !(needsKey && keysSettled()));
     };
-    if (!settled) {
-        const settle = () => {
-            if (settled) return;
-            settled = true;
-            update();
-        };
-        eventTarget?.addEventListener?.('astra:cloud-sensitive-config', settle);
-        setTimer(settle, settleMs)?.unref?.();
-    }
-    return update;
 }

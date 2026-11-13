@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { keysLocalRead } from '../src/app/runtime/security/keys-settled.js';
 import { createSettingsAuthProviderLifecycle } from '../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
 import { createDependencies, createUpdateInputStateHarness, assertDisabledSubmitIcon, assertSendSubmitIcon, assertStopSubmitIcon } from './helpers/settings-lifecycle-harness.js';
+
+// The keys of this device have been read (the tests below are about a box with no key).
+keysLocalRead();
 
 test('updateInputState disables submit and preserves input state when no conversation is active', () => {
   const { lifecycle, dependencies } = createUpdateInputStateHarness({

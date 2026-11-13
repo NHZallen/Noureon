@@ -34,7 +34,8 @@ const composerExpandButton = `
                                         </svg>
                                     </button>`;
 
-const composerRichEditor = `<div id="message-input" role="textbox" aria-multiline="true" aria-disabled="true" contenteditable="false" data-composer-editor data-placeholder="請先在設定中輸入 API 金鑰..." class="w-full p-2 bg-transparent border-0 focus:ring-0 overflow-y-hidden" autocomplete="off" data-lang-key-placeholder="enterApiKeyPlaceholder"></div>`;
+// The box starts open with the neutral placeholder: the script shuts it (and says why) only once it knows the person has no key; shut from the start it flashed for everyone whose keys were there.
+const composerRichEditor = `<div id="message-input" role="textbox" aria-multiline="true" aria-disabled="false" contenteditable="true" data-composer-editor data-placeholder="想問什麼都可以" class="w-full p-2 bg-transparent border-0 focus:ring-0 overflow-y-hidden" autocomplete="off" data-lang-key-placeholder="enterMessagePlaceholder"></div>`;
 
 const composerShell = shellMarkup.replace(
   /\s*<button(?=[^>]*\bid="expand-input-btn")[\s\S]*?<\/button>/,

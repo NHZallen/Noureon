@@ -8,18 +8,21 @@ test('the header is worked out again when keys arrive from the sync or the unloc
   const window = new Window();
   let calls = 0;
   const stop = refreshWhenKeysArrive({ window, refresh: () => { calls += 1; } });
+  assert.equal(calls, 1, 'what was settled before it started is worked out at once');
   window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config', { detail: { apiKeys: { gemini: 'k' } } }));
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
+  window.dispatchEvent(new window.CustomEvent('noureon:keys-settled'));
+  assert.equal(calls, 3, 'and when the places the keys come from have all answered');
   window.dispatchEvent(new window.CustomEvent('astra:cloud-config'));
-  assert.equal(calls, 1, 'only the keys');
+  assert.equal(calls, 3, 'only the keys');
   stop();
   window.dispatchEvent(new window.CustomEvent('astra:cloud-sensitive-config'));
-  assert.equal(calls, 1, 'and no more once stopped');
+  assert.equal(calls, 3, 'and no more once stopped');
 
   const failing = new Window();
   const warnings = [];
   failing.console = { warn: (...args) => warnings.push(args) };
   refreshWhenKeysArrive({ window: failing, refresh: () => { throw new Error('not built yet'); } });
   failing.dispatchEvent(new failing.CustomEvent('astra:cloud-sensitive-config'));
-  assert.equal(warnings.length, 1);
+  assert.equal(warnings.length, 2, 'once when it starts and once for the event');
 });

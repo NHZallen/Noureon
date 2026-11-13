@@ -37,6 +37,7 @@ import { installSelectBlur } from './app/ui/forms/select-blur.js';
 import { installIconTooltips } from './app/ui/tooltips/icon-tooltips.js';
 import { installViewportLock } from './app/runtime/features/viewport-lock.js';
 import { SERVICES, getService, provideService } from './app/runtime/services.js';
+import { keysCloudAnswered } from './app/runtime/security/keys-settled.js';
 
 preloadRail(document);
 
@@ -190,6 +191,9 @@ async function bootstrap() {
         reason: startupIdentity.mode === 'local' ? 'local-identity' : 'no-session'
       });
   provideService(SERVICES.workspaceSyncReady, cloudSyncReady);
+  // The keys the sync brings are in the page a moment after it is ready (the unlock that is remembered reads them): the header waits for that, then tells whether a key is missing.
+  const keysAnswered = () => setTimeout(keysCloudAnswered, 300);
+  void cloudSyncReady.then(keysAnswered, keysAnswered);
   void cloudSyncReady.then(() => {
     markStartup(STARTUP_MARKS.CLOUD_SYNC_READY);
     measureStartup(

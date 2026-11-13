@@ -2,6 +2,8 @@
 // drawn: from the cloud sync, and when the sync vault is unlocked (the unlock that is remembered gives them at the start). Without this the warning stays on until something
 // else redraws it, although the keys are there.
 
+const EVENTS = ['astra:cloud-sensitive-config', 'noureon:keys-settled'];
+
 export function refreshWhenKeysArrive({ window, refresh }) {
   const onKeys = () => {
     try {
@@ -10,6 +12,9 @@ export function refreshWhenKeysArrive({ window, refresh }) {
       window.console?.warn?.('The header could not follow the keys that arrived.', error);
     }
   };
-  window?.addEventListener?.('astra:cloud-sensitive-config', onKeys);
-  return () => window?.removeEventListener?.('astra:cloud-sensitive-config', onKeys);
+  // The keys arriving, and the places they come from having all answered (security/keys-settled.js): the box and the warning are worked out again at both.
+  for (const name of EVENTS) window?.addEventListener?.(name, onKeys);
+  // (What was settled before this started is worked out now.)
+  onKeys();
+  return () => { for (const name of EVENTS) window?.removeEventListener?.(name, onKeys); };
 }

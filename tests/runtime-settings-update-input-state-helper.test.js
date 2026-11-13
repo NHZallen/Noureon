@@ -4,6 +4,10 @@ import test from 'node:test';
 
 import { chatsUnderVisionCheck } from '../src/app/runtime/features/vision-check-lock.js';
 import { createSettingsUpdateInputStateHelper } from '../src/app/runtime/settings/settings-update-input-state-helper.js';
+import { beginKeysSettling, keysLocalRead } from '../src/app/runtime/security/keys-settled.js';
+
+// The keys of this device have been read (the tests below are about a box with no key).
+keysLocalRead();
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -298,4 +302,24 @@ test('a tap on the box that is shut for want of a key says why (and not twice in
   notices.length = 0;
   tap();
   assert.deepEqual(notices, [], 'a model with a key says nothing');
+});
+
+test('while the keys have not answered yet the box stays open (no flash for a person whose keys are about to arrive); the send button still follows the real keys; once they answered the box shuts', () => {
+  const { helper, elements } = createHarness({
+    elements: { messageInput: { value: '', disabled: false, placeholder: '' } },
+    i18n: { en: { enterMessagePlaceholder: 'Type a message', enterApiKeyPlaceholder: 'Enter API key' } },
+    conversation: { provider: 'openai', model: 'gpt-x' }
+  });
+  beginKeysSettling();
+  try {
+    helper.updateInputState();
+    assert.equal(elements.messageInput.disabled, false);
+    assert.equal(elements.messageInput.placeholder, 'Type a message');
+    assert.equal(elements.submitButton.disabled, true, 'nothing can be sent without a key');
+  } finally {
+    keysLocalRead();
+  }
+  helper.updateInputState();
+  assert.equal(elements.messageInput.disabled, true);
+  assert.equal(elements.messageInput.placeholder, 'Enter API key');
 });

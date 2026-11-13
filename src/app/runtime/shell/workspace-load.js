@@ -7,6 +7,7 @@ import { loadSplitWorkspace } from '../kernel/workspace-loading.js';
 import { startOnDemandLoading } from '../kernel/on-demand-loading.js';
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
 import { applyLoginLanguage } from '../features/login-language.js';
+import { beginKeysSettling, keysLocalRead } from '../security/keys-settled.js';
 import { COUNCIL_MAX_MODELS, MODELS } from './model-registry.js';
 import { getDefaultFolder, getDefaultGenConfig } from './conversation-actions.js';
 
@@ -19,6 +20,8 @@ export function createWorkspaceLoad({
     const { getItem, removeItem } = storage;
     const loadConfig = async () => {
         if (!getCurrentUser()) return;
+        // The keys count as read from this device once the conversations are too (the box and the header ask which model is chosen: loadAppData ends it).
+        beginKeysSettling({ cloud: getCurrentUser().authProvider === 'supabase' });
         await sensitiveConfigPersistence.loadSensitiveConfig();
         const saved = await getItem(getConfigKey());
         if (saved) {
@@ -52,6 +55,13 @@ export function createWorkspaceLoad({
         if (applyLoginLanguage(configAccess.getConfig())) await saveConfig();
     };
     const loadAppData = async () => {
+        try {
+            await loadAppDataBody();
+        } finally {
+            if (getCurrentUser()) keysLocalRead();
+        }
+    };
+    const loadAppDataBody = async () => {
         if (!getCurrentUser()) return;
         const split = await loadSplit({ storage, user: getCurrentUser(), context: { getDefaultFolder, getDefaultGenConfig, runtimeConfigAccess: configAccess, normalizeCouncilConfig, normalizeConversationModel } });
         if (split) {

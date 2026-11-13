@@ -6,6 +6,7 @@ import { collapseTriggers } from '../features/popover-escape.js';
 import { createBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createSearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
+import { keysSettled } from '../security/keys-settled.js';
 import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { getNotesMemory, setMemoryModelRunner } from '../memory-store/memory-ref.js';
 
@@ -165,7 +166,7 @@ export function createWorkspaceFeatures({
     setMemoryModelRunner((...args) => runMemoryModel(...args));
 
     const updateApiKeyWarningBadge = createApiKeyWarningBadgeUpdater({
-        elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider, settleMs: 4000
+        elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider, keysSettled
     });
     // What the memory of notes learns from a turn (memory-store/page-curator.js), loaded the first time a reply is finished.
     const learnFromTurn = (conversation) => import('../memory-store/page-curator.js').then(({ curateNotesTurn }) => curateNotesTurn({ conversation, getConfig, getMemory: getNotesMemory, runMemoryModel, models: MODELS, getApiKeyForProvider, saveAppData, document }));

@@ -20,7 +20,7 @@ test('desktop chat input keeps active modes inside the rich editor at any caret 
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
   const richEditor = readUiSource('src/app/runtime/features/composer-rich-editor.js');
 
-  assert.match(appShell, /id="message-input"[^>]*role="textbox"[^>]*contenteditable="false"[^>]*data-composer-editor/);
+  assert.match(appShell, /id="message-input"[^>]*role="textbox"[^>]*contenteditable="true"[^>]*data-composer-editor/);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input reasoning voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper,\s*#input-bar-container\s+\.input-wrapper:focus-within[^{]*\{[^}]*border:\s*1px solid transparent\s*!important;[^}]*border-radius:\s*9999px\s*!important;[^}]*box-shadow:[^}]*!important;/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"file input input reasoning voice submit"/s);
@@ -158,7 +158,9 @@ test('mobile web search typing does not disable the message input when Tavily is
 
   assert.match(updateInputStateHelper, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
   assert.match(updateInputStateHelper, /const\s+hasApiKey\s*=\s*hasModelApiKey\s*&&\s*canSubmitWithSearch/);
-  assert.match(updateInputStateHelper, /elements\.messageInput\.disabled\s*=\s*!hasModelApiKey/);
+  // The box follows the key of the model only (not the search key); while the keys may still arrive it is not shut (security/keys-settled.js).
+  assert.match(updateInputStateHelper, /const\s+boxHasKey\s*=\s*hasModelApiKey\s*\|\|\s*!keysSettled\(\)/);
+  assert.match(updateInputStateHelper, /elements\.messageInput\.disabled\s*=\s*!boxHasKey/);
   assert.match(startupLifecycle, /else\s+if\s*\(wrapper\)\s*\{[\s\S]*wrapper\.classList\.remove\('has-multiline-input'\)/);
 });
 

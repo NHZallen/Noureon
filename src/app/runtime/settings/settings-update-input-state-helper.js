@@ -5,6 +5,7 @@ import { getResearchMode } from '../research/research-bridge.js';
 import { projectPlaceholder } from '../projects/project-placeholder.js';
 import { replySteering } from '../features/reply-steering.js';
 import { syncSvgEditGate } from '../images/svg-edit-gate.js';
+import { keysSettled } from '../security/keys-settled.js';
 
 export function createSettingsUpdateInputStateHelper({
     elements,
@@ -71,19 +72,22 @@ export function createSettingsUpdateInputStateHelper({
         const hasModelApiKey = isCouncilEnabled(conv)
             ? councilValidation.reason !== 'missingApiKey'
             : !!getApiKeyForProvider(provider);
+        // While the keys may still arrive (the sync, the unlock of the vault: security/keys-settled.js) the box is shown as it is with a key, not shut and asking for one;
+        // the button still follows the keys that are there.
+        const boxHasKey = hasModelApiKey || !keysSettled();
         const canSubmitWithSearch = hasTavilyKey;
         const hasApiKey = hasModelApiKey && canSubmitWithSearch;
         const texts = i18n[config.uiLanguage] || {};
-        blockedNotice = hasModelApiKey || isCouncilEnabled(conv) ? '' : String(texts.modelNeedsKeyNotice || texts.enterApiKeyPlaceholder || '').replace('{model}', modelInfo?.name || modelInfo?.id || '');
-        elements.messageInput.disabled = !hasModelApiKey;
-        elements.messageInput.placeholder = hasModelApiKey
+        blockedNotice = boxHasKey || isCouncilEnabled(conv) ? '' : String(texts.modelNeedsKeyNotice || texts.enterApiKeyPlaceholder || '').replace('{model}', modelInfo?.name || modelInfo?.id || '');
+        elements.messageInput.disabled = !boxHasKey;
+        elements.messageInput.placeholder = boxHasKey
             ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)
             : i18n[config.uiLanguage].enterApiKeyPlaceholder;
         // A deep research is being done in this chat: what is written is an instruction for it.
-        const researchHint = hasModelApiKey ? getResearchMode()?.placeholder?.() : null;
+        const researchHint = boxHasKey ? getResearchMode()?.placeholder?.() : null;
         if (researchHint) elements.messageInput.placeholder = researchHint;
         // A chat of a project says whom it writes to (runtime/projects/project-placeholder.js).
-        else if (hasModelApiKey && !(isCouncilEnabled(conv) && !councilValidation.ok)) { const projectHint = projectPlaceholder(conv); if (projectHint) elements.messageInput.placeholder = projectHint; }
+        else if (boxHasKey && !(isCouncilEnabled(conv) && !councilValidation.ok)) { const projectHint = projectPlaceholder(conv); if (projectHint) elements.messageInput.placeholder = projectHint; }
         // The visual check of the last message is still running: nothing can be sent until it is done or stopped.
         if (chatsUnderVisionCheck.has(conv.id)) {
             elements.messageInput.placeholder = visionText(config.uiLanguage, 'sendLocked');
