@@ -165,7 +165,7 @@ export function createWorkspaceFeatures({
     setMemoryModelRunner((...args) => runMemoryModel(...args));
 
     const updateApiKeyWarningBadge = createApiKeyWarningBadgeUpdater({
-        elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider
+        elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider, settleMs: 4000
     });
     // What the memory of notes learns from a turn (memory-store/page-curator.js), loaded the first time a reply is finished.
     const learnFromTurn = (conversation) => import('../memory-store/page-curator.js').then(({ curateNotesTurn }) => curateNotesTurn({ conversation, getConfig, getMemory: getNotesMemory, runMemoryModel, models: MODELS, getApiKeyForProvider, saveAppData, document }));
