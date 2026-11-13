@@ -38,7 +38,7 @@ test('a row opens its card as a page with its own title; the back arrow goes to 
   const { document, section } = fixture();
   section.querySelector('.sp-row[data-page="sync"]').click();
   assert.equal(section.dataset.page, 'sync');
-  assert.equal(document.getElementById('settings-mobile-title').textContent, '雲端同步');
+  assert.equal(document.getElementById('settings-mobile-title').textContent, '同步密碼');
   assert.equal(tryHandleSettingsBack('security-section'), true);
   assert.equal(section.dataset.page, '');
   assert.equal(document.getElementById('settings-mobile-title').textContent, '安全性與登入');
@@ -89,4 +89,35 @@ test('a page that is open when its card goes away goes back to the list instead 
   section.querySelector('#security-passkey-card').classList.add('hidden');
   await wait();
   assert.equal(section.dataset.page, '');
+});
+
+test('each row has a dot that follows its card: green set up, amber to prove again, red not set up; the devices row has none', async () => {
+  const { section, wait } = fixture();
+  section.querySelector('#security-sync-card').insertAdjacentHTML('beforeend', '<span id="sync-vault-state" class="us-state"></span>');
+  for (const id of ['security-passkey-card', 'security-totp-card', 'security-devices-card']) section.querySelector(`#${id}`).classList.remove('hidden');
+  section.querySelector('#security-passkey-card').insertAdjacentHTML('beforeend', '<ul id="security-passkey-list"></ul>');
+  section.querySelector('#security-totp-card').insertAdjacentHTML('beforeend', '<span id="security-totp-on" class="hidden"></span><span id="security-totp-off"></span>');
+  await wait();
+  const dot = (page) => section.querySelector(`.sp-row[data-page="${page}"] .sp-dot`);
+  assert.equal(dot('login').dataset.status, 'off', 'no login password row: not set up');
+  assert.equal(dot('sync').dataset.status, 'off');
+  assert.equal(dot('passkey').dataset.status, 'off');
+  assert.equal(dot('totp').dataset.status, 'off');
+  assert.equal(dot('devices').hidden, true);
+  assert.equal(dot('sync').getAttribute('aria-label'), '尚未設定');
+
+  section.querySelector('#sync-vault-state').classList.add('is-on');
+  section.querySelector('#security-passkey-list').insertAdjacentHTML('beforeend', '<li></li>');
+  section.querySelector('#security-totp-on').classList.remove('hidden');
+  await wait();
+  assert.equal(dot('sync').dataset.status, 'on');
+  assert.equal(dot('passkey').dataset.status, 'on');
+  assert.equal(dot('totp').dataset.status, 'on');
+  assert.equal(dot('sync').getAttribute('aria-label'), '已設定');
+
+  section.querySelector('#sync-vault-state').classList.replace('is-on', 'is-warn');
+  await wait();
+  assert.equal(dot('sync').dataset.status, 'warn');
+  assert.equal(dot('sync').title, '需要重新認證');
+
 });

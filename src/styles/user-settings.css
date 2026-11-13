@@ -141,6 +141,12 @@
   #settings-modal #security-section .sp-list { margin-top: 0.4rem; }
   #settings-modal #security-section .sp-row + .sp-row { border-top: 1px solid var(--border-color); }
   #settings-modal #security-section .sp-chevron { flex: none; display: inline-flex; }
+  /* The dot before the title of a row: green set up, amber to prove again, red not set up (security/settings-security-dots.js). */
+  #settings-modal #security-section .sp-dot { display: inline-block; margin-right: 0.5rem; vertical-align: middle; }
+  #settings-modal #security-section .sp-dot[hidden] { display: none; }
+  #settings-modal #security-section .sp-dot[data-status="on"] { background: var(--state-success); }
+  #settings-modal #security-section .sp-dot[data-status="warn"] { background: var(--state-warning); }
+  #settings-modal #security-section .sp-dot[data-status="off"] { background: var(--state-danger); }
   #settings-modal #security-section :is(.sp-heading, .sp-chevron, .sp-chevron svg) { color: var(--text-secondary) !important; }
 }
 

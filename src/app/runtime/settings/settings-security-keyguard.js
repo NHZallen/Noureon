@@ -33,6 +33,8 @@ export function createKeyguardControls({ window, storage, getCurrentUser, getEle
     const want = normalizeLocalKeyPolicy(getService(SERVICES.settingsAccess)?.getConfig?.()?.localKeyProtection);
     const waiting = Boolean(want) && !unlocked && (want.on !== on || (on && want.days !== protection.protection()?.days));
     const note = waiting && reason?.[0] === 'securityKeyguardNeedUnlock' ? ['securityKeyguardWaiting', '另一台裝置更改了這項保護；解鎖同步保險庫後，這台裝置會跟著更改。'] : reason;
+    // The list of the security page shows this as a dot: set up and open (green), set up and locked (amber), off (red).
+    elements.keyguardCard.dataset.state = on ? (unlocked ? 'on' : 'warn') : 'off';
     elements.keyguardSwitch.checked = on;
     elements.keyguardSwitch.disabled = Boolean(reason) || busy;
     elements.keyguardNote.textContent = note ? text(...note) : '';

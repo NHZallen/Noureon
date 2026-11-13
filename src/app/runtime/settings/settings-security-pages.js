@@ -4,10 +4,11 @@
 // On a computer the list is not shown and every card is on the page as before.
 
 import { onSettingsSectionBack } from './settings-section-back.js';
+import { STATUS_TEXT, securityStatus } from './settings-security-dots.js';
 
 const PAGES = [
   { id: 'login', card: 'security-login-card', title: ['loginPasswordRowTitle', '登入密碼'], desc: ['loginPasswordRowDesc', '用來登入你的帳號'], group: 'signin' },
-  { id: 'sync', card: 'security-sync-card', title: ['cloudSyncTitle', '雲端同步'], desc: ['securitySyncRowDesc', '同步密碼與雲端同步'], group: 'signin' },
+  { id: 'sync', card: 'security-sync-card', title: ['cloudSyncTitle', '同步密碼'], desc: ['securitySyncRowDesc', '加密保存在雲端的 API 金鑰'], group: 'signin' },
   { id: 'passkey', card: 'security-passkey-card', title: ['securityPasskeyTitle', '通行金鑰'], desc: ['securityPasskeyDesc', '用 Face ID 或指紋救回與解鎖'], group: 'protection' },
   { id: 'totp', card: 'security-totp-card', title: ['securityTotpTitle', '驗證器'], desc: ['securityTotpDesc', '用驗證器 app 的六位數保護重要的變更。'], group: 'protection' },
   { id: 'keyguard', card: 'security-keyguard-card', title: ['securityKeyguardTitle', '本機金鑰保護'], desc: ['securityKeyguardDesc', '用通行金鑰鎖住這台裝置上的 API 金鑰。'], group: 'protection' },
@@ -52,7 +53,10 @@ export function mountSecurityPages({ document, window, text, section }) {
         body.className = 'us-row-text';
         const title = document.createElement('span');
         title.className = 'us-row-title';
-        title.textContent = text(...page.title);
+        const dot = document.createElement('i');
+        dot.className = 'us-dot sp-dot';
+        dot.setAttribute('role', 'img');
+        title.append(dot, text(...page.title));
         const desc = document.createElement('span');
         desc.className = 'us-row-desc';
         desc.textContent = text(...page.desc);
@@ -69,11 +73,27 @@ export function mountSecurityPages({ document, window, text, section }) {
     sync();
   }
 
+  // The dot of each row follows what its card shows (green set up, amber to prove again, red not set up).
+  function paintDots() {
+    for (const page of PAGES) {
+      const dot = host.querySelector(`[data-page="${page.id}"] .sp-dot`);
+      if (!dot) continue;
+      const status = securityStatus(page.id, section);
+      dot.hidden = !status;
+      if (!status) continue;
+      const words = text(...STATUS_TEXT[status]);
+      dot.dataset.status = status;
+      dot.setAttribute('aria-label', words);
+      dot.title = words;
+    }
+  }
+
   // A card with nothing on show (every part of it hidden: the login password of a local account) would open as a blank page, so it has no row.
   const hasContent = (target) => [...target.children].some((child) => !child.classList.contains('hidden'));
 
   // A row follows its card: the card of a passkey is hidden for an account that is not in the cloud, and its row goes too; a heading with no row goes with them.
   function sync() {
+    paintDots();
     for (const page of PAGES) {
       const row = host.querySelector(`[data-page="${page.id}"]`);
       const target = card(page);
@@ -114,7 +134,7 @@ export function mountSecurityPages({ document, window, text, section }) {
   const Observer = window?.MutationObserver;
   if (Observer) {
     const observer = new Observer(sync);
-    for (const page of PAGES) { const target = card(page); if (target) observer.observe(target, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true }); }
+    for (const page of PAGES) { const target = card(page); if (target) observer.observe(target, { attributes: true, attributeFilter: ['class', 'data-state'], childList: true, subtree: true }); }
     // Leaving the section (the list of settings, a closed window) puts it back on its list for the next time.
     new Observer(() => { if (!section.classList.contains('active') && section.dataset.page) section.dataset.page = ''; }).observe(section, { attributes: true, attributeFilter: ['class'] });
   }
