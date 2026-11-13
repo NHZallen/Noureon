@@ -36,6 +36,10 @@ export function createBottomSheet({ document, parts, handles = [], body, label =
   if (label) card.setAttribute('aria-label', label);
   card.tabIndex = -1;
   card.append(...parts);
+  // The body scrolls with the finger at every height (the card takes the touch over where a list would stop: see the pull below).
+  body.style.overflowY = 'auto';
+  body.style.touchAction = 'pan-y';
+  body.style.overscrollBehavior = 'contain';
   root.append(backdrop, card);
   document.body.append(root);
   document.documentElement.classList.add('source-sheet-open');
@@ -61,13 +65,13 @@ export function createBottomSheet({ document, parts, handles = [], body, label =
 
   // How tall the card would be if it were as tall as its content: measured with the body let go of its box.
   const naturalHeight = () => {
-    const saved = [card.style.top, body.style.flex, body.style.overflow, card.style.transform];
+    const saved = [card.style.top, body.style.flex, body.style.overflowY, card.style.transform];
     card.style.top = 'auto';
     card.style.transform = '';
     body.style.flex = 'none';
-    body.style.overflow = 'visible';
+    body.style.overflowY = 'visible';
     const height = card.offsetHeight;
-    [card.style.top, body.style.flex, body.style.overflow, card.style.transform] = saved;
+    [card.style.top, body.style.flex, body.style.overflowY, card.style.transform] = saved;
     return height;
   };
 
@@ -126,9 +130,6 @@ export function createBottomSheet({ document, parts, handles = [], body, label =
 
   const setState = (next) => {
     state = next;
-    const scrolls = !expandable || state === 'large';
-    body.style.overflowY = scrolls ? 'auto' : 'hidden';
-    body.style.touchAction = scrolls ? 'pan-y' : 'none';
     card.dataset.state = state;
   };
 
@@ -177,38 +178,23 @@ export function createBottomSheet({ document, parts, handles = [], body, label =
   win.addEventListener('resize', onResize);
   backdrop.addEventListener('click', () => { if (closable) close(); });
 
-  // The pull. It starts on a handle at any height, and on the body when the card is not large (or cannot grow it never does); the
-  // body of a large card scrolls. After a few pixels of mostly vertical movement the card follows the finger.
-  const canStart = (event) => {
-    if (event.button > 0 || event.target.closest?.(NO_DRAG)) return false;
-    if (handles.some((handle) => handle.contains(event.target))) return true;
-    return expandable && state !== 'large' && body.contains(event.target);
-  };
-  card.addEventListener('pointerdown', (event) => {
-    if (!canStart(event)) return;
+  // The pull. A handle moves the card at any height (it starts at once, after a few pixels). The body scrolls with the finger as any list does
+  // and hands the touch to the card where a list would stop: a pull down while it is at its top moves the card down (and closes it), a pull
+  // up while the card is not large makes it larger first. (A mouse pulls the body of a card that is not large, as a handle.)
+  const startDrag = (y, stamp) => {
     stopFrame();
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, start: top, samples: [{ t: event.timeStamp, y: event.clientY }], live: false };
-  });
-  card.addEventListener('pointermove', (event) => {
-    if (!drag || event.pointerId !== drag.id) return;
-    const dy = event.clientY - drag.y;
-    if (!drag.live) {
-      if (Math.abs(dy) < THRESHOLD && Math.abs(event.clientX - drag.x) < THRESHOLD) return;
-      if (Math.abs(event.clientX - drag.x) > Math.abs(dy)) { drag = null; return; }
-      drag.live = true;
-      try { card.setPointerCapture?.(event.pointerId); } catch { /* no capture */ }
-      card.classList.add('is-dragging');
-    }
-    drag.samples.push({ t: event.timeStamp, y: event.clientY });
+    drag = { y, start: top, samples: [{ t: stamp, y }], live: false };
+  };
+  const moveDrag = (y, stamp) => {
+    drag.samples.push({ t: stamp, y });
     if (drag.samples.length > 12) drag.samples.shift();
-    let value = drag.start + dy;
+    let value = drag.start + (y - drag.y);
     if (!expandable) value = Math.max(value, stops.medium);
     paint(resist(value, stops.large));
-  });
-  const release = (event) => {
-    if (!drag || event.pointerId !== drag.id) return;
+  };
+  const endDrag = (cancelled) => {
     const moved = drag.live;
-    const velocity = moved ? velocityOf(drag.samples) : 0;
+    const velocity = moved && !cancelled ? velocityOf(drag.samples) : 0;
     drag = null;
     card.classList.remove('is-dragging');
     if (!moved) return;
@@ -219,8 +205,57 @@ export function createBottomSheet({ document, parts, handles = [], body, label =
     if (outcome === 'close') close(velocity);
     else snap(outcome, velocity);
   };
+  const onHandle = (target) => handles.some((handle) => handle.contains(target));
+  card.addEventListener('pointerdown', (event) => {
+    if (event.button > 0 || event.target.closest?.(NO_DRAG)) return;
+    const mouseOnBody = event.pointerType === 'mouse' && expandable && state !== 'large' && body.contains(event.target);
+    if (onHandle(event.target) || mouseOnBody) { drag = null; startDrag(event.clientY, event.timeStamp); drag.id = event.pointerId; }
+  });
+  card.addEventListener('pointermove', (event) => {
+    if (!drag || drag.id !== event.pointerId) return;
+    if (!drag.live) {
+      const dy = event.clientY - drag.y;
+      if (Math.abs(dy) < THRESHOLD && Math.abs(event.clientX - (drag.x ?? event.clientX)) < THRESHOLD) return;
+      drag.live = true;
+      try { card.setPointerCapture?.(event.pointerId); } catch { /* no capture */ }
+      card.classList.add('is-dragging');
+    }
+    moveDrag(event.clientY, event.timeStamp);
+  });
+  const release = (event) => {
+    if (drag && drag.id === event.pointerId) endDrag(event.type === 'pointercancel');
+  };
   card.addEventListener('pointerup', release);
   card.addEventListener('pointercancel', release);
+
+  // A touch on the body: decided at the first few pixels, then it is the list's (scrolls) or the card's (follows the finger).
+  let touch = null;
+  body.addEventListener('touchstart', (event) => {
+    touch = event.touches.length === 1 && !event.target.closest?.(NO_DRAG) ? { x: event.touches[0].clientX, y: event.touches[0].clientY, native: false } : null;
+  }, { passive: true });
+  body.addEventListener('touchmove', (event) => {
+    if (!touch || touch.native) return;
+    const point = event.touches[0];
+    if (!drag) {
+      const dy = point.clientY - touch.y;
+      if (Math.abs(dy) < THRESHOLD && Math.abs(point.clientX - touch.x) < THRESHOLD) return;
+      const hand = Math.abs(point.clientX - touch.x) <= Math.abs(dy) && event.cancelable
+        && (dy > 0 ? body.scrollTop <= 0 : expandable && state !== 'large');
+      if (!hand) { touch.native = true; return; }
+      startDrag(point.clientY, event.timeStamp);
+      drag.live = true;
+      drag.touch = true;
+      card.classList.add('is-dragging');
+    }
+    event.preventDefault();
+    moveDrag(point.clientY, event.timeStamp);
+  }, { passive: false });
+  const touchEnd = (event) => {
+    if (drag?.touch) endDrag(event.type === 'touchcancel');
+    touch = null;
+  };
+  body.addEventListener('touchend', touchEnd);
+  body.addEventListener('touchcancel', touchEnd);
   card.addEventListener('click', (event) => { if (suppressClick) { event.stopPropagation(); event.preventDefault(); } }, true);
 
   const api = { close, dispose, snap, refit, element: root, card, state: () => state };
