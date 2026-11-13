@@ -57,6 +57,7 @@ Rules that always apply:
 - Do one phase at a time and report; push to `main` only when the owner says so (every push deploys to noureon.com). **Once the test site exists** (`staging` branch, `staging.noureon.com`; the steps and the state are in `docs/superpowers/specs/2026-10-11-staging-design.md`): day-to-day work is pushed to `staging` (the owner tries it on the test site), and `main` gets only a merge of `staging`, when the owner says "上線"; changes of `supabase/migrations/` go to the test project first and to the real one only then. Until the test site works, the line above stands.
 - Never add `Co-Authored-By` or any AI attribution to commit messages.
 - Do not commit `.claude/`.
+- Tags: push the release tag yourself when the work is released; if the environment cannot push tags, say so in one line and leave it. Do not ask Allen to push tags or do the steps for them (Allen, 2026-11-13).
 - Tag every minor release (`x.y.0`) as `v<version>` on its release commit (see `RELEASING.md`); patch releases need no tag.
 - Every feature and text covers zh-TW, en, fr, ru and es.
 - Colours: use the names of `src/styles/tokens.css` (`var(--text-primary)`, `var(--modal-bg)`…) and never write a colour of your own in a stylesheet; the light and the dark theme depend on it.
