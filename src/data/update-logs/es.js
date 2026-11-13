@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.8.0": [
+    "<strong>Notas de la versión de Noureon 19.8.0</strong>",
+    "Esta versión actualiza la lista de modelos, permite elegir el proveedor y el modelo de criterio en Ajustes → Privacidad, y añade indicadores de estado a la página Seguridad e inicio de sesión.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Modelos actualizados: </strong>en OpenRouter, Gemini 3.8 Flash pasa a ser Gemini 4 Hydrogen, Claude Fable 5.1 pasa a 5.2 y se añade Gemini 4 Carbon; el proveedor Google Gemini cambia igualmente a Gemini 4 Hydrogen y añade Gemini 4 Carbon; OpenCode Go añade Hy4 y LongCat 2.5 Free y retira MiMo V2.5 y V2.5 Pro; NVIDIA retira GLM-5.3. Los ajustes y las conversaciones que usan estos modelos pasan al nuevo modelo correspondiente (MiMo V2.5 a V2.6 Flash, V2.5 Pro a V2.6 Pro, GLM-5.3 de NVIDIA a GLM-5.3 Flash).</li><li><strong>Proveedor y modelo de criterio a elegir: </strong>el pequeño modelo que decide, al enviar un mensaje, si hace falta una búsqueda web, un archivo, un gráfico o una herramienta de línea de comandos se elige ahora en Ajustes → Privacidad: primero el proveedor (OpenRouter o Google Gemini) y luego el modelo (Jev 1.14 o Gemini Decision 1). La elección sigue a la cuenta y el valor predeterminado sigue siendo Jev 1.14. Se usa la clave del proveedor elegido; sin clave, con una respuesta lenta o un fallo, deciden las listas de palabras clave integradas.</li><li><strong>Página Seguridad e inicio de sesión: </strong>cada fila tiene un indicador de estado (verde si está configurado, ámbar si hay que volver a confirmar, rojo si no está configurado), y «Sincronización en la nube» pasa a llamarse «Contraseña de sincronización».</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "<ul><li>No hace falta hacer nada, y esta versión no incluye actualización de la base de datos.</li><li>Claude Fable 5.2 no admite vídeo: un vídeo se convierte a otra forma antes de dársela.</li><li>Lo que recibe el modelo de criterio, y de quién, se actualiza en la Política de privacidad.</li></ul>"
+  ],
   "19.7.0": [
     "<strong>Noureon 19.7.0 – notas de la versión</strong>",
     "Esta versión añade una página de Seguridad e inicio de sesión que protege la cuenta y las claves de API con llaves de acceso y una app de autenticación, pone fin a la antigua recuperación de la contraseña de sincronización por correo, aplica la política de seguridad de contenido en todas las direcciones y corrige páginas de ajustes en blanco en el teléfono.",

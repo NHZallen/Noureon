@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "19.8.0",
+    date: "2026-11-13",
+    content: [
+      "<strong>Noureon 19.8.0 發布說明</strong>",
+      "本版本更新模型清單，讓使用者在「設定 → 隱私」自行選擇判斷模型的提供商與模型，並在「安全性與登入」頁加上狀態圓點。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>模型更新：</strong>OpenRouter 的 Gemini 3.8 Flash 換成 Gemini 4 Hydrogen，Claude Fable 5.1 換成 5.2，並新增 Gemini 4 Carbon；Google Gemini 提供商同步換成 Gemini 4 Hydrogen 並新增 Gemini 4 Carbon；OpenCode Go 新增 Hy4 與 LongCat 2.5 Free，並移除 MiMo V2.5 與 V2.5 Pro；NVIDIA 移除 GLM-5.3。已選用這些模型的設定與對話會自動換成對應的新模型（MiMo V2.5 換成 V2.6 Flash、V2.5 Pro 換成 V2.6 Pro、NVIDIA 的 GLM-5.3 換成 GLM-5.3 Flash）。</li><li><strong>判斷模型可選提供商與模型：</strong>送出訊息時判斷要不要上網搜尋、做成檔案、畫圖表或使用命令工具的小模型，現在可在「設定 → 隱私」先選提供商（OpenRouter 或 Google Gemini），再選模型（Jev 1.14 或 Gemini Decision 1）；選擇會隨帳號同步，預設仍是 Jev 1.14。使用所選提供商的金鑰，沒有金鑰、太慢或失敗時改用內建的關鍵字判斷。</li><li><strong>安全性與登入頁：</strong>每一列前加上狀態圓點（綠色為已設定、黃色為需要重新認證、紅色為未設定），「雲端同步」改名為「同步密碼」。</li></ul>",
+      "<strong>相容性</strong>",
+      "<ul><li>不需要任何操作，本版本不含資料庫更新。</li><li>Claude Fable 5.2 不接受影片輸入，影片會先轉成其他形式再交給它。</li><li>判斷模型送出的內容與對象已更新於隱私權政策。</li></ul>"
+    ]
+  },
+  {
     version: "19.7.0",
     date: "2026-11-13",
     content: [

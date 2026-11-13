@@ -26,8 +26,6 @@ const ROWS = [
   ['deepseek-v4.1-flash', 'DeepSeek V4.1 Flash', 'deepseek', 'chat', true, DESC.go],
   ['mimo-v2.6-pro', 'MiMo V2.6 Pro', 'xiaomi', 'chat', true, DESC.go],
   ['mimo-v2.6-flash', 'MiMo V2.6 Flash', 'xiaomi', 'chat', true, DESC.go],
-  ['mimo-v2.5-pro', 'MiMo V2.5 Pro', 'xiaomi', 'chat', false, DESC.go],
-  ['mimo-v2.5', 'MiMo V2.5', 'xiaomi', 'chat', true, DESC.go],
   ['longcat-2.0', 'LongCat 2.0', 'meituan', 'chat', false, DESC.go],
   ['hy4-preview', 'Hy4 Preview', 'tencent', 'chat', false, DESC.go],
   ['hy3', 'Hy3', 'tencent', 'chat', false, DESC.go],
@@ -63,12 +61,14 @@ const ROWS = [
 const ADDED_AT = 20261013;
 
 // The list is the one OpenCode shows on its page of limits (the owner's screenshots of 2026-10-30: LongCat 2.5 Preview and Gemini 4 Argon Contributor are gone, Gemini 4 Argon and Iceman are there). A model that left it, or took another id, is still
-// known by its old id: a conversation or a choice that names it goes to the model that replaces it (Space Bunny and Cat Jam had none).
+// known by its old id: a conversation or a choice that names it goes to the model that replaces it (Space Bunny and Cat Jam had none). MiMo V2.5 and V2.5 Pro left the list on 2026-11-13 (the owner removed them): they go to V2.6 Flash and V2.6 Pro.
 const LEGACY_API_IDS = {
   'deepseek-v4.1-flash': ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'],
   'gemini-4-argon': ['gemini-4-argon-contributor'],
   'longcat-2.0': ['longcat-2.5-preview-free'],
   'grok-4.7': ['grok-4.6'],
+  'mimo-v2.6-flash': ['mimo-v2.5'],
+  'mimo-v2.6-pro': ['mimo-v2.5-pro'],
   'minimax-m3': ['minimax-m2.7'],
   'minimax-m3.1-flash': ['minimax-m3.1-flash-free'],
   'step-5-preview': ['step-5-preview-free']
@@ -169,8 +169,6 @@ const THINKING = {
   'deepseek-v4.1-flash': ['effort', ['none', 'low', 'high', 'max'], 'high'],
   'mimo-v2.6-pro': ['effort', ['none', 'high'], 'high'],
   'mimo-v2.6-flash': ['effort', ['none', 'high'], 'high'],
-  'mimo-v2.5-pro': ['effort', ['none', 'high'], 'high'],
-  'mimo-v2.5': ['effort', ['none', 'high'], 'high'],
   'hy4-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
   // The probe of 2026-11-13: `none` turns the thinking off (0 tokens); minimal to max are taken, the app offers the same depths as Hy4 Preview.
   'hy4': ['effort', ['none', 'low', 'medium', 'high', 'max'], 'high'],

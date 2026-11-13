@@ -20,8 +20,8 @@ const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, st
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
   // The list of the page of limits of OpenCode (the owner's screenshots of 2026-10-23, and Hy4 and LongCat 2.5 Free of 2026-11-13): 32 models, not one more or less.
-  assert.equal(OPENCODE_GO_MODELS.length, 32);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 32);
+  assert.equal(OPENCODE_GO_MODELS.length, 30);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 30);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -35,7 +35,7 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   assert.deepEqual(forms('gemini'), ['gemini-4-argon']);
   assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
-  assert.deepEqual(noPictures, ['beam-free', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'iceman-contributor-free', 'longcat-2.0', 'mimo-v2.5-pro']);
+  assert.deepEqual(noPictures, ['beam-free', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'iceman-contributor-free', 'longcat-2.0']);
   assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('gemini-4-argon')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
   // The probe of 2026-11-13: Hy4 and LongCat 2.5 Free read pictures; neither reads a file as it is; LongCat 2.5 Free is free for a time.
   assert.ok(modelSupportsVision(model('hy4')) && modelSupportsVision(model('longcat-2.5-free')));
@@ -57,6 +57,8 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   assert.deepEqual(legacy('step-5-preview'), ['opencode-go/step-5-preview-free']);
   assert.deepEqual(legacy('deepseek-v4.1-flash'), ['opencode-go/deepseek-v4-flash', 'opencode-go/deepseek-v4-flash-vision-exp']);
   assert.deepEqual(legacy('grok-4.7'), ['opencode-go/grok-4.6']);
+  assert.deepEqual(legacy('mimo-v2.6-flash'), ['opencode-go/mimo-v2.5']);
+  assert.deepEqual(legacy('mimo-v2.6-pro'), ['opencode-go/mimo-v2.5-pro']);
   assert.deepEqual(legacy('minimax-m3'), ['opencode-go/minimax-m2.7']);
   assert.equal(getCanonicalModelId('opencode-go/grok-4.6'), 'opencode-go/grok-4.7');
   assert.equal(getCanonicalModelId('opencode-go/step-5-preview-free'), 'opencode-go/step-5-preview');
@@ -418,7 +420,7 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 31);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 29);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
@@ -492,7 +494,7 @@ test('a PDF goes to the models that read it (the probe of 2026-10-14), in the fo
   const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
   const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon'];
-  const refuses = ['beam-free', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'iceman-contributor-free', 'deepseek-v4-pro', 'longcat-2.0'];
+  const refuses = ['beam-free', 'deepseek-v4.1-flash', 'step-5-preview', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'iceman-contributor-free', 'deepseek-v4-pro', 'longcat-2.0'];
   // Word and PowerPoint files as they are: only the five that answered MANGO to both in the probe; for every other model they are translated.
   const pptx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: 'UEsDBA==', name: 'a.pptx' } };
   const officeReaders = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna'];

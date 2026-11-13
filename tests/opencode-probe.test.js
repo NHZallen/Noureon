@@ -11,7 +11,7 @@ const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
 test('the models of the probe are those of the app (the page of limits of OpenCode): four forms of API, and only the named free ones are free', () => {
-  assert.equal(MODELS.length, 32);
+  assert.equal(MODELS.length, 30);
   assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'gemini', 'messages', 'responses']);
   assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-free', 'beam-free', 'iceman-contributor-free']);
   assert.equal(MODELS.find((model) => model.id === 'claude-haiku-5-5').family, 'messages');
