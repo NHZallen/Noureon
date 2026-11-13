@@ -85,3 +85,5 @@
 - **提供商的模型清單是挑過的**：OpenRouter 現在列出 41 個判斷模型，但只有跑過探測的兩個放進去（題型要和我們的問題相容，速度要在頁面的 1 秒內）；要加別的，先用 `scripts/decisions-probe.mjs --model <id> --compare typesafe/jev-1.14` 看結果。探測腳本現在也能問 Gemini 官方的模型（`--model gemini-decision-1`，用 `GEMINI_API_KEY`）。
 - **隱私政策五語與 `PRIVACY.md`**：改成「有你所選提供商的金鑰時，訊息文字送到該提供商的 Decisions API（OpenRouter 的，或 Google 的 Gemini API）」。
 - **速度的取捨**：Gemini Decision 1 平均約 400–540 ms，比 jev 慢約 3 倍，但都在 1 秒內；它在營收圖表與「上次那份食譜」兩題比 jev 準。預設維持 jev。
+- **位置改到「模型管理」（Allen，2026-11-13）**：判斷模型那張卡片不放在「隱私」，改放「設定 → 模型管理」（API 金鑰、網路搜尋、文件轉譯那一頁），在語音轉文字卡片之前。模組 `settings-models-decision.js` 的 `createDecisionSettings` 在設定開啟時（`settings-dialog-parts.js` 的 `build`）畫上去，語言切換時重畫；卡片本身（`addDecisionCard`，兩個下拉）不變。隱私政策五語與 `PRIVACY.md`、19.8.0 更新紀錄的位置說明一併改成「設定 → 模型管理」。
+

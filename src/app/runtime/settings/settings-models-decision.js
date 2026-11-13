@@ -1,6 +1,6 @@
-// The card of the decision model in the Privacy tab of the settings: the small model that judges, while a message is sent, whether it needs the web, a file, a chart or a command tool
-// (decisions/decision-models.js). The person picks the provider first, then one of its models. Loaded after the tab is drawn, and put after the card of the network; drawn again (the old one
-// taken away) when the language changes.
+// The card of the decision model in the Models tab of the settings (the page of the models, where the keys are): the small model that judges, while a message is sent, whether it needs the web,
+// a file, a chart or a command tool (decisions/decision-models.js). The person picks the provider first, then one of its models. It goes before the card of speech to text (which is last), or
+// at the end; drawn again (the old one taken away) when the language changes.
 
 import { serverReplyText } from '../server-reply/server-reply-texts.js';
 import { normalizeDecisionModel } from '../decisions/decision-models.js';
@@ -15,11 +15,10 @@ const el = (document, tag, className = '', text = '') => {
   return node;
 };
 
-export function addDecisionCard({ document, section, language, decisionModel, onChange }) {
+export function addDecisionCard({ document, host, language, decisionModel, onChange }) {
   const t = (key) => serverReplyText(language, key);
-  section.querySelector(`#${CARD_ID}`)?.remove();
-  const cards = section.querySelectorAll('.pz-card');
-  if (!cards.length) return null;
+  if (!host) return null;
+  host.querySelector(`#${CARD_ID}`)?.remove();
   const card = el(document, 'section', 'pz-card');
   card.id = CARD_ID;
   card.appendChild(el(document, 'div', 'pz-head')).appendChild(el(document, 'h3', '', t('decideTitle')));
@@ -61,7 +60,40 @@ export function addDecisionCard({ document, section, language, decisionModel, on
     showModels();
     onChange(current.id);
   });
-  // After the second card (where replies run, then the network of the server).
-  (cards[1] || cards[0]).after(card);
+  const speech = host.querySelector('#speech-settings-card');
+  if (speech) speech.before(card);
+  else host.append(card);
   return card;
+}
+
+const languageBound = new WeakSet();
+
+/**
+ * The card in the section of the models, drawn each time the settings open (and again when the language changes, which the menu of the language says at once while the settings stay open).
+ * The choice is saved as soon as it is made.
+ */
+export function createDecisionSettings({ document, elements, config, saveConfig }) {
+  const draw = (language) => addDecisionCard({
+    document,
+    host: document.querySelector('#model-management-section .pz'),
+    language,
+    decisionModel: config.decisionModel,
+    onChange: async (value) => {
+      config.decisionModel = normalizeDecisionModel(value);
+      try {
+        await saveConfig();
+      } catch (error) {
+        console.warn('Saving the decision model failed.', error);
+      }
+    }
+  });
+  const mount = () => {
+    draw(config.uiLanguage);
+    const select = elements?.uiLanguageSelect;
+    if (select?.addEventListener && !languageBound.has(select)) {
+      languageBound.add(select);
+      select.addEventListener('change', (event) => draw(event.target.value));
+    }
+  };
+  return { mount };
 }

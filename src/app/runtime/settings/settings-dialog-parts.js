@@ -8,6 +8,7 @@ import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageTranscript
 import { createRebuildController } from '../memory-store/page-rebuild.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
 import { createSpeechSettings } from './settings-speech-section.js';
+import { createDecisionSettings } from './settings-models-decision.js';
 
 export function createSettingsDialogParts({
     document, elements: ALL_ELEMENTS, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
@@ -31,6 +32,8 @@ export function createSettingsDialogParts({
     });
     // Speech to text, in the Models settings below the API keys (the keys it may use are there).
     const speechSettings = createSpeechSettings({ document, getTranscription: getPageTranscription, saveConfig, getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '', showNotification, showCustomDialog });
+    // The decision model, in the same section (before the card of speech).
+    const decisionSettings = createDecisionSettings({ document, elements: ALL_ELEMENTS, config, saveConfig });
     let built = false;
     /** Builds the controls (once) and fills them from the settings. True when they were built now. */
     const build = () => {
@@ -41,6 +44,7 @@ export function createSettingsDialogParts({
         if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
         // The memory of notes fills the memory section.
         memoryNotesSettings.mount();
+        decisionSettings.mount();
         speechSettings.mount();
         return fresh;
     };
