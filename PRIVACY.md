@@ -71,7 +71,7 @@ Noureon uses no advertising or tracking cookies and has no third-party analytics
 For users signed in to a cloud account, replies are made on Noureon's server by default, so that a reply continues when the page is closed. In Settings → Privacy you can switch to making replies only on your own device.
 
 - What is sent: the browser sends the server the conversation history, system instructions, selected model and provider key (and the search key when search is used) that this one reply needs.
-- Keeping keys: keys are kept encrypted, only for that reply, and deleted when it ends; at most 2 hours 15 minutes for an ordinary reply, 30 minutes for image generation, and 27 hours for deep research (which may be paused for up to a day). They are never kept long term, never written to logs or error messages, and error messages sent back by providers are scrubbed of keys first.
+- Keeping keys: keys are kept encrypted, only for that reply, and deleted when it ends; at most 2 hours 15 minutes for an ordinary reply, 30 minutes for image generation, and 3 hours for deep research (which may be paused for up to 2 hours). They are never kept long term, never written to logs or error messages, and error messages sent back by providers are scrubbed of keys first.
 - The reply: the server writes the reply into the same cloud workspace the app already syncs.
 - Messages added during a reply: text you add with "steer" while a reply is running goes over the same encrypted connection to the server making that reply and is held only for that run; when the model takes it, the server writes it into your cloud workspace as an ordinary message of the conversation (like one you send yourself) and passes it, with the rest, to the model provider you chose. A message the model never got to take is written into the reply's record so that your browser can send it as the next message when the reply ends. All of it is kept like the rest of the conversation, until you delete it.
 - Replies that must be finished in the browser (voice input, the camera), users who are not signed in and temporary chats are always made on your device and are not sent to the server.
@@ -138,7 +138,7 @@ Noureon has no built-in analytics, advertising tracking or cross-site tracking s
 
 - Data in the browser: until you delete it or clear browser data.
 - The cloud workspace: until you delete it or delete the account; when you are signed in and syncing, deletion and restoration sync to the cloud (with deletion markers). Items in the trash can be restored or deleted for good.
-- Keys kept temporarily on the server: at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 27 hours for deep research; usually deleted when the reply ends.
+- Keys kept temporarily on the server: at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 3 hours for deep research; usually deleted when the reply ends.
 - Sandbox containers and what is in memory: deleted when the reply ends.
 - Cloud files: files that no conversation refers to are removed automatically after about a day; a skill's zip is deleted with the skill, and a zip no skill points to is removed by the daily clean-up.
 - Secure credentials: until you delete them or delete the account.

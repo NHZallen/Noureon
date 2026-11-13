@@ -26,9 +26,9 @@ export const RESEARCH_LIMITS = Object.freeze({
   maxCalls: 300,
   maxActiveMs: 60 * 60_000,
   // How long one pause lasts at most (the keys of the run are kept for that long).
-  maxPauseMs: 24 * 60 * 60_000,
+  maxPauseMs: 2 * 60 * 60_000,
   // The whole run, from the plan to the report; the keys are kept a little longer.
-  maxRunMs: 26 * 60 * 60_000,
+  maxRunMs: 2.5 * 60 * 60_000,
   maxItems: 8,
   maxActivity: 300,
   // What one item may use of the calls that are left, so the first items do not take them all.

@@ -79,7 +79,7 @@ export default {
             'Primero el plan: el modelo redacta un plan de investigación (hasta 8 puntos) y empieza una cuenta atrás de 60 segundos en la que puedes cambiar los puntos; mientras editas, espera como máximo 10 minutos. Al acabar la cuenta atrás empieza sola.',
             'Punto por punto: por cada punto busca, lee páginas, contrasta y toma notas. Una investigación usa como máximo unas 300 llamadas (búsquedas, páginas abiertas, consultas dentro de una página) y como máximo 60 minutos de tiempo de investigación.',
             'Progreso visible: la tarjeta muestra en directo los puntos terminados, el porcentaje, el número de búsquedas y el tiempo empleado, y puedes abrir las fuentes y la actividad.',
-            'Puedes pausar, detener o enviar un mensaje con instrucciones adicionales; una pausa dura como máximo 24 horas; la investigación entera, como máximo unas 26 horas.',
+            'Puedes pausar, detener o enviar un mensaje con instrucciones adicionales; una pausa dura como máximo 2 horas; la investigación entera, como máximo unas 2,5 horas.',
             'La investigación se ejecuta en el servidor de Noureon: cierra la pestaña o bloquea el teléfono y, al volver, el resultado ya está en la conversación. Tras un reinicio del servidor continúa desde su último punto de control.',
             'El resultado es un informe con citas y gráficos: vista previa en el chat o lectura a pantalla completa (índice, tarjetas de citas, paneles de fuentes y actividad) y exportación a PDF, Word o Markdown; el archivo se crea en el momento de exportar.'
           ],
@@ -177,7 +177,7 @@ export default {
             'Para hacer las respuestas solo en tu dispositivo: Ajustes → Privacidad, elige «Este dispositivo».',
             'Los chats temporales, los usuarios sin sesión iniciada y las respuestas que necesitan el navegador (entrada de voz, cámara) se hacen siempre en tu dispositivo.',
             'Una respuesta puede ejecutarse como máximo 2 horas; como máximo 5 a la vez; como máximo 10 nuevas por minuto.',
-            'Para la respuesta, tu clave de API se guarda cifrada un breve tiempo y se elimina al terminar (como máximo 2 h 15 min para una respuesta normal, 30 minutos para una imagen, 27 horas para una investigación profunda); nunca se guarda a largo plazo ni se escribe en registros.',
+            'Para la respuesta, tu clave de API se guarda cifrada un breve tiempo y se elimina al terminar (como máximo 2 h 15 min para una respuesta normal, 30 minutos para una imagen, 3 horas para una investigación profunda); nunca se guarda a largo plazo ni se escribe en registros.',
             'Con varias pestañas abiertas, la respuesta se muestra en directo en todas; una conexión perdida se restablece sola.'
           ]
         ]
@@ -343,7 +343,7 @@ export default {
         blocks: [
           [
             'Por defecto las respuestas las hace el servidor para que continúen después de cerrar la página. En cualquier momento puedes pasar a hacerlas solo en tu dispositivo en Ajustes → Privacidad.',
-            'El servidor y el entorno aislado tienen límites, para mantener estable el servicio: una respuesta se ejecuta como máximo 2 horas, 5 a la vez por persona, 10 nuevas por minuto, peticiones de hasta 25 MB, la investigación profunda hasta unas 26 horas, una llamada a un modelo hasta 30 minutos y el almacenamiento en la nube hasta 500 MB por persona. Los límites pueden cambiar según el estado del servicio.',
+            'El servidor y el entorno aislado tienen límites, para mantener estable el servicio: una respuesta se ejecuta como máximo 2 horas, 5 a la vez por persona, 10 nuevas por minuto, peticiones de hasta 25 MB, la investigación profunda hasta unas 2,5 horas, una llamada a un modelo hasta 30 minutos y el almacenamiento en la nube hasta 500 MB por persona. Los límites pueden cambiar según el estado del servicio.',
             'No prometemos que cada ejecución tenga éxito ni termine en un tiempo determinado. El servidor puede reiniciarse y un proveedor puede fallar; el sistema intenta reintentar o continuar desde un punto de control, pero aun así puede fallar.',
             'El código del entorno aislado se ejecuta en un contenedor aislado que no tiene red propia y solo llega a un sitio a través del proxy de filtrado del servidor, con tu permiso; el contenedor se elimina al terminar la respuesta. No debes intentar salir del entorno aislado, llegar a otros usuarios o a la red interna, ni usarlo para consumir recursos de cómputo excesivos.'
           ]
@@ -557,7 +557,7 @@ export default {
           'Para los usuarios que han iniciado sesión en una cuenta en la nube, las respuestas las hace por defecto el servidor de Noureon, de modo que una respuesta continúe cuando se cierra la página. En Ajustes → Privacidad puedes pasar a hacerlas solo en tu dispositivo.',
           [
             'Lo que se envía: el navegador envía al servidor el historial de la conversación, las instrucciones del sistema, el modelo elegido y la clave del proveedor (y la clave de búsqueda cuando se usa búsqueda) que necesita esa respuesta.',
-            'Conservación de las claves: las claves se guardan cifradas, solo para esa respuesta, y se eliminan cuando termina; como máximo 2 h 15 min para una respuesta normal, 30 minutos para la generación de imágenes y 27 horas para la investigación profunda (que puede pausarse hasta un día). Nunca se guardan a largo plazo ni se escriben en registros o mensajes de error, y los mensajes de error que devuelven los proveedores se limpian antes de claves.',
+            'Conservación de las claves: las claves se guardan cifradas, solo para esa respuesta, y se eliminan cuando termina; como máximo 2 h 15 min para una respuesta normal, 30 minutos para la generación de imágenes y 3 horas para la investigación profunda (que puede pausarse hasta 2 horas). Nunca se guardan a largo plazo ni se escriben en registros o mensajes de error, y los mensajes de error que devuelven los proveedores se limpian antes de claves.',
             'La respuesta: el servidor escribe la respuesta en el mismo espacio de trabajo en la nube que la aplicación ya sincroniza.',
             'Mensajes añadidos durante una respuesta: el texto que añades con «guiar» mientras se hace una respuesta viaja por la misma conexión cifrada hasta el servidor que la hace y se guarda solo durante esa ejecución; cuando el modelo lo toma, el servidor lo escribe en tu espacio de trabajo en la nube como un mensaje normal de la conversación (como uno que envías tú) y lo pasa, con el resto, al proveedor de modelo que elegiste. Un mensaje que el modelo no llegó a tomar se escribe en el registro de la respuesta para que tu navegador lo envíe como el mensaje siguiente al terminar la respuesta. Todo se conserva como el resto de la conversación, hasta que la elimines.',
             'Las respuestas que deben terminarse en el navegador (entrada de voz, cámara), los usuarios sin sesión iniciada y los chats temporales se hacen siempre en tu dispositivo y no se envían al servidor.',
@@ -654,7 +654,7 @@ export default {
           [
             'Datos en el navegador: hasta que los elimines o borres los datos del navegador.',
             'El espacio de trabajo en la nube: hasta que lo elimines o elimines la cuenta; cuando has iniciado sesión y sincronizas, las eliminaciones y restauraciones se sincronizan con la nube (con marcas de eliminación). Los elementos de la papelera se pueden restaurar o eliminar para siempre.',
-            'Claves guardadas temporalmente en el servidor: como máximo 2 h 15 min para una respuesta normal, 30 minutos para una imagen, 27 horas para una investigación profunda; normalmente se eliminan al terminar la respuesta.',
+            'Claves guardadas temporalmente en el servidor: como máximo 2 h 15 min para una respuesta normal, 30 minutos para una imagen, 3 horas para una investigación profunda; normalmente se eliminan al terminar la respuesta.',
             'Contenedores del entorno aislado y lo que hay en memoria: se eliminan al terminar la respuesta.',
             'Archivos en la nube: los archivos a los que no remite ninguna conversación se eliminan automáticamente al cabo de un día aproximadamente; el zip de una habilidad se elimina con la habilidad, y un zip al que no apunta ninguna habilidad lo retira la limpieza diaria.',
             'Credenciales seguras: hasta que las elimines o elimines la cuenta.',

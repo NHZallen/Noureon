@@ -920,7 +920,7 @@ test('the whole way: a reply writes a presentation, the server draws it, the mod
 
 const researchSpecOf = () => ({ ...specOf(), kind: 'research', research: { topic: 'Solid-state batteries' }, tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } });
 
-test('a deep research is recorded with its kind, keeps its keys for a day, hands its controls to the run, and writes its parts', async () => {
+test('a deep research is recorded with its kind, keeps its keys for three hours, hands its controls to the run, and writes its parts', async () => {
   const seen = [];
   const { manager, db } = managerHarness({
     executeDeepResearch: async ({ spec, controls, onUpdate, onLive, onCheckpoint }) => {
@@ -937,7 +937,7 @@ test('a deep research is recorded with its kind, keeps its keys for a day, hands
   const start = db.log.rpcs.find((call) => call.name === 'server_start_run').args;
   assert.deepEqual(start.p_model, { provider: 'openrouter', id: 'm', kind: 'research' });
   const lifetime = new Date(start.p_key_expires_at).getTime() - Date.now();
-  assert.ok(lifetime > 26 * 3600_000 && lifetime <= 27 * 3600_000 + 5000, 'the key is kept for a day and some hours');
+  assert.ok(lifetime > 2.5 * 3600_000 && lifetime <= 3 * 3600_000 + 5000, 'the key is kept for three hours at most');
   assert.deepEqual(messageWrites(db).at(-1).parts, [{ text: '' }, { researchReport: { title: 'T' } }]);
   assert.equal(messageWrites(db).at(-1).status, 'complete');
   const checkpoint = db.log.updates.find((update) => update.values.checkpoint?.kind === 'research');

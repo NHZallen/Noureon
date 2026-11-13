@@ -79,7 +79,7 @@ export default {
             'D’abord un plan : le modèle rédige un plan de recherche (jusqu’à 8 points) et un compte à rebours de 60 secondes démarre, pendant lequel vous pouvez modifier les points ; pendant que vous modifiez, il attend au plus 10 minutes. À la fin du compte à rebours, il démarre seul.',
             'Point par point : il cherche, lit des pages, recoupe et prend des notes pour chaque point. Une recherche utilise au plus environ 300 appels (recherches, pages ouvertes, consultations dans une page) et au plus 60 minutes de temps de recherche.',
             'Avancement visible : la carte montre en direct les points terminés, le pourcentage, le nombre de recherches et le temps écoulé, et vous pouvez ouvrir les sources et l’activité.',
-            'Vous pouvez mettre en pause, arrêter, ou envoyer un message avec des consignes supplémentaires ; une pause dure au plus 24 heures ; la recherche entière au plus environ 26 heures.',
+            'Vous pouvez mettre en pause, arrêter, ou envoyer un message avec des consignes supplémentaires ; une pause dure au plus 2 heures ; la recherche entière au plus environ 2,5 heures.',
             'La recherche s’exécute sur le serveur de Noureon : fermez l’onglet ou verrouillez le téléphone, et le résultat est dans la discussion à votre retour. Après un redémarrage du serveur, elle reprend à son dernier point de contrôle.',
             'Le résultat est un rapport avec citations et graphiques : aperçu dans la discussion ou ouverture en plein écran (table des matières, cartes de citation, panneaux des sources et de l’activité), et export en PDF, Word ou Markdown ; le fichier est créé au moment de l’export.'
           ],
@@ -177,7 +177,7 @@ export default {
             'Pour ne produire les réponses que sur votre appareil : Réglages → Confidentialité, choisissez « Cet appareil ».',
             'Les discussions temporaires, les utilisateurs non connectés et les réponses qui ont besoin du navigateur (saisie vocale, appareil photo) sont toujours produits sur votre appareil.',
             'Une réponse peut durer 2 heures au plus ; 5 au plus en même temps ; 10 nouvelles au plus par minute.',
-            'Pour la réponse, votre clé API est conservée chiffrée un court moment et supprimée à la fin de la réponse (au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour une image, 27 heures pour une recherche approfondie) ; elle n’est jamais gardée longtemps ni écrite dans des journaux.',
+            'Pour la réponse, votre clé API est conservée chiffrée un court moment et supprimée à la fin de la réponse (au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour une image, 3 heures pour une recherche approfondie) ; elle n’est jamais gardée longtemps ni écrite dans des journaux.',
             'Avec plusieurs onglets ouverts, la réponse s’affiche en direct dans tous ; une connexion perdue se rétablit seule.'
           ]
         ]
@@ -343,7 +343,7 @@ export default {
         blocks: [
           [
             'Les réponses sont produites par le serveur par défaut afin de continuer après la fermeture de la page. Vous pouvez à tout moment passer à une production sur votre seul appareil dans Réglages → Confidentialité.',
-            'Le serveur et le bac à sable ont des limites, pour garder le service stable : une réponse dure 2 heures au plus, 5 à la fois par personne, 10 nouvelles par minute, des requêtes jusqu’à 25 Mo, une recherche approfondie jusqu’à environ 26 heures, un appel de modèle jusqu’à 30 minutes, et un stockage cloud jusqu’à 500 Mo par personne. Les limites peuvent changer selon l’état du service.',
+            'Le serveur et le bac à sable ont des limites, pour garder le service stable : une réponse dure 2 heures au plus, 5 à la fois par personne, 10 nouvelles par minute, des requêtes jusqu’à 25 Mo, une recherche approfondie jusqu’à environ 2,5 heures, un appel de modèle jusqu’à 30 minutes, et un stockage cloud jusqu’à 500 Mo par personne. Les limites peuvent changer selon l’état du service.',
             'Nous ne promettons pas que chaque exécution réussira ni se terminera dans un délai donné. Le serveur peut redémarrer et un fournisseur peut échouer ; le système essaie de réessayer ou de reprendre à un point de contrôle, mais l’échec reste possible.',
             'Le code du bac à sable s’exécute dans un conteneur isolé sans réseau propre, qui n’atteint un site qu’à travers le proxy de filtrage du serveur, avec votre autorisation, et qui est supprimé à la fin de la réponse. Vous ne devez pas tenter de sortir du bac à sable, d’atteindre d’autres utilisateurs ou le réseau interne, ni l’utiliser pour consommer des ressources de calcul excessives.'
           ]
@@ -557,7 +557,7 @@ export default {
           'Pour les utilisateurs connectés à un compte cloud, les réponses sont produites par défaut sur le serveur de Noureon, afin qu’une réponse continue quand la page est fermée. Dans Réglages → Confidentialité, vous pouvez passer à une production sur votre seul appareil.',
           [
             'Ce qui est envoyé : le navigateur envoie au serveur l’historique de la discussion, les instructions système, le modèle choisi et la clé du fournisseur (et la clé de recherche quand une recherche est utilisée) dont cette seule réponse a besoin.',
-            'Conservation des clés : les clés sont conservées chiffrées, uniquement pour cette réponse, et supprimées à sa fin ; au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour la génération d’image, et 27 heures pour la recherche approfondie (qui peut être mise en pause jusqu’à un jour). Elles ne sont jamais gardées longtemps, jamais écrites dans des journaux ni des messages d’erreur, et les messages d’erreur renvoyés par les fournisseurs sont d’abord purgés des clés.',
+            'Conservation des clés : les clés sont conservées chiffrées, uniquement pour cette réponse, et supprimées à sa fin ; au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour la génération d’image, et 3 heures pour la recherche approfondie (qui peut être mise en pause jusqu’à 2 heures). Elles ne sont jamais gardées longtemps, jamais écrites dans des journaux ni des messages d’erreur, et les messages d’erreur renvoyés par les fournisseurs sont d’abord purgés des clés.',
             'La réponse : le serveur écrit la réponse dans le même espace de travail cloud que l’application synchronise déjà.',
             'Messages ajoutés pendant une réponse : le texte ajouté avec « guider » pendant qu’une réponse est en cours passe par la même connexion chiffrée jusqu’au serveur qui fait cette réponse et n’y reste que pour cette exécution ; quand le modèle le prend, le serveur l’écrit dans votre espace de travail cloud comme un message ordinaire de la conversation (comme un message que vous envoyez vous-même) et le transmet, avec le reste, au fournisseur de modèle que vous avez choisi. Un message que le modèle n’a jamais pu prendre est écrit dans l’enregistrement de la réponse pour que votre navigateur l’envoie comme message suivant à la fin de la réponse. Le tout est conservé comme le reste de la conversation, jusqu’à ce que vous la supprimiez.',
             'Les réponses qui doivent se terminer dans le navigateur (saisie vocale, appareil photo), les utilisateurs non connectés et les discussions temporaires sont toujours produits sur votre appareil et ne sont pas envoyés au serveur.',
@@ -654,7 +654,7 @@ export default {
           [
             'Données du navigateur : jusqu’à ce que vous les supprimiez ou effaciez les données du navigateur.',
             'L’espace de travail cloud : jusqu’à ce que vous le supprimiez ou supprimiez le compte ; connecté et synchronisé, suppressions et restaurations se synchronisent vers le cloud (avec des marqueurs de suppression). Les éléments de la corbeille peuvent être restaurés ou supprimés définitivement.',
-            'Clés conservées temporairement sur le serveur : au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour une image, 27 heures pour une recherche approfondie ; en général supprimées à la fin de la réponse.',
+            'Clés conservées temporairement sur le serveur : au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour une image, 3 heures pour une recherche approfondie ; en général supprimées à la fin de la réponse.',
             'Conteneurs de bac à sable et contenu en mémoire : supprimés à la fin de la réponse.',
             'Fichiers cloud : les fichiers que plus aucune discussion n’utilise sont supprimés automatiquement après environ un jour ; le zip d’une compétence est supprimé avec la compétence, et un zip sur lequel aucune compétence ne pointe est retiré par le nettoyage quotidien.',
             'Identifiants sécurisés : jusqu’à ce que vous les supprimiez ou supprimiez le compte.',

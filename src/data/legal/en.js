@@ -79,7 +79,7 @@ export default {
             'Plan first: the model drafts a research plan (up to 8 items) and a 60-second countdown starts, in which you can change the items; while you are editing it waits up to 10 minutes. When the countdown ends it starts by itself.',
             'Item by item: it searches, reads pages, cross-checks and writes notes for each item. One research uses at most about 300 calls (searches, pages opened, lookups inside a page) and at most 60 minutes of research time.',
             'Visible progress: the card shows finished items, the percentage, the number of searches and the time used, live, and you can open the sources and the activity.',
-            'You can pause, stop, or send a message with extra instructions; one pause lasts at most 24 hours; the whole research at most about 26 hours.',
+            'You can pause, stop, or send a message with extra instructions; one pause lasts at most 2 hours; the whole research at most about 2.5 hours.',
             'The research runs on Noureon\'s server: close the tab or lock the phone, and the result is in the chat when you come back. After a server restart it carries on from its last checkpoint.',
             'The result is a report with citations and charts: preview it in the chat or open it full screen (table of contents, citation cards, sources and activity panels), and export it as PDF, Word or Markdown; the file is made when you export.'
           ],
@@ -177,7 +177,7 @@ export default {
             'To make replies only on your own device: Settings → Privacy, choose "This device".',
             'Temporary chats, users who are not signed in, and replies that need the browser (voice input, the camera) are always made on your device.',
             'One reply may run for 2 hours at most; at most 5 run at once; at most 10 new ones may start in a minute.',
-            'For the reply, your API key is kept encrypted for a short time and deleted when the reply ends (at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 27 hours for deep research); it is never kept long term or written to logs.',
+            'For the reply, your API key is kept encrypted for a short time and deleted when the reply ends (at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 3 hours for deep research); it is never kept long term or written to logs.',
             'With several tabs open, the reply is shown live in all of them; a lost connection reconnects by itself.'
           ]
         ]
@@ -343,7 +343,7 @@ export default {
         blocks: [
           [
             'Replies run by the server by default so that they continue after the page is closed. You can switch to making replies only on your own device any time in Settings → Privacy.',
-            'The server and the sandbox have limits, to keep the service stable: a reply runs for 2 hours at most, 5 at a time per person, 10 new ones a minute, requests of up to 25 MB, deep research up to about 26 hours, one model call up to 30 minutes, and cloud storage up to 500 MB per person. The limits may change with the state of the service.',
+            'The server and the sandbox have limits, to keep the service stable: a reply runs for 2 hours at most, 5 at a time per person, 10 new ones a minute, requests of up to 25 MB, deep research up to about 2.5 hours, one model call up to 30 minutes, and cloud storage up to 500 MB per person. The limits may change with the state of the service.',
             'We do not promise that every run will succeed or finish in a given time. The server may restart and a provider may fail; the system tries to retry or continue from a checkpoint, but it can still fail.',
             'Code in the sandbox runs in an isolated container that has no network of its own and reaches a website only through the filtering proxy of the server, with your permission; the container is removed when the reply ends. You may not try to break out of the sandbox, reach other users or the internal network, or use it to consume excessive computing resources.'
           ]
@@ -557,7 +557,7 @@ export default {
           'For users signed in to a cloud account, replies are made on Noureon\'s server by default, so that a reply continues when the page is closed. In Settings → Privacy you can switch to making replies only on your own device.',
           [
             'What is sent: the browser sends the server the conversation history, system instructions, selected model and provider key (and the search key when search is used) that this one reply needs.',
-            'Keeping keys: keys are kept encrypted, only for that reply, and deleted when it ends; at most 2 hours 15 minutes for an ordinary reply, 30 minutes for image generation, and 27 hours for deep research (which may be paused for up to a day). They are never kept long term, never written to logs or error messages, and error messages sent back by providers are scrubbed of keys first.',
+            'Keeping keys: keys are kept encrypted, only for that reply, and deleted when it ends; at most 2 hours 15 minutes for an ordinary reply, 30 minutes for image generation, and 3 hours for deep research (which may be paused for up to 2 hours). They are never kept long term, never written to logs or error messages, and error messages sent back by providers are scrubbed of keys first.',
             'The reply: the server writes the reply into the same cloud workspace the app already syncs.',
             'Messages added during a reply: text you add with "steer" while a reply is running goes over the same encrypted connection to the server making that reply and is held only for that run; when the model takes it, the server writes it into your cloud workspace as an ordinary message of the conversation (like one you send yourself) and passes it, with the rest, to the model provider you chose. A message the model never got to take is written into the reply\'s record so that your browser can send it as the next message when the reply ends. All of it is kept like the rest of the conversation, until you delete it.',
             'Replies that must be finished in the browser (voice input, the camera), users who are not signed in and temporary chats are always made on your device and are not sent to the server.',
@@ -654,7 +654,7 @@ export default {
           [
             'Data in the browser: until you delete it or clear browser data.',
             'The cloud workspace: until you delete it or delete the account; when you are signed in and syncing, deletion and restoration sync to the cloud (with deletion markers). Items in the trash can be restored or deleted for good.',
-            'Keys kept temporarily on the server: at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 27 hours for deep research; usually deleted when the reply ends.',
+            'Keys kept temporarily on the server: at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 3 hours for deep research; usually deleted when the reply ends.',
             'Sandbox containers and what is in memory: deleted when the reply ends.',
             'Cloud files: files that no conversation refers to are removed automatically after about a day; a skill\'s zip is deleted with the skill, and a zip no skill points to is removed by the daily clean-up.',
             'Secure credentials: until you delete them or delete the account.',

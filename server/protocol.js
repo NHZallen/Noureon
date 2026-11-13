@@ -53,9 +53,9 @@ export const LIMITS = Object.freeze({
   maxToolCalls: 20,
   // Resumptions of one run after a restart before it is given up.
   maxResumes: 3,
-  // A deep research waits for the person and may be paused for a day: it may run this long, and its keys are kept a little longer.
-  maxResearchRunMs: 26 * 60 * 60 * 1000,
-  researchKeyTtlMs: 27 * 60 * 60 * 1000,
+  // A deep research waits for the person and may be paused for a while: it may run this long, and its keys are kept a little longer (three hours at most, Allen's choice).
+  maxResearchRunMs: 2.5 * 60 * 60 * 1000,
+  researchKeyTtlMs: 3 * 60 * 60 * 1000,
   // An image is one call to the provider (4K can take a minute or two): it may run this long, and its key is kept a little longer.
   maxImageRunMs: 10 * 60 * 1000,
   imageKeyTtlMs: 30 * 60 * 1000,
