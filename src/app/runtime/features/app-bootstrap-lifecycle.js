@@ -17,6 +17,7 @@ import { bindComposerInput } from './composer-input-bindings.js';
 import { bindFeedbackForms } from './feedback-forms.js';
 import { modelGeneratesImages } from '../shell/model-registry.js';
 import { createDriveUpload } from './drive-upload.js';
+import { installPlusSheet } from './plus-sheet-entry.js';
 
 export function createAppBootstrapLifecycle({
     window,
@@ -375,6 +376,7 @@ export function createAppBootstrapLifecycle({
             });
         });
 
+        installPlusSheet({ document, window, getActiveConversation, getConfig, saveAppData, refresh: updateFunctionButtonsState, closeAllPopovers, normalizeConversationModel, isCouncilEnabled });
         ALL_ELEMENTS.addFileBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             updateFunctionButtonsState();

@@ -3,14 +3,10 @@
 // ask it.
 
 export const FILE_MODES = Object.freeze({ standard: 'standard', advanced: 'advanced' });
-export const DEFAULT_FILE_MODE = FILE_MODES.advanced;
 
-export const normalizeFileMode = (value) => (value === FILE_MODES.standard || value === FILE_MODES.advanced ? value : null);
-
-// The mode the user chose for this conversation (or the default for new ones).
-export function chosenFileMode(conversation, config = {}) {
-  return normalizeFileMode(conversation?.fileMode) || normalizeFileMode(config.fileModeDefault) || DEFAULT_FILE_MODE;
-}
+// Advanced when the model and the device can run it, Standard when they cannot (resolveReplyMode, which also falls back for a
+// single reply). The person does not choose: a `fileMode` kept on an older conversation, and the old setting "Mode for new
+// chats" (`fileModeDefault`), are ignored, so a Standard picked once does not hold a chat back for good.
 
 // Set once Python has loaded on this device, so the picker can say it is
 // already downloaded.
@@ -24,28 +20,25 @@ const pythonReady = (window) => {
   }
 };
 
-// What the composer's picker shows: the chosen mode, and why Advanced cannot
-// run here if it cannot.
+// What the composer's picker shows: the mode the reply will use, and why Advanced cannot run here if it cannot.
 export function describeFileModeState({ window = globalThis.window, ...context } = {}) {
-  const check = resolveReplyMode({ ...context, conversation: { ...(context.conversation || {}), fileMode: FILE_MODES.advanced } });
+  const check = resolveReplyMode(context);
   return {
-    value: chosenFileMode(context.conversation, context.config),
+    value: check.advanced ? FILE_MODES.advanced : FILE_MODES.standard,
     unavailableReason: check.advanced ? null : check.reason,
     ready: pythonReady(window)
   };
 }
 
-// Whether this reply runs in Advanced mode. `reason` explains a switch to
-// Standard when Advanced was chosen (see sandbox-texts.js "reason.*").
+// Whether this reply runs in Advanced mode. `reason` explains why it runs in
+// Standard (see sandbox-texts.js "reason.*").
 export function resolveReplyMode({
-  conversation,
   config = {},
   modelInfo,
   supportsToolCalling = () => false,
   isCouncil = false,
   browserSupported = true
 } = {}) {
-  if (chosenFileMode(conversation, config) !== FILE_MODES.advanced) return { advanced: false, reason: null };
   if (isCouncil) return { advanced: false, reason: 'council' };
   if (config.isLearningMode) return { advanced: false, reason: 'learning' };
   if (!supportsToolCalling(modelInfo)) return { advanced: false, reason: 'model-unsupported' };

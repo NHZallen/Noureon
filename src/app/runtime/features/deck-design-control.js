@@ -39,7 +39,7 @@ export function createDeckDesignControl({
   closeAllPopovers = () => {},
   // An image model has nothing to design (no slides, no documents), so the control is hidden while one is chosen.
   isImageChat = () => false,
-  // For Standard or Advanced mode (the picker's "Mode" row).
+  // For the line of the picker that says whether this chat makes files in Advanced or Standard mode (it is decided by the model, not chosen).
   getConfig = () => ({}),
   normalizeConversationModel = () => null,
   isCouncilEnabled = () => false,
@@ -203,20 +203,6 @@ export function createDeckDesignControl({
     }
   };
 
-  // Choosing a mode keeps the picker open; the designs stay one click away.
-  const chooseMode = async (value) => {
-    const conversation = getActiveConversation();
-    if (!conversation || (value !== 'standard' && value !== 'advanced')) return;
-    conversation.fileMode = value;
-    const state = getModeState();
-    if (state) picker?.setMode?.(state);
-    try {
-      await saveAppData();
-    } catch (error) {
-      logError('Saving the mode failed:', error);
-    }
-  };
-
   // Draws the picker the first time (and again if the language changed), otherwise only brings the
   // choices and the mode up to date: redrawing every template each time it opened was the delay.
   async function prepare(popover) {
@@ -236,7 +222,6 @@ export function createDeckDesignControl({
         language: getUiLanguage(),
         current: currentChoices(getActiveConversation()),
         mode: getModeState(),
-        onMode: (value) => { void chooseMode(value); },
         onChoose: (kind, value) => {
           void choose(kind, value);
           popover.classList.remove('visible');
@@ -279,5 +264,5 @@ export function createDeckDesignControl({
     picker?.setCurrent?.(choices);
   }
 
-  return { render, choose, chooseMode };
+  return { render, choose };
 }

@@ -1,0 +1,191 @@
+/* The "+" sheet on a phone: it rises from the bottom with what the old menu had (camera, photos, files, Google Drive, the tools) and
+   takes the design picker and the picture settings in as pages of its own. Heights, handle and the way it is pulled are the ones of
+   the sources sheet (citations.css, ui/citations/sheet-drag.js). Loaded with it (runtime/features/plus-sheet-entry.js). The colour
+   names are those of tokens.css; weights are 400 and 500 only (docs/superpowers/specs/2026-10-31-ui-style-rules.md). */
+
+.ps-root { position: fixed; inset: 0; z-index: 1000; }
+
+.ps-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--scrim-soft);
+    opacity: 0;
+    touch-action: none;
+    transition: opacity var(--dur-drawer) var(--ease-drawer);
+}
+
+.ps-sheet {
+    --ps-h: min(var(--ps-home-h, 37rem), 92dvh);
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    height: var(--ps-h);
+    border-radius: 1.75rem 1.75rem 0 0;
+    background: var(--modal-bg);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-up);
+    transform: translate3d(0, 105%, 0);
+    transition: transform var(--dur-drawer) var(--ease-drawer), translate var(--dur-drawer) var(--ease-drawer), height var(--dur-drawer) var(--ease-drawer);
+    will-change: transform;
+    outline: none;
+    overflow: hidden;
+}
+.ps-sheet[data-size="medium"]:not([data-page="home"]) { --ps-h: min(62dvh, 32rem); }
+.ps-sheet[data-size="medium"][data-page="home"] { --ps-h: min(var(--ps-home-h, 37rem), 92dvh); }
+.ps-sheet[data-size="large"] { --ps-h: min(92dvh, 56rem); }
+.ps-root.is-open .ps-backdrop { opacity: 1; }
+.ps-root.is-open .ps-sheet { transform: translate3d(0, 0, 0); }
+.ps-sheet.is-dragging { transition: none; }
+
+/* The bar at the top: the handle, the button that closes (on the first page) or goes back (on the others) on the left, the title in the middle, nothing on the right. */
+.ps-head { position: relative; flex: none; height: 4.5rem; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ps-grip { position: absolute; top: 0.5rem; left: 50%; width: 2.4rem; height: 0.3rem; transform: translateX(-50%); border-radius: 9999px; background: var(--active-bg); }
+.ps-lead {
+    position: absolute;
+    top: 1.35rem;
+    left: 0.9rem;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.ps-lead svg { color: inherit; }
+.ps-title { position: absolute; top: 1.35rem; left: 4rem; right: 4rem; display: grid; place-items: center; height: 2.5rem; margin: 0; font-size: 1.0625rem; font-weight: 500; text-align: center; }
+
+.ps-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.25rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); -webkit-overflow-scrolling: touch; }
+.ps-page.is-in-r { animation: ps-in-r var(--dur-drawer) var(--ease-drawer); }
+.ps-page.is-in-l { animation: ps-in-l var(--dur-drawer) var(--ease-drawer); }
+@keyframes ps-in-r { from { transform: translateX(28%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ps-in-l { from { transform: translateX(-28%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.ps-sheet svg { color: inherit; }
+.ps-sheet button { font: inherit; text-align: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.ps-icon { flex: none; display: block; width: 1.5rem; height: 1.5rem; }
+
+/* Camera, photos, files: three equal tiles that keep their place when the model cannot use one (grey, not pressable). */
+.ps-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin: 0.1rem 0 0.8rem; }
+.ps-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    height: 6rem;
+    border: 0;
+    border-radius: 1.25rem;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.ps-tile .ps-icon { width: 1.75rem; height: 1.75rem; }
+.ps-tile:active:not(:disabled), .ps-row:active:not(:disabled) { background: var(--active-bg); }
+.ps-tile:disabled, .ps-row:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ps-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.ps-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    min-height: 3.4rem;
+    padding: 0 1.1rem;
+    border: 0;
+    border-radius: 1.25rem;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+.ps-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-row.is-on .ps-row-name::after { content: "✓"; margin-inline-start: 0.5rem; color: var(--state-success); }
+.ps-row-end { display: flex; align-items: center; gap: 0.25rem; margin-inline-start: auto; padding-inline-start: 0.5rem; color: var(--text-secondary); font-size: 0.8125rem; white-space: nowrap; }
+
+.ps-note { margin: 0.1rem 0.25rem 0.8rem; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.5; }
+.ps-caption { margin: 0.9rem 0.25rem 0.5rem; color: var(--text-secondary); font-size: 0.8125rem; }
+.ps-caption:first-child { margin-top: 0; }
+
+/* The pictures' shape: a grid of tiles, each with a small drawing of its own proportion. */
+.ps-ratios { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+.ps-ratio, .ps-chip {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 1rem;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+.ps-ratio { height: 5.4rem; }
+.ps-ratio-box { display: grid; place-items: center; height: 2rem; }
+.ps-ratio-glyph { display: block; border: 1.7px solid currentColor; border-radius: 0.25rem; opacity: 0.85; }
+.ps-ratio-glyph.is-auto { border-style: dashed; }
+.ps-resolutions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.ps-chip { height: 4rem; gap: 0.1rem; font-size: 1rem; }
+.ps-chip small { color: var(--text-secondary); font-size: 0.8125rem; font-weight: 400; }
+.ps-ratio[aria-pressed="true"], .ps-chip[aria-pressed="true"] { border-color: var(--text-primary); }
+.ps-check { position: absolute; top: 0.3rem; right: 0.3rem; display: none; place-items: center; width: 1.15rem; height: 1.15rem; border-radius: 9999px; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.ps-check svg { width: 0.7rem; height: 0.7rem; color: inherit; }
+[aria-pressed="true"] > .ps-check { display: grid; }
+
+/* The picture settings: groups of rows on a soft ground. */
+.ps-group { margin-bottom: 0.8rem; padding: 0.3rem 1rem; border-radius: 1.25rem; background: var(--hover-bg); }
+.ps-field { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 0.75rem; min-height: 3.5rem; padding-block: 0.7rem; box-sizing: border-box; font-size: 0.9375rem; }
+.ps-field + .ps-field { border-top: 1px solid var(--border-color); }
+.ps-field-label { flex: none; }
+.ps-segments { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem; padding: 0.2rem; border-radius: 0.8rem; background: var(--modal-bg); }
+.ps-field.is-wide .ps-segments { flex: 1 0 100%; justify-content: flex-start; }
+.ps-segment { min-height: 2.1rem; padding: 0 0.75rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-secondary); font-size: 0.8125rem; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.ps-segment[aria-pressed="true"] { background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.ps-stepper { display: flex; align-items: center; gap: 0.4rem; }
+.ps-step { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border: 0; border-radius: 9999px; background: var(--modal-bg); color: var(--text-primary); cursor: pointer; }
+.ps-step:disabled { opacity: 0.4; cursor: not-allowed; }
+.ps-step-value { min-width: 1.6rem; text-align: center; font-weight: 500; }
+.ps-range { flex: 1 1 8rem; max-width: 11rem; accent-color: var(--text-primary); }
+.ps-range-value { min-width: 2rem; text-align: right; font-weight: 500; }
+.ps-input { width: 9.5rem; min-height: 2.3rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--modal-bg); color: var(--text-primary); font-size: 1rem; }
+textarea.ps-input { width: 100%; min-height: 4rem; padding: 0.5rem 0.75rem; resize: vertical; }
+.ps-field.is-block { display: block; padding: 0.7rem 0; }
+.ps-field.is-block .ps-field-label { display: block; margin-bottom: 0.4rem; }
+.ps-error { margin: 0.3rem 0 0; color: var(--state-danger); font-size: 0.8125rem; }
+
+/* The design page is the design picker itself (ui/files/design/deck-design-picker.js) dressed for the sheet: its own title goes (the
+   sheet has one), the line about how files are made is a card, the tabs are a segmented control, the templates fill two columns. */
+.ps-design .deck-design-title { display: none; }
+.ps-design .file-mode-section { margin: 0 0 0.9rem; padding: 0.8rem 1rem; border: 0; border-radius: 1rem; background: var(--hover-bg); }
+.ps-design .file-mode-label { color: var(--text-primary); font-size: 0.9375rem; font-weight: 500; }
+.ps-design .file-mode-value { color: var(--text-primary); font-size: 0.9375rem; font-weight: 500; }
+.ps-design .file-mode-note { margin-top: 0.3rem; font-size: 0.8125rem; }
+.ps-design .deck-design-tabs { gap: 0.4rem; margin: 0 0 0.7rem; padding: 0.25rem; border: 0; border-radius: 0.9rem; background: var(--hover-bg); }
+.ps-design .deck-design-tab { flex: 1 1 0; margin: 0; padding: 0; min-height: 2.4rem; border: 0; border-radius: 0.7rem; font-size: 0.9375rem; font-weight: 500; text-align: center; }
+.ps-design .deck-design-tab[aria-selected="true"] { background: var(--modal-bg); color: var(--text-primary); font-weight: 500; }
+.ps-design .deck-design-intro { margin: 0 0.25rem 0.8rem; font-size: 0.8125rem; }
+.ps-design .deck-design-auto { padding: 0.9rem 1rem; border-width: 1.5px; border-radius: 1.25rem; }
+.ps-design .deck-design-auto-name { font-size: 0.9375rem; font-weight: 500; }
+.ps-design .deck-design-auto-hint { font-size: 0.8125rem; }
+.ps-design .deck-design-check { width: 1.5rem; height: 1.5rem; }
+.ps-design .deck-design-heading { margin: 1rem 0.25rem 0.6rem; font-size: 0.8125rem; font-weight: 400; }
+.ps-design .deck-design-grid, .ps-design .deck-design-grid:not(.is-document) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 0.75rem; }
+.ps-design .deck-design-thumb { border-radius: 0.8rem; }
+.ps-design .deck-design-template-name { font-size: 0.875rem; font-weight: 500; }
+.ps-design .deck-design-template[aria-pressed="true"] .deck-design-template-name { font-weight: 500; }
+.ps-loading { display: grid; place-items: center; min-height: 8rem; color: var(--text-secondary); }
+
+@media (prefers-reduced-motion: reduce) {
+    .ps-sheet, .ps-backdrop, .ps-page { transition: none; animation: none; }
+}

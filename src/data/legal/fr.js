@@ -142,7 +142,7 @@ export default {
         id: 'advanced',
         h: '10. Mode avancé (bac à sable Python)',
         blocks: [
-          'Le mode avancé laisse le modèle écrire du Python pour traiter des données, tracer des graphiques et créer des fichiers. Le code s’exécute dans un bac à sable isolé :',
+          'Le mode avancé laisse le modèle écrire du Python pour traiter des données, tracer des graphiques et créer des fichiers. Il est utilisé automatiquement quand le modèle et l’appareil le permettent ; sinon (modèle sans appels d’outils, conseil, mode apprentissage) la réponse est faite en mode standard, sans rien à choisir. Le code s’exécute dans un bac à sable isolé :',
           [
             'Exécuté par le serveur : le code et les fichiers joints vont au serveur de bac à sable de Noureon et s’exécutent dans un conteneur à mémoire et CPU limités, sans réseau propre (il n’atteint un site qu’à travers le proxy de filtrage, qui vous demande l’accord pour chaque site non autorisé), supprimé à la fin de la réponse ; les fichiers créés sont enregistrés dans votre stockage cloud et listés dans la réponse.',
             'Exécuté dans le navigateur : le code s’exécute dans une page isolée (run.noureon.com) avec Pyodide, chargé depuis jsDelivr.',

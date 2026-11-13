@@ -61,14 +61,15 @@ const button = (noteId) => {
 const retryHarness = ({ plan = { ok: true }, started = { ok: true, run: { runId: 'run-7' } }, model = { id: 'seeing', provider: 'gemini' }, sees = true, replying = false, localBegins = true } = {}) => {
   const calls = { start: [], follow: [], local: [], notices: [] };
   const deps = {
-    getConfig: () => ({ uiLanguage: 'en', fileModeDefault: 'standard' }),
+    getConfig: () => ({ uiLanguage: 'en' }),
     scheduler: { modelFor: () => model, retry: (args) => { calls.local.push(args); return localBegins; } },
     serverReply: {
       planVision: () => plan,
       startVision: async (args) => { calls.start.push(args); return started; },
       followVision: async (args) => { calls.follow.push(args); }
     },
-    supportsToolCalling: () => true,
+    // A model without tool calls: the reply is made in Standard mode (nobody chooses it any more).
+    supportsToolCalling: () => false,
     modelSupportsVision: () => sees,
     isReplying: () => replying,
     showNotification: (text, kind) => calls.notices.push([text, kind]),

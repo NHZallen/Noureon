@@ -55,7 +55,7 @@ const documentedImportantUsage = {
     category: 'required: mobile override'
   },
   'src/styles/mobile-composer-layout.css': {
-    max: 6,
+    max: 7,
     category: 'required: mobile override'
   },
   'src/styles/modals.css': {

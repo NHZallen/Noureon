@@ -142,7 +142,7 @@ export default {
         id: 'advanced',
         h: '10. Modo avanzado (entorno aislado de Python)',
         blocks: [
-          'El modo avanzado deja que el modelo escriba Python para procesar datos, trazar gráficos y crear archivos. El código se ejecuta en un entorno aislado:',
+          'El modo avanzado deja que el modelo escriba Python para procesar datos, trazar gráficos y crear archivos. Se usa automáticamente cuando el modelo y el dispositivo pueden ejecutarlo; si no pueden (un modelo sin llamadas a herramientas, un consejo, el modo de aprendizaje) esa respuesta se hace en modo estándar, sin nada que elegir. El código se ejecuta en un entorno aislado:',
           [
             'Ejecutado por el servidor: el código y los archivos adjuntos van al servidor de entorno aislado de Noureon y se ejecutan en un contenedor con memoria y CPU limitadas y sin red propia (solo llega a un sitio a través del proxy de filtrado, que te pregunta por cada sitio no permitido), que se elimina al terminar la respuesta; los archivos creados se guardan en tu almacenamiento en la nube y se listan en la respuesta.',
             'Ejecutado en el navegador: el código se ejecuta en una página aislada (run.noureon.com) con Pyodide, que se carga desde jsDelivr.',

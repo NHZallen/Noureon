@@ -142,7 +142,7 @@ export default {
         id: 'advanced',
         h: '10. Advanced mode (Python sandbox)',
         blocks: [
-          'Advanced mode lets the model write Python to process data, draw charts and make files. The code runs in an isolated sandbox:',
+          'Advanced mode lets the model write Python to process data, draw charts and make files. It is used automatically when the model and the device can run it; when they cannot (a model without tool calls, a council, learning mode) that reply is made in Standard mode, and there is nothing to choose. The code runs in an isolated sandbox:',
           [
             'Run by the server: the code and the files you attached go to Noureon\'s sandbox server and run in a container with limited memory and CPU and no network of its own (it reaches a website only through a filtering proxy, which asks you about each site you have not allowed), which is removed when the reply ends; the files made are saved in your own cloud storage and listed in the reply.',
             'Run in the browser: the code runs in an isolated page (run.noureon.com) with Pyodide, which is loaded from jsDelivr.',

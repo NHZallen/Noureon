@@ -3,7 +3,7 @@
 
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
-import { ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl, ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
+import { ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
 
 export function createSettingsModalLifecycle({
     window, document, console, elements: ALL_ELEMENTS, getCurrentUser, runtimeStorageAdapter, models: MODELS, i18n, config,
@@ -73,9 +73,8 @@ export function createSettingsModalLifecycle({
     };
     const ensureAutoWebSearchSettingsControl = () => ensureAutoWebSearchControl({ document, elements: ALL_ELEMENTS });
     // The rows of the replies card that load with the page; the visual check row loads with the dialog's parts.
-    const ensureFileModeSettingsControl = () => {
+    const ensureReplyRowsSettingsControl = () => {
         ensureProcessOpenSettingsControl({ document, elements: ALL_ELEMENTS, config });
-        ensureFileModeControl({ document, elements: ALL_ELEMENTS, config });
     };
     // The heavier parts of the dialog load when it is first built (settings-dialog-parts.js): the visual check row with the Privacy and
     // Permissions tabs and the memory of notes. Saving waits for them.
@@ -97,7 +96,7 @@ export function createSettingsModalLifecycle({
         ensureSettingsMobileShell();
         ensureUserSettingsNavigationShell();
         ensureAutoWebSearchSettingsControl();
-        ensureFileModeSettingsControl();
+        ensureReplyRowsSettingsControl();
         ensureCouncilTranslatorSettingsControls();
         prepareApiKeyInputsForSettings();
         if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();

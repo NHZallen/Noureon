@@ -76,6 +76,11 @@
         position: static;
     }
 
+    /* The design picker is a page of the sheet that the "+" opens on a phone (ui/plus-sheet), so the button for it leaves the row of tools. */
+    #deck-design-control {
+        display: none !important;
+    }
+
     /* Its left edge is where the other two panels start (12px from the screen edge, the box being 8px in). */
     #file-options-popover:not(.message-edit-shared-popover) {
         left: 0.2rem;

@@ -5,7 +5,7 @@ import { Window } from 'happy-dom';
 import fragment03 from '../src/templates/fragments/03-shell.fragment.js';
 import fragment04 from '../src/templates/fragments/04-shell.fragment.js';
 import { ensureStorageUsageBlock } from '../src/app/runtime/settings/settings-storage-usage.js';
-import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl } from '../src/app/runtime/settings/settings-vision-check-control.js';
+import { ensureAutoWebSearchSettingsControl, ensureProcessOpenSettingsControl } from '../src/app/runtime/settings/settings-vision-check-control.js';
 import { ensureVisionCheckSettingsControl } from '../src/app/runtime/settings/settings-vision-check-section.js';
 import { ensureReplyInputSettingsControl } from '../src/app/runtime/settings/settings-reply-input-control.js';
 
@@ -96,11 +96,10 @@ test('the Accessibility tab has its rows in the page, and the controls that used
   ensureAutoWebSearchSettingsControl({ document, elements });
   ensureVisionCheckSettingsControl({ document, elements, config, saveConfig: async () => {}, showNotification: () => {} });
   ensureProcessOpenSettingsControl({ document, elements, config });
-  ensureFileModeSettingsControl({ document, elements, config });
   ensureReplyInputSettingsControl({ document, elements, config: { ...config, replyInputMode: 'queue' } });
 
   assert.equal(document.querySelectorAll('#accessibility-section .pz-row').length, before + 1, 'the only row added is the switch of reduced motion, in a card of its own');
-  assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #file-mode-setting-row, #reply-input-setting-row').length, 4);
+  assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #reply-input-setting-row').length, 3);
   assert.equal(elements.replyInputModeSelect.value, 'queue', 'what is saved is shown on the choice that is in the page');
   assert.deepEqual([...elements.replyInputModeSelect.options].map((option) => option.textContent), ['Steer', 'Queue', 'Send now'], 'short words, in the language of the settings (a phone cuts a long one)');
   assert.equal(document.querySelector('#reply-input-setting-row').closest('.pz-card') !== null, true);
@@ -110,7 +109,7 @@ test('the Accessibility tab has its rows in the page, and the controls that used
   );
   assert.equal(elements.visionCheckToggleSwitch, document.getElementById('vision-check-toggle-switch'));
   assert.equal(elements.processToggle.checked, true, 'the setting is shown on the switch that is in the page');
-  assert.equal(elements.fileModeDefaultSelect.value, 'standard');
+  assert.equal(document.getElementById('file-mode-setting-row'), null, 'the way files are made is no longer a setting: the model and the device decide');
   assert.equal(document.querySelector('#process-open-setting-row .pz-label').textContent.length > 0, true);
   assert.notEqual(document.querySelector('#vision-check-setting-row .pz-label').textContent, '自動看圖檢查簡報', 'the words are in the language of the settings');
 });

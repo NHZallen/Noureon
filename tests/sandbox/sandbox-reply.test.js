@@ -69,14 +69,14 @@ test('a reply uses Advanced mode only when chosen and possible, and says why not
   const supports = (model) => model?.id === 'ok';
   const base = { conversation: {}, config: {}, modelInfo: { id: 'ok' }, supportsToolCalling: supports };
   assert.deepEqual(resolveReplyMode(base), { advanced: true, reason: null }, 'Advanced is the default');
-  assert.deepEqual(resolveReplyMode({ ...base, config: { fileModeDefault: 'standard' } }), { advanced: false, reason: null });
-  assert.deepEqual(resolveReplyMode({ ...base, conversation: { fileMode: 'standard' } }), { advanced: false, reason: null });
+  assert.deepEqual(resolveReplyMode({ ...base, config: { fileModeDefault: 'standard' } }), { advanced: true, reason: null }, 'the old setting is ignored: the model and the device decide');
+  assert.deepEqual(resolveReplyMode({ ...base, conversation: { fileMode: 'standard' } }), { advanced: true, reason: null }, 'a Standard picked in an older version is ignored');
   assert.deepEqual(resolveReplyMode({ ...base, conversation: { retentionMode: 'ephemeral' } }), { advanced: true, reason: null }, 'a temporary chat can make files too');
   assert.equal(resolveReplyMode({ ...base, isCouncil: true }).reason, 'council');
   assert.equal(resolveReplyMode({ ...base, config: { isLearningMode: true } }).reason, 'learning');
   assert.equal(resolveReplyMode({ ...base, modelInfo: { id: 'no' } }).reason, 'model-unsupported');
   assert.equal(resolveReplyMode({ ...base, browserSupported: false }).reason, 'browser-unsupported');
-  const state = describeFileModeState({ ...base, conversation: { fileMode: 'standard' }, modelInfo: { id: 'no' }, window: {} });
+  const state = describeFileModeState({ ...base, modelInfo: { id: 'no' }, window: {} });
   assert.deepEqual(state, { value: 'standard', unavailableReason: 'model-unsupported', ready: false });
 });
 

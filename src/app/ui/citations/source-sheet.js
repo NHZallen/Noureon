@@ -5,23 +5,9 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { trackPointedRow } from '../scroll/pointed-row.js';
 import { fillSourceList } from './source-list.js';
+import { decideSheetDrag } from './sheet-drag.js';
 
-const CLOSE_DISTANCE = 110;
-const EXPAND_DISTANCE = 60;
-const FAST = 0.6;
-
-/**
- * What a drag of the sheet's handle ends in. `dy` is how far it went down (negative: up), `speed` how fast (px per ms,
- * the same sign). 'large' and 'medium' are the two heights of a sheet that can be pulled up; a sheet that cannot is only
- * ever closed or left.
- */
-export function decideSheetDrag({ state = 'medium', dy = 0, speed = 0, expandable = false }) {
-  const down = dy > CLOSE_DISTANCE || speed > FAST;
-  const up = dy < -EXPAND_DISTANCE || speed < -FAST;
-  if (down) return expandable && state === 'large' ? 'medium' : 'close';
-  if (up && expandable) return 'large';
-  return state;
-}
+export { decideSheetDrag };
 
 let current = null;
 

@@ -58,7 +58,7 @@ test('the menu item is made once, in the "+" menu before learning mode, and is h
   assert.deepEqual(buttons, ['research-mode-menu-btn', 'learning-mode-btn']);
   const button = document.getElementById('research-mode-menu-btn');
   assert.equal(button.querySelector('.composer-menu-label').textContent, 'Deep research');
-  assert.match(button.querySelector('img').getAttribute('src'), /deep-research\.png/);
+  assert.equal(button.querySelector('svg.composer-menu-icon')?.getAttribute('stroke'), 'currentColor', 'a line drawing in the colour of the text');
   assert.equal(button.style.display, 'flex');
   const council = harness({ council: true });
   council.mode.syncMenu();
