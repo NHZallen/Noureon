@@ -65,6 +65,7 @@ export function openPlusSheet(ctx) {
   sheet.card.classList.add('ps-sheet');
 
   let page = 'home';
+  let pulled = false;
   let building = 0;
 
   const press = (button, { keepFocus = false } = {}) => {
@@ -168,6 +169,7 @@ export function openPlusSheet(ctx) {
     pageElement.dataset.page = name;
     if (name === 'design') pageElement.classList.add('ps-design');
     const top = body.scrollTop;
+    const previous = page;
     page = name;
     sheet.card.dataset.page = name;
     title.textContent = TITLES[name]();
@@ -177,7 +179,10 @@ export function openPlusSheet(ctx) {
     buildPage(name, pageElement);
     body.replaceChildren(pageElement);
     body.scrollTop = direction ? 0 : top;
-    sheet.refit(PAGE_SIZES[name]);
+    // The height a page has by itself is where it starts; what the person has pulled up stays up: pulled up on a page that is medium by
+    // itself, it stays large on the pages after it (back to the first page too), until it is pulled down again.
+    pulled = sheet.state() === 'large' && (PAGE_SIZES[previous] === 'medium' || pulled);
+    sheet.refit(PAGE_SIZES[name] === 'large' || pulled ? 'large' : 'medium');
   }
 
   function go(name) {
