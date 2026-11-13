@@ -865,7 +865,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
             elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
             OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS,
-            updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData, deleteConversationsFromCloud, deleteAstrasFromCloud,
+            updateInputState, updateApiKeyWarningBadge, setTheme, updateThemeButtons, saveConfig, saveAppData, deleteConversationsFromCloud, deleteAstrasFromCloud,
             showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
             renderAll, renderAstras, renderInputIndicators, renderCouncilControls,
             showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,

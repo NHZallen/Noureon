@@ -10,14 +10,13 @@ import { createChatScrollLifecycle } from '../features/chat-scroll-lifecycle.js'
 import { createLatestUpdateNotice } from '../features/latest-update-notice.js';
 import { createMobileContextMenus } from '../features/mobile-context-menus.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
-import { startLocalKeyNotice } from '../security/local-key-notice.js';
 
 export function createPageFeatures({
     window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper, loadChart, loadCropper,
     ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
     elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
     OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS,
-    updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData,
+    updateInputState, updateApiKeyWarningBadge = () => {}, setTheme, updateThemeButtons, saveConfig, saveAppData,
     deleteConversationsFromCloud, deleteAstrasFromCloud = async () => {},
     showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
     renderAll, renderAstras, renderInputIndicators, renderCouncilControls = () => {},
@@ -29,7 +28,10 @@ export function createPageFeatures({
     const getUiLanguage = () => runtimeConfigAccess.getUiLanguage();
     const getConversations = () => liveConversationsBridge.getConversations();
     // Says once if the API keys kept on this device cannot be read (security/local-key-seal.js).
-    startLocalKeyNotice({ window, getText: (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback, showNotification });
+    // (Loaded after the page: a key found unreadable before that is told when it starts.)
+    import('../security/local-key-notice.js').then(({ startLocalKeyNotice }) => startLocalKeyNotice({ window, getText: (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback, showNotification }));
+    // The header follows keys that arrive from the sync or the unlock of the vault (loaded after the page: the first of them comes later).
+    import('../security/keys-arrived.js').then(({ refreshWhenKeysArrive }) => refreshWhenKeysArrive({ window, refresh: () => { updateApiKeyWarningBadge(); updateInputState(); } }));
     const themeAppearanceLifecycle = createThemeAppearanceLifecycle({
         window,
         document,
