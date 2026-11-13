@@ -5,7 +5,6 @@
 // live in model-picker-lifecycle.js.
 
 const ICONS = Object.freeze({
-  chevron: '<svg class="mp-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"></polyline></svg>',
   council: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>',
   search: '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>',
   check: '<svg class="mp-check" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>',
@@ -180,7 +179,7 @@ export function renderPickerTrigger(state, ctx) {
   const { escape } = ctx;
   const label = state.council ? ctx.t('councilCount', { n: state.council.count }) : state.modelName;
   const dot = state.council && !state.council.ok ? '<span class="mp-trigger-dot" aria-hidden="true"></span>' : '';
-  return `<button type="button" id="model-picker-btn" class="mp-trigger${state.council ? ' is-council' : ''}" aria-haspopup="dialog" aria-expanded="${state.open ? 'true' : 'false'}" title="${escape(state.title)}" ${state.disabled ? 'disabled' : ''}>${state.council ? ICONS.council : ''}<span class="mp-trigger-name">${escape(label)}</span>${dot}${ICONS.chevron}</button>`;
+  return `<button type="button" id="model-picker-btn" class="mp-trigger${state.council ? ' is-council' : ''}" aria-haspopup="dialog" aria-expanded="${state.open ? 'true' : 'false'}" title="${escape(state.title)}" ${state.disabled ? 'disabled' : ''}>${state.council ? ICONS.council : ''}<span class="mp-trigger-name">${escape(label)}</span>${dot}</button>`;
 }
 
 /** How deeply it thinks: its own small button next to the model's, shown only where the model has levels. */
@@ -190,7 +189,7 @@ export function renderDepthTrigger(state, ctx) {
   // Every level name is laid in the same place, unseen (a pseudo element made from this list, see model-picker.css), so the button is as wide as
   // the longest name and does not change width (and move the panel above it) as the level changes.
   const sizer = state.depth.levels.map((level) => escape(level.label)).join('\n');
-  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}><span class="mp-depth-trigger-label" data-sizer="${sizer}"><span class="mp-depth-trigger-value">${escape(label)}</span></span>${ICONS.chevron}</button>`;
+  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}><span class="mp-depth-trigger-label" data-sizer="${sizer}"><span class="mp-depth-trigger-value">${escape(label)}</span></span></button>`;
 }
 
 /** The small panel behind it: the level named, the slider, and what each end means. */
