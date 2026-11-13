@@ -23,6 +23,7 @@
     "lint": "eslint .",
     "check:sizes": "node scripts/check-file-sizes.mjs",
     "check:version": "node scripts/check-version-consistency.mjs",
+    "check:authorship": "node scripts/check-commit-authorship.mjs",
     "check:server": "node scripts/check-server-boundaries.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:browser": "npm run build && node --test --test-concurrency=1 \"tests/browser/**/*.e2e.js\"",
