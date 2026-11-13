@@ -155,6 +155,38 @@ test('forgot-password sends a recovery code and only opens reset after OTP verif
   window.close();
 });
 
+test('a build with no human check (the test site) still lets the code be asked for, without a token', async () => {
+  const window = createWindow(PASSWORD_RECOVERY_ROUTE);
+  const calls = [];
+  const supabase = { auth: { resetPasswordForEmail: async (email, options) => { calls.push({ email, options }); return { error: null }; } } };
+  await initializePasswordRecoveryPage({ window, document: window.document, supabase, turnstile: idleTurnstile, navigate: () => {} });
+  const send = window.document.getElementById('password-recovery-send-button');
+  assert.equal(send.disabled, false, 'the button is not shut because there is no check');
+  assert.equal(window.document.getElementById('password-recovery-status').classList.contains('hidden'), true, 'and no error is shown');
+  window.document.getElementById('password-recovery-email').value = 'person@example.com';
+  window.document.getElementById('password-recovery-request-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  await flush(window);
+  assert.deepEqual(calls, [{ email: 'person@example.com', options: { captchaToken: undefined } }]);
+  assert.equal(window.document.getElementById('password-recovery-code-form').classList.contains('hidden'), false);
+  window.close();
+});
+
+test('where the human check is on, the code is not asked for until it is done', async () => {
+  const window = createWindow(PASSWORD_RECOVERY_ROUTE);
+  let asked = 0;
+  const supabase = { auth: { resetPasswordForEmail: async () => { asked += 1; return { error: null }; } } };
+  const noToken = { enabled: true, mount: async () => true, getToken: () => '', reset: () => {} };
+  await initializePasswordRecoveryPage({ window, document: window.document, supabase, turnstile: noToken, navigate: () => {} });
+  window.document.getElementById('password-recovery-email').value = 'person@example.com';
+  window.document.getElementById('password-recovery-request-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  await flush(window);
+  assert.equal(asked, 0);
+  const status = window.document.getElementById('password-recovery-status');
+  assert.equal(status.classList.contains('hidden'), false);
+  assert.equal(status.dataset.type, 'error');
+  window.close();
+});
+
 test('direct reset-password access is blocked without claiming an expired verification', async () => {
   const window = createWindow(PASSWORD_RESET_ROUTE);
   await initializePasswordRecoveryPage({

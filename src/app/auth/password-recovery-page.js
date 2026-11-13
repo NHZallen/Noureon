@@ -50,40 +50,32 @@ function defaultNavigate(window, path, { replace = false } = {}) {
 
 function commonPageMarkup(content) {
   return `
-    <div class="min-h-screen flex flex-col bg-white text-gray-900">
-      <header class="relative z-20 p-4 sm:px-6 lg:px-8 bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-          <a href="/" class="flex items-center gap-2" aria-label="Noureon">
-            <img class="h-8 w-8 rounded-lg object-cover" src="/logo.png" alt="" width="32" height="32">
-            <span class="text-xl font-bold text-gray-800">Noureon</span>
-          </a>
-          <div class="relative" id="recovery-language-switcher">
-            <button id="recovery-language-button" type="button" class="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900" aria-expanded="false">
-              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"></path></svg>
-              <span id="recovery-language-label">繁體中文</span>
-            </button>
-            <div id="recovery-language-menu" class="hidden absolute right-0 mt-2 w-36 rounded-md shadow-lg bg-white ring-1 ring-black/5 z-30 py-1">
-              ${Object.entries(LANGUAGE_LABELS).map(([value, label]) => `<a href="?lang=${value}" data-recovery-language="${value}" class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">${label}</a>`).join('')}
-            </div>
+    <div class="rp-page">
+      <header class="rp-header z-20">
+        <a href="/" class="rp-brand" aria-label="Noureon">
+          <img src="/logo.png" alt="" width="28" height="28">
+          <span>Noureon</span>
+        </a>
+        <div class="rp-lang" id="recovery-language-switcher">
+          <button id="recovery-language-button" type="button" class="rp-lang-button" aria-expanded="false">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"></path></svg>
+            <span id="recovery-language-label">繁體中文</span>
+          </button>
+          <div id="recovery-language-menu" class="hidden rp-lang-menu">
+            ${Object.entries(LANGUAGE_LABELS).map(([value, label]) => `<a href="?lang=${value}" data-recovery-language="${value}">${label}</a>`).join('')}
           </div>
         </div>
       </header>
 
-      <main class="relative flex-1 flex items-center justify-center overflow-hidden py-12 sm:py-20 px-4">
-        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div class="absolute top-0 left-0 w-80 h-80 bg-blue-100 rounded-full opacity-50 -translate-x-24 -translate-y-24"></div>
-          <div class="absolute bottom-0 right-0 w-96 h-96 bg-indigo-100 rounded-full opacity-50 translate-x-28 translate-y-28"></div>
-        </div>
-        <section class="relative w-full max-w-md p-7 sm:p-8 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200">
+      <main class="rp-main">
+        <section class="rp-col">
           ${content}
         </section>
       </main>
 
-      <footer class="bg-white border-t border-gray-200">
-        <div class="max-w-7xl mx-auto py-6 px-4 text-center text-sm text-gray-500">
-          <p data-lang-key="copyright">Noureon 版權所有</p>
-          <p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>
-        </div>
+      <footer class="rp-footer">
+        <p data-lang-key="copyright">Noureon 版權所有</p>
+        <p><a href="mailto:support@noureon.com">support@noureon.com</a></p>
       </footer>
     </div>
   `;
@@ -91,56 +83,50 @@ function commonPageMarkup(content) {
 
 function forgotPasswordMarkup() {
   return commonPageMarkup(`
-    <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="14" x="3" y="5" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
-    </div>
-    <h1 class="text-2xl font-bold text-center text-gray-800" data-lang-key="passwordRecoveryTitle">重設密碼</h1>
-    <p class="mt-2 mb-7 text-center text-sm leading-6 text-gray-500" data-lang-key="passwordRecoveryDescription">輸入綁定的 Email，我們會寄送 8 位數驗證碼。</p>
+    <h1 class="rp-title" data-lang-key="passwordRecoveryTitle">重設密碼</h1>
+    <p class="rp-sub" data-lang-key="passwordRecoveryDescription">輸入綁定的 Email，我們會寄送 8 位數驗證碼。</p>
 
     <form id="password-recovery-request-form" novalidate>
-      <label for="password-recovery-email" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="authEmailLabel">Email</label>
-      <input id="password-recovery-email" type="email" autocomplete="email" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="name@example.com" data-lang-key-placeholder="authEmailPlaceholder">
-      <button id="password-recovery-send-button" type="submit" class="mt-5 w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300" data-lang-key="passwordRecoverySendCode">寄送驗證碼</button>
+      <label for="password-recovery-email" class="rp-label" data-lang-key="authEmailLabel">Email</label>
+      <input id="password-recovery-email" type="email" autocomplete="email" required class="rp-field" placeholder="name@example.com" data-lang-key-placeholder="authEmailPlaceholder">
+      <button id="password-recovery-send-button" type="submit" class="rp-button" data-lang-key="passwordRecoverySendCode">寄送驗證碼</button>
     </form>
 
     <form id="password-recovery-code-form" class="hidden" novalidate>
-      <p class="mb-5 rounded-lg bg-blue-50 p-3 text-sm leading-6 text-blue-700" data-lang-key="passwordRecoveryCodeSent">若此 Email 已綁定帳號，驗證碼已寄出。請檢查收件匣與垃圾郵件。</p>
-      <label for="password-recovery-code" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="passwordRecoveryCodeLabel">8 位數驗證碼</label>
-      <input id="password-recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" required class="w-full p-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.22em] font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="00000000">
-      <button id="password-recovery-verify-button" type="submit" class="mt-5 w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300" data-lang-key="passwordRecoveryVerifyCode">驗證並繼續</button>
-      <button id="password-recovery-request-again" type="button" class="mt-3 w-full text-sm text-blue-700 hover:underline disabled:text-gray-400 disabled:no-underline" disabled></button>
+      <p class="rp-note" data-lang-key="passwordRecoveryCodeSent">若此 Email 已綁定帳號，驗證碼已寄出。請檢查收件匣與垃圾郵件。</p>
+      <label for="password-recovery-code" class="rp-label" data-lang-key="passwordRecoveryCodeLabel">8 位數驗證碼</label>
+      <input id="password-recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" required class="rp-field rp-code" placeholder="00000000">
+      <button id="password-recovery-verify-button" type="submit" class="rp-button" data-lang-key="passwordRecoveryVerifyCode">驗證並繼續</button>
+      <button id="password-recovery-request-again" type="button" class="rp-text" disabled></button>
     </form>
 
-    <p id="password-recovery-status" class="hidden mt-5 rounded-lg p-3 text-center text-sm" role="status" aria-live="polite"></p>
-    <a href="/" class="mt-6 block text-center text-sm text-gray-600 hover:text-gray-900 hover:underline" data-lang-key="passwordRecoveryBackToLogin">返回登入</a>
+    <p id="password-recovery-status" class="hidden rp-status" role="status" aria-live="polite"></p>
+    <a href="/" class="rp-text" data-lang-key="passwordRecoveryBackToLogin">返回登入</a>
   `);
 }
 
 function resetPasswordMarkup() {
   return commonPageMarkup(`
-    <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="12" x="4" y="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
-    </div>
-    <div id="password-reset-loading" class="text-center text-sm text-gray-500" data-lang-key="passwordResetChecking">正在確認驗證狀態…</div>
+    <div id="password-reset-loading" class="rp-loading" data-lang-key="passwordResetChecking">正在確認驗證狀態…</div>
 
-    <div id="password-reset-blocked" class="hidden text-center">
-      <h1 class="text-2xl font-bold text-gray-800" data-lang-key="passwordResetVerificationRequiredTitle">請先驗證 Email</h1>
-      <p id="password-reset-blocked-message" class="mt-3 text-sm leading-6 text-gray-500"></p>
-      <a href="/forgot-password" class="mt-6 block w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700" data-lang-key="passwordResetStart">開始重設密碼</a>
-      <a href="/" class="mt-4 block text-sm text-gray-600 hover:text-gray-900 hover:underline" data-lang-key="passwordRecoveryBackToLogin">返回登入</a>
+    <div id="password-reset-blocked" class="hidden">
+      <h1 class="rp-title" data-lang-key="passwordResetVerificationRequiredTitle">請先驗證 Email</h1>
+      <p id="password-reset-blocked-message" class="rp-sub"></p>
+      <a href="/forgot-password" class="rp-button" data-lang-key="passwordResetStart">開始重設密碼</a>
+      <a href="/" class="rp-text" data-lang-key="passwordRecoveryBackToLogin">返回登入</a>
     </div>
 
     <div id="password-reset-content" class="hidden">
-      <h1 class="text-2xl font-bold text-center text-gray-800" data-lang-key="passwordResetNewTitle">設定新密碼</h1>
-      <p class="mt-2 mb-7 text-center text-sm leading-6 text-gray-500" data-lang-key="passwordResetNewDescription">建立至少 8 個字元的新登入密碼。</p>
+      <h1 class="rp-title" data-lang-key="passwordResetNewTitle">設定新密碼</h1>
+      <p class="rp-sub" data-lang-key="passwordResetNewDescription">建立至少 8 個字元的新登入密碼。</p>
       <form id="password-reset-form" novalidate>
-        <label for="password-reset-new" class="block text-sm font-medium text-gray-700 mb-1" data-lang-key="passwordResetNewLabel">新密碼</label>
-        <input id="password-reset-new" type="password" minlength="8" autocomplete="new-password" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" data-lang-key-placeholder="newPasswordPlaceholder" placeholder="新密碼（至少 8 個字元）">
-        <label for="password-reset-confirmation" class="mt-4 block text-sm font-medium text-gray-700 mb-1" data-lang-key="passwordResetConfirmLabel">確認新密碼</label>
-        <input id="password-reset-confirmation" type="password" minlength="8" autocomplete="new-password" required class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" data-lang-key-placeholder="confirmNewPasswordPlaceholder" placeholder="再次輸入新密碼">
-        <button id="password-reset-submit" type="submit" class="mt-6 w-full p-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300" data-lang-key="resetPasswordButton">更新密碼</button>
+        <label for="password-reset-new" class="rp-label" data-lang-key="passwordResetNewLabel">新密碼</label>
+        <input id="password-reset-new" type="password" minlength="8" autocomplete="new-password" required class="rp-field" data-lang-key-placeholder="newPasswordPlaceholder" placeholder="新密碼（至少 8 個字元）">
+        <label for="password-reset-confirmation" class="rp-label" data-lang-key="passwordResetConfirmLabel">確認新密碼</label>
+        <input id="password-reset-confirmation" type="password" minlength="8" autocomplete="new-password" required class="rp-field" data-lang-key-placeholder="confirmNewPasswordPlaceholder" placeholder="再次輸入新密碼">
+        <button id="password-reset-submit" type="submit" class="rp-button" data-lang-key="resetPasswordButton">更新密碼</button>
       </form>
-      <p id="password-reset-status" class="hidden mt-5 rounded-lg p-3 text-center text-sm" role="status" aria-live="polite"></p>
+      <p id="password-reset-status" class="hidden rp-status" role="status" aria-live="polite"></p>
     </div>
   `);
 }
@@ -195,12 +181,8 @@ function bindLanguageSwitcher({ window, document, route, getLanguage, setLanguag
 function setStatus(element, message, type = 'info') {
   if (!element) return;
   element.textContent = message;
-  element.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'bg-green-50', 'text-green-700', 'bg-blue-50', 'text-blue-700');
-  element.classList.add(...(type === 'error'
-    ? ['bg-red-50', 'text-red-700']
-    : type === 'success'
-      ? ['bg-green-50', 'text-green-700']
-      : ['bg-blue-50', 'text-blue-700']));
+  element.dataset.type = type;
+  element.classList.remove('hidden');
 }
 
 function setButtonBusy(button, busy) {
@@ -232,11 +214,6 @@ async function initializeForgotPassword({ window, document, supabase, turnstile,
   let submittedEmail = window.sessionStorage.getItem(RECOVERY_EMAIL_KEY) || '';
   let countdownTimer;
   emailInput.value = submittedEmail;
-
-  if (!turnstile.enabled) {
-    setStatus(status, text('turnstileInitFailed', '驗證模組載入失敗，請重新整理後再試。'), 'error');
-    sendButton.disabled = true;
-  }
 
   const showRequestForm = () => {
     requestForm.classList.remove('hidden');
@@ -279,12 +256,10 @@ async function initializeForgotPassword({ window, document, supabase, turnstile,
       setStatus(status, text('passwordRecoveryEmailInvalid', '請輸入有效的 Email。'), 'error');
       return;
     }
-    if (!turnstile.enabled) {
-      setStatus(status, text('turnstileInitFailed', '驗證模組載入失敗，請重新整理後再試。'), 'error');
-      return;
-    }
-    const captchaToken = turnstile.getToken('password-recovery-send');
-    if (!captchaToken) {
+    // A build with no site key (the test site) has no human check: the request goes without a token, as on the sign-in page, and the sign-in service
+    // refuses it by itself where it wants one.
+    const captchaToken = turnstile.enabled ? turnstile.getToken('password-recovery-send') : '';
+    if (turnstile.enabled && !captchaToken) {
       setStatus(status, text('turnstileRequired', '請先完成人機驗證。'), 'error');
       return;
     }

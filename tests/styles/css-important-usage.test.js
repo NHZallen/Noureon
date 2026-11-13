@@ -54,6 +54,10 @@ const documentedImportantUsage = {
     max: 41,
     category: 'required: mobile override'
   },
+  'src/styles/password-recovery.css': {
+    max: 4,
+    category: 'required: regression override / legacy compatibility'
+  },
   'src/styles/mobile-composer-layout.css': {
     max: 7,
     category: 'required: mobile override'

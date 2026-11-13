@@ -57,6 +57,7 @@ async function bootstrap() {
   markStartup(STARTUP_MARKS.BOOTSTRAP_START);
   // The typesetter of formulas (app/vendors/katex-vendor.js) and the other libraries are loaded by the modules that use them, when they are first used.
   if (isPasswordRecoveryRoute(window.location.pathname)) {
+    await import('./styles/password-recovery.css');
     const { initializePasswordRecoveryPage } = await import(
       './app/auth/password-recovery-page.js'
     );
