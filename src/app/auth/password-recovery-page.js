@@ -3,6 +3,7 @@ import { ensureLanguage, isLanguageLoaded } from '../i18n/language-packs.js';
 import { setButtonBusy as markButtonBusy } from '../ui/motion/busy-button.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
+import { sendPasswordChangedNotice } from './password-reset-notice.js';
 import {
   PASSWORD_RESET_ROUTE,
   RECOVERY_EMAIL_KEY,
@@ -393,6 +394,8 @@ async function initializeResetPassword({ window, document, supabase, navigate, t
     }
     window.sessionStorage.removeItem(RECOVERY_VERIFICATION_KEY);
     window.sessionStorage.removeItem(RECOVERY_EMAIL_KEY);
+    // The mail that says the password was changed (with the time, device and place), asked for while the session of the code is still there.
+    await sendPasswordChangedNotice({ supabase });
     await supabase.auth.signOut({ scope: 'local' });
     navigate('/', { replace: true });
   });

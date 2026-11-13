@@ -174,6 +174,32 @@ test('direct reset-password access is blocked without claiming an expired verifi
   window.close();
 });
 
+test('choosing the new password asks for the mail that says it was changed, while the session of the code is still there', async () => {
+  const window = createWindow(PASSWORD_RESET_ROUTE);
+  const calls = [];
+  window.sessionStorage.setItem(RECOVERY_VERIFICATION_KEY, JSON.stringify({ userId: 'user-123', verifiedAt: Date.now(), expiresAt: Date.now() + 60_000 }));
+  const supabase = {
+    auth: {
+      getSession: async () => ({ data: { session: { user: { id: 'user-123' }, access_token: 'code-session' } }, error: null }),
+      updateUser: async () => { calls.push('update'); return { error: null }; },
+      signOut: async () => { calls.push('signOut'); return { error: null }; }
+    }
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => { calls.push(`notice ${new URL(url).pathname} ${options.headers.Authorization}`); return { ok: true }; };
+  try {
+    await initializePasswordRecoveryPage({ window, document: window.document, supabase, turnstile: idleTurnstile, navigate: () => {} });
+    window.document.getElementById('password-reset-new').value = 'new-password';
+    window.document.getElementById('password-reset-confirmation').value = 'new-password';
+    window.document.getElementById('password-reset-form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+    await flush(window);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepEqual(calls, ['update', 'notice /v1/security-notice Bearer code-session', 'signOut']);
+  window.close();
+});
+
 test('verified recovery session can update the password and returns to the root sign-in page', async () => {
   const window = createWindow(PASSWORD_RESET_ROUTE);
   const navigations = [];
