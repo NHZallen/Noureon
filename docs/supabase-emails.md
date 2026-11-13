@@ -22,7 +22,7 @@
 
 Security 區的 **MFA 新增／移除**也維持關閉：驗證器（TOTP）和通行金鑰現在有功能了，但通知信由我們自己的伺服器寄（`server/security-notices.js`，一樣的版面，還帶時間、裝置、IP、大略地點），開 Supabase 的會變成同一件事收到兩封。
 
-**改登入密碼**目前可能收到兩封：Supabase 的「密碼已更改」（`password-changed`，沒有時間裝置）加上我們伺服器的 `login-password-changed`（有）。忘記密碼用驗證碼重設完成時，只有 Supabase 那封會寄，伺服器那封沒有接。要只留一封，得先決定留哪封，見 Linear。
+**改登入密碼**目前可能收到兩封：Supabase 的「密碼已更改」（`password-changed`，沒有時間裝置）加上我們伺服器的 `login-password-changed`（有）。忘記密碼用驗證碼重設完成時，只有 Supabase 那封會寄，伺服器那封沒有接。要只留一封，得先決定留哪封（待 Allen 決定）。
 
 ## 不能做到的
 
