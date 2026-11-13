@@ -10,18 +10,42 @@ const fixture = () => {
   document.body.innerHTML = '<div id="privacy-section"><section class="pz-card" id="a"></section><section class="pz-card" id="b"></section><section class="pz-card" id="c"></section></div>';
   return { document, section: document.getElementById('privacy-section') };
 };
+const change = (document, select, value) => {
+  select.value = value;
+  select.dispatchEvent(new document.defaultView.Event('change'));
+};
+const options = (select) => [...select.querySelectorAll('option')].map((option) => [option.value, option.textContent]);
 
-test('the card of the decision model sits after the second card, offers each model, checks the one chosen, and tells the choice', () => {
+test('the card of the decision model sits after the second card, with a provider and then a model, and shows the ones chosen', () => {
+  const { document, section } = fixture();
+  addDecisionCard({ document, section, language: 'en', decisionModel: 'gemini-decision-1', onChange: () => {} });
+  assert.deepEqual([...section.children].map((node) => node.id), ['a', 'b', 'decision-model-card', 'c']);
+  assert.match(section.querySelector('#decision-model-card h3').textContent, /Judgement model/);
+  const provider = section.querySelector('#decision-provider');
+  const model = section.querySelector('#decision-model');
+  assert.deepEqual(options(provider), [['openrouter', 'OpenRouter'], ['gemini', 'Google Gemini']]);
+  assert.equal(provider.value, 'gemini');
+  assert.deepEqual(options(model), [['gemini-decision-1', 'Gemini Decision 1']]);
+  assert.equal(model.value, 'gemini-decision-1');
+  assert.match(section.querySelector('#decision-model-card .pz-row:last-child .pz-sub').textContent, /straight from Google/);
+});
+
+test('choosing a provider offers its models and takes the first one; choosing a model tells the choice', () => {
   const { document, section } = fixture();
   const chosen = [];
-  addDecisionCard({ document, section, language: 'en', decisionModel: 'google/gemini-decision-1', onChange: (id) => chosen.push(id) });
-  assert.deepEqual([...section.children].map((node) => node.id), ['a', 'b', 'decision-model-card', 'c']);
-  const radios = [...section.querySelectorAll('input[name="decision-model"]')];
-  assert.deepEqual(radios.map((radio) => [radio.value, radio.checked]), [['typesafe/jev-1.14', false], ['google/gemini-decision-1', true]]);
-  assert.match(section.querySelector('#decision-model-card h3').textContent, /Judgement model/);
-  radios[0].checked = true;
-  radios[0].dispatchEvent(new document.defaultView.Event('change'));
+  addDecisionCard({ document, section, language: 'en', decisionModel: 'gemini-decision-1', onChange: (id) => chosen.push(id) });
+  const provider = section.querySelector('#decision-provider');
+  const model = section.querySelector('#decision-model');
+  change(document, provider, 'openrouter');
   assert.deepEqual(chosen, ['typesafe/jev-1.14']);
+  assert.deepEqual(options(model), [['typesafe/jev-1.14', 'Jev 1.14'], ['google/gemini-decision-1', 'Gemini Decision 1']]);
+  assert.equal(model.value, 'typesafe/jev-1.14');
+  change(document, model, 'google/gemini-decision-1');
+  assert.deepEqual(chosen, ['typesafe/jev-1.14', 'google/gemini-decision-1']);
+  assert.equal(provider.value, 'openrouter');
+  assert.match(section.querySelector('#decision-model-card .pz-row:last-child .pz-sub').textContent, /through OpenRouter/);
+  change(document, provider, 'gemini');
+  assert.deepEqual(chosen, ['typesafe/jev-1.14', 'google/gemini-decision-1', 'gemini-decision-1']);
 });
 
 test('the card is drawn again, not twice, when the language changes; a choice that is not offered shows the default one', () => {
@@ -30,7 +54,8 @@ test('the card is drawn again, not twice, when the language changes; a choice th
   addDecisionCard({ document, section, language: 'fr', decisionModel: 'nothing/offered', onChange: () => {} });
   assert.equal(section.querySelectorAll('#decision-model-card').length, 1);
   assert.match(section.querySelector('#decision-model-card h3').textContent, /Modèle de jugement/);
-  assert.equal(section.querySelector('input[name="decision-model"]:checked').value, 'typesafe/jev-1.14');
+  assert.equal(section.querySelector('#decision-provider').value, 'openrouter');
+  assert.equal(section.querySelector('#decision-model').value, 'typesafe/jev-1.14');
 });
 
 test('with no card in the tab there is nothing to put it after', () => {

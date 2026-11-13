@@ -178,11 +178,14 @@ test('the decision model chosen in the settings is the one asked, with the key o
   const { DEFAULT_DECISION_MODEL, DECISION_MODEL_IDS, normalizeDecisionModel } = await import('../src/app/runtime/decisions/decision-models.js');
   const { DECISION_MODELS, decisionModelOf } = await import('../src/app/runtime/decisions/decision-model-list.js');
   assert.deepEqual(DECISION_MODEL_IDS, DECISION_MODELS.map((model) => model.id), 'the ids and the table are the same list');
-  assert.deepEqual(DECISION_MODELS.map((model) => model.id), ['typesafe/jev-1.14', 'google/gemini-decision-1']);
+  assert.deepEqual(DECISION_MODELS.map((model) => model.id), ['typesafe/jev-1.14', 'google/gemini-decision-1', 'gemini-decision-1']);
+  assert.equal(normalizeDecisionModel('gemini-decision-1'), 'gemini-decision-1');
   assert.equal(normalizeDecisionModel('google/gemini-decision-1'), 'google/gemini-decision-1');
   assert.equal(normalizeDecisionModel('something/else'), DEFAULT_DECISION_MODEL);
   assert.equal(normalizeDecisionModel(undefined), DEFAULT_DECISION_MODEL);
   assert.equal(decisionModelOf('google/gemini-decision-1').provider, 'openrouter');
+  assert.equal(decisionModelOf('gemini-decision-1').provider, 'gemini');
+  assert.equal(new Set(DECISION_MODELS.map((model) => model.id)).size, DECISION_MODELS.length, 'no two models share an id, so the id alone says the provider');
 
   const sent = [];
   const keysAsked = [];
@@ -204,4 +207,41 @@ test('the decision model chosen in the settings is the one asked, with the key o
   const image = await service.decideImage({ message: 'two pictures of grass', limits: { maxImages: 4 } });
   assert.ok(image === null || typeof image === 'object');
   assert.equal(sent[3].model, 'typesafe/jev-1.14');
+});
+
+test('a Gemini decision model goes straight to Google: its own address, its own key header, `input` made of text objects instead of `state`', async () => {
+  const sent = [];
+  const keysAsked = [];
+  const service = createDecisionService({
+    fetchImpl: async (url, init) => { sent.push({ url, headers: init.headers, body: JSON.parse(init.body) }); return { ok: true, status: 200, json: async () => ({ answers: { search: { noul: 0.97, confidence: 0.97, type: 'noul' }, file: { noul: 0.01 } } }) }; },
+    getApiKey: (provider) => { keysAsked.push(provider); return `key-of-${provider}`; },
+    getModel: () => 'gemini-decision-1'
+  });
+  const decisions = await service.decide({ message: 'What is the news today?', history: [{ role: 'user', parts: [{ text: 'hello' }] }] });
+  assert.equal(decisions.search, 0.97);
+  assert.equal(sent[0].url, 'https://generativelanguage.googleapis.com/v1beta/decisions');
+  assert.deepEqual(sent[0].headers, { 'x-goog-api-key': 'key-of-gemini', 'Content-Type': 'application/json' });
+  assert.equal(sent[0].body.model, 'gemini-decision-1');
+  assert.equal(sent[0].body.state, undefined);
+  assert.ok(sent[0].body.input.length >= 2 && sent[0].body.input.every((part) => part.type === 'text' && typeof part.text === 'string'));
+  assert.match(sent[0].body.input[0].text, /^Latest message: What is the news today\?/);
+  assert.equal(sent[0].body.questions.search.type, 'noul');
+  assert.deepEqual(keysAsked, ['gemini']);
+  await service.decideImage({ message: 'two pictures of grass', limits: { maxImages: 4 } });
+  assert.equal(sent[1].url, sent[0].url);
+  assert.ok(Array.isArray(sent[1].body.input) && sent[1].body.input.every((part) => part.type === 'text'));
+});
+
+test('an OpenRouter decision model still goes to OpenRouter with the bearer key and `state`', async () => {
+  const sent = [];
+  const service = createDecisionService({
+    fetchImpl: async (url, init) => { sent.push({ url, headers: init.headers, body: JSON.parse(init.body) }); return { ok: true, status: 200, json: async () => ({ answers: { search: { noul: 0.5 } } }) }; },
+    getApiKey: () => 'sk-or-test',
+    getModel: () => 'google/gemini-decision-1'
+  });
+  await service.decide({ message: 'news today' });
+  assert.equal(sent[0].url, 'https://openrouter.ai/api/alpha/decisions');
+  assert.equal(sent[0].headers.Authorization, 'Bearer sk-or-test');
+  assert.ok(Array.isArray(sent[0].body.state));
+  assert.equal(sent[0].body.input, undefined);
 });

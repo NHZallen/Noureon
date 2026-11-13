@@ -6,18 +6,24 @@
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model typesafe/jev-1.14 --compare openai/gpt-6-luna-decisions
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model google/gemini-decision-1 --compare typesafe/jev-1.14     (2026-11-13: the new Google one, against the one the app has)
+//   OPENROUTER_API_KEY=sk-or-... GEMINI_API_KEY=... node scripts/decisions-probe.mjs --model gemini-decision-1 --compare google/gemini-decision-1     (Google's own address, with the Gemini key, as the settings offer it)
+// A model of the list of the settings (decisions/decision-model-list.js) is asked at its own provider, with the key of that provider (OPENROUTER_API_KEY or GEMINI_API_KEY).
 // Before the questions it asks OpenRouter which decision models it lists (GET /api/v1/models?output_modalities=decisions) and says whether each model asked about is among them.
 
-import { DECISION_MODEL, DECISION_THRESHOLD, DECISION_TIMEOUT_MS, DECISION_URL, buildDecisionRequest, parseDecisionResponse, verdictOf } from '../src/app/runtime/decisions/decision-client.js';
+import { DECISION_MODEL, DECISION_THRESHOLD, DECISION_TIMEOUT_MS, buildDecisionRequest, parseDecisionResponse, verdictOf } from '../src/app/runtime/decisions/decision-client.js';
+import { DECISION_PROVIDERS, decisionModelOf } from '../src/app/runtime/decisions/decision-model-list.js';
 
 const args = process.argv.slice(2);
 const option = (name) => { const at = args.indexOf(name); return at >= 0 ? args[at + 1] : ''; };
 const key = String(process.env.OPENROUTER_API_KEY || '').trim();
-if (!key) {
-  console.error('Set OPENROUTER_API_KEY first:  OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs');
+const geminiKey = String(process.env.GEMINI_API_KEY || '').trim();
+const models = [option('--model') || DECISION_MODEL, option('--compare')].filter(Boolean);
+const providerOf = (model) => decisionModelOf(model).provider;
+const keyOf = (model) => (providerOf(model) === 'gemini' ? geminiKey : key);
+if (!key || (models.some((model) => providerOf(model) === 'gemini') && !geminiKey)) {
+  console.error('Set OPENROUTER_API_KEY (and GEMINI_API_KEY for a model of Google Gemini) first:  OPENROUTER_API_KEY=sk-or-... GEMINI_API_KEY=... node scripts/decisions-probe.mjs');
   process.exit(1);
 }
-const models = [option('--model') || DECISION_MODEL, option('--compare')].filter(Boolean);
 const tools = [{ name: 'yt-dlp', description: 'download video or audio from a web page' }, { name: 'ffmpeg', description: 'convert audio and video files' }];
 
 // message, and what the page should conclude (search, file, chart, tool): true / false
@@ -37,18 +43,19 @@ const CASES = [
 ];
 const QUESTIONS = ['search', 'file', 'chart', 'tool', 'url', 'exact', 'verbatim'];
 
-const redact = (text) => String(text).split(key).join('***');
+const redact = (text) => [key, geminiKey].filter(Boolean).reduce((value, secret) => value.split(secret).join('***'), String(text));
 const show = (value) => (value === null || value === undefined ? '-' : value.toFixed(2));
 
 async function ask(model, testCase) {
   const request = buildDecisionRequest({ message: testCase.message, tools, model, historyRecall: true });
+  const provider = DECISION_PROVIDERS[providerOf(model)];
   const started = Date.now();
   let response;
   try {
-    response = await fetch(DECISION_URL, {
+    response = await fetch(provider.url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(request)
+      headers: { ...provider.headers(keyOf(model)), 'Content-Type': 'application/json' },
+      body: JSON.stringify(provider.body(request))
     });
   } catch (error) {
     return { ok: false, ms: Date.now() - started, detail: String(error?.message || error) };
@@ -78,7 +85,7 @@ try {
 }
 
 for (const model of models) {
-  console.log(`\n=== ${model} ===  (the page waits ${DECISION_TIMEOUT_MS} ms at most; a probability of ${DECISION_THRESHOLD} or more is "yes")`);
+  console.log(`\n=== ${model} (${providerOf(model)}) ===  (the page waits ${DECISION_TIMEOUT_MS} ms at most; a probability of ${DECISION_THRESHOLD} or more is "yes")`);
   let right = 0;
   let total = 0;
   let slow = 0;
@@ -98,13 +105,17 @@ for (const model of models) {
   console.log(`agreed with my guess on ${right}/${total} answers; ${slow} of ${CASES.length} calls slower than the page's limit`);
 }
 
-// The question a browser asks before it lets a page call another site (the page is at these addresses).
-for (const origin of ['https://noureon.com', 'https://staging.noureon.com']) {
-  try {
-    const response = await fetch(DECISION_URL, { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type' } });
-    console.log(`\nCORS preflight from ${origin}: HTTP ${response.status}  allow-origin=${response.headers.get('access-control-allow-origin') ?? '(none)'}  allow-headers=${response.headers.get('access-control-allow-headers') ?? '(none)'}`);
-  } catch (error) {
-    console.log(`\nCORS preflight from ${origin}: failed (${error?.message || error})`);
+// The question a browser asks before it lets a page call another site (the page is at these addresses), for each provider asked about.
+for (const name of new Set(models.map(providerOf))) {
+  const provider = DECISION_PROVIDERS[name];
+  const asked = name === 'gemini' ? 'x-goog-api-key,content-type' : 'authorization,content-type';
+  for (const origin of ['https://noureon.com', 'https://staging.noureon.com']) {
+    try {
+      const response = await fetch(provider.url, { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': asked } });
+      console.log(`\nCORS preflight (${name}) from ${origin}: HTTP ${response.status}  allow-origin=${response.headers.get('access-control-allow-origin') ?? '(none)'}  allow-headers=${response.headers.get('access-control-allow-headers') ?? '(none)'}`);
+    } catch (error) {
+      console.log(`\nCORS preflight (${name}) from ${origin}: failed (${error?.message || error})`);
+    }
   }
 }
 console.log('\nAnswers marked ✗ failed; the page silently goes back to its word lists for those. "≠" only means the model disagreed with my guess, which is for you to judge.');

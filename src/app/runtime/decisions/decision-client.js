@@ -11,16 +11,16 @@
 // What each answer is used for is in decision-use.js. Nothing here may stop a message: a missing key, a slow or failed call, an unexpected
 // reply all give `null`, and the page then does what it did before this existed (the word lists of auto-web-search.js and file-intent.js).
 //
-// The endpoint is OpenRouter's alpha API (/api/alpha/decisions): it may change, so everything about it is in this file, and a call that fails twice
+// The endpoint of OpenRouter is its alpha API (/api/alpha/decisions; Google's own is in decision-model-list.js): it may change, so everything about it is in this file and that one, and a call that fails twice
 // in a row switches the judgements off for a while instead of making every message wait for a timeout.
 
 import { DECISION_THRESHOLD, verdictOf } from './decision-store.js';
 import { buildImageDecisionRequest, parseImageDecisionResponse } from './image-decisions.js';
-import { decisionModelOf } from './decision-model-list.js';
+import { DECISION_PROVIDERS, decisionModelOf } from './decision-model-list.js';
 
 export { DECISION_THRESHOLD, verdictOf };
 
-export const DECISION_URL = 'https://openrouter.ai/api/alpha/decisions';
+export const DECISION_URL = DECISION_PROVIDERS.openrouter.url;
 export const DECISION_MODEL = 'typesafe/jev-1.14';
 /** A call that takes longer is given up (the message goes on with the word lists). */
 export const DECISION_TIMEOUT_MS = 1000;
@@ -112,8 +112,7 @@ export function createDecisionService({
   now = () => Date.now(),
   setTimer = (callback, ms) => setTimeout(callback, ms),
   clearTimer = (id) => clearTimeout(id),
-  logger = null,
-  url = DECISION_URL
+  logger = null
 } = {}) {
   let failures = 0;
   let pausedUntil = 0;
@@ -136,16 +135,17 @@ export function createDecisionService({
       if (!apiKey || now() < pausedUntil) return null;
       const request = build({ ...input, model: chosen.id });
       if (!request) return null;
+      const provider = DECISION_PROVIDERS[chosen.provider];
       const controller = new AbortController();
       const abort = () => controller.abort();
       if (signal?.aborted) return null;
       signal?.addEventListener?.('abort', abort, { once: true });
       const timer = setTimer(abort, DECISION_TIMEOUT_MS);
       try {
-        const response = await fetchImpl(url, {
+        const response = await fetchImpl(provider.url, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
+          headers: { ...provider.headers(apiKey), 'Content-Type': 'application/json' },
+          body: JSON.stringify(provider.body(request)),
           signal: controller.signal
         });
         if (!response?.ok) return fail(`HTTP ${response?.status ?? '?'}`);

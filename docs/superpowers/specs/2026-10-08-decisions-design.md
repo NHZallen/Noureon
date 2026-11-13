@@ -76,3 +76,12 @@
 - **做了什麼**：設定 `decisionModel`（預設 `typesafe/jev-1.14`）；「設定 → 隱私」多一張「判斷模型」卡片（單選，五語）。選項是 `typesafe/jev-1.14` 與 `google/gemini-decision-1`，都走 OpenRouter 的 Decisions API，用使用者的 OpenRouter 金鑰。`decision-models.js` 只放 id（設定的正規化會讀它，所以在伺服器共用清單裡，待 Allen 確認）；名稱、供應商與文字在 `decision-model-list.js`，卡片在 `settings-privacy-decision.js`，兩者都是用到才載入。呼叫前由 `decision-client.js` 依所選模型取對應供應商的金鑰，送出的請求帶所選模型的 id。選到已不提供的模型就用預設。隱私政策五語與 `PRIVACY.md` 已改成「模型可在設定選擇」。
 - **還沒做：Gemini 官方的 `gemini-decision-1`**。公開文件找不到它怎麼呼叫（網址、請求格式、回應格式都不知道），不猜。`scripts/gemini-decision-probe.mjs`（也在 `scripts/model-probe-all.mjs` 的 `decisions` 部分）會問服務本身：模型頁（支援的方法）、名稱含 decision 的模型清單，再把同一個問題用幾種可能的形式送出，印出每一個的狀態與回應；Allen 跑完貼結果，再把它加進 `DECISION_MODELS`（供應商 `gemini`，用 Gemini 金鑰）與呼叫的轉接。
 - **OpenRouter 的 `google/gemini-decision-1`** 也還沒實測：`scripts/decisions-probe.mjs --model google/gemini-decision-1 --compare typesafe/jev-1.14`（`model-probe-all.mjs` 一併跑）會先列出 OpenRouter 現在提供的判斷模型（`GET /api/v1/models?output_modalities=decisions`），再用頁面真正送的 11 則題目比較兩個模型的答案、時間（頁面等 1 秒）與 CORS。若它的題型或回應格式與 jev 不同，結果會看得出來。
+
+### 8.1 提供商與模型分開選，Gemini 官方版完成（2026-11-13，在 `staging`）
+
+- **要求（Allen）**：判斷模型要讓使用者先選提供商，再選模型。
+- **Gemini 官方的呼叫方式（Allen 跑探測找到，文件 aistudio.google.com/docs/decisions-api）**：`POST https://generativelanguage.googleapis.com/v1beta/decisions`，標頭 `x-goog-api-key`；請求和 OpenRouter 的只差一處：`state` 叫 `input`，而且每一段要是 `{ type: 'text', text }`（直接給字串會 400）；`model` 寫 `gemini-decision-1`；`questions` 與回應的 `answers` 格式相同，`parseDecisionResponse` 直接能讀。實測 11／11 成功、352–454 ms（OpenRouter 版 389–845 ms，jev 約 150 ms），機率與 OpenRouter 版相同；CORS 對 noureon.com 與 staging.noureon.com 都通過（allow-headers 含 `x-goog-api-key`）。
+- **做法**：`decision-model-list.js` 多了 `DECISION_PROVIDERS`（`openrouter`、`gemini`，各有網址、金鑰標頭、把請求轉成該處格式的函式）與第三個模型 `gemini-decision-1`（供應商 `gemini`）。三個模型的 id 各不相同，所以設定仍只存一個 `decisionModel`（舊的值照舊有效、照常同步），由 id 就知道提供商。`decision-client.js` 依所選模型的提供商取網址、標頭與請求（不再有 `url` 參數）、向 `getApiKey(provider)` 要那個提供商的金鑰。卡片改成兩個下拉：提供商（OpenRouter、Google Gemini），再來是該提供商的模型；換提供商時選到它的第一個模型；模型下面一行說明會跟著換。沒有該提供商的金鑰時照舊改用內建字詞清單，卡片上的說明有寫。
+- **提供商的模型清單是挑過的**：OpenRouter 現在列出 41 個判斷模型，但只有跑過探測的兩個放進去（題型要和我們的問題相容，速度要在頁面的 1 秒內）；要加別的，先用 `scripts/decisions-probe.mjs --model <id> --compare typesafe/jev-1.14` 看結果。探測腳本現在也能問 Gemini 官方的模型（`--model gemini-decision-1`，用 `GEMINI_API_KEY`）。
+- **隱私政策五語與 `PRIVACY.md`**：改成「有你所選提供商的金鑰時，訊息文字送到該提供商的 Decisions API（OpenRouter 的，或 Google 的 Gemini API）」。
+- **速度的取捨**：Gemini Decision 1 平均約 400–540 ms，比 jev 慢約 3 倍，但都在 1 秒內；它在營收圖表與「上次那份食譜」兩題比 jev 準。預設維持 jev。
