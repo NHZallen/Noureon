@@ -60,8 +60,9 @@
 #settings-modal :is(#user-section, #security-section) .us-eye[aria-pressed="true"] .us-eye-off { display: none; }
 @media (hover: hover) { #settings-modal :is(#user-section, #security-section) .us-eye:hover { color: var(--text-primary) !important; } }
 #settings-modal :is(#user-section, #security-section) .us-hint { font-size: 0.8125rem; color: var(--text-secondary) !important; }
-#settings-modal :is(#user-section, #security-section) .us-check { display: flex; align-items: flex-start; gap: 0.65rem; font-size: 0.875rem; cursor: pointer; }
-#settings-modal :is(#user-section, #security-section) .us-check input { flex: none; width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; accent-color: var(--gpt-primary-action-bg, #111827); }
+#settings-modal :is(#user-section, #security-section) .us-check { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; font-size: 0.875rem; }
+#settings-modal :is(#user-section, #security-section) .us-check-text { flex: 1; min-width: 0; cursor: pointer; }
+#settings-modal :is(#user-section, #security-section) .us-toggle { position: relative; flex: none; width: 44px; height: 24px; }
 #settings-modal :is(#user-section, #security-section) .us-check small { display: block; margin-top: 0.1rem; font-size: 0.8125rem; color: var(--text-secondary) !important; }
 #settings-modal :is(#user-section, #security-section) .us-slot { min-height: 65px; display: flex; align-items: center; justify-content: center; }
 #settings-modal :is(#user-section, #security-section) .us-slot.hidden, #settings-modal :is(#user-section, #security-section) .us-hint.hidden { display: none; }

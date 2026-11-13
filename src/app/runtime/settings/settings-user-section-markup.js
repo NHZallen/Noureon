@@ -5,6 +5,16 @@ import { syncVaultPolicy } from '../../sync/sync-vault.js';
 import { syncNowMarkup } from './settings-sync-now-controls.js';
 import { userUidMarkup } from './settings-user-uid-controls.js';
 
+// A switch like the other settings have (the `.toggle-checkbox` and `.toggle-label` of settings.css), with its text on the left: on and off are told by the colour of the track, not by a tick.
+const switchRow = ({ id, checked = false, textHtml }) => `
+              <div class="us-check">
+                <label for="${id}" class="us-check-text">${textHtml}</label>
+                <div class="us-toggle">
+                  <input id="${id}" type="checkbox" class="toggle-checkbox"${checked ? ' checked' : ''}>
+                  <label for="${id}" class="toggle-label" aria-hidden="true"></label>
+                </div>
+              </div>`;
+
 export const getUserSectionElements = (document) => ({
   nav: document.getElementById('user-section-nav'),
   section: document.getElementById('user-section'),
@@ -246,10 +256,7 @@ export function buildSecuritySectionMarkup(text) {
                 ${passwordField({ id: 'login-new-password', label: '新密碼', labelKey: 'newLoginPasswordLabel', autocomplete: 'new-password', minlength: 8, hint: '至少 8 碼', hintKey: 'loginPasswordMinHint' })}
                 ${passwordField({ id: 'login-new-password-confirmation', label: '再次輸入新密碼', labelKey: 'confirmNewLoginPasswordLabel', autocomplete: 'new-password', minlength: 8 })}
               </div>
-              <label class="us-check">
-                <input id="login-password-signout-all" type="checkbox" checked>
-                <span><span data-lang-key="signOutEverywhere">更新後登出所有裝置（包含這一台）</span><small data-lang-key="signOutEverywhereHint">所有裝置都要重新登入。</small></span>
-              </label>
+${switchRow({ id: 'login-password-signout-all', checked: true, textHtml: '<span data-lang-key="signOutEverywhere">更新後登出所有裝置（包含這一台）</span><small data-lang-key="signOutEverywhereHint">所有裝置都要重新登入。</small>' })}
               <p class="us-hint" data-lang-key="passwordChangedEmailNotice">密碼更新後，我們會寄一封通知信到你的 Email，信裡附重設連結。</p>
             </div>
             <div class="us-foot">
@@ -393,10 +400,7 @@ export function buildSecuritySectionMarkup(text) {
             </div>
           </div>
           <div class="us-panel">
-            <label class="us-check">
-              <input id="security-keyguard-switch" type="checkbox">
-              <span><span data-lang-key="securityKeyguardSwitch">開啟保護</span><small data-lang-key="securityKeyguardSwitchHint">開啟後，API 金鑰要先解鎖才讀得到。</small></span>
-            </label>
+${switchRow({ id: 'security-keyguard-switch', textHtml: '<span data-lang-key="securityKeyguardSwitch">開啟保護</span><small data-lang-key="securityKeyguardSwitchHint">開啟後，API 金鑰要先解鎖才讀得到。</small>' })}
             <div id="security-keyguard-options" class="us-field hidden">
               <label for="security-keyguard-days" data-lang-key="securityKeyguardDaysLabel">多久重新認證一次</label>
               <select id="security-keyguard-days" class="us-select">
