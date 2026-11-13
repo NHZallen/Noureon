@@ -5,11 +5,11 @@
        A single row leaves the editor a few pixels wide next to the model picker. */
     #input-bar-container .input-wrapper {
         display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
-            "preview preview preview preview"
-            "input input input voice"
-            "file model model submit";
+            "preview preview preview preview preview"
+            "input input input input input"
+            "file model model voice submit";
         align-items: center !important;
         gap: 0 0.3rem !important;
         padding: 0.35rem 0.55rem 0.45rem !important;
@@ -57,10 +57,10 @@
         min-width: 0;
     }
 
-    /* The mic sits at the end of the editor row, like the send button sits at the end of the tools row. */
+    /* The mic sits on the row of tools, just before the send button at its end. */
     #voice-input-btn-message {
         grid-area: voice;
-        align-self: end;
+        align-self: center;
     }
 
     #submit-btn {

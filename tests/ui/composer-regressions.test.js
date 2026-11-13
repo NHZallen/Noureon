@@ -105,10 +105,10 @@ test('mobile keeps the existing stacked indicator layout and the message mic', (
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*max-width:\s*1\.25rem;[^}]*flex:\s*0\s+0\s+1\.25rem;[^}]*object-fit:\s*contain;/s);
 });
 
-test('mobile composer puts the editor on its own row above the tools', () => {
+test('mobile composer puts the editor on its own row above the tools, the mic beside the send button', () => {
   const mobile = readUiSource('src/styles/mobile-composer-layout.css');
 
-  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input voice"\s*"file model model submit"/s);
+  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input input input"\s*"file model model voice submit"/s);
   assert.match(mobile, /#model-council-control\s*\{[^}]*grid-area:\s*model;[^}]*min-width:\s*0;/s);
   assert.match(mobile, /#model-council-control\s+\.mp-anchor\s+\.mp-trigger\s*\{[^}]*max-width:\s*100%;/s);
   assert.match(mobile, /\.input-media-preview\s*\{[^}]*grid-area:\s*preview;/s);
