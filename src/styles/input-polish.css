@@ -401,7 +401,3 @@
     stroke: currentColor;
 }
 
-/* The pictures of the tools are dark drawings: on the dark theme tokens.css inverts them. The logo of Google Drive has its own colours and is left as it is. */
-img[src^="/assets/composer-tools/"]:not([src$="/drive.svg"]) {
-    filter: var(--tool-icon-filter);
-}

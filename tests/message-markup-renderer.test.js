@@ -93,7 +93,7 @@ test('renders sent composer functions inline while excluding council metadata', 
   });
 
   assert.match(view.messageHTML, /class="sent-composer-mode" data-composer-mode="search-indicator"/);
-  assert.match(view.messageHTML, /class="sent-composer-mode-icon" src="\/assets\/composer-tools\/web-search\.png"/);
+  assert.match(view.messageHTML, /<svg [^>]*class="sent-composer-mode-icon"/);
   assert.match(view.messageHTML, /網頁搜尋/);
   assert.match(view.messageHTML, /USER: 看看天氣/);
   assert.doesNotMatch(view.messageHTML, /理事會/);
