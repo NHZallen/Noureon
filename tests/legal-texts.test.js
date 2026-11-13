@@ -62,6 +62,9 @@ test('every document still names the services and features it has to, in every l
 
 test('the limits and the numbers written in the documents are the ones of the server and of the application', async () => {
   const { RESEARCH_LIMITS } = await import('../server/research.js');
+  const { MODELS } = await import('../src/app/runtime/shell/model-registry.js');
+  // The picture models (the ones that draw): the Help Center says how many they are, and a model added to the registry must change it.
+  const imageModels = MODELS.filter((model) => model.outputModality === 'image').length;
   const minutes = (ms) => ms / 60000;
   const hours = (ms) => ms / 3600000;
   for (const lang of LEGAL_LANGUAGES) {
@@ -79,6 +82,7 @@ test('the limits and the numbers written in the documents are the ones of the se
     for (const number of [RESEARCH_LIMITS.countdownMs / 1000, RESEARCH_LIMITS.holdMs / 60000, RESEARCH_LIMITS.maxCalls, RESEARCH_LIMITS.maxActiveMs / 60000, RESEARCH_LIMITS.maxPauseMs / 3600000, RESEARCH_LIMITS.maxItems, RESEARCH_LIMITS.maxRunMs / 3600000]) {
       assert.ok(hasNumber(help, number), `${lang} help should mention ${number} for deep research`);
     }
+    assert.ok(hasNumber(help, imageModels), `${lang} help should say how many image models there are (${imageModels})`);
     for (const number of [HOME_FACTS.models, HOME_FACTS.vendors, HOME_FACTS.deckDesigns, HOME_FACTS.documentStyles, HOME_FACTS.skills, HOME_FACTS.cliTools, HOME_FACTS.councilMin, HOME_FACTS.councilMax]) {
       assert.ok(hasNumber(help, number), `${lang} help should mention ${number} (after a model is added or removed: npm run sync:counts)`);
     }

@@ -67,7 +67,7 @@ export const HOME_TEXTS = {
     more: {
       eyebrow: '還有更多', title: '細節，都替你想好了。',
       tiles: [
-        ['image', '圖片生成', 'GPT Image、FLUX、Nano Banana 等 4 個圖片模型，在對話中出圖，也能接著修改。'],
+        ['image', '圖片生成', 'GPT Image、FLUX、Nano Banana 等 10 個圖片模型，在對話中出圖，也能接著修改。'],
         ['eye', '看圖檢查', '簡報完成後逐頁畫成圖片，交給你選的模型再檢查一遍版面。'],
         ['code', '進階模式', '在隔離的 Python 沙盒中執行程式：處理資料、畫圖表、產出檔案。'],
         ['user', 'Nouras', '把常用的角色與指示存成自己的助理，隨時切換。'],
@@ -148,7 +148,7 @@ export const HOME_TEXTS = {
     more: {
       eyebrow: 'And more', title: 'The details are taken care of.',
       tiles: [
-        ['image', 'Image generation', 'Four image models, including GPT Image, FLUX and Nano Banana, draw in the chat and can keep editing.'],
+        ['image', 'Image generation', 'Ten image models, including GPT Image, FLUX and Nano Banana, draw in the chat and can keep editing.'],
         ['eye', 'Visual check', 'After a deck is made, each slide is drawn as an image and a model of your choice checks the layout again.'],
         ['code', 'Advanced mode', 'Run code in an isolated Python sandbox: process data, draw charts, produce files.'],
         ['user', 'Nouras', 'Save the roles and instructions you use often as your own assistants, and switch any time.'],
@@ -229,7 +229,7 @@ export const HOME_TEXTS = {
     more: {
       eyebrow: 'Et aussi', title: 'Les détails sont réglés.',
       tiles: [
-        ['image', 'Génération d’images', 'Quatre modèles d’image, dont GPT Image, FLUX et Nano Banana, dessinent dans la discussion et peuvent continuer à retoucher.'],
+        ['image', 'Génération d’images', 'Dix modèles d’image, dont GPT Image, FLUX et Nano Banana, dessinent dans la discussion et peuvent continuer à retoucher.'],
         ['eye', 'Contrôle visuel', 'Une fois la présentation faite, chaque diapositive est dessinée en image et le modèle de votre choix revérifie la mise en page.'],
         ['code', 'Mode avancé', 'Exécutez du code dans un bac à sable Python isolé : traiter des données, tracer des graphiques, produire des fichiers.'],
         ['user', 'Nouras', 'Enregistrez vos rôles et consignes habituels comme assistants à vous, et changez à tout moment.'],
@@ -310,7 +310,7 @@ export const HOME_TEXTS = {
     more: {
       eyebrow: 'И ещё', title: 'О мелочах уже позаботились.',
       tiles: [
-        ['image', 'Создание изображений', 'Четыре модели изображений, включая GPT Image, FLUX и Nano Banana, рисуют прямо в чате и могут продолжать правки.'],
+        ['image', 'Создание изображений', 'Десять моделей изображений, включая GPT Image, FLUX и Nano Banana, рисуют прямо в чате и могут продолжать правки.'],
         ['eye', 'Визуальная проверка', 'Когда презентация готова, каждый слайд рисуется картинкой, и выбранная вами модель ещё раз проверяет вёрстку.'],
         ['code', 'Расширенный режим', 'Запуск кода в изолированной песочнице Python: обработка данных, графики, готовые файлы.'],
         ['user', 'Nouras', 'Сохраняйте привычные роли и инструкции как собственных ассистентов и переключайтесь когда угодно.'],
@@ -391,7 +391,7 @@ export const HOME_TEXTS = {
     more: {
       eyebrow: 'Y más', title: 'Los detalles ya están cuidados.',
       tiles: [
-        ['image', 'Generación de imágenes', 'Cuatro modelos de imagen, entre ellos GPT Image, FLUX y Nano Banana, dibujan en el chat y pueden seguir retocando.'],
+        ['image', 'Generación de imágenes', 'Diez modelos de imagen, entre ellos GPT Image, FLUX y Nano Banana, dibujan en el chat y pueden seguir retocando.'],
         ['eye', 'Revisión visual', 'Cuando la presentación está hecha, cada diapositiva se dibuja como imagen y el modelo que elijas revisa de nuevo la maquetación.'],
         ['code', 'Modo avanzado', 'Ejecuta código en un entorno aislado de Python: procesar datos, trazar gráficos, producir archivos.'],
         ['user', 'Nouras', 'Guarda los roles e instrucciones que más usas como asistentes propios y cambia cuando quieras.'],
