@@ -638,7 +638,7 @@
    positioned against the composer box, so the control itself stays unpositioned. */
 @media (max-width: 768px) {
     #model-council-control,
-    #model-council-control .mp-anchor:first-child { position: static; }
+    #model-council-control .mp-anchor { position: static; }
 
     #model-council-control .mp-panel:not(.mp-depth-panel) {
         --mp-phone-width: max(200px, min(400px, calc(100vw - 24px)));
@@ -655,6 +655,7 @@
         max-height: var(--mp-phone-height, min(70vh, 34rem));
         transform-origin: bottom left;
     }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
