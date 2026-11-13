@@ -3,7 +3,8 @@
 // instead, which is only in memory while the vault is unlocked (a passkey, or the sync password, unlocks it). The person chooses how many days an unlock lasts: after
 // them (or at every visit, with 0) the keys are locked until the next unlock; locked keys are not "missing": nothing is sent to the cloud and nothing is written over them.
 //
-// The choice is kept on this device only (localStorage, no secret in it; security/local-key-rules.js).
+// What this device does is kept on the device (localStorage, no secret in it; security/local-key-rules.js); the choice itself also goes to the settings, so the other devices
+// follow it (security/local-key-policy.js, local-key-policy-sync.js).
 
 import {
   applyRememberPolicyToKeptUnlock,
@@ -16,10 +17,9 @@ import {
   unlockSyncVaultWithKeyBytes
 } from '../../sync/sync-vault.js';
 import { LocalKeyError, SENSITIVE_KEY_PREFIX, readProtection, writeProtection } from './local-key-rules.js';
+import { DEFAULT_REAUTH_DAYS, REAUTH_DAYS } from './local-key-policy.js';
 
-/** The days an unlock lasts, as the settings offer them (0: it is asked for at every visit). */
-export const REAUTH_DAYS = Object.freeze([0, 1, 3, 7, 14, 30]);
-export const DEFAULT_REAUTH_DAYS = 7;
+export { DEFAULT_REAUTH_DAYS, REAUTH_DAYS };
 const WATCH_MS = 5 * 60 * 1000;
 
 const normalizeDays = (days) => (REAUTH_DAYS.includes(Number(days)) ? Number(days) : DEFAULT_REAUTH_DAYS);

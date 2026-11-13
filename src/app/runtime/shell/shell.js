@@ -875,7 +875,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         // Created after the workspace and page features so its dependencies are plain
         // references. Its listeners only receive async cloud events, so ordering is safe.
         createCloudWorkspaceLiveLifecycle({
-            window,configAccess:runtimeConfigAccess,appDataStore:runtimeAppDataStore,
+            window,configAccess:runtimeConfigAccess,saveConfig,appDataStore:runtimeAppDataStore,
             getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
             models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,

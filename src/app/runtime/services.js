@@ -17,7 +17,9 @@ export const SERVICES = Object.freeze({
   showUpdateDialog: 'show-update-dialog',
   // The page's own dialog that asks "are you sure" (dialog-notification-lifecycle.js): (message, title) -> a promise of true or false. The sign-in part uses it to ask before logging out, as
   // the rest of the page asks, instead of the browser's own box (which some browsers hold back, and a page that is driven by a tool cannot answer).
-  confirmDialog: 'confirm-dialog'
+  confirmDialog: 'confirm-dialog',
+  // The settings as { getConfig, update(patch), save() } (cloud-workspace-live-lifecycle.js): for the parts that start by themselves for a signed-in account and keep a setting (security/local-key-policy-sync.js).
+  settingsAccess: 'settings-access'
 });
 
 const NAMES = new Set(Object.values(SERVICES));

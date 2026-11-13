@@ -4,6 +4,9 @@
 // Only for a cloud account that turned the protection on; for everyone else this does nothing.
 
 import { createLocalKeyProtection } from './local-key-protection.js';
+import { startLocalKeyPolicySync } from './local-key-policy-sync.js';
+import { isSyncVaultUnlocked } from '../../sync/sync-vault.js';
+import { SERVICES, getService } from '../services.js';
 import { createRecoverySlotsStore } from '../settings/settings-vault-recovery-slots-store.js';
 import { passkeyPrfAvailability, readAnyRecoveryPasskey } from '../../sync/passkey-prf.js';
 import { openRecoverySlot } from '../../sync/vault-recovery-slots.js';
@@ -160,5 +163,22 @@ export function startLocalKeyRuntime({ window, storage, username, supabase, getT
 
   const stopWatching = protection.watchExpiry(window);
   refreshIcon();
-  return { protection, ensureUnlocked, refreshIcon, destroy() { stopWatching(); icon.remove(); } };
+
+  // The choice follows the account: what the other devices chose is done here too, and what is chosen here is kept in the settings (local-key-policy-sync.js). It starts once the sync
+  // has said what it has, so a choice made on another device is not answered with an older one.
+  let policy = null;
+  let destroyed = false;
+  const canTurnOn = async () => {
+    try {
+      return (await createRecoverySlotsStore({ getSupabase: () => supabase }).load()).slots.length > 0;
+    } catch {
+      return false;
+    }
+  };
+  const ready = getService(SERVICES.workspaceSyncReady);
+  void Promise.resolve(ready).catch(() => {}).then(() => {
+    if (destroyed) return;
+    policy = startLocalKeyPolicySync({ window, protection, settings: () => getService(SERVICES.settingsAccess), canTurnOn, isUnlocked: () => isSyncVaultUnlocked(username) });
+  });
+  return { protection, ensureUnlocked, refreshIcon, destroy() { destroyed = true; policy?.destroy(); stopWatching(); icon.remove(); } };
 }

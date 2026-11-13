@@ -135,6 +135,7 @@ function getVisibleConfigState(config = {}) {
 export function createCloudWorkspaceLiveLifecycle({
   window,
   configAccess,
+  saveConfig = async () => {},
   appDataStore,
   getDefaultFolder,
   getDefaultGenConfig,
@@ -434,6 +435,7 @@ export function createCloudWorkspaceLiveLifecycle({
   });
   window.addEventListener('astra:active-conversation-changed', requestActiveConversationHydration);
   provideService(SERVICES.cloudRuntimeReady, markReady);
+  provideService(SERVICES.settingsAccess, { getConfig: () => configAccess.getConfig(), update: patch => configAccess.mutateConfig(patch), save: () => saveConfig() });
 
   return { markReady, hydrateActiveConversation };
 }

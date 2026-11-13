@@ -24,8 +24,8 @@ export const markLocalKeysUnreadable = () => { unreadableSeen = true; };
 export const localKeysWereUnreadable = () => unreadableSeen;
 
 // ----- the protection with a passkey (settings: "Protect the keys on this device")
-// The choice lives on this device only (not synced), in localStorage: it holds no secret, and it has to be readable at once and without a promise, before the
-// keys are read. { days }: the unlock is asked for again after that many days (0: at every visit).
+// What this device does lives in localStorage: it holds no secret, and it has to be readable at once and without a promise, before the keys are read. (The choice
+// also goes to the settings, so the other devices follow it: local-key-policy.js.) { days }: the unlock is asked for again after that many days (0: at every visit).
 export const PROTECTION_PREFIX = 'noureonLocalKeyProtection_v1_';
 export const SENSITIVE_KEY_PREFIX = 'chatSensitiveConfig_v1_';
 

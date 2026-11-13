@@ -4,6 +4,8 @@
 
 import { isSyncVaultUnlocked } from '../../sync/sync-vault.js';
 import { DEFAULT_REAUTH_DAYS, createLocalKeyProtection } from '../security/local-key-protection.js';
+import { normalizeLocalKeyPolicy } from '../security/local-key-policy.js';
+import { SERVICES, getService } from '../services.js';
 
 export function createKeyguardControls({ window, storage, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity, passkeys }) {
   const protection = createLocalKeyProtection({ storage, getUsername: () => getCurrentUser?.()?.username, area: window.localStorage, target: window });
@@ -27,10 +29,14 @@ export function createKeyguardControls({ window, storage, getCurrentUser, getEle
       : !hasPasskey ? ['securityKeyguardNeedPasskey', '先新增通行金鑰，才能開啟這項保護。']
         : !usable ? ['securityKeyguardUnsupported', '這個瀏覽器不能用通行金鑰，所以不能開啟這項保護。']
           : !unlocked ? ['securityKeyguardNeedUnlock', '先解鎖同步保險庫，才能開啟或關閉這項保護。'] : null;
+    // Another device changed the choice and this one waits for the unlock to do the same (security/local-key-policy-sync.js): the switch shows what this device does now.
+    const want = normalizeLocalKeyPolicy(getService(SERVICES.settingsAccess)?.getConfig?.()?.localKeyProtection);
+    const waiting = Boolean(want) && !unlocked && (want.on !== on || (on && want.days !== protection.protection()?.days));
+    const note = waiting && reason?.[0] === 'securityKeyguardNeedUnlock' ? ['securityKeyguardWaiting', '另一台裝置更改了這項保護；解鎖同步保險庫後，這台裝置會跟著更改。'] : reason;
     elements.keyguardSwitch.checked = on;
     elements.keyguardSwitch.disabled = Boolean(reason) || busy;
-    elements.keyguardNote.textContent = reason ? text(...reason) : '';
-    show(elements.keyguardNote, Boolean(reason));
+    elements.keyguardNote.textContent = note ? text(...note) : '';
+    show(elements.keyguardNote, Boolean(note));
     show(elements.keyguardOptions, on);
     elements.keyguardDays.value = String(protection.protection()?.days ?? DEFAULT_REAUTH_DAYS);
     show(elements.keyguardFoot, on);
