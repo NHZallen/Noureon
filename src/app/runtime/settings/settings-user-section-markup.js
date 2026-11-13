@@ -29,6 +29,7 @@ export const getUserSectionElements = (document) => ({
   passkeyCard: document.getElementById('security-passkey-card'),
   passkeyUnsupported: document.getElementById('security-passkey-unsupported'),
   passkeyNoVault: document.getElementById('security-passkey-no-vault'),
+  passkeyLegacy: document.getElementById('security-passkey-legacy'),
   passkeyInApp: document.getElementById('security-passkey-in-app'),
   passkeyAdd: document.getElementById('security-passkey-add'),
   passkeyPassword: document.getElementById('security-passkey-password'),
@@ -352,6 +353,7 @@ ${switchRow({ id: 'login-password-signout-all', checked: true, textHtml: '<span 
           <p id="security-passkey-unsupported" class="us-note hidden" data-lang-key="securityPasskeyUnsupported">這個瀏覽器還不能用通行金鑰救援。請換用 Safari、Chrome 或 Edge 的新版本。</p>
           <p id="security-passkey-in-app" class="us-note hidden" data-lang-key="securityPasskeyInApp">你現在用的是 app 裡的瀏覽器（例如 Google app），它不能用通行金鑰。請用 Safari 或 Chrome 開啟這個網址。</p>
           <p id="security-passkey-no-vault" class="us-note hidden" data-lang-key="securityPasskeyNoVault">先在上面設定同步密碼，才能新增通行金鑰。</p>
+          <p id="security-passkey-legacy" class="us-note hidden" data-lang-key="securityPasskeyLegacy">Email 救援已經停用。新增一把通行金鑰，忘記同步密碼時才救得回來；沒有的話只能重新開始。</p>
           <div id="security-passkey-add" class="hidden">
             <div class="us-panel">
               ${passwordField({ id: 'security-passkey-password', label: '目前的同步密碼', labelKey: 'securityPasskeyPasswordLabel', autocomplete: 'current-password' })}

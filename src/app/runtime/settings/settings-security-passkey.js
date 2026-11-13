@@ -117,6 +117,8 @@ export function createPasskeyControls({
     show(elements.passkeyUnsupported, availability === 'no');
     show(elements.passkeyInApp, availability === 'in-app');
     show(elements.passkeyNoVault, usable && !record);
+    // The old recovery by Email is gone: a person with a sync password and no passkey is told once they open this card.
+    show(elements.passkeyLegacy, usable && Boolean(record) && !has);
     show(elements.passkeyOpen, usable && Boolean(record));
     show(elements.passkeyAdd, usable && Boolean(record) && opened);
     elements.passkeyOpen.setAttribute('aria-expanded', String(opened));

@@ -116,6 +116,7 @@ test('passkey card: it shows for a cloud account that has a sync password, and n
   assert.equal(ok.byId('security-passkey-add').classList.contains('hidden'), false);
   assert.equal(ok.byId('security-passkey-open-btn').getAttribute('aria-expanded'), 'true');
   assert.equal(ok.byId('security-passkey-unsupported').classList.contains('hidden'), true);
+  assert.equal(ok.byId('security-passkey-legacy').classList.contains('hidden'), false, 'a sync password with no passkey is told the Email recovery has ended');
 
   const no = await setup({ availability: 'no' });
   assert.equal(no.byId('security-passkey-unsupported').classList.contains('hidden'), false);
@@ -124,6 +125,7 @@ test('passkey card: it shows for a cloud account that has a sync password, and n
 
   const empty = await setup({ withVault: false });
   assert.equal(empty.byId('security-passkey-no-vault').classList.contains('hidden'), false);
+  assert.equal(empty.byId('security-passkey-legacy').classList.contains('hidden'), true);
   assert.equal(empty.byId('security-passkey-add').classList.contains('hidden'), true);
 });
 
@@ -131,6 +133,7 @@ test('passkey card: adding one seals the data key of the vault in the browser an
   const fixture = await setup();
   await addPasskey(fixture);
   const { table, byId, notices, storage, passkey } = fixture;
+  assert.equal(byId('security-passkey-legacy').classList.contains('hidden'), true, 'with a passkey the reminder goes away');
 
   assert.equal(passkey.calls.register, 1);
   assert.equal(table.row.slots.length, 1);
