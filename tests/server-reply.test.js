@@ -76,6 +76,36 @@ test('a reply is handed over with everything it needs, after the conversation wa
   assert.deepEqual(spec.secrets, { providerKey: KEY });
 });
 
+test('a conversation the page is naming right now is also asked to be named by the server, with the title it has now, and only then', async () => {
+  const naming = (extra = {}) => ({ ...CONVERSATION, title: 'New chat', isNaming: true, messages: [{ role: 'user', parts: [{ text: 'Where do cats sleep?' }] }], ...extra });
+  const { reply, calls } = harness();
+  assert.equal((await reply.start(startArgs({ conversation: naming(), config: { uiLanguage: 'en' } }))).ok, true);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const asked = calls.find((call) => call.url.endsWith('/v1/runs/run-1/naming'));
+  assert.ok(asked, 'the server is asked once the reply is taken');
+  const body = JSON.parse(asked.options.body);
+  assert.equal(body.placeholder, 'New chat');
+  assert.match(body.prompt, /Where do cats sleep\?/);
+  assert.equal(calls[0].url.endsWith('/v1/runs'), true, 'after the reply was handed over, not before');
+
+  for (const extra of [{ isNaming: false }, { title: '' }]) {
+    const other = harness();
+    await other.reply.start(startArgs({ conversation: naming(extra), config: {} }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(other.calls.some((call) => call.url.endsWith('/naming')), false);
+  }
+  const off = harness();
+  await off.reply.start(startArgs({ conversation: naming(), config: { autoNaming: false } }));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(off.calls.some((call) => call.url.endsWith('/naming')), false, 'not when automatic naming is off');
+});
+
+test('an older server that does not know the request is not a reason to fail the reply', async () => {
+  const { reply } = harness({ fetchImpl: async (url) => (url.endsWith('/naming') ? new Response('{}', { status: 404 }) : new Response(JSON.stringify({ runId: 'run-1' }), { status: 202 })) });
+  const result = await reply.start(startArgs({ conversation: { ...CONVERSATION, title: 'New chat', isNaming: true, messages: [{ role: 'user', parts: [{ text: 'hi' }] }] }, config: {} }));
+  assert.equal(result.ok, true);
+});
+
 test('a search by the model sends the key of the search source in use, or the other one, or does not go', async () => {
   const { reply, calls } = harness();
   await reply.start(startArgs({ webSearch: 'research', config: { searchProvider: 'tavily' } }));

@@ -9,6 +9,7 @@ import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
 import { takeTrace } from '../memory-store/memory-trace.js';
 import { imageGenerationForReply } from '../tool-models/image-generation-request.js';
+import { buildTitleSummaryPrompt } from '../settings/settings-title-summary-helpers.js';
 
 export const SERVER_PROTOCOL_VERSION = 4;
 // Where the server is: api.noureon.com, or the one of the test site (staging) when its build sets VITE_SERVER_API_URL (docs/superpowers/specs/2026-10-11-staging-design.md).
@@ -359,6 +360,12 @@ export function createServerReply({
     }
     const runId = result.data?.runId;
     if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
+    // The page names a new conversation itself, a moment after the first message. If the page is closed in that moment (the phone locks), the server names it with the model
+    // and the key of this reply, but only if the conversation is still called what it is called now a little later (server/conversation-naming.js). Nothing happens if the server is older.
+    if (!vision && conversation.isNaming && config.autoNaming !== false && conversation.title) {
+      const prompt = buildTitleSummaryPrompt(conversation, { language: config.aiDefaultLanguage || config.uiLanguage });
+      if (prompt && prompt.length <= 6000) void request('POST', `/v1/runs/${runId}/naming`, { body: JSON.stringify({ prompt, placeholder: conversation.title }) }).catch(() => {});
+    }
     return { ok: true, run: createRun({ runId, assistantMessageId, kind: research ? 'research' : vision ? 'vision' : 'reply', vision: result.data?.vision === true }) };
   };
   const start = (args) => begin('/v1/runs', args);

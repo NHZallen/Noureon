@@ -5,6 +5,7 @@ import { executeCouncil } from './council-run.js';
 import { executeReply, ReplyError, scrubMessage } from './executor.js';
 import { errorText } from './error-texts.js';
 import { executeImage } from './image-run.js';
+import { createRunNaming } from './conversation-naming.js';
 import { createMessageWriter } from './message-writer.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
 import { createResearchControls, executeResearch } from './research.js';
@@ -255,10 +256,13 @@ export function createRunManager({
     const imageControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
+    // The title of the conversation, when the page may be closed before it makes one (server/conversation-naming.js): the page asks once the reply is taken, it is done
+    // a little later or when the reply ends, with the model and the key of this reply. Not for a visual check, a picture or a council (their model or key is not one that writes a title).
+    const naming = isVision || isImage || isCouncil ? null : createRunNaming({ db, userId, spec, secrets, fetchImpl, setTimer, clearTimer, log });
     const live = { holding: false, answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
     // What the person adds while an ordinary reply is made is taken at the next boundary of its loop (reply/steer-queue.js), where the reply is cut (below).
     const steer = isVision || isResearch || isImage || isCouncil ? null : createSteerQueue({ now });
-    active.set(runId, { steer, controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl });
+    active.set(runId, { steer, controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl, naming });
     let finalStatus = 'error';
     // The message the reply is being written into now. A reply that takes messages of the person is cut at the boundary that took them: the message so far is finished,
     // the person's messages are written after it, and the rest of the reply goes into a new message (`cut`). Writes into the new message wait until the cut is whole.
@@ -504,6 +508,7 @@ export function createRunManager({
       if (beat) clearRepeating(beat);
       if (limit) clearTimer(limit);
       active.delete(runId);
+      if (naming && controller.signal.reason !== RESTART) void naming.flush();
       if (!ended && controller.signal.reason !== RESTART && !controller.signal.aborted) log('run_left_open', { runId });
       if (visionNext && controller.signal.reason !== RESTART) void run(visionNext);
       // A model with no memory tools is followed by the curator: it reads the turn once the reply is written and the page is told it is over (the key is still held for this).
@@ -744,6 +749,13 @@ export function createRunManager({
       const entry = active.get(runId);
       if (!entry || entry.userId !== userId || !entry.imageControl?.answer) return { ok: false, reason: 'not_running' };
       return { ok: true, answered: Boolean(entry.imageControl.answer(askId, answer)?.answered) };
+    },
+
+    /** The page asks that the conversation of a reply be named if it is still called `placeholder` in a little while (server/conversation-naming.js). */
+    async name({ userId, runId, prompt, placeholder }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.naming) return { ok: false, reason: 'not_running' };
+      return entry.naming.request({ prompt, placeholder }) ? { ok: true } : { ok: false, reason: 'not_taken' };
     },
 
     /** Whether this person's reply is being made by this process (so it can be watched live). */

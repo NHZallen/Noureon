@@ -1297,3 +1297,38 @@ test('what the sandbox host was last found to be, for /healthz: off, unknown bef
   last = { ok: true, reason: '', at: 2 };
   assert.equal(manager.sandboxState(), 'ok');
 });
+
+test('a reply can be asked to name its conversation: only by its person, once, for a reply that writes text, and it is done when the reply ends if the wait is not up', async () => {
+  let release;
+  const db = fakeDatabase();
+  const rpcs = [];
+  const asked = [];
+  const original = db.rpc.bind(db);
+  db.rpc = async (name, args) => {
+    if (name === 'server_conversation_title_state') { rpcs.push(name); return { title: 'New chat', renamed: false, deleted: false }; }
+    if (name === 'server_set_conversation_title') { rpcs.push(name); asked.push(args); return true; }
+    return original(name, args);
+  };
+  const { manager, timers } = managerHarness({
+    db,
+    execute: () => new Promise((resolve) => { release = () => resolve({ parts: [{ text: 'done' }], toolCalls: 0 }); }),
+    fetchImpl: async () => new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: '{"title":"A named chat"}' } }] })}\n\ndata: [DONE]\n\n`, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const ask = { prompt: 'Name it', placeholder: 'New chat' };
+  assert.deepEqual(await manager.name({ userId: 'someone-else', runId, ...ask }), { ok: false, reason: 'not_running' });
+  assert.deepEqual(await manager.name({ userId: USER, runId: 'run-99', ...ask }), { ok: false, reason: 'not_running' });
+  assert.deepEqual(await manager.name({ userId: USER, runId, prompt: '', placeholder: 'New chat' }), { ok: false, reason: 'not_taken' });
+  assert.deepEqual(await manager.name({ userId: USER, runId, ...ask }), { ok: true });
+  assert.deepEqual(await manager.name({ userId: USER, runId, ...ask }), { ok: false, reason: 'not_taken' }, 'once');
+  assert.equal(rpcs.length, 0, 'nothing is done while the reply runs and the wait is not up');
+  release();
+  await settle();
+  await settle();
+  assert.deepEqual(rpcs, ['server_conversation_title_state', 'server_set_conversation_title']);
+  assert.equal(asked[0].p_title, 'A named chat');
+  assert.equal(asked[0].p_placeholder, 'New chat');
+  assert.equal(timers.length > 0, true);
+  assert.deepEqual(await manager.name({ userId: USER, runId, ...ask }), { ok: false, reason: 'not_running' }, 'it has ended');
+});

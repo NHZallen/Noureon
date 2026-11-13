@@ -68,7 +68,7 @@ test('the functions the page may call are exactly the ones named here, and nothi
   assert.deepEqual(forPeople, ['accept_project_invite', 'account_has_password', 'admin_delete_share', 'admin_dismiss_share_reports', 'admin_get_shared_conversation', 'admin_list_share_reports', 'admin_remove_share', 'admin_restore_share', 'admin_set_share_status', 'can_hear_project', 'close_project_link', 'create_project_link', 'fetch_workspace_delta', 'get_project_invite', 'get_project_links', 'get_shared_conversation', 'is_service_admin', 'leave_project', 'list_my_conversation_shares', 'list_my_project_exits', 'list_my_sessions', 'list_my_shared_projects', 'list_project_invites', 'list_project_members', 'list_shared_with_me', 'move_conversation_out_of_project', 'permanently_delete_workspace_conversations', 'permanently_delete_workspace_folder', 'project_share_preview', 'read_project_memory', 'refresh_project_link', 'remove_project_member', 'report_shared_conversation', 'revoke_conversation_share', 'revoke_my_session', 'revoke_project_invite', 'set_project_member_role', 'share_project', 'shares_project_with', 'update_shared_project', 'upsert_workspace_conversations', 'upsert_workspace_folders', 'upsert_workspace_messages', 'user_has_verified_totp', 'write_project_memory']);
   // (The functions of triggers cannot be called by hand, and workspace_safe_timestamptz is the helper of the functions above.)
   const forTheServer = securityDefiners.filter((row) => row.service && !row.authenticated && row.returns !== 'trigger').map((row) => row.proname).sort();
-  assert.deepEqual(forTheServer, ['orphan_shared_assets', 'orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'project_person_name', 'project_person_photo', 'project_role', 'server_claim_stale_runs', 'server_collect_project_copy', 'server_create_conversation_share', 'server_create_project_email_invite', 'server_drop_conversation_share', 'server_drop_stale_building_shares', 'server_finish_conversation_share', 'server_get_conversation_share', 'server_project_asset_allowed', 'server_project_memory_access', 'server_read_conversation_for_share', 'server_read_history', 'server_read_project_for_member', 'server_read_project_history', 'server_requeue_removed_shares', 'server_requeue_restored_shares', 'server_requeue_share_reports', 'server_revoke_project_invite', 'server_start_run', 'server_store_project_copy', 'server_take_removed_shares_to_mail', 'server_take_restored_shares_to_mail', 'server_take_share_reports_to_mail', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);
+  assert.deepEqual(forTheServer, ['orphan_shared_assets', 'orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'project_person_name', 'project_person_photo', 'project_role', 'server_claim_stale_runs', 'server_collect_project_copy', 'server_conversation_title_state', 'server_create_conversation_share', 'server_create_project_email_invite', 'server_drop_conversation_share', 'server_drop_stale_building_shares', 'server_finish_conversation_share', 'server_get_conversation_share', 'server_project_asset_allowed', 'server_project_memory_access', 'server_read_conversation_for_share', 'server_read_history', 'server_read_project_for_member', 'server_read_project_history', 'server_requeue_removed_shares', 'server_requeue_restored_shares', 'server_requeue_share_reports', 'server_revoke_project_invite', 'server_set_conversation_title', 'server_start_run', 'server_store_project_copy', 'server_take_removed_shares_to_mail', 'server_take_restored_shares_to_mail', 'server_take_share_reports_to_mail', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);
 });
 
 // ---------- one person never sees or changes another's
@@ -225,6 +225,45 @@ test('the server writes a message: the next place counts only the messages that 
   const final = (await database.service.query('select parts, status from public.workspace_messages where id = $1', [serverMessage]))[0];
   assert.equal(final.status, 'complete', 'a late draft does not undo the finished answer');
   assert.equal(final.parts[0].text, 'done');
+});
+
+test('the server names a conversation only where the title is still the placeholder, and not for people to call', async () => {
+  const erin = await database.createUser();
+  const frank = await database.createUser();
+  const E = database.asUser(erin);
+  const conversation = conversationRow({ title: 'New chat' });
+  await callWith(E, 'upsert_workspace_conversations', [conversation]);
+  const state = async (user, conversationId) => (await database.service.query('select public.server_conversation_title_state($1, $2) as state', [user, conversationId]))[0].state;
+  const setTitle = async (user, conversationId, placeholder, title) => (await database.service.query('select public.server_set_conversation_title($1, $2, $3, $4) as written', [user, conversationId, placeholder, title]))[0].written;
+
+  assert.deepEqual(await state(erin, conversation.id), { title: 'New chat', renamed: false, deleted: false });
+  assert.equal(await state(frank, conversation.id), null, 'another person\'s conversation is not seen');
+  assert.equal(await setTitle(frank, conversation.id, 'New chat', 'Stolen'), false, 'another person cannot name it');
+  assert.equal(await setTitle(erin, conversation.id, 'Some other name', 'Wrong'), false, 'a title that is not the placeholder is left alone');
+  assert.equal(await setTitle(erin, conversation.id, 'New chat', 'Cats and where they sleep'), true);
+  assert.equal((await state(erin, conversation.id)).title, 'Cats and where they sleep');
+  assert.equal(await setTitle(erin, conversation.id, 'New chat', 'Again'), false, 'it is named once');
+  await assert.rejects(() => setTitle(erin, conversation.id, 'Cats and where they sleep', '   '), /title/i);
+
+  // A conversation the person renamed, or deleted, is never named.
+  const renamed = conversationRow({ title: 'New chat', metadata: { isRenamed: true } });
+  const removed = conversationRow({ title: 'New chat' });
+  await callWith(E, 'upsert_workspace_conversations', [renamed, removed]);
+  await callWith(E, 'upsert_workspace_conversations', [{ ...removed, deleted_at: now() }]);
+  assert.equal(await setTitle(erin, renamed.id, 'New chat', 'No'), false);
+  assert.equal(await setTitle(erin, removed.id, 'New chat', 'No'), false);
+
+  // The change reaches the other pages like any change of the row.
+  const fresh = conversationRow({ title: 'New chat' });
+  await callWith(E, 'upsert_workspace_conversations', [fresh]);
+  const seqBefore = (await database.service.query('select sync_seq from public.workspace_conversations where id = $1', [fresh.id]))[0].sync_seq;
+  await setTitle(erin, fresh.id, 'New chat', 'Named');
+  const seqAfter = (await database.service.query('select sync_seq from public.workspace_conversations where id = $1', [fresh.id]))[0].sync_seq;
+  assert.ok(Number(seqAfter) > Number(seqBefore), 'the row moved on in the sync sequence');
+
+  // Not for people.
+  await assert.rejects(() => E.query('select public.server_set_conversation_title($1, $2, $3, $4)', [erin, conversation.id, 'x', 'y']), /permission denied/i);
+  await assert.rejects(() => E.query('select public.server_conversation_title_state($1, $2)', [erin, conversation.id]), /permission denied/i);
 });
 
 test('the server never writes into another person\'s conversation, a deleted conversation, or a message of someone else\'s; and it is not for people to call', async () => {

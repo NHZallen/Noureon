@@ -695,6 +695,10 @@
     {
       "path": "src/app/runtime/security/device-name.js",
       "note": "Reviewed 2026-11-12: no browser globals (a short name for the device and the browser from a User-Agent text: the passkey list and the mails about a change of the account)."
+    },
+    {
+      "path": "src/app/runtime/shell/current-model-json.js",
+      "note": "Reviewed 2026-11-13: no browser globals, no imports (the JSON in an answer of a model; the server uses it to read the title of a conversation: server/conversation-naming.js)."
     }
   ]
 }

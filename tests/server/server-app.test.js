@@ -428,6 +428,20 @@ test('an answer about a site reaches the reply of the person who gives it, and o
   }, { runs });
 });
 
+test('the page asks that the conversation of its reply be named: signed in, for a reply of the person that is running, and the answer comes at once', async () => {
+  const asked = [];
+  const runs = { name: async (args) => { asked.push(args); return args.runId === USER ? (args.prompt ? { ok: true } : { ok: false, reason: 'not_taken' }) : { ok: false, reason: 'not_running' }; } };
+  await withServer(async ({ base }) => {
+    const send = (runId, body, headers = { ...auth, ...json }) => fetch(`${base}/v1/runs/${runId}/naming`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const ok = await send(USER, { prompt: 'Name it', placeholder: 'New chat' });
+    assert.equal(ok.status, 202);
+    assert.deepEqual(asked[0], { userId: USER, runId: USER, prompt: 'Name it', placeholder: 'New chat' });
+    assert.equal((await send(USER, { prompt: '', placeholder: 'New chat' })).status, 400, 'a request that is not taken');
+    assert.equal((await send('323e4567-e89b-12d3-a456-426614174002', { prompt: 'p', placeholder: 'x' })).status, 404, 'a reply that is not running here');
+    assert.equal((await send(USER, { prompt: 'p', placeholder: 'x' }, json)).status, 401, 'signing in is needed');
+  }, { runs });
+});
+
 test('/v1/storage tells the signed-in person how much of their space is used', async () => {
   const asked = [];
   const files = { quotaBytes: 500 * 1024 * 1024, usage: async (userId) => { asked.push(userId); return 1234; } };

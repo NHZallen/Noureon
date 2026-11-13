@@ -175,7 +175,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential|\/connector|\/image|\/member)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential|\/connector|\/image|\/naming|\/member)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -307,6 +307,17 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
         send(response, 200, { ok: true, answered: result.answered }, origin);
         status = 200;
+        return;
+      }
+      if (runPath && request.method === 'POST' && runPath[2] === '/naming') {
+        // The page's request that the conversation of this reply be named, if it is still called `placeholder` in a little while: { prompt, placeholder } (server/conversation-naming.js).
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 16_384);
+        const result = await runs.name({ userId: user.id, runId: runPath[1], prompt: body?.prompt, placeholder: body?.placeholder });
+        if (!result.ok) throw new RequestError(result.reason === 'not_running' ? ERROR_CODES.notFound : ERROR_CODES.badRequest, result.reason === 'not_running' ? 'No such reply is running here.' : 'That is not a request for a title.');
+        send(response, 202, { ok: true }, origin);
+        status = 202;
         return;
       }
       if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/steer', '/pause', '/resume'].includes(runPath[2])) {
