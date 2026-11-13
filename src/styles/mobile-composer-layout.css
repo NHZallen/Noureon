@@ -42,8 +42,7 @@
         grid-area: model;
         min-width: 0;
         max-width: 100%;
-        /* The whole width up to the send button: the thinking dial (model-picker.css) sits at the far end of it, beside that button. */
-        justify-self: stretch;
+        justify-self: start;
     }
 
     #model-council-control .mp-anchor:first-child {

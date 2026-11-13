@@ -4,8 +4,6 @@
 // model thinks. Plain functions from a prepared state to strings; the events
 // live in model-picker-lifecycle.js.
 
-import { dialMarkup, dialStyle } from './depth-dial.js';
-
 const ICONS = Object.freeze({
   chevron: '<svg class="mp-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"></polyline></svg>',
   council: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="11" r="4"></circle><path d="M5 8a3 3 0 1 0-2 5.24"></path><path d="M19 8a3 3 0 1 1 2 5.24"></path></svg>',
@@ -192,9 +190,7 @@ export function renderDepthTrigger(state, ctx) {
   // Every level name is laid in the same place, unseen (a pseudo element made from this list, see model-picker.css), so the button is as wide as
   // the longest name and does not change width (and move the panel above it) as the level changes.
   const sizer = state.depth.levels.map((level) => escape(level.label)).join('\n');
-  // On a phone the button is a small dial (depth-dial.js) and the name of the level is left to the panel; on a computer it is the name.
-  const custom = state.depth.index !== state.depth.defaultIndex;
-  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger${custom ? ' is-custom' : ''}" style="${dialStyle(state.depth.index, state.depth.levels.length - 1)}" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}>${dialMarkup()}<span class="mp-depth-trigger-label" data-sizer="${sizer}"><span class="mp-depth-trigger-value">${escape(label)}</span></span>${ICONS.chevron}</button>`;
+  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}><span class="mp-depth-trigger-label" data-sizer="${sizer}"><span class="mp-depth-trigger-value">${escape(label)}</span></span>${ICONS.chevron}</button>`;
 }
 
 /** The small panel behind it: the level named, the slider, and what each end means. */

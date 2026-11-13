@@ -2,7 +2,6 @@
 // the terms a hidden or stealth model asks to be accepted first), and the depth slider of how much the model thinks.
 
 import { noteModelsUsed as noteRecent } from '../../ui/model-picker/model-groups.js';
-import { setDial } from '../../ui/model-picker/depth-dial.js';
 import { chooseEffort, switchEffort } from '../shell/reasoning-memory.js';
 
 export function createPickerChoices({
@@ -107,10 +106,7 @@ export function createPickerChoices({
     }
     input.setAttribute('aria-valuetext', label);
     // The button in the composer follows the thumb while it is dragged, not only when it lands (its width does not change: it keeps the longest name).
-    const control = input.closest('#model-council-control');
-    const defaultIndex = [...(wrap?.querySelectorAll('.mp-dot') || [])].findIndex((dot) => dot.classList.contains('is-default'));
-    setDial(control?.querySelector('#model-depth-btn'), position, last, position === defaultIndex);
-    const shown = control?.querySelector('.mp-depth-trigger-value');
+    const shown = input.closest('#model-council-control')?.querySelector('.mp-depth-trigger-value');
     if (shown && shown.textContent !== label) {
       renameDepthTrigger(shown, shown.textContent, label);
       shown.textContent = label;

@@ -15,7 +15,6 @@ import '../styles/memory-notes.css';
 import '../styles/share.css';
 import '../styles/step-icons.css';
 import '../styles/model-picker.css';
-import '../styles/depth-dial.css';
 import '../styles/notification.css';
 import '../styles/dictation.css';
 import { startRuntimeEntry } from './runtime-entry.js';

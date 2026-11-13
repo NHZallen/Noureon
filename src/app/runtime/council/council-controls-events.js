@@ -13,12 +13,6 @@ export function bindCouncilControlEvents(container, {
 }) {
   document.defaultView?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
   container.addEventListener('click', async (event) => {
-    // On a phone the thinking panel is a bar over the composer with the page dimmed behind it: a press on the dim (the panel's own box) closes it.
-    if (event.target.id === 'model-depth-popover') {
-      event.stopPropagation();
-      setPanelOpen(container, 'depth', false);
-      return;
-    }
     const target = event.target.closest?.('button, [data-mp-tab]');
     if (!target || !container.contains(target)) return;
     // Clicks here redraw the panel, which removes the clicked button before the page's
