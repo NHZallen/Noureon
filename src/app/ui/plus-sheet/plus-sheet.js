@@ -7,7 +7,7 @@
 // whether its button is shown and active, and pressing it presses that button, so what the menu did still does (the same handlers,
 // the same saving). It is loaded when the "+" is first touched (runtime/features/plus-sheet-entry.js).
 
-import { decideSheetDrag } from '../citations/sheet-drag.js';
+import { createBottomSheet } from '../sheet/bottom-sheet.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { getFileText } from '../files/file-texts.js';
 import { normalizeDeckDesign, normalizeDocumentChoice, DECK_DESIGN_AUTO } from '../../runtime/features/deck-design-control.js';
@@ -24,22 +24,14 @@ const TOOLS = Object.freeze([
 ]);
 const PAGE_SIZES = Object.freeze({ home: 'medium', design: 'large', ratio: 'medium', resolution: 'medium', advanced: 'large' });
 
-let current = null;
-
-/** Closes the sheet that is open, if any. */
-export function closePlusSheet(options) {
-  current?.close(options);
-}
-
 const shown = (button) => Boolean(button) && button.style.display !== 'none';
 const labelOf = (button) => button?.querySelector('.composer-menu-label, .composer-menu-copy > span:first-child')?.textContent?.trim() || button?.textContent?.trim() || '';
 
 /**
  * Opens the sheet. `ctx`: { document, window, getActiveConversation, getConfig, saveAppData, refresh, closeAllPopovers,
- * normalizeConversationModel, isCouncilEnabled }. Returns { close, element, go } (null where a sheet is already open).
+ * normalizeConversationModel, isCouncilEnabled }. Returns { close, element, go }; a sheet that is open is closed first.
  */
 export function openPlusSheet(ctx) {
-  if (current) return null;
   const { document, window } = ctx;
   const language = ctx.getConfig?.().uiLanguage || 'zh-TW';
   const text = (key) => plusSheetText(language, key);
@@ -53,33 +45,33 @@ export function openPlusSheet(ctx) {
   const opener = document.getElementById('add-file-btn');
   opener?.setAttribute('aria-expanded', 'true');
 
-  const root = element(document, 'div', 'ps-root');
-  const backdrop = element(document, 'div', 'ps-backdrop');
-  const sheet = element(document, 'div', 'ps-sheet');
-  sheet.setAttribute('role', 'dialog');
-  sheet.setAttribute('aria-modal', 'true');
-  sheet.tabIndex = -1;
-  const head = element(document, 'div', 'ps-head');
   const grip = element(document, 'div', 'ps-grip');
   const lead = element(document, 'button', 'ps-lead');
   lead.type = 'button';
   const title = element(document, 'h2', 'ps-title');
+  const head = element(document, 'div', 'ps-head');
   head.append(grip, lead, title);
   const body = element(document, 'div', 'ps-body');
-  sheet.append(head, body);
-  root.append(backdrop, sheet);
-  document.body.append(root);
-  document.documentElement.classList.add('source-sheet-open');
+  let restoreFocus = true;
+  const sheet = createBottomSheet({
+    document, parts: [head, body], handles: [head], body, label: text('title'), expandable: true,
+    onClose: () => {
+      opener?.setAttribute('aria-expanded', 'false');
+      if (restoreFocus && wasFocused) {
+        try { editor.focus?.({ preventScroll: true }); } catch { /* the editor is gone */ }
+      }
+    }
+  });
+  sheet.card.classList.add('ps-sheet');
 
   let page = 'home';
-  let size = 'medium';
-  let closed = false;
   let building = 0;
 
   const press = (button, { keepFocus = false } = {}) => {
     // Pressed inside this click, so a file chooser, the camera or Google's window still counts as opened by the person.
     button.click();
-    close({ restoreFocus: keepFocus });
+    restoreFocus = keepFocus;
+    sheet.close();
   };
 
   const tile = (id, iconName, label) => {
@@ -169,109 +161,31 @@ export function openPlusSheet(ctx) {
     else if (name === 'advanced') buildAdvancedPage(pageContext, pageElement);
   };
 
-  // Shows a page: the title and the button on the left change at once, the new page slides in from the side it belongs to.
+  // Shows a page: the title and the button on the left change at once, the new page slides in from the side it belongs to, and the
+  // card goes to the height that page has (the first pages are as tall as they are, the design page and the advanced one open large).
   function paint(name, direction) {
     const pageElement = element(document, 'div', `ps-page${direction ? ` is-in-${direction}` : ''}`);
     pageElement.dataset.page = name;
     if (name === 'design') pageElement.classList.add('ps-design');
     const top = body.scrollTop;
     page = name;
-    sheet.dataset.page = name;
+    sheet.card.dataset.page = name;
     title.textContent = TITLES[name]();
     lead.innerHTML = icon(name === 'home' ? 'close' : 'back', 20);
     lead.setAttribute('aria-label', text(name === 'home' ? 'close' : 'back'));
-    sheet.setAttribute('aria-label', title.textContent);
+    sheet.card.setAttribute('aria-label', title.textContent);
     buildPage(name, pageElement);
     body.replaceChildren(pageElement);
     body.scrollTop = direction ? 0 : top;
-    // The first page is as tall as what it holds (up to the large height), so every row shows without scrolling.
-    if (name === 'home') {
-      const style = window.getComputedStyle(body);
-      const padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
-      sheet.style.setProperty('--ps-home-h', `${Math.ceil(head.offsetHeight + padding + pageElement.offsetHeight)}px`);
-    }
-  }
-
-  function setSize(next) {
-    size = next;
-    sheet.dataset.size = next;
+    sheet.refit(PAGE_SIZES[name]);
   }
 
   function go(name) {
     if (name === page) return;
-    const direction = name === 'home' ? 'l' : 'r';
-    setSize(PAGE_SIZES[name]);
-    paint(name, direction);
+    paint(name, name === 'home' ? 'l' : 'r');
   }
 
-  function close({ restoreFocus = true } = {}) {
-    if (closed) return;
-    closed = true;
-    document.removeEventListener('keydown', onKey, true);
-    root.classList.remove('is-open');
-    opener?.setAttribute('aria-expanded', 'false');
-    document.documentElement.classList.remove('source-sheet-open');
-    const remove = () => root.remove();
-    // Let it sink before it goes (with reduced motion it goes at once).
-    if (window?.matchMedia?.('(prefers-reduced-motion: reduce)').matches) remove();
-    else { sheet.addEventListener('transitionend', remove, { once: true }); window?.setTimeout?.(remove, 360); }
-    if (current === api) current = null;
-    if (restoreFocus && wasFocused) {
-      try { editor.focus?.({ preventScroll: true }); } catch { /* the editor is gone */ }
-    }
-  }
-  const onKey = (event) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      close();
-    }
-  };
-  document.addEventListener('keydown', onKey, true);
-  backdrop.addEventListener('click', () => close());
-  lead.addEventListener('click', () => (page === 'home' ? close() : go('home')));
-
-  // Pulling the bar: the sheet follows the finger (only moved, never laid out again) and settles where `decideSheetDrag` says,
-  // as the sources sheet does: down closes (or goes back to the medium height from the large one), up makes it large.
-  let drag = null;
-  let frame = 0;
-  const paintDrag = () => {
-    frame = 0;
-    if (drag) sheet.style.translate = `0 ${drag.shown}px`;
-  };
-  head.addEventListener('pointerdown', (event) => {
-    if ((event.button !== undefined && event.button > 0) || event.target.closest('button')) return;
-    drag = { y: event.clientY, at: Date.now(), dy: 0, shown: 0, pointer: event.pointerId };
-    sheet.classList.add('is-dragging');
-    try { head.setPointerCapture?.(event.pointerId); } catch { /* no capture */ }
-  });
-  head.addEventListener('pointermove', (event) => {
-    if (!drag || event.pointerId !== drag.pointer) return;
-    drag.dy = event.clientY - drag.y;
-    drag.shown = drag.dy < 0 ? drag.dy * 0.25 : drag.dy;
-    if (window?.requestAnimationFrame) { if (!frame) frame = window.requestAnimationFrame(paintDrag); } else paintDrag();
-  });
-  const release = (event) => {
-    if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.pointer)) return;
-    const elapsed = Math.max(1, Date.now() - drag.at);
-    const outcome = decideSheetDrag({ state: size, dy: drag.dy, speed: drag.dy / elapsed, expandable: true });
-    drag = null;
-    if (frame) { window?.cancelAnimationFrame?.(frame); frame = 0; }
-    sheet.classList.remove('is-dragging');
-    sheet.style.removeProperty('translate');
-    if (outcome === 'close') close();
-    else setSize(outcome);
-  };
-  head.addEventListener('pointerup', release);
-  head.addEventListener('pointercancel', release);
-
-  const api = { close, element: root, go };
-  current = api;
-  setSize('medium');
+  lead.addEventListener('click', () => (page === 'home' ? sheet.close() : go('home')));
   paint('home', null);
-  // One frame later, so it rises instead of appearing.
-  (window?.requestAnimationFrame || ((callback) => callback()))(() => {
-    root.classList.add('is-open');
-    sheet.focus?.({ preventScroll: true });
-  });
-  return api;
+  return { close: sheet.close, element: sheet.element, go };
 }

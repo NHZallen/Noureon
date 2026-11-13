@@ -1,10 +1,11 @@
 // The small parts the pages of the projects are made of: elements, the icons (outline, 24 by 24, in the colour of the text), the mark of a project, a menu that opens at a button and the sheet
-// that comes up from below on a phone and sits in the middle on a wide screen. Every text of a person (a name, a title) is put in with textContent.
+// that comes up from below on a phone. Every text of a person (a name, a title) is put in with textContent.
 
 import { leaving } from '../motion/leave-ghost.js';
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
 import { FOLDER_COLORS } from '../../runtime/shell/runtime-ui-colors.js';
 import { resolveFolderColor } from '../../../utils/folder-colors.js';
+import { createBottomSheet } from '../sheet/bottom-sheet.js';
 
 export const make = (document, tag, className, text) => {
   const node = document.createElement(tag);
@@ -203,48 +204,28 @@ export function openSheet({ document, root, title, label, body, footer = null, a
 }
 
 /**
- * A list of choices that comes up from below after an "add" button (the way the phone's own apps ask what to add): a title, and rows of an icon and a word. It is in the middle on a wide
- * screen. A tap outside, Escape or a choice closes it. `items` are [{ label, icon, action }]. Returns { close, element }.
+ * A list of choices that comes up from below after an "add" button (the way the phone's own apps ask what to add): a title, and rows of an icon and a word.
+ * It is the sheet every sheet from the bottom is (ui/sheet/bottom-sheet.js): it floats, it can be pulled up to the large height or down to close it.
+ * A tap outside, Escape or a choice closes it. `items` are [{ label, icon, action }]. Returns { close, element }.
  */
-export function openActionSheet({ document, root, title, items, onClose = () => {} }) {
-  const win = document.defaultView;
-  const backdrop = make(document, 'div', 'pj-backdrop is-bottom');
-  const sheet = make(document, 'div', 'pj-sheet pj-action-sheet');
-  sheet.setAttribute('role', 'dialog');
-  sheet.setAttribute('aria-modal', 'true');
-  sheet.setAttribute('aria-label', title || '');
+export function openActionSheet({ document, title, items, onClose = () => {} }) {
+  const grip = make(document, 'div', 'pj-action-grip');
   const heading = make(document, 'div', 'pj-action-title', title || '');
   heading.setAttribute('role', 'heading');
   heading.setAttribute('aria-level', '2');
-  sheet.appendChild(heading);
-  let closed = false;
-  const close = () => {
-    if (closed) return;
-    closed = true;
-    win.removeEventListener('keydown', onKey, true);
-    leaving.bottom(backdrop);
-    backdrop.remove();
-    onClose();
-  };
-  const onKey = (event) => {
-    if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop:not([data-ghost])')].at(-1)) return;
-    event.stopPropagation();
-    event.preventDefault();
-    close();
-  };
+  const list = make(document, 'div', 'pj-action-list');
+  const sheet = createBottomSheet({ document, parts: [grip, heading, list], handles: [grip, heading], body: list, label: title || '', zIndex: 1300, onClose });
+  sheet.card.classList.add('pj-action-sheet');
   for (const item of items) {
     const row = make(document, 'button', 'pj-action-item');
     row.type = 'button';
     const icon = make(document, 'span', 'pj-menu-icon');
     icon.innerHTML = ICONS[item.icon]?.(22) || '';
     row.append(icon, make(document, 'span', 'pj-menu-label', item.label));
-    row.addEventListener('click', () => { close(); void item.action(); });
-    sheet.appendChild(row);
+    row.addEventListener('click', () => { sheet.close(); void item.action(); });
+    list.appendChild(row);
   }
-  backdrop.appendChild(sheet);
-  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
-  win.addEventListener('keydown', onKey, true);
-  root.appendChild(backdrop);
-  sheet.querySelector('button')?.focus();
-  return { close, element: sheet };
+  sheet.refit();
+  list.querySelector('button')?.focus({ preventScroll: true });
+  return { close: sheet.close, element: sheet.card };
 }

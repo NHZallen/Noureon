@@ -91,57 +91,25 @@
     line-height: 1.4;
 }
 
-/* The sheet from the bottom. */
-.source-sheet-root { position: fixed; inset: 0; z-index: 1000; }
-
-.source-sheet-backdrop {
+/* The sheets from the bottom (ui/sheet/bottom-sheet.js): a card that floats above the page; its position, its gaps and its corners are set
+   by the engine at every frame while it is pulled, so here only what does not change. */
+.bs-root { position: fixed; inset: 0; z-index: 1000; }
+.bs-backdrop { position: absolute; inset: 0; background: var(--scrim-soft); touch-action: none; }
+.bs-card {
     position: absolute;
-    inset: 0;
-    background: var(--scrim-soft);
-    opacity: 0;
-    touch-action: none;
-    transition: opacity 0.28s ease;
-}
-
-.source-sheet {
-    --sheet-large: min(92vh, 56rem);
-    --sheet-medium: min(62vh, 32rem);
-    --sheet-offset: calc(var(--sheet-large) - var(--sheet-medium));
-    --sheet-rest: 0px;
-    position: absolute;
-    left: 50%;
-    bottom: 0;
     display: flex;
     flex-direction: column;
-    width: min(100%, 38rem);
-    max-height: var(--sheet-medium);
-    border-radius: 1.75rem 1.75rem 0 0;
-    background: var(--chat-bg, var(--modal-bg));
+    max-width: 38rem;
+    margin-inline: auto;
+    border-radius: 1.75rem;
+    background: var(--modal-bg);
     color: var(--text-primary);
     box-shadow: var(--shadow-up);
-    transform: translate3d(-50%, 110%, 0);
-    transition: transform var(--dur-drawer) var(--ease-drawer), translate var(--dur-drawer) var(--ease-drawer);
-    will-change: transform;
+    overflow: hidden;
     outline: none;
+    will-change: transform;
 }
-
-@supports (height: 1dvh) {
-    .source-sheet { --sheet-large: min(92dvh, 56rem); --sheet-medium: min(62dvh, 32rem); }
-}
-
-/* The whole-reply sheet always has its large height and sits lower by the difference while it is the medium one, so
-   pulling it only moves it (nothing is laid out again while it follows the finger). */
-.source-sheet.is-all { height: var(--sheet-large); max-height: none; --sheet-rest: var(--sheet-offset); }
-.source-sheet.is-all.is-large { --sheet-rest: 0px; }
-.source-sheet.is-all:not(.is-large) .source-sheet-list { padding-bottom: calc(var(--sheet-offset) + 1rem + env(safe-area-inset-bottom, 0px)); }
-.source-sheet-root.is-open .source-sheet-backdrop { opacity: 1; }
-.source-sheet-root.is-open .source-sheet { transform: translate3d(-50%, var(--sheet-rest), 0); }
-.source-sheet.is-dragging { transition: none; }
-
-/* On a phone it fills the width and rests on the bottom edge, as the settings do. */
-@media (max-width: 767px) {
-    .source-sheet { width: 100%; border-radius: 1.5rem 1.5rem 0 0; }
-}
+.bs-card.is-dragging { user-select: none; -webkit-user-select: none; }
 
 .source-sheet-grip { flex: none; width: 2.4rem; height: 0.3rem; margin: 0.6rem auto 0.2rem; border-radius: 9999px; background: var(--border-color, #d1d5db); touch-action: none; }
 .source-sheet-head { position: relative; flex: none; display: flex; align-items: center; justify-content: center; min-height: 3rem; padding: 0.2rem 1rem; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -195,7 +163,7 @@ main.flex-1 > header { z-index: 11; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .source-sheet, .source-sheet-backdrop, main.flex-1 { transition: none; }
+    main.flex-1 { transition: none; }
 }
 
 /* The timeline: every message of the chat as a dot on a thin line, the words said under who said it. */

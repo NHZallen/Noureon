@@ -10,7 +10,7 @@ import {
 } from '../src/app/ui/citations/citation-pills.js';
 import { knownSiteName, loadSiteNames, onSiteNames, resetSiteNames } from '../src/app/ui/citations/site-names.js';
 import { createSourceItem, formatSourceDate } from '../src/app/ui/citations/source-list.js';
-import { closeSourceSheet, decideSheetDrag, openSourceSheet } from '../src/app/ui/citations/source-sheet.js';
+import { closeSourceSheet, openSourceSheet } from '../src/app/ui/citations/source-sheet.js';
 import { formatSandboxRunBlock, normalizeSandboxRun, summarizeSandboxRunText } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { createGeminiCollector } from '../src/app/runtime/features/tool-call-formats.js';
@@ -168,7 +168,8 @@ test('the sheet says how many sources, lists them as links, and closes by its bu
     document.getElementById('opener').focus();
     let closed = 0;
     const sheet = openSourceSheet({ document, sources: sources.slice(0, 2), language, onClose: () => { closed += 1; } });
-    const root = document.querySelector('.source-sheet-root');
+    await sheet.ready;
+    const root = document.querySelector('.bs-root');
     assert.ok(root);
     assert.equal(root.querySelector('.source-sheet-title').textContent, sandboxText(language, 'citeSources', { n: 2 }));
     assert.equal(root.querySelectorAll('a.source-item').length, 2);
@@ -178,40 +179,32 @@ test('the sheet says how many sources, lists them as links, and closes by its bu
     assert.equal(closed, 1);
     assert.equal(document.documentElement.classList.contains('source-sheet-open'), false);
 
-    openSourceSheet({ document, sources: sources.slice(0, 2), language });
+    await openSourceSheet({ document, sources: sources.slice(0, 2), language }).ready;
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     assert.equal(document.documentElement.classList.contains('source-sheet-open'), false, 'Escape');
-    openSourceSheet({ document, sources: sources.slice(0, 2), language });
-    [...document.querySelectorAll('.source-sheet-backdrop')].at(-1).click();
+    await openSourceSheet({ document, sources: sources.slice(0, 2), language }).ready;
+    [...document.querySelectorAll('.bs-backdrop')].at(-1).click();
     assert.equal(document.documentElement.classList.contains('source-sheet-open'), false, 'a tap outside');
     sheet.close();
     window.close();
   }
 });
 
-test('the sheet of a whole reply is headed "Sources" without a close button, and only one is open at a time', () => {
+test('the sheet of a whole reply is headed "Sources" without a close button, and only one is open at a time', async () => {
   const window = dom();
   const { document } = window;
-  openSourceSheet({ document, sources, all: true, language: 'en' });
-  const root = document.querySelector('.source-sheet-root');
+  await openSourceSheet({ document, sources, all: true, language: 'en' }).ready;
+  const root = document.querySelector('.bs-root');
   assert.equal(root.querySelector('.source-sheet-title').textContent, 'Sources');
   assert.equal(root.querySelector('.source-sheet-close'), null);
   assert.ok(root.querySelector('.source-sheet').classList.contains('is-all'));
-  openSourceSheet({ document, sources, language: 'en' });
+  await openSourceSheet({ document, sources, language: 'en' }).ready;
   assert.equal(document.documentElement.classList.contains('source-sheet-open'), true);
   closeSourceSheet();
   assert.equal(document.documentElement.classList.contains('source-sheet-open'), false);
   window.close();
 });
 
-test('what a pull on the sheet ends in', () => {
-  assert.equal(decideSheetDrag({ dy: 200 }), 'close');
-  assert.equal(decideSheetDrag({ dy: 30, speed: 1 }), 'close', 'a quick flick down');
-  assert.equal(decideSheetDrag({ dy: 40 }), 'medium', 'a short pull settles back');
-  assert.equal(decideSheetDrag({ state: 'large', dy: 200, expandable: true }), 'medium', 'from full height down to the middle first');
-  assert.equal(decideSheetDrag({ state: 'medium', dy: -90, expandable: true }), 'large');
-  assert.equal(decideSheetDrag({ state: 'medium', dy: -90, expandable: false }), 'medium', 'a sheet that cannot be pulled up');
-});
 
 test('the Sources button shows three of the sites, in every language, and only when there are pages', () => {
   assert.equal(sourcesButtonHTML([], 'en'), '');

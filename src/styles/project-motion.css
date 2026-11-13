@@ -18,13 +18,10 @@
 @keyframes pj-pop { from { opacity: 0; scale: 0.97; } }
 @keyframes pj-fade { from { opacity: 0; } }
 @keyframes pj-rise { from { opacity: 0; translate: 0 0.75rem; } }
-@keyframes pj-sheet-up { from { translate: 0 100%; } }
 html .pj-menu { animation: pj-pop var(--dur-menu) var(--ease-out) both; }
 html .pj-backdrop.is-dialog { animation: pj-fade var(--dur-menu) var(--ease-out) both; }
 html .pj-backdrop.is-dialog .pj-sheet { animation: pj-pop var(--dur-modal) var(--ease-out) both; }
 html .pj-backdrop:not(.is-dialog):not(.is-bottom) { animation: pj-rise var(--dur-modal) var(--ease-out) both; }
-html .pj-backdrop.is-bottom { animation: pj-fade var(--dur-menu) var(--ease-out) both; }
-html .pj-backdrop.is-bottom .pj-action-sheet { animation: pj-sheet-up var(--dur-drawer) var(--ease-drawer) both; }
 html.is-instant .pj-menu, html.is-instant .pj-backdrop, html.is-instant .pj-backdrop .pj-sheet { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   html .pj-menu, html .pj-backdrop, html .pj-backdrop .pj-sheet { animation: none; }
@@ -35,9 +32,6 @@ html.is-instant .pj-menu, html.is-instant .pj-backdrop, html.is-instant .pj-back
   html .pj-backdrop:not(.is-dialog):not(.is-bottom) { animation: pj-fade var(--dur-menu) var(--ease-out) both; }
   html .pj-backdrop:not(.is-dialog):not(.is-bottom) .pj-sheet { animation: pj-pop var(--dur-modal) var(--ease-out) both; }
 }
-@media (min-width: 640px) {
-  html .pj-backdrop.is-bottom .pj-action-sheet { animation: pj-pop var(--dur-modal) var(--ease-out) both; }
-}
 @media (prefers-reduced-motion: reduce) {
-  html .pj-backdrop .pj-sheet, html .pj-backdrop.is-bottom .pj-action-sheet { animation: none; }
+  html .pj-backdrop .pj-sheet { animation: none; }
 }

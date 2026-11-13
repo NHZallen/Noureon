@@ -70,7 +70,7 @@ test('a report that is already there, a project that is full and a report that i
   const { window, notes, run } = setup(api);
   const pending = run();
   await tick();
-  window.document.querySelector('.pj-backdrop').dispatchEvent(new window.Event('click', { bubbles: true }));
+  window.document.querySelector('.bs-backdrop').dispatchEvent(new window.Event('click', { bubbles: true }));
   assert.deepEqual(await pending, { ok: false });
   assert.deepEqual(notes, []);
 });

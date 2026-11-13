@@ -13,6 +13,10 @@ import sharingParts from '../src/data/i18n/parts/project-sharing.js';
 // the instructions, the choice when deleting, and the address.
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
+// A sheet from the bottom slides out before it leaves the page.
+const gone = async (t, selector = '.pj-action-sheet') => {
+  for (let i = 0; i < 100 && t.$(selector); i += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+};
 const texts = { ...i18nParts.en, ...sharingParts.en };
 const text = (key, values = {}) => String(texts[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? '');
 
@@ -415,6 +419,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.equal(t.$('.pj-action-title').textContent, 'Add a source');
     assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Camera', 'Photo library', 'Add a file', 'Add a web address', 'Add text']);
     t.byText('.pj-action-item', 'Add text').click();
+    await gone(t);
     assert.equal(t.$('.pj-action-sheet'), null, 'a choice closes the list');
     assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
     t.type(t.$('.pj-sheet .pj-text-input'), 'My notes');
@@ -1198,10 +1203,11 @@ test('the list of what can be added closes with a tap outside it, on the click (
     t.$('.pj-source-add').click();
     t.$('.pj-source-add').click();
     assert.equal(t.$$('.pj-action-sheet').length, 1, 'one list, not two');
-    const backdrop = t.$('.pj-backdrop.is-bottom');
+    const backdrop = t.$('.bs-backdrop');
     backdrop.dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true }));
     assert.equal(t.$$('.pj-action-sheet').length, 1, 'the press alone does not close it');
     backdrop.click();
+    await gone(t);
     assert.equal(t.$('.pj-action-sheet'), null, 'the click closes it');
     t.$('.pj-source-add').click();
     assert.equal(t.$$('.pj-action-sheet').length, 1, 'it opens again from the row');

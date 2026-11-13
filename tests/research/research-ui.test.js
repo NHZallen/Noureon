@@ -54,6 +54,16 @@ const plan = (overrides = {}) => ({
 
 // ----- the plan card
 
+// The sheets from the bottom are drawn by code that loads when the first one is asked for.
+const until = async (find) => {
+  for (let i = 0; i < 200; i += 1) {
+    const found = find();
+    if (found) return found;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return find();
+};
+
 test('the plan card counts down on the server\'s clock, and its buttons act on the run', async () => {
   const { window, host, controls, edits } = setup();
   const m = message('m1', [{ text: '' }, { researchPlan: plan({ startAt: Date.now() + 42_000 }) }]);
@@ -296,27 +306,29 @@ test('the reader shows the article with ticks for its sections, the contents on 
   assert.deepEqual(notices, []);
 });
 
-test('on a phone the contents use the expandable bottom sheet, jump to sections and close with the reader', () => {
+test('on a phone the contents use the expandable bottom sheet, jump to sections and close with the reader', async () => {
   const { window, document } = setup();
   updateResearch('m8', { report: REPORT });
   openResearchReader({ messageId: 'm8', getLanguage: () => 'ru', document });
   const root = document.querySelector('.rr');
   assert.equal(root.querySelectorAll('.rr-fab-btn').length, 3, 'the contents, the download and the sources');
   click(window, root.querySelector('.rr-fab-btn'));
-  const sheet = document.querySelector('.source-sheet');
+  const sheet = await until(() => document.querySelector('.source-sheet'));
   assert.equal(sheet.querySelector('.source-sheet-title').textContent, 'Оглавление');
   assert.ok(sheet.classList.contains('is-all'), 'the contents can be pulled up to full height');
   assert.deepEqual([...sheet.querySelectorAll('.rr-toc-link')].map((link) => link.textContent), ['Summary', 'Players', 'Detail']);
   const handle = sheet.querySelector('.source-sheet-grip');
   const drag = (from, to) => {
-    handle.dispatchEvent(new window.PointerEvent('pointerdown', { pointerId: 1, clientY: from }));
-    handle.dispatchEvent(new window.PointerEvent('pointermove', { pointerId: 1, clientY: to }));
-    handle.dispatchEvent(new window.PointerEvent('pointerup', { pointerId: 1, clientY: to }));
+    handle.dispatchEvent(new window.PointerEvent('pointerdown', { pointerId: 1, clientY: from, bubbles: true }));
+    handle.dispatchEvent(new window.PointerEvent('pointermove', { pointerId: 1, clientY: to, bubbles: true }));
+    handle.dispatchEvent(new window.PointerEvent('pointerup', { pointerId: 1, clientY: to, bubbles: true }));
   };
-  drag(400, 200);
-  assert.ok(sheet.classList.contains('is-large'), 'pulling up expands the contents');
-  drag(200, 400);
-  assert.equal(sheet.classList.contains('is-large'), false, 'pulling down returns to medium height');
+  // (There is no layout here: the medium stop is at the bottom of the screen and the large one at its top.)
+  drag(800, 100);
+  assert.equal(sheet.dataset.state, 'large', 'pulling up expands the contents');
+  drag(100, 600);
+  assert.equal(sheet.dataset.state, 'medium', 'pulling down returns to medium height');
+  await new Promise((resolve) => setTimeout(resolve, 5)); // (the click that ends a pull is not a press)
   const scrolled = [];
   root.querySelector('.rr-scroll').scrollTo = (options) => scrolled.push(options);
   Object.defineProperty(root.querySelectorAll('.rr-body h2')[1], 'offsetTop', { value: 420 });
@@ -401,7 +413,7 @@ test('a citation and its sources light up together, the panel turns to the sourc
   assert.equal(root.querySelectorAll('.rr-source-list .source-item.is-cited').length, 1);
 });
 
-test('on a phone the sources and the activity are the chat\'s sheet from the bottom, which Escape closes before the reader', () => {
+test('on a phone the sources and the activity are the chat\'s sheet from the bottom, which Escape closes before the reader', async () => {
   const { window, document } = setup();
   window.innerWidth = 400;
   updateResearch('m11', { report: REPORT, activityAll: REPORT.activity });
@@ -409,7 +421,7 @@ test('on a phone the sources and the activity are the chat\'s sheet from the bot
   const root = document.querySelector('.rr');
   const buttons = [...root.querySelectorAll('.rr-fab-btn')];
   click(window, buttons[2]);
-  const sheet = document.querySelector('.source-sheet');
+  const sheet = await until(() => document.querySelector('.source-sheet'));
   assert.ok(sheet, 'the sources open in the sheet');
   const tabsOf = (node) => [...node.querySelectorAll('.history-tab')].map((tab) => `${tab.textContent}:${tab.getAttribute('aria-selected')}`);
   assert.deepEqual(tabsOf(sheet), ['Sources:true', 'Activity:false'], 'the toolbar button opens sources by default');
@@ -426,10 +438,10 @@ test('on a phone the sources and the activity are the chat\'s sheet from the bot
   assert.ok(document.querySelector('.rr'), 'the reader stays under it');
   assert.equal(document.documentElement.classList.contains('source-sheet-open'), false);
   click(window, buttons[2]);
-  const reopened = [...document.querySelectorAll('.source-sheet')].at(-1);
+  const reopened = await until(() => [...document.querySelectorAll('.source-sheet:not(.is-closing)')].at(-1));
   assert.deepEqual(tabsOf(reopened), ['Sources:true', 'Activity:false'], 'reopening starts on sources');
   closeResearchReader();
-  document.querySelector('.source-sheet-root')?.remove();
+  document.querySelector('.bs-root')?.remove();
 });
 
 test('the item being worked on turns only while the research works: paused it stands still, and stopped or failed it waits like the others', () => {

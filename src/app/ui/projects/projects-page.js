@@ -404,7 +404,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // The list of what can be added (a phone's own choices, and on a computer the camera of the computer): shared by the tab of the sources and the settings of a project.
   const openAddSources = (project, onDone) => {
     // (A second tap on the row while the list is open does not stack another list on it.)
-    if (root.querySelector('.pj-action-sheet')) return;
+    if (document.querySelector('.pj-action-sheet:not(.is-closing)')) return;
     closeMenu();
     // What is chosen below goes to this project, and `onDone` is told afterwards (set when a choice is made, so a list that was closed with no choice leaves nothing behind).
     const via = (run) => () => { addTarget = { project, onDone }; return run(); };

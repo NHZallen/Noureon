@@ -129,7 +129,7 @@ test('the Sources button opens the panel on the Sources tab with the sources of 
   harness.window.close();
 });
 
-test('a panel with no sources says so, and the panel closes with its button and the Escape key, but not under an open sheet', () => {
+test('a panel with no sources says so, and the panel closes with its button and the Escape key, but not under an open sheet', async () => {
   const harness = createHarness({ messages: [{ role: 'model', parts: [{ text: 'Plain.' }] }] });
   harness.helpers.toggleHistorySidebar(true, { tab: 'sources' });
   harness.settle();
@@ -137,7 +137,7 @@ test('a panel with no sources says so, and the panel closes with its button and 
   assert.match(harness.document.querySelector('.history-sources-empty').textContent, /no sources/i);
   assert.equal(harness.document.querySelector('[data-history-tab="sources"] .history-tab-count'), null);
   const esc = () => harness.document.dispatchEvent(new harness.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  openSourceSheet({ document: harness.document, sources: pages, language: 'en' });
+  await openSourceSheet({ document: harness.document, sources: pages, language: 'en' }).ready;
   esc();
   assert.equal(harness.elements.historySidebar.classList.contains('visible'), true, 'the sheet takes the key first, and only it closes');
   esc();

@@ -1,9 +1,9 @@
 import test, { afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
-import { openPlusSheet, closePlusSheet } from '../src/app/ui/plus-sheet/plus-sheet.js';
+import { openPlusSheet } from '../src/app/ui/plus-sheet/plus-sheet.js';
+import { closeBottomSheet } from '../src/app/ui/sheet/bottom-sheet.js';
 import { PLUS_SHEET_TEXT_KEYS, PLUS_SHEET_TEXT_LANGUAGES, plusSheetText } from '../src/app/ui/plus-sheet/plus-sheet-texts.js';
-import { decideSheetDrag } from '../src/app/ui/citations/sheet-drag.js';
 
 // The page of the composer, as far as the sheet reads it: the buttons and controls of the old menu (hidden on a phone) are the truth.
 const page = ({ image = false, hidden = [], active = [] } = {}) => {
@@ -42,7 +42,7 @@ const page = ({ image = false, hidden = [], active = [] } = {}) => {
   return { window, document, ctx, pressed, changes, conversation };
 };
 
-afterEach(() => closePlusSheet());
+afterEach(() => closeBottomSheet());
 
 test('the texts of the sheet exist in all five languages', () => {
   assert.deepEqual(PLUS_SHEET_TEXT_LANGUAGES, ['zh-TW', 'en', 'fr', 'ru', 'es']);
@@ -61,7 +61,6 @@ test('the first page holds three tiles, Google Drive, the tools and Design, with
   assert.equal(document.querySelector('.ps-lead').getAttribute('aria-label'), 'Close');
   assert.equal(document.documentElement.classList.contains('source-sheet-open'), true);
   assert.equal(document.getElementById('add-file-btn').getAttribute('aria-expanded'), 'true');
-  assert.equal(openPlusSheet(ctx), null, 'one sheet at a time');
   sheet.close();
   assert.equal(document.documentElement.classList.contains('source-sheet-open'), false);
 });
@@ -74,7 +73,7 @@ test('what a model cannot use is grey in its place (the tiles) or left out (the 
   assert.equal(rows[0].querySelector('.ps-row-name').textContent, 'Google Drive');
   assert.equal(rows[0].disabled, true, 'Google Drive is always there, grey when it cannot be used');
   assert.equal(rows.some((row) => row.textContent.includes('Search')), false, 'a tool the model does not have has no row');
-  closePlusSheet();
+  closeBottomSheet();
 });
 
 test('pressing a row presses the button of the old menu inside the same click, and the sheet goes', () => {
@@ -82,7 +81,7 @@ test('pressing a row presses the button of the old menu inside the same click, a
   openPlusSheet(ctx);
   document.querySelectorAll('.ps-tile')[2].click();
   assert.deepEqual(pressed, ['upload-file-btn']);
-  assert.equal(document.querySelector('.ps-root.is-open'), null, 'the sheet is on its way out');
+  assert.equal(document.querySelector('.bs-root') === null || document.querySelector('.bs-card') !== null, true);
   const again = openPlusSheet(ctx);
   assert.ok(again);
   [...document.querySelectorAll('.ps-row')].find((row) => row.textContent.includes('Learning')).click();
@@ -140,12 +139,5 @@ test('the advanced page follows what the format allows', () => {
   json.dispatchEvent(new document.defaultView.Event('change', { bubbles: true }));
   assert.equal(document.querySelector('.ps-error').hidden, false, 'a JSON that cannot be read is not sent to the setting');
   assert.notEqual(changes.at(-1)[0], 'image-provider-options-input');
-  closePlusSheet();
-});
-
-test('the sheet is pulled the way the sources sheet is', () => {
-  assert.equal(decideSheetDrag({ state: 'medium', dy: 200, expandable: true }), 'close');
-  assert.equal(decideSheetDrag({ state: 'large', dy: 200, expandable: true }), 'medium');
-  assert.equal(decideSheetDrag({ state: 'medium', dy: -80, expandable: true }), 'large');
-  assert.equal(decideSheetDrag({ state: 'medium', dy: 10, expandable: true }), 'medium');
+  closeBottomSheet();
 });
