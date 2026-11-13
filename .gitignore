@@ -19,3 +19,6 @@ __pycache__/
 
 openai-probe-result.json
 openai-probe-*.json
+gemini-probe-result.json
+opencode-probe-result.json
+model-probe-all.log
