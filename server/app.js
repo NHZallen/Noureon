@@ -147,7 +147,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           client_id: config.connectorClientId,
           client_name: appUrl === 'https://noureon.com' ? 'Noureon' : 'Noureon (test)',
           client_uri: config.siteUrl,
-          logo_uri: `${config.siteUrl}/logo.png`,
+          logo_uri: `${config.siteUrl}/logo-small.png`,
           tos_uri: `${config.siteUrl}/terms`,
           policy_uri: `${config.siteUrl}/privacy`,
           redirect_uris: [config.connectorRedirectUri],
