@@ -66,7 +66,7 @@ const element = (document, tag, className) => {
  * Puts the dictation bar over `host` (the composer). `onConfirm` and `onCancel` are called from the
  * ✓ and ✕ buttons and from Enter and Escape. Returns { setBusy(bool), close() }.
  */
-export function openDictation({ document, window, navigator, host, language = 'zh-TW', onConfirm = () => {}, onCancel = () => {} }) {
+export function openDictation({ document, window, navigator, host, language = 'zh-TW', onConfirm = () => {}, onCancel = () => {}, debug = null }) {
   if (!host || typeof host.append !== 'function') return null;
   const text = (key) => dictationText(language, key);
   const root = element(document, 'div', 'dictation-bar');
@@ -116,6 +116,12 @@ export function openDictation({ document, window, navigator, host, language = 'z
   // (below the gate) stays a flat line.
   let peak = 0.5;
   let lastRaw = 0;
+  // The trace (ui/voice/voice-debug.js, only when asked for): once a second, what the bars were made of.
+  let secondStart = 0;
+  let secondRaw = 0;
+  let secondBars = 0;
+  let secondVoice = false;
+  const trace = (text) => debug?.log?.(text);
   const fromMicrophone = () => {
     const raw = meter.read();
     lastRaw = raw;
@@ -191,9 +197,20 @@ export function openDictation({ document, window, navigator, host, language = 'z
               meter = null;
               meterDead = true;
               level = null;
+              trace('meter: dropped (read only silence while a voice was heard)');
             }
           }
           history.push(level ?? (voice ? swell(now) : 0));
+          secondBars += 1;
+          secondRaw = Math.max(secondRaw, meter ? lastRaw : 0);
+        }
+        secondVoice = secondVoice || voice;
+        if (debug && now - secondStart >= 1000) {
+          if (secondStart) trace(`1s: ${meter ? 'meter' : 'voice-events'} raw_max=${secondRaw.toFixed(2)} bars=${secondBars} voice=${secondVoice ? 'yes' : 'no'}`);
+          secondStart = now;
+          secondRaw = 0;
+          secondBars = 0;
+          secondVoice = false;
         }
       }
     }
@@ -205,10 +222,10 @@ export function openDictation({ document, window, navigator, host, language = 'z
   // The microphone is measured only once the recognition listens, and only where the page may do it without a second question.
   const measure = () => {
     if (meter || closed || meterDead) return;
-    void openMicLevel({ navigator, window, onlyIfAllowed: true }).then((opened) => {
-      if (!opened) return;
+    void openMicLevel({ navigator, window, onlyIfAllowed: true, trace: (text) => trace(`meter: ${text}`) }).then((opened) => {
+      if (!opened) { trace('meter: none'); return; }
       if (closed || meter) opened.stop();
-      else meter = opened;
+      else { meter = opened; trace('meter: open'); }
     });
   };
 
@@ -233,6 +250,7 @@ export function openDictation({ document, window, navigator, host, language = 'z
     /** The recognition has started listening (the person has allowed it). */
     started() {
       listening = true;
+      trace('bar: listening');
       measure();
     },
     /** The recognition says it hears a voice (true) or that it stopped (false). */

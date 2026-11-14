@@ -405,7 +405,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         return `${base}${base && !/\s$/.test(base) ? ' ' : ''}${words}`;
     };
 
-    const beginDictation = (recognition, openDictation) => {
+    const beginDictation = (recognition, openDictation, debug = null) => {
         if (typeof openDictation !== 'function') return null;
         try {
             const host = ALL_ELEMENTS.messageInput?.closest?.('.input-wrapper');
@@ -415,6 +415,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
                 window,
                 navigator,
                 host,
+                debug,
                 language: getConfig().uiLanguage,
                 onConfirm: () => confirmDictation(),
                 onCancel: () => cancelDictation()
@@ -482,7 +483,26 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         }
     };
 
+    // The trace of voice input (ui/voice/voice-debug.js): off unless the address asked for it (?voicedebug=1), and then loaded only here.
+    const loadVoiceDebug = async () => {
+        try {
+            const search = window.location?.search || '';
+            if (/[?&]voicedebug=1\b/.test(search)) window.localStorage?.setItem('noureon-voice-debug', '1');
+            else if (/[?&]voicedebug=0\b/.test(search)) window.localStorage?.removeItem('noureon-voice-debug');
+            if (window.localStorage?.getItem('noureon-voice-debug') !== '1') return null;
+            const module = await import('../../ui/voice/voice-debug.js');
+            const debug = module.createVoiceDebug({ document, window });
+            debug.begin('dictation');
+            return debug;
+        } catch {
+            return null;
+        }
+    };
+
     const startVoiceInput = async (target) => {
+        const debug = target === 'message' ? await loadVoiceDebug() : null;
+        debug?.log(`ua: ${String(window.navigator?.userAgent || '').slice(0, 120)}`);
+        debug?.log(`user activation at tap: ${window.navigator?.userActivation?.isActive}`);
         let acknowledged = false;
         try {
             acknowledged = await ensureVoicePrivacyAcknowledged();
@@ -490,6 +510,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             logger.warn('Voice privacy notice failed; not starting recognition.', error);
         }
         if (!acknowledged) return;
+        debug?.log(`privacy notice acknowledged: ${acknowledged}`);
         const openDictation = target === 'message' ? (await loadDictationBar().catch(() => null))?.openDictation : null;
         setCurrentVoiceTarget?.(target);
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -501,7 +522,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         currentSpeechRecognition.continuous = true;
         currentSpeechRecognition.interimResults = true;
         // Dictating into the message shows the dictation bar; the words wait until it is finished.
-        const session = target === 'message' ? beginDictation(currentSpeechRecognition, openDictation) : null;
+        const session = target === 'message' ? beginDictation(currentSpeechRecognition, openDictation, debug) : null;
         // What the recognition says of itself drives the bars (ui/voice/dictation.js): it listens, a voice is heard, words come in.
         if (session) {
             const bar = session.bar;
@@ -553,6 +574,17 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             // onend does not always follow onerror, so release the button state here too.
             clearVoiceInputState();
         };
+        if (debug) {
+            for (const name of ['start', 'audiostart', 'soundstart', 'speechstart', 'speechend', 'soundend', 'audioend', 'nomatch', 'error', 'end']) {
+                currentSpeechRecognition.addEventListener?.(name, (event) => debug.log(`recognition ${name}${event?.error ? ` (${event.error})` : ''}`));
+            }
+            currentSpeechRecognition.addEventListener?.('result', (event) => {
+                const last = event.results?.[event.results.length - 1];
+                debug.log(`recognition result n=${event.results?.length} chars=${String(last?.[0]?.transcript || '').length} final=${Boolean(last?.isFinal)}`);
+            });
+            window.navigator?.permissions?.query?.({ name: 'microphone' }).then((status) => debug.log(`microphone permission: ${status.state}`), (error) => debug.log(`microphone permission query failed: ${error?.name || error}`));
+            debug.log(`recognition.start() (lang ${currentSpeechRecognition.lang}, continuous ${currentSpeechRecognition.continuous}, user activation ${window.navigator?.userActivation?.isActive})`);
+        }
         currentSpeechRecognition.start();
         ALL_ELEMENTS[`voiceInputBtn${target.charAt(0).toUpperCase() + target.slice(1)}`].classList.add('active');
     };
