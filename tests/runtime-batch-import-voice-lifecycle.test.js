@@ -625,3 +625,18 @@ test('searching by voice keeps its plain behaviour, without the bar', async () =
     h.window.happyDOM.abort();
   }
 });
+
+test('?voiceplain=1 dictates the first way: no bar, the words go straight into the message', async () => {
+  const h = await dictationHarness();
+  try {
+    h.window.happyDOM.setURL('https://example.test/?voiceplain=1');
+    h.mic.dispatch('click');
+    await settle();
+    assert.equal(h.host.querySelector('.dictation-bar'), null);
+    h.currentSpeechRecognition.onresult({ resultIndex: 0, results: [[{ transcript: 'straight in' }]] });
+    assert.equal(h.input.value, 'straight in');
+    h.window.localStorage.removeItem('noureon-voice-plain');
+  } finally {
+    h.window.happyDOM.abort();
+  }
+});

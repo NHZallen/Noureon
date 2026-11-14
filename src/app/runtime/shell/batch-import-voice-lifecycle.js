@@ -391,9 +391,6 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
     // Without this flag a second click during that window creates a second recognition whose
     // reference overwrites the first, leaving the first running and impossible to stop.
     let voiceStartInFlight = false;
-    // The experiment of reusing one recognition object (see startVoiceInput), and the listeners of the last dictation, taken off before the next.
-    let reusableRecognition = null;
-    const staleVoiceListeners = [];
 
     // Dictating into the message: the composer shows the dictation bar and the words are put into the
     // message only when it is finished (a cross throws them away). Search keeps the plain behaviour.
@@ -522,22 +519,14 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         }
         if (!acknowledged) return;
         debug?.log(`privacy notice acknowledged: ${acknowledged}`);
-        const openDictation = target === 'message' ? (await loadDictationBar().catch(() => null))?.openDictation : null;
+        // A comparison (?voiceplain=1), kept by the trace: the first version of voice input, no dictation bar, the words written straight into the message as they come.
+        const plain = readVoiceFlag('voiceplain', 'noureon-voice-plain');
+        debug?.log(`mode: ${plain ? 'plain (no dictation bar)' : 'dictation bar'}`);
+        const openDictation = target === 'message' && !plain ? (await loadDictationBar().catch(() => null))?.openDictation : null;
         setCurrentVoiceTarget?.(target);
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        // An experiment (?voicereuse=1), to be compared by the trace: one recognition object for every dictation of this page, not a new one each time. On the
-        // iPhone traced, the first dictation heard the voice and every later one heard nothing for 8 seconds and ended "aborted", with or without the level meter.
-        const reuseRecognition = readVoiceFlag('voicereuse', 'noureon-voice-reuse');
-        for (const [target_, name, handler] of staleVoiceListeners.splice(0)) target_.removeEventListener?.(name, handler);
-        let currentSpeechRecognition;
-        if (reuseRecognition && reusableRecognition) {
-            currentSpeechRecognition = reusableRecognition;
-            debug?.log('recognition object: reused');
-        } else {
-            currentSpeechRecognition = new SpeechRecognition();
-            if (reuseRecognition) reusableRecognition = currentSpeechRecognition;
-            debug?.log(`recognition object: new${reuseRecognition ? ' (kept for the next dictation)' : ''}`);
-        }
+        const currentSpeechRecognition = new SpeechRecognition();
+        debug?.log('recognition object: new');
         setCurrentSpeechRecognition?.(currentSpeechRecognition);
         // Resolved at creation time, so switching the interface language applies to the next session.
         currentSpeechRecognition.lang = SPEECH_RECOGNITION_LANGS[getConfig().uiLanguage]
@@ -549,7 +538,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         // What the recognition says of itself drives the bars (ui/voice/dictation.js): it listens, a voice is heard, words come in.
         if (session) {
             const bar = session.bar;
-            const on = (name, handler) => { currentSpeechRecognition.addEventListener?.(name, handler); staleVoiceListeners.push([currentSpeechRecognition, name, handler]); };
+            const on = (name, handler) => currentSpeechRecognition.addEventListener?.(name, handler);
             on('start', () => bar.started());
             on('audiostart', () => bar.started());
             on('soundstart', () => bar.speaking(true));
@@ -598,7 +587,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             clearVoiceInputState();
         };
         if (debug) {
-            const trace = (name, handler) => { currentSpeechRecognition.addEventListener?.(name, handler); staleVoiceListeners.push([currentSpeechRecognition, name, handler]); };
+            const trace = (name, handler) => currentSpeechRecognition.addEventListener?.(name, handler);
             for (const name of ['start', 'audiostart', 'soundstart', 'speechstart', 'speechend', 'soundend', 'audioend', 'nomatch', 'error', 'end']) {
                 trace(name, (event) => debug.log(`recognition ${name}${event?.error ? ` (${event.error})` : ''}`));
             }
@@ -613,7 +602,6 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             currentSpeechRecognition.start();
         } catch (error) {
             debug?.log(`recognition.start() threw ${error?.name || error}`);
-            if (currentSpeechRecognition === reusableRecognition) reusableRecognition = null;
             throw error;
         }
         ALL_ELEMENTS[`voiceInputBtn${target.charAt(0).toUpperCase() + target.slice(1)}`].classList.add('active');
