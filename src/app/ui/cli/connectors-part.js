@@ -5,9 +5,9 @@
 // groups, reading and writing, each with one setting for the group (allow, ask, refuse) and a list that sets each tool apart. Whatever the person sets stands.
 // Everything a service says (a tool's description) is put in as text, never as markup.
 
-import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, defaultLoginMode, getConnector, hasReadonlyLogin } from '../../../data/connector-catalog.js';
+import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, defaultLoginMode, getConnector, hasReadonlyLogin, hasTokenLogin } from '../../../data/connector-catalog.js';
 import { connectorMark } from './connector-mark.js';
-import { disconnectConnector, listConnectors, refreshConnector, requestWaitlist, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
+import { disconnectConnector, listConnectors, refreshConnector, requestWaitlist, saveConnectorToken, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
 const WAITLIST_EMAIL = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
 const STATES = Object.freeze(['allow', 'ask', 'deny']);
@@ -107,6 +107,9 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   const openSheet = (connector, { mode = defaultLoginMode(connector), switching = false } = {}) => {
     closeSheet();
     let chosen = mode;
+    // A connector that logs in by a token the person pastes (Vercel): one field, where to make a token, and what is kept. The page does not keep the token; it is sent once.
+    const tokenLogin = hasTokenLogin(connector);
+    let tokenInput = null;
     const backdrop = make('div', 'cs-dialog-backdrop');
     const dialog = make('div', 'cs-dialog');
     dialog.setAttribute('role', 'dialog');
@@ -115,12 +118,39 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     const body = make('div', 'cs-dialog-body');
     const failure = make('p', 'cs-dialog-error');
     failure.hidden = true;
-    const go = make('button', 'cs-button cs-button-primary', t('connectorSheetGo'));
+    const goText = () => t(tokenLogin ? 'connectorTokenGo' : 'connectorSheetGo');
+    const go = make('button', 'cs-button cs-button-primary', goText());
     go.type = 'button';
     const cancel = make('button', 'cs-button', t('connectorCancel'));
     cancel.type = 'button';
     const drawBody = () => {
       const nodes = [make('h2', 'cs-dialog-title', t('connectorSheetTitle', { name: connector.name })), make('p', 'cs-dialog-text', connectorDescription(connector, getLanguage()))];
+      if (tokenLogin) {
+        nodes.push(make('p', 'cs-dialog-note', t('connectorTokenNote', { name: connector.name })));
+        const link = make('a', 'cs-link', t('connectorTokenCreate', { name: connector.name }));
+        link.href = connector.tokenLogin.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        nodes.push(link);
+        nodes.push(make('strong', 'cs-dialog-label', t('connectorTokenLabel', { name: connector.name })));
+        if (!tokenInput) {
+          tokenInput = make('input', 'cs-token-input');
+          tokenInput.type = 'password';
+          tokenInput.placeholder = t('connectorTokenPlaceholder');
+          tokenInput.setAttribute('autocomplete', 'off');
+          tokenInput.setAttribute('autocapitalize', 'off');
+          tokenInput.setAttribute('autocorrect', 'off');
+          tokenInput.setAttribute('spellcheck', 'false');
+          tokenInput.setAttribute('aria-label', t('connectorTokenLabel', { name: connector.name }));
+          tokenInput.maxLength = 600;
+        }
+        nodes.push(tokenInput);
+        nodes.push(make('p', 'cs-dialog-note', t('connectorTokenNoReadonly', { name: connector.name })));
+        nodes.push(make('p', 'cs-dialog-note', t('connectorTokenKept', { name: connector.name })));
+        nodes.push(make('p', 'cs-dialog-note', t('connectorSheetPrivacy')));
+        body.replaceChildren(...nodes);
+        return;
+      }
       if (hasReadonlyLogin(connector)) {
         nodes.push(make('strong', 'cs-dialog-label', t('connectorScopeTitle')));
         nodes.push(segmented([['readonly', t('connectorScopeReadonly')], ['readwrite', t('connectorScopeReadwrite')]], chosen, (value) => { chosen = value; drawBody(); }));
@@ -141,11 +171,40 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     // cannot be pressed). It is put back, and "Cancel" is never disabled, so the sheet can always be closed.
     const reset = () => {
       go.disabled = false;
-      go.textContent = t('connectorSheetGo');
+      go.textContent = goText();
     };
     win.addEventListener?.('pageshow', reset);
     leavePageshow = () => win.removeEventListener?.('pageshow', reset);
+    // The token goes to the server and the field is emptied at once; the connection is read again, and the sheet closes.
+    const connectWithToken = async () => {
+      const value = String(tokenInput?.value || '').trim();
+      failure.hidden = true;
+      if (!/^[A-Za-z0-9_.-]{16,512}$/.test(value)) {
+        failure.textContent = t('connectorTokenShape');
+        failure.hidden = false;
+        tokenInput?.focus?.();
+        return;
+      }
+      go.disabled = true;
+      go.textContent = t('connectorTokenBusy');
+      const result = await saveConnectorToken(connector.id, value);
+      if (result.ok) {
+        if (tokenInput) tokenInput.value = '';
+        closeSheet();
+        showNotification(t('connectorConnected_notice', { name: connector.name }), 'success');
+        state.status = 'idle';
+        redraw();
+        return;
+      }
+      reset();
+      failure.textContent = t(result.detail === 'invalid_token' ? 'connectorTokenInvalid' : result.detail === 'unreachable' ? 'connectorTokenUnreachable' : 'connectorTokenFailed', { name: connector.name });
+      failure.hidden = false;
+    };
     go.addEventListener('click', async () => {
+      if (tokenLogin) {
+        await connectWithToken();
+        return;
+      }
       go.disabled = true;
       go.textContent = t('connectorSheetBusy');
       failure.hidden = true;
@@ -162,7 +221,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     });
     (document.querySelector('.cs') || document.body).append(backdrop);
     state.sheet = backdrop;
-    go.focus?.({ preventScroll: true });
+    (tokenInput || go).focus?.({ preventScroll: true });
   };
 
   // ----- the tools: the settings are changed here at once and kept by the server (a failure puts them back)

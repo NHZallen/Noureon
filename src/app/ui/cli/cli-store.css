@@ -168,6 +168,9 @@ html.cs-open { overflow: hidden; }
 .cs-waitlist { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0 0; }
 .cs-waitlist-input { flex: 1 1 14rem; min-width: 0; box-sizing: border-box; padding: 0.5rem 0.8rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.9rem; }
 .cs-waitlist-input::placeholder { color: var(--text-secondary); }
+.cs-token-input { display: block; width: 100%; box-sizing: border-box; margin: 0 0 0.7rem; padding: 0.55rem 0.9rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.9rem; }
+.cs-token-input::placeholder { color: var(--text-secondary); }
+.cs-dialog a.cs-link { display: inline-block; margin: 0.2rem 0 0.9rem; font-size: 0.85rem; }
 .cs-connect-arrow { display: inline-flex; color: var(--text-secondary); }
 .cs-connector .cs-action { cursor: pointer; }
 

@@ -396,7 +396,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         return;
       }
       // The person's connectors: the state of each, and what they do about it.
-      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|disconnect|permissions|refresh|waitlist))?)?$/.exec(url.pathname);
+      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|token|disconnect|permissions|refresh|waitlist))?)?$/.exec(url.pathname);
       if (connectorPath) {
         const user = await authenticate(request);
         if (!connectors) throw new RequestError(ERROR_CODES.runsUnavailable, 'Connectors are not set up yet.');
@@ -408,6 +408,12 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
             const body = await readJson(request, 2048, { optional: true });
             send(response, 200, await connectors.startLogin(user.id, id, body?.mode === 'readonly' ? 'readonly' : 'readwrite', { email: user.email }), origin);
+          } else if (request.method === 'POST' && id && action === 'token') {
+            // A token the person pasted (a connector with a token login): kept sealed, never sent back, and nothing of it goes into the log.
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            const body = await readJson(request, 2048);
+            await connectors.connectWithToken(user.id, id, typeof body?.token === 'string' ? body.token : '', { email: user.email });
+            send(response, 200, { ok: true, connectors: (await connectors.list(user.id, { email: user.email })).filter((entry) => entry.id === id) }, origin);
           } else if (request.method === 'POST' && id && action === 'waitlist') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
             const body = await readJson(request, 2048, { optional: true });

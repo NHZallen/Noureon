@@ -23,7 +23,7 @@ const LINEAR = {
 };
 
 /** A page and a server that answers the calls of the connectors part; `calls` records them. */
-function setup({ account = true, connections = [LINEAR], language = 'zh-TW', failPut = false, failWaitlist = false, startUrl = 'https://auth.linear.app/authorize?x=1' } = {}) {
+function setup({ account = true, connections = [LINEAR], language = 'zh-TW', failPut = false, failWaitlist = false, startUrl = 'https://auth.linear.app/authorize?x=1', tokenAnswer = null } = {}) {
   const window = new Window({ url: 'https://example.test/connectors' });
   const { document } = window;
   document.body.innerHTML = '<div class="cs"></div>';
@@ -34,6 +34,11 @@ function setup({ account = true, connections = [LINEAR], language = 'zh-TW', fai
     if (method === 'GET' && path === '/v1/connectors') return { ok: true, status: 200, data: { connectors: CONNECTORS.map((connector) => data.get(connector.id) || { id: connector.id, status: 'none', mode: 'readwrite', tools: [], error: '' }) } };
     if (method === 'POST' && /\/waitlist$/.test(path)) return failWaitlist ? { ok: false, status: 400, code: 'bad_request', data: { error: { reason: 'failed', detail: 'mail_not_configured' } } } : { ok: true, status: 200, data: { ok: true } };
     if (method === 'POST' && /\/connect$/.test(path)) return { ok: true, status: 200, data: { url: startUrl } };
+    if (method === 'POST' && /\/token$/.test(path)) {
+      if (tokenAnswer) return tokenAnswer;
+      data.set(path.split('/')[3], { id: path.split('/')[3], status: 'connected', mode: 'readwrite', error: '', tools: [tool('vercel_list_projects', 'read', 'allow')] });
+      return { ok: true, status: 200, data: { ok: true } };
+    }
     if (method === 'POST' && /\/disconnect$/.test(path)) { data.delete(path.split('/')[3]); return { ok: true, status: 200, data: { ok: true, revoked: true } }; }
     if (method === 'PUT' && /\/permissions$/.test(path)) return failPut ? { ok: false, status: 500, code: 'internal_error', data: {} } : { ok: true, status: 200, data: { ok: true } };
     if (method === 'POST' && /\/refresh$/.test(path)) return { ok: true, status: 200, data: { ok: true, connectors: [data.get(path.split('/')[3])] } };
@@ -149,20 +154,80 @@ test('a login that is refused says why, in the code and the status the service g
   assert.equal(t.host.querySelector('.cs-dialog-error').textContent, '無法開始登入，請稍後再試。 (registration_refused 403)');
 });
 
-test('a service that has not approved Noureon yet says "Under review", opens its words, and does not begin a login', async () => {
+const TOKEN = 'vcp_abcdefghijklmnopqrstuvwxyz0123456789';
+
+test('Vercel logs in by a pasted token: a sheet with one field and where to make a token, nothing is asked of a login page, and the token is sent once and emptied', async () => {
   const t = setup({ connections: [] });
   await settle(t);
+  assert.ok(CONNECTORS.every((connector) => !connector.pending), 'no connector waits for an approval now');
   const row = t.host.querySelector('[data-connector-id="vercel"]');
-  assert.equal(row.querySelector('.cs-pending').textContent, '審核中');
-  assert.equal(row.querySelector('.cs-connect'), null, 'no "Connect"');
+  assert.equal(row.querySelector('.cs-pending'), null);
+  assert.ok(row.querySelector('.cs-connect'), 'it has a "Connect"');
   row.querySelector('.cs-action').click();
-  assert.equal(t.host.querySelector('.cs-dialog'), null, 'no sheet, no login');
-  assert.match(row.querySelector('.cs-pending-note').textContent, /Vercel 要先核准 Noureon/);
-  assert.ok(!t.calls.some(([method, path]) => method === 'POST' && /connect$/.test(path)), 'nothing is asked of the server');
-  row.querySelector('.cs-text').click();
-  assert.ok(row.querySelector('.cs-about').textContent.length > 20, 'the words of what it will do are there');
-  // The other connectors of the same group are not touched.
-  assert.ok(t.host.querySelector('[data-connector-id="upstash"] .cs-connect'));
+  const sheet = t.host.querySelector('.cs-dialog');
+  assert.ok(sheet);
+  assert.match(sheet.textContent, /連線 Vercel/);
+  assert.equal(sheet.querySelector('.cs-seg'), null, 'there is no read-only choice');
+  const input = sheet.querySelector('.cs-token-input');
+  assert.equal(input.type, 'password');
+  assert.equal(input.getAttribute('autocomplete'), 'off');
+  const link = sheet.querySelector('a.cs-link');
+  assert.equal(link.href, 'https://vercel.com/account/tokens');
+  assert.equal(link.rel, 'noopener noreferrer');
+  assert.match(sheet.textContent, /沒有唯讀的種類/);
+  assert.match(sheet.textContent, /加密/);
+  assert.equal(sheet.querySelector('.cs-button-primary').textContent, '連線');
+  input.value = TOKEN;
+  sheet.querySelector('.cs-button-primary').click();
+  await flush();
+  assert.deepEqual(t.calls.filter(([method, path]) => method === 'POST' && /vercel/.test(path)), [['POST', '/v1/connectors/vercel/token', { token: TOKEN }]]);
+  assert.ok(!t.calls.some(([, path]) => /\/connect$/.test(path)), 'no login page was asked for');
+  assert.deepEqual(t.assigned, [], 'the page does not leave');
+  assert.equal(t.host.querySelector('.cs-dialog'), null, 'the sheet closed');
+  assert.equal(input.value, '', 'the field was emptied');
+  assert.ok(t.notices.some(([text]) => /已連線：Vercel/.test(text)));
+  await settle(t);
+  assert.equal(t.host.querySelector('[data-connector-id="vercel"] .cs-conn-status').textContent, '已連線');
+});
+
+test('a token that is not the shape of one is not sent; one Vercel refuses or a service that is down says so and keeps the sheet open', async () => {
+  const t = setup({ connections: [] });
+  await settle(t);
+  t.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  const input = t.host.querySelector('.cs-token-input');
+  input.value = 'has spaces';
+  t.host.querySelector('.cs-dialog .cs-button-primary').click();
+  await flush();
+  assert.match(t.host.querySelector('.cs-dialog-error').textContent, /不像 token/);
+  assert.ok(!t.calls.some(([method, path]) => method === 'POST' && /token$/.test(path)), 'nothing was sent');
+
+  const refused = setup({ connections: [], tokenAnswer: { ok: false, status: 400, code: 'bad_request', data: { error: { reason: 'bad_request', detail: 'invalid_token' } } } });
+  await settle(refused);
+  refused.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  refused.host.querySelector('.cs-token-input').value = TOKEN;
+  refused.host.querySelector('.cs-dialog .cs-button-primary').click();
+  await flush();
+  assert.match(refused.host.querySelector('.cs-dialog-error').textContent, /Vercel 不接受這個 token/);
+  assert.equal(refused.host.querySelector('.cs-dialog .cs-button-primary').disabled, false, 'it can be tried again');
+  assert.ok(refused.host.querySelector('.cs-dialog'), 'the sheet stays');
+
+  const down = setup({ connections: [], tokenAnswer: { ok: false, status: 400, code: 'bad_request', data: { error: { reason: 'failed', detail: 'unreachable' } } } });
+  await settle(down);
+  down.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  down.host.querySelector('.cs-token-input').value = TOKEN;
+  down.host.querySelector('.cs-dialog .cs-button-primary').click();
+  await flush();
+  assert.match(down.host.querySelector('.cs-dialog-error').textContent, /現在連不上 Vercel/);
+});
+
+test('the words of the token sheet are in all five languages, and a connection that needs a new token opens the same sheet', async () => {
+  const keys = ['connectorTokenNote', 'connectorTokenLabel', 'connectorTokenPlaceholder', 'connectorTokenCreate', 'connectorTokenKept', 'connectorTokenNoReadonly', 'connectorTokenGo', 'connectorTokenBusy', 'connectorTokenInvalid', 'connectorTokenShape', 'connectorTokenUnreachable', 'connectorTokenFailed'];
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) for (const key of keys) assert.ok(connectorText(language, key, { name: 'Vercel' }).length > 1, `${language} ${key}`);
+  assert.match(connectorText('en', 'connectorTokenNote', { name: 'Vercel' }), /Vercel/);
+  const t = setup({ connections: [{ id: 'vercel', status: 'needs_login', mode: 'readwrite', error: 'expired', tools: [] }] });
+  await settle(t);
+  t.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  assert.ok(t.host.querySelector('.cs-dialog .cs-token-input'), 'a new token is pasted in the same sheet');
 });
 
 test('Mine: a connection shows its access and its tools in two groups; the group is one setting, the tools each their own', async () => {

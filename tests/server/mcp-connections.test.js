@@ -225,14 +225,14 @@ test('a service that refuses our registration, or does not say how to log in, is
   const db = fakeDb();
   const vault = createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]);
   const routes = {
-    'https://mcp.vercel.com/.well-known/oauth-protected-resource': json({ resource: 'https://mcp.vercel.com', authorization_servers: ['https://vercel.com'] }),
-    'https://vercel.com/.well-known/oauth-authorization-server': json({ issuer: 'https://vercel.com', authorization_endpoint: 'https://vercel.com/oauth/authorize', token_endpoint: 'https://vercel.com/api/login/oauth/token', registration_endpoint: 'https://vercel.com/api/login/oauth/register', code_challenge_methods_supported: ['S256'] })
+    'https://mcp.upstash.com/.well-known/oauth-protected-resource': json({ resource: 'https://mcp.upstash.com', authorization_servers: ['https://auth.upstash.com'] }),
+    'https://auth.upstash.com/.well-known/oauth-authorization-server': json({ issuer: 'https://auth.upstash.com', authorization_endpoint: 'https://auth.upstash.com/oauth/authorize', token_endpoint: 'https://auth.upstash.com/oauth/token', registration_endpoint: 'https://auth.upstash.com/oauth/register', code_challenge_methods_supported: ['S256'] })
   };
   const refusing = async (url, options = {}) => (options.method === 'POST' && String(url).endsWith('/register') ? json({ error: 'invalid_redirect_uri', secret: 'must-not-travel' }, 403) : routes[String(url)] || new Response('nothing', { status: 404 }));
   const service = createConnectorService({ db, vault, fetchImpl: refusing, config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
-  await assert.rejects(service.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'registration_refused 403: invalid_redirect_uri' && !JSON.stringify(error).includes('must-not-travel'));
+  await assert.rejects(service.startLogin(USER, 'upstash', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'registration_refused 403: invalid_redirect_uri' && !JSON.stringify(error).includes('must-not-travel'));
   const silent = createConnectorService({ db, vault, fetchImpl: async () => new Response('nothing', { status: 404 }), config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
-  await assert.rejects(silent.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'no_metadata');
+  await assert.rejects(silent.startLogin(USER, 'upstash', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'no_metadata');
 });
 
 test('GitHub: the client made by hand is the one used (id and secret from the environment), the secret goes in the body, a login with no such client says so, and a secret made again is used at once', async () => {

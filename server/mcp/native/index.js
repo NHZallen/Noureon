@@ -4,12 +4,20 @@
 
 import { ToolFailure, createApi, DEFAULT_API_TIMEOUT_MS } from './api.js';
 import { googleProvider } from './google/index.js';
+import { vercelProvider } from './vercel/index.js';
 
-export const PROVIDERS = Object.freeze({ google: googleProvider });
+export const PROVIDERS = Object.freeze({ google: googleProvider, vercel: vercelProvider });
 const MAX_RESULT_CHARS = 80_000;
 
 /** The names of the tools a provider has (for the tests and the catalog check). */
 export const nativeToolNames = (providerId) => (PROVIDERS[providerId]?.tools || []).map((tool) => tool.name);
+
+/** Tries a token that a person pasted (a connector with `tokenLogin`) at the service, before it is kept: { account }. Throws an McpError ('unauthorized' when the service does not take it). */
+export async function verifyNativeToken(providerId, token, fetchImpl = fetch) {
+  const provider = PROVIDERS[providerId];
+  if (typeof provider?.verifyToken !== 'function') throw new Error(`The native connector "${providerId}" takes no token.`);
+  return provider.verifyToken(token, fetchImpl);
+}
 
 export function createNativeClient(providerId, { getToken, onUnauthorized = async () => null, fetchImpl = fetch, timeoutMs = DEFAULT_API_TIMEOUT_MS }) {
   const provider = PROVIDERS[providerId];
