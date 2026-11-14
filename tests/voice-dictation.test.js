@@ -4,7 +4,7 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 
 import { DICTATION_LANGUAGES, DICTATION_TEXT_KEYS, dictationText, dictationTip } from '../src/app/ui/voice/dictation-texts.js';
-import { createWaveformHistory, isAppleTouchDevice, openDictation } from '../src/app/ui/voice/dictation.js';
+import { createWaveformHistory, openDictation, openMicLevel as openMicFromBar } from '../src/app/ui/voice/dictation.js';
 import { openMicLevel } from '../src/app/ui/voice/mic-level.js';
 
 const setup = () => {
@@ -166,7 +166,7 @@ test('voice input has its words in all five languages, and the tip names the key
 });
 
 // What is drawn: a fake canvas records each bar, frames are run by hand.
-const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true, start = true, userAgent = '', during = () => {} }) => {
+const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true, start = true, during = () => {} }) => {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   document.body.innerHTML = '<div class="input-wrapper"></div>';
@@ -190,13 +190,14 @@ const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true, start
   }
   window.AudioContext = FakeAudioContext;
   // mic: true the page may use the microphone ('granted'), 'prompt' the browser would still have to ask the person, false there is no microphone to share.
+  // The voice input opens the microphone before the recognition starts, only where it is allowed, and gives it to the bar.
   let asked = 0;
   const navigator = mic ? {
-    userAgent,
     mediaDevices: { getUserMedia: async () => { asked += 1; return { getTracks: () => [] }; } },
     permissions: { query: async () => ({ state: mic === 'prompt' ? 'prompt' : 'granted' }) }
   } : {};
-  const bar = openDictation({ document, window, navigator, host: document.querySelector('.input-wrapper'), language: 'en' });
+  const meter = await openMicLevel({ navigator, window, onlyIfAllowed: true });
+  const bar = openDictation({ document, window, host: document.querySelector('.input-wrapper'), language: 'en', meter });
   if (start) bar.started();
   await new Promise((resolve) => setTimeout(resolve, 10));
   let now = 1000;
@@ -233,17 +234,20 @@ test('the room is a flat line, not bars', async () => {
   assert.equal(silent.count, 0, 'silence draws no bar');
 });
 
-test('nothing is drawn before the recognition has started listening, and nothing asks the person for the microphone', async () => {
-  const waiting = await drawnWave({ samples: wave(0.5), start: false, frames: 120 });
+test('nothing is drawn before the recognition has started listening when there is no microphone, and the browser is not asked', async () => {
+  const waiting = await drawnWave({ samples: wave(0.5), mic: 'prompt', start: false, frames: 120 });
   assert.equal(waiting.count, 0, 'no bars while the browser is still asking');
   assert.equal(waiting.asked, 0, 'the page has not asked for the microphone');
 });
 
-test('the page does not ask for the microphone a second time: it measures only where it is already allowed', async () => {
-  const unsure = await drawnWave({ samples: wave(0.5), mic: 'prompt', frames: 60 });
-  assert.equal(unsure.asked, 0, 'no second question beside the one of the recognition');
-  const allowed = await drawnWave({ samples: wave(0.5), mic: true, frames: 60 });
-  assert.equal(allowed.asked, 1, 'where it is allowed it measures');
+test('a microphone the page was allowed to open is the bars from the start', async () => {
+  const allowed = await drawnWave({ samples: wave(0.5), mic: true, start: false, frames: 30 });
+  assert.equal(allowed.asked, 1);
+  assert.ok(allowed.count > 20, `the microphone is open, so the voice is shown: ${allowed.count}`);
+});
+
+test('the voice input gets the microphone from the bar module (loaded once, when the microphone is reached)', () => {
+  assert.equal(openMicFromBar, openMicLevel);
 });
 
 test('where the sound cannot be measured the bars follow the voice the recognition hears, and a quiet moment is a flat line', async () => {
@@ -254,21 +258,6 @@ test('where the sound cannot be measured the bars follow the voice the recogniti
   assert.ok(Math.max(...speaking.heights) >= 8, 'they have a body');
   const words = await drawnWave({ samples: wave(0.5), mic: false, frames: 60, during: (bar, index) => { if (index === 5) bar.heard(); } });
   assert.ok(words.count > 5 && words.count < 30, `words coming in make bars for a moment: ${words.count}`);
-});
-
-test('the microphone is opened once even though the recognition says start and audiostart together', async () => {
-  const once = await drawnWave({ samples: wave(0.5), mic: true, frames: 20, during: (bar, index) => { if (index === 0) { bar.started(); bar.started(); } } });
-  assert.equal(once.asked, 1, 'one microphone, not two');
-});
-
-test('on an iPhone or an iPad the page does not open the microphone at all, and the bars follow the voice the recognition hears', async () => {
-  assert.equal(isAppleTouchDevice({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' }), true);
-  assert.equal(isAppleTouchDevice({ userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', maxTouchPoints: 5 }), true, 'an iPad that says it is a Mac');
-  assert.equal(isAppleTouchDevice({ userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', maxTouchPoints: 0 }), false);
-  assert.equal(isAppleTouchDevice({ userAgent: 'Mozilla/5.0 (Linux; Android 14)' }), false);
-  const phone = await drawnWave({ samples: wave(0.5), mic: true, frames: 60, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', during: (bar, index) => { if (index === 5) bar.speaking(true); if (index === 40) bar.speaking(false); } });
-  assert.equal(phone.asked, 0, 'no getUserMedia on an iPhone');
-  assert.ok(phone.count > 10, `the bars come from the voice that is heard: ${phone.count}`);
 });
 
 test('a microphone that only reads silence while a voice is heard is let go of, and the voice that is heard is followed (a phone\'s second dictation)', async () => {
@@ -299,4 +288,24 @@ test('an audio context that is not running gives no reading', async () => {
 test('a slow page still gets one bar for every 70 ms that passed', async () => {
   const slow = await drawnWave({ samples: wave(0.5), frames: 12, frameMs: 330 });
   assert.ok(slow.count >= 24, `12 frames of 330 ms made ${slow.count} bars`);
+});
+
+test('a microphone that reads too little is no longer used for the bars, but it stays open until the bar closes', async () => {
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  document.body.innerHTML = '<div class="input-wrapper"></div>';
+  const queue = [];
+  window.requestAnimationFrame = (callback) => queue.push(callback);
+  window.cancelAnimationFrame = () => {};
+  let stopped = 0;
+  const meter = { read: () => 0, stop: () => { stopped += 1; } };
+  const bar = openDictation({ document, window, host: document.querySelector('.input-wrapper'), language: 'en', meter });
+  bar.started();
+  bar.speaking(true);
+  let now = 1000;
+  for (let index = 0; index < 60; index += 1) { now += 70; queue.splice(0).forEach((callback) => callback(now)); }
+  assert.equal(stopped, 0, 'not let go of in the middle of a dictation');
+  bar.close();
+  assert.equal(stopped, 1, 'let go of when the bar closes');
+  window.happyDOM.abort();
 });

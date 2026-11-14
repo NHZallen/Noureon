@@ -444,7 +444,7 @@ class DictationRecognition {
   abort() { this.calls.push('abort'); }
 }
 
-const dictationHarness = async ({ base = '', config = {} } = {}) => {
+const dictationHarness = async ({ base = '', config = {}, navigator = {} } = {}) => {
   const { Window } = await import('happy-dom');
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
@@ -454,7 +454,7 @@ const dictationHarness = async ({ base = '', config = {} } = {}) => {
   const harness = createHarness({
     document,
     window,
-    navigator: {},
+    navigator,
     config: { voicePrivacyNoticeAcknowledged: true, ...config },
     scheduleTimeout: (callback) => { timers.push(callback); return timers.length; }
   });
@@ -626,17 +626,47 @@ test('searching by voice keeps its plain behaviour, without the bar', async () =
   }
 });
 
-test('?voiceplain=1 dictates the first way: no bar, the words go straight into the message', async () => {
-  const h = await dictationHarness();
+
+// A phone's browser (WebKit) heard nothing from the second dictation of a page when the recognition was started with no capture of the page running.
+test('where the microphone is already allowed it is opened and running before the recognition starts, and given to the bar; otherwise the person is asked once', async () => {
+  const order = [];
+  const tracks = [];
+  const navigatorWith = (state) => ({
+    permissions: { query: async () => ({ state }) },
+    mediaDevices: { getUserMedia: async () => { order.push('microphone'); const track = { stopped: false, stop() { this.stopped = true; } }; tracks.push(track); return { getTracks: () => [track] }; } }
+  });
+  class FakeAudioContext {
+    createMediaStreamSource() { return { connect() {} }; }
+    createAnalyser() { return { fftSize: 0, getByteTimeDomainData() {} }; }
+    close() { return Promise.resolve(); }
+  }
+  const run = async (state) => {
+    const h = await dictationHarness({ navigator: navigatorWith(state) });
+    h.window.AudioContext = FakeAudioContext;
+    const start = DictationRecognition.prototype.start;
+    DictationRecognition.prototype.start = function () { order.push('recognition'); start.call(this); };
+    try {
+      h.mic.dispatch('click');
+      for (let index = 0; index < 5; index += 1) await settle();
+      return h;
+    } finally {
+      DictationRecognition.prototype.start = start;
+    }
+  };
+  const allowed = await run('granted');
   try {
-    h.window.happyDOM.setURL('https://example.test/?voiceplain=1');
-    h.mic.dispatch('click');
-    await settle();
-    assert.equal(h.host.querySelector('.dictation-bar'), null);
-    h.currentSpeechRecognition.onresult({ resultIndex: 0, results: [[{ transcript: 'straight in' }]] });
-    assert.equal(h.input.value, 'straight in');
-    h.window.localStorage.removeItem('noureon-voice-plain');
+    assert.deepEqual(order, ['microphone', 'recognition'], 'the microphone first, then the recognition');
+    allowed.host.querySelector('.dictation-cancel').click();
+    assert.equal(tracks[0].stopped, true, 'closing the bar lets the microphone go');
   } finally {
-    h.window.happyDOM.abort();
+    allowed.window.happyDOM.abort();
+  }
+  order.length = 0;
+  const asking = await run('prompt');
+  try {
+    assert.deepEqual(order, ['recognition'], 'the first time only the recognition asks');
+    assert.ok(asking.host.querySelector('.dictation-bar'), 'the bar is there all the same');
+  } finally {
+    asking.window.happyDOM.abort();
   }
 });

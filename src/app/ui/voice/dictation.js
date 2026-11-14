@@ -5,16 +5,18 @@
 // Escape cancels.
 //
 // What the bars show, in order of what is true:
-//  - the microphone's own reading, when the page may measure it without asking a second time (the
-//    recognition has already been allowed and the browser says the page may use the microphone);
-//  - where it may not (a phone's browser asks for the microphone once for the recognition and would
-//    ask again for the page), nothing is measured: the bars swell only while the recognition says
-//    it hears a voice (its speech events and the words coming in), and a quiet moment is a flat line;
+//  - the microphone's own reading, when the page was already allowed to use the microphone: it is
+//    opened before the recognition starts (runtime/shell/batch-import-voice-lifecycle.js) and given here;
+//  - where it was not (the first dictation, while the browser still has to ask), nothing is measured, so
+//    that the person is asked once: the bars swell only while the recognition says it hears a voice (its
+//    speech events and the words coming in), and a quiet moment is a flat line;
 //  - before the recognition has started (the browser is still asking the person) nothing at all is
 //    drawn: the dotted line only shows a slow light running along it, which says "waiting".
 
-import { openMicLevel } from './mic-level.js';
 import { dictationText } from './dictation-texts.js';
+
+// The microphone is opened by the voice input before the recognition starts, from this module (loaded when the microphone is first reached).
+export { openMicLevel } from './mic-level.js';
 
 const STEP_MS = 70;
 const BAR_WIDTH = 2;
@@ -56,10 +58,6 @@ export function createWaveformHistory(limit = MAX_HISTORY) {
   };
 }
 
-/** An iPhone or an iPad (which says it is a Mac, but has a touch screen). */
-export const isAppleTouchDevice = (navigator) => /iPad|iPhone|iPod/.test(String(navigator?.userAgent || ''))
-  || (navigator?.platform === 'MacIntel' && Number(navigator?.maxTouchPoints) > 1);
-
 const element = (document, tag, className) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -68,9 +66,10 @@ const element = (document, tag, className) => {
 
 /**
  * Puts the dictation bar over `host` (the composer). `onConfirm` and `onCancel` are called from the
- * ✓ and ✕ buttons and from Enter and Escape. Returns { setBusy(bool), close() }.
+ * ✓ and ✕ buttons and from Enter and Escape. `meter` is the microphone already opened (mic-level.js), or null; the bar stops it when it closes.
+ * Returns { started(), speaking(bool), heard(), setBusy(bool), close() }.
  */
-export function openDictation({ document, window, navigator, host, language = 'zh-TW', onConfirm = () => {}, onCancel = () => {}, debug = null }) {
+export function openDictation({ document, window, host, language = 'zh-TW', onConfirm = () => {}, onCancel = () => {}, debug = null, meter: givenMeter = null }) {
   if (!host || typeof host.append !== 'function') return null;
   const text = (key) => dictationText(language, key);
   const root = element(document, 'div', 'dictation-bar');
@@ -97,18 +96,19 @@ export function openDictation({ document, window, navigator, host, language = 'z
 
   let closed = false;
   let busy = false;
-  let meter = null;
+  let meter = givenMeter;
   // The recognition is listening (it has started, so the person has allowed it).
   let listening = false;
   // A voice is heard by the recognition: until when (in the clock of the frames), or for as long as it says so.
   let speakingFlag = false;
   let heardPending = false;
   let heardUntil = 0;
-  // A microphone that was opened but only ever reads silence while the recognition hears a voice (a phone that does not
-  // let the page listen beside the recognition) is let go of, and the voice that is heard is followed instead.
+  // A microphone that only ever reads a level under the gate while the recognition hears a voice (too quiet a microphone, or one that
+  // reads silence) no longer makes the bars: the voice that is heard is followed instead. It is not stopped: it stays open until the bar
+  // closes, as letting go of the capture in the middle of a dictation is what can leave a phone's recognition deaf.
+  let meterIgnored = false;
   let meterHeard = false;
   let meterDeaf = 0;
-  let meterDead = false;
   const DEAF_TICKS = 20;
   let frame = 0;
   let lastStep = 0;
@@ -196,13 +196,11 @@ export function openDictation({ document, window, navigator, host, language = 'z
             level = fromMicrophone();
             if (lastRaw >= NOISE_GATE) meterHeard = true;
             else if (!meterHeard && voice) meterDeaf += 1;
-            if (meterDeaf > DEAF_TICKS) {
-              meter.stop();
-              meter = null;
-              meterDead = true;
-              level = null;
-              trace('meter: dropped (read only silence while a voice was heard)');
+            if (!meterIgnored && meterDeaf > DEAF_TICKS) {
+              meterIgnored = true;
+              trace('meter: not used for the bars (under the gate while a voice was heard), still open');
             }
+            if (meterIgnored) level = null;
           }
           history.push(level ?? (voice ? swell(now) : 0));
           secondBars += 1;
@@ -210,7 +208,7 @@ export function openDictation({ document, window, navigator, host, language = 'z
         }
         secondVoice = secondVoice || voice;
         if (debug && now - secondStart >= 1000) {
-          if (secondStart) trace(`1s: ${meter ? 'meter' : 'voice-events'} raw_max=${secondRaw.toFixed(2)} bars=${secondBars} voice=${secondVoice ? 'yes' : 'no'}`);
+          if (secondStart) trace(`1s: ${meter && !meterIgnored ? 'meter' : 'voice-events'} raw_max=${secondRaw.toFixed(2)} bars=${secondBars} voice=${secondVoice ? 'yes' : 'no'}`);
           secondStart = now;
           secondRaw = 0;
           secondBars = 0;
@@ -222,22 +220,6 @@ export function openDictation({ document, window, navigator, host, language = 'z
     frame = window.requestAnimationFrame(tick);
   };
   if (typeof window?.requestAnimationFrame === 'function') frame = window.requestAnimationFrame(tick);
-
-  // The microphone is measured only once the recognition listens, and only where the page may do it without a second question. Not on a
-  // phone of Apple's (every browser there is WebKit): traced on an iPhone, the meter read 0.00 in every second of the later dictations and 0.03 while a voice
-  // was being recognised, so it measured nothing, and the second capture beside the recognition is a risk to it for no gain.
-  let measuring = false;
-  const measure = () => {
-    if (meter || closed || meterDead || measuring) return;
-    if (isAppleTouchDevice(navigator)) { meterDead = true; trace('meter: not used on an iPhone or iPad (it reads silence beside the recognition)'); return; }
-    // The recognition says "start" and "audiostart" together: the second call finds the first one still opening.
-    measuring = true;
-    void openMicLevel({ navigator, window, onlyIfAllowed: true, trace: (text) => trace(`meter: ${text}`) }).then((opened) => {
-      if (!opened) { trace('meter: none'); return; }
-      if (closed || meter) opened.stop();
-      else { meter = opened; trace('meter: open'); }
-    }).finally(() => { measuring = false; });
-  };
 
   const keydown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
@@ -260,8 +242,7 @@ export function openDictation({ document, window, navigator, host, language = 'z
     /** The recognition has started listening (the person has allowed it). */
     started() {
       listening = true;
-      trace('bar: listening');
-      measure();
+      trace(`bar: listening (${meter ? 'microphone' : 'voice events'})`);
     },
     /** The recognition says it hears a voice (true) or that it stopped (false). */
     speaking(value) {

@@ -405,7 +405,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         return `${base}${base && !/\s$/.test(base) ? ' ' : ''}${words}`;
     };
 
-    const beginDictation = (recognition, openDictation, debug = null) => {
+    const beginDictation = (recognition, openDictation, debug = null, meter = null) => {
         if (typeof openDictation !== 'function') return null;
         try {
             const host = ALL_ELEMENTS.messageInput?.closest?.('.input-wrapper');
@@ -416,6 +416,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
                 navigator,
                 host,
                 debug,
+                meter,
                 language: getConfig().uiLanguage,
                 onConfirm: () => confirmDictation(),
                 onCancel: () => cancelDictation()
@@ -519,10 +520,19 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         }
         if (!acknowledged) return;
         debug?.log(`privacy notice acknowledged: ${acknowledged}`);
-        // A comparison (?voiceplain=1), kept by the trace: the first version of voice input, no dictation bar, the words written straight into the message as they come.
-        const plain = readVoiceFlag('voiceplain', 'noureon-voice-plain');
-        debug?.log(`mode: ${plain ? 'plain (no dictation bar)' : 'dictation bar'}`);
-        const openDictation = target === 'message' && !plain ? (await loadDictationBar().catch(() => null))?.openDictation : null;
+        const dictationModule = target === 'message' ? await loadDictationBar().catch(() => null) : null;
+        const openDictation = dictationModule?.openDictation;
+        // The microphone is opened, and running, before the recognition starts, wherever the browser already allows it (no second question). On
+        // an iPhone (every browser there is WebKit) a recognition started with no capture of the page running heard nothing from the second
+        // dictation of a page on: audiostart, no speech, then "aborted" (traced, with and without the dictation bar). WebKit's own people put this
+        // kind of failure down to the audio session being let go of between captures (github.com/WebAudio/web-speech-api/issues/96, WebKit bug
+        // 317741); noureon.com opened the microphone this way from the start. The first dictation of a page (the browser still has to ask) starts the
+        // recognition alone, and its bars follow the voice the recognition hears.
+        let meter = null;
+        if (openDictation && typeof dictationModule.openMicLevel === 'function') {
+            meter = await dictationModule.openMicLevel({ navigator, window, onlyIfAllowed: true, trace: (text) => debug?.log(`microphone: ${text}`) }).catch(() => null);
+            debug?.log(`microphone opened before the recognition: ${meter ? 'yes' : 'no'}`);
+        }
         setCurrentVoiceTarget?.(target);
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const currentSpeechRecognition = new SpeechRecognition();
@@ -534,7 +544,8 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         currentSpeechRecognition.continuous = true;
         currentSpeechRecognition.interimResults = true;
         // Dictating into the message shows the dictation bar; the words wait until it is finished.
-        const session = target === 'message' ? beginDictation(currentSpeechRecognition, openDictation, debug) : null;
+        const session = target === 'message' ? beginDictation(currentSpeechRecognition, openDictation, debug, meter) : null;
+        if (!session) meter?.stop();
         // What the recognition says of itself drives the bars (ui/voice/dictation.js): it listens, a voice is heard, words come in.
         if (session) {
             const bar = session.bar;
@@ -602,6 +613,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             currentSpeechRecognition.start();
         } catch (error) {
             debug?.log(`recognition.start() threw ${error?.name || error}`);
+            if (session && dictationSession === session) finishDictation({ apply: false });
             throw error;
         }
         ALL_ELEMENTS[`voiceInputBtn${target.charAt(0).toUpperCase() + target.slice(1)}`].classList.add('active');
