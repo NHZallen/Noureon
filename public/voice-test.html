@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Voice test</title>
+<style>
+  /* A bare page for testing the browser's speech recognition and microphone, with none of Noureon's code. No colours of its own: the browser's. */
+  body { font: 15px/1.45 -apple-system, system-ui, sans-serif; margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  button { font: inherit; padding: 12px 8px; border-radius: 10px; }
+  #log { font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; margin: 0; }
+  p { margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<p>每次按一個鈕，說話，等它自己結束或按「停止」，再按下一次。連續試三次以上。</p>
+<div class="buttons">
+  <button type="button" id="recognition">A 只辨識</button>
+  <button type="button" id="mic-then-recognition">B 麥克風＋辨識</button>
+  <button type="button" id="mic-only">C 只麥克風 5 秒</button>
+  <button type="button" id="session-then-recognition">D play-and-record＋辨識</button>
+  <button type="button" id="stop">停止</button>
+  <button type="button" id="clear">清除紀錄</button>
+</div>
+<pre id="log"></pre>
+<script src="/voice-test.js"></script>
+</body>
+</html>
