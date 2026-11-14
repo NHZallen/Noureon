@@ -255,6 +255,31 @@ test('where the sound cannot be measured the bars follow the voice the recogniti
   assert.ok(words.count > 5 && words.count < 30, `words coming in make bars for a moment: ${words.count}`);
 });
 
+test('a microphone that only reads silence while a voice is heard is let go of, and the voice that is heard is followed (a phone\'s second dictation)', async () => {
+  const deaf = await drawnWave({ samples: wave(0), mic: true, frames: 80, during: (bar, index) => { if (index === 3) bar.speaking(true); } });
+  assert.equal(deaf.asked, 1, 'it was opened');
+  assert.ok(deaf.count > 20, `the bars come anyway: ${deaf.count}`);
+  const room = await drawnWave({ samples: wave(0.004), mic: true, frames: 80 });
+  assert.equal(room.count, 0, 'a quiet room with no voice heard stays a flat line');
+});
+
+test('an audio context that is not running gives no reading', async () => {
+  class Suspended {
+    constructor() { this.state = 'suspended'; }
+    resume() { return Promise.resolve(); }
+    createMediaStreamSource() { return { connect() {} }; }
+    createAnalyser() { return { fftSize: 0, getByteTimeDomainData() {} }; }
+    close() { return Promise.resolve(); }
+  }
+  let stopped = 0;
+  const meter = await openMicLevel({
+    navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => { stopped += 1; } }] }) } },
+    window: { AudioContext: Suspended }
+  });
+  assert.equal(meter, null);
+  assert.equal(stopped, 1, 'the microphone is released');
+});
+
 test('a slow page still gets one bar for every 70 ms that passed', async () => {
   const slow = await drawnWave({ samples: wave(0.5), frames: 12, frameMs: 330 });
   assert.ok(slow.count >= 24, `12 frames of 330 ms made ${slow.count} bars`);

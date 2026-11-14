@@ -100,6 +100,12 @@ export function openDictation({ document, window, navigator, host, language = 'z
   let speakingFlag = false;
   let heardPending = false;
   let heardUntil = 0;
+  // A microphone that was opened but only ever reads silence while the recognition hears a voice (a phone that does not
+  // let the page listen beside the recognition) is let go of, and the voice that is heard is followed instead.
+  let meterHeard = false;
+  let meterDeaf = 0;
+  let meterDead = false;
+  const DEAF_TICKS = 20;
   let frame = 0;
   let lastStep = 0;
   const history = createWaveformHistory();
@@ -109,8 +115,10 @@ export function openDictation({ document, window, navigator, host, language = 'z
   // reaches: a quiet microphone gets modest bars and a loud one fills the height, and the room
   // (below the gate) stays a flat line.
   let peak = 0.5;
+  let lastRaw = 0;
   const fromMicrophone = () => {
     const raw = meter.read();
+    lastRaw = raw;
     peak = Math.max(0.5, raw, peak * 0.995);
     return raw < NOISE_GATE ? 0 : Math.min(1, (raw - NOISE_GATE) / (peak - NOISE_GATE));
   };
@@ -171,7 +179,22 @@ export function openDictation({ document, window, navigator, host, language = 'z
       lastStep = lastStep === 0 ? now : lastStep + due * STEP_MS;
       // Once the text is being made nothing new is heard; the bars hold still. Before the recognition listens there is nothing to draw.
       if (!busy && (meter || listening)) {
-        for (let index = 0; index < due; index += 1) history.push(meter ? fromMicrophone() : hearsVoice(now) ? swell(now) : 0);
+        const voice = hearsVoice(now);
+        for (let index = 0; index < due; index += 1) {
+          let level = null;
+          if (meter) {
+            level = fromMicrophone();
+            if (lastRaw >= NOISE_GATE) meterHeard = true;
+            else if (!meterHeard && voice) meterDeaf += 1;
+            if (meterDeaf > DEAF_TICKS) {
+              meter.stop();
+              meter = null;
+              meterDead = true;
+              level = null;
+            }
+          }
+          history.push(level ?? (voice ? swell(now) : 0));
+        }
       }
     }
     draw(now);
@@ -181,7 +204,7 @@ export function openDictation({ document, window, navigator, host, language = 'z
 
   // The microphone is measured only once the recognition listens, and only where the page may do it without a second question.
   const measure = () => {
-    if (meter || closed) return;
+    if (meter || closed || meterDead) return;
     void openMicLevel({ navigator, window, onlyIfAllowed: true }).then((opened) => {
       if (!opened) return;
       if (closed || meter) opened.stop();

@@ -25,6 +25,9 @@ export async function openMicLevel({ navigator, window, onlyIfAllowed = false })
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     context = new AudioContextClass();
+    // A context made outside a touch can start suspended (a phone's browser), and a suspended one reads only silence: it is asked to run, and where it will not there is no reading.
+    try { await context.resume?.(); } catch { /* it keeps its state */ }
+    if (context.state && context.state !== 'running') throw new Error('The audio context is not running.');
     const source = context.createMediaStreamSource(stream);
     const analyser = context.createAnalyser();
     analyser.fftSize = 512;
