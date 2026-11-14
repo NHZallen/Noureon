@@ -213,3 +213,18 @@
 
 /* The menu of a chat: the projects to move it to are a submenu that opens on hover and, for a tap or a click (a phone has no hover), when the item is opened (settings-history-menu-helper.js). */
 .popover .group.submenu-open > .absolute { display: block; }
+
+/* On a phone the menu follows a finger that pushes it to the right too, with friction (ui/motion/drag-dismiss.js), and the strip it leaves at its left edge showed the page
+   behind it. The menu carries its own colour past its left edge, so that strip is the menu's grey (it is out of sight while the menu is at rest or away). */
+@media (max-width: 767.98px) {
+    .sidebar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 100%;
+        width: 100vw;
+        background: inherit;
+        pointer-events: none;
+    }
+}
