@@ -17,12 +17,6 @@ export async function startConnector(id, mode) {
   return result.ok && typeof result.data?.url === 'string' ? { ok: true, url: result.data.url } : failure(result);
 }
 
-/** Connects by a token the person pasted (a connector with a token login): { ok } or { ok: false, detail } where `detail` is 'invalid_token' (not the shape of one, or the service refused it) or 'unreachable'. The token is sent once and not kept by the page. */
-export async function saveConnectorToken(id, token) {
-  const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/token`, { body: JSON.stringify({ token: String(token || '') }) });
-  return result.ok ? { ok: true } : failure(result);
-}
-
 export async function disconnectConnector(id) {
   const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/disconnect`);
   return result.ok ? { ok: true, revoked: result.data?.revoked === true } : failure(result);

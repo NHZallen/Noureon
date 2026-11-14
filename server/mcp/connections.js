@@ -5,10 +5,10 @@
 // person and connector; only this server (the service key) can read it.
 
 import { createHash } from 'node:crypto';
-import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, hasTokenLogin, isNativeConnector, loginScopes, toolKind } from '../../src/data/connector-catalog.js';
+import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, isNativeConnector, loginScopes, toolKind } from '../../src/data/connector-catalog.js';
 import { OAuthError, buildAuthorizationUrl, discover, exchangeCode, hashState, pkcePair, randomState, refreshTokens, resolveClient, revokeToken, staticMetadata } from './oauth.js';
 import { McpError, createMcpClient } from './client.js';
-import { createNativeClient, verifyNativeToken } from './native/index.js';
+import { createNativeClient } from './native/index.js';
 import { createRateLimiter } from '../rate-limit.js';
 
 const TABLE = 'user_mcp_connections';
@@ -135,7 +135,6 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
   /** Begins a login: the address to send the person to. `mode`: 'readonly' or 'readwrite'. `email`: the account's address (for the connectors that are not open to everyone). */
   async function startLogin(userId, connectorId, mode, { email = '' } = {}) {
     const connector = connectorOf(connectorId);
-    if (hasTokenLogin(connector)) throw new ConnectorError('bad_request', 'This connector is logged in to with a token, not with a login page.');
     if (!mayConnect(connector, { email, userId })) throw new ConnectorError('not_allowed', 'This connector is not open to your account yet.');
     const kind = mode === 'readonly' && connector.scopes.readonly ? 'readonly' : 'readwrite';
     let metadata;
@@ -155,53 +154,6 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     const pending = vault.seal({ verifier, clientId: client.clientId, clientSecret: client.clientSecret || '', auth: client.auth || '', mode: kind, how: client.how }, { userId, ...aadOf(connectorId) });
     await saveRow(userId, connectorId, { state_hash: hashState(state), pending_envelope: pending.envelope, pending_key_version: pending.keyVersion, pending_at: new Date(now()).toISOString() });
     return { url: buildAuthorizationUrl({ metadata, clientId: client.clientId, redirectUri: config.redirectUri, scopes: loginScopes(connector, kind), state, challenge }) };
-  }
-
-  /**
-   * The login of a connector that takes a token the person pasted (`tokenLogin` of the catalog): the shape of the token is checked, the service is asked once whether it takes it, and then it
-   * is kept sealed (the same as an OAuth token: bound to the person and the connector, never given back). A token has no refresh token and no end date known to us: when the service stops
-   * taking it the connection needs a new login, which is a new token. Returns { ok: true }.
-   */
-  async function connectWithToken(userId, connectorId, token, { email = '' } = {}) {
-    const connector = connectorOf(connectorId);
-    if (!hasTokenLogin(connector)) throw new ConnectorError('bad_request', 'This connector is not logged in to with a token.');
-    if (!mayConnect(connector, { email, userId })) throw new ConnectorError('not_allowed', 'This connector is not open to your account yet.');
-    const value = typeof token === 'string' ? token.trim() : '';
-    // Only the characters a token is made of, and a length that is not an accident: nothing else is sent anywhere.
-    if (!/^[A-Za-z0-9_.-]{16,512}$/.test(value)) throw new ConnectorError('bad_request', 'That does not look like a token.', 'invalid_token');
-    let account = '';
-    try {
-      ({ account } = await verifyNativeToken(connector.native, value, fetchImpl));
-    } catch (error) {
-      if (error instanceof McpError && error.code === 'unauthorized') throw new ConnectorError('bad_request', 'The service did not accept the token.', 'invalid_token');
-      log('connector_token_unreachable', { connector: connectorId, code: error?.code || error?.name || 'error' });
-      throw new ConnectorError('failed', 'The service could not be asked now.', 'unreachable');
-    }
-    const row = await getRow(userId, connectorId);
-    await saveRow(userId, connectorId, {
-      ...sealTokens({ accessToken: value, refreshToken: '', expiresAt: 0, kind: 'token', account }, userId, connectorId),
-      status: 'connected',
-      mode: 'readwrite',
-      scope: '',
-      state_hash: null,
-      pending_envelope: null,
-      pending_key_version: null,
-      pending_at: null,
-      last_error: null,
-      // A new login starts from the tools the service has now, seen by the person.
-      tools: [],
-      changed: [],
-      tools_checked_at: null,
-      created_at: row?.created_at || new Date(now()).toISOString()
-    });
-    log('connector_token_connected', { connector: connectorId });
-    try {
-      await refreshTools(userId, connectorId, { first: true });
-    } catch (error) {
-      // Connected, but the list of tools could not be had now: the page can ask again.
-      log('connector_tools_failed', { connector: connectorId, code: error?.code || error?.name || 'error', ...(error?.detail ? { detail: error.detail } : {}) });
-    }
-    return { ok: true };
   }
 
   /**
@@ -381,7 +333,6 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
 
   const service = {
     startLogin,
-    connectWithToken,
     completeLogin,
     accessToken,
     refreshTools,
@@ -486,8 +437,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       const connector = connectorOf(connectorId);
       const row = await getRow(userId, connectorId);
       let revoked = false;
-      // A token that a person pasted cannot be revoked by us (the service's way needs the id of the token, which we never learn): what we keep is deleted, and the person revokes it where they made it.
-      if (row?.envelope && !hasTokenLogin(connector)) {
+      if (row?.envelope) {
         try {
           const tokens = openTokens(row, userId);
           const metadata = await metadataOf(connector);

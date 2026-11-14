@@ -218,7 +218,7 @@ export const CONNECTORS = Object.freeze([
     category: 'dev',
     endpoint: 'https://mcp.vercel.com',
     icon: 'https://github.com/vercel.png?size=96',
-    // Vercel's MCP login now takes a client that is the address of a metadata document (CIMD; the probe of 2026-11-14 shows it), so the "under review" mark is gone. If the login is still refused, the entry below logs in with a pasted token.
+    // Vercel's MCP login takes a client that is the address of a metadata document (CIMD; the probe of 2026-11-14 shows it), so the "under review" mark is gone.
     // Vercel announces scopes with no difference between reading and writing, so the login is one: what a reply may do is the person's setting for each tool (some of its tools deploy or buy domains; the person decides, as for every tool).
     scopes: Object.freeze({ readwrite: Object.freeze(['openid', 'email', 'profile', 'offline_access']) }),
     description: Object.freeze({
@@ -244,42 +244,6 @@ export const CONNECTORS = Object.freeze([
     }),
     reads: Object.freeze(['search_vercel_documentation', 'web_fetch_vercel_url', 'check_domain_availability_and_price', 'count_events', 'count_pageviews', 'aggregate_events', 'aggregate_pageviews', 'artifact_query', 'search_domains', 'search_repo', 'filter_project_envs', 'git_namespaces']),
     writes: Object.freeze(['get_access_to_vercel_url', 'buy_domain', 'buy_domains', 'buy_single_domain', 'deploy_to_vercel', 'create_deployment'])
-  }),
-  Object.freeze({
-    id: 'vercel-token',
-    name: 'Vercel (token)',
-    category: 'dev',
-    // Native, and the login is a token the person pastes (`tokenLogin`; docs/superpowers/specs/2026-11-14-connector-token-login-design.md): Vercel's MCP server takes only the clients Vercel has
-    // approved (our application was sent on 2026-10-11 and has had no answer), so Noureon's server speaks to Vercel's own REST API (server/mcp/native/vercel/) with the person's token.
-    native: 'vercel',
-    endpoint: 'https://api.vercel.com/',
-    icon: 'https://github.com/vercel.png?size=96',
-    tokenLogin: Object.freeze({ url: 'https://vercel.com/account/tokens' }),
-    // A Vercel token has no read-only kind: the login is one, and what a reply may do is the person's setting for each tool (the tools that start or stop a build ask first).
-    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
-    description: Object.freeze({
-      'zh-TW': '查看你的專案、部署與建置日誌，並重新部署或停止建置。用你自己的 token 連接。',
-      en: 'Look at your projects, deployments and build logs, and deploy again or stop a build. Connected with a token of your own.',
-      fr: 'Consulter vos projets, déploiements et journaux de build, redéployer ou arrêter un build. Connecté avec un jeton à vous.',
-      ru: 'Просмотр ваших проектов, развёртываний и журналов сборки, повторное развёртывание и остановка сборки. Подключается вашим токеном.',
-      es: 'Consulta tus proyectos, despliegues y registros de compilación, y vuelve a desplegar o detén una compilación. Se conecta con un token tuyo.'
-    }),
-    details: Object.freeze({
-      'zh-TW': '連接 Vercel 後（貼上你在 Vercel 建立的 token），模型可以列出你的團隊與專案、查看部署狀態與建置日誌、網域，以及環境變數的名稱（不會讀出值）；在你允許時，也能重新部署或停止正在跑的建置。Vercel 的 token 沒有唯讀的種類，所以這不是唯讀連接：模型能做什麼，由你對每個工具的設定決定（會啟動或停止建置的工具預設先問你）。token 由伺服器加密保存，中斷連接時刪除；要讓它在 Vercel 失效，請到 vercel.com/account/tokens 撤銷。',
-      en: 'Once Vercel is connected (by pasting a token that you made at Vercel), the model can list your teams and projects, look at the state of deployments, build logs, domains and the names of environment variables (never their values) and, where you allow it, deploy again or stop a build that is running. A Vercel token has no read-only kind, so this is not a read-only connection: what the model may do is your setting for each tool (the tools that start or stop a build ask you first). The token is kept encrypted on the server and deleted when you disconnect; to make it stop working at Vercel, revoke it at vercel.com/account/tokens.',
-      fr: 'Une fois Vercel connecté (en collant un jeton créé chez Vercel), le modèle peut lister vos équipes et projets, consulter l’état des déploiements, les journaux de build, les domaines et les noms des variables d’environnement (jamais leurs valeurs) et, si vous l’autorisez, redéployer ou arrêter un build en cours. Un jeton Vercel n’a pas de version en lecture seule : ce n’est donc pas une connexion en lecture seule ; ce que le modèle peut faire dépend de votre réglage pour chaque outil (ceux qui lancent ou arrêtent un build demandent d’abord). Le jeton est conservé chiffré sur le serveur et supprimé à la déconnexion ; pour qu’il cesse de fonctionner chez Vercel, révoquez-le sur vercel.com/account/tokens.',
-      ru: 'После подключения Vercel (вставкой токена, созданного в Vercel) модель может перечислять ваши команды и проекты, смотреть состояние развёртываний, журналы сборки, домены и имена переменных окружения (их значения — никогда) и, если вы разрешите, заново развёртывать или останавливать идущую сборку. У токена Vercel нет варианта «только чтение», поэтому это не подключение только для чтения: что модель может делать, определяют ваши настройки для каждого инструмента (инструменты, запускающие или останавливающие сборку, сначала спрашивают). Токен хранится на сервере в зашифрованном виде и удаляется при отключении; чтобы он перестал действовать в Vercel, отзовите его на vercel.com/account/tokens.',
-      es: 'Una vez conectado Vercel (pegando un token que creaste en Vercel), el modelo puede listar tus equipos y proyectos, ver el estado de los despliegues, los registros de compilación, los dominios y los nombres de las variables de entorno (nunca sus valores) y, si lo permites, volver a desplegar o detener una compilación en marcha. Un token de Vercel no tiene una versión de solo lectura, así que esta no es una conexión de solo lectura: lo que el modelo puede hacer lo decide tu ajuste de cada herramienta (las que inician o detienen una compilación preguntan antes). El token se guarda cifrado en el servidor y se borra al desconectar; para que deje de funcionar en Vercel, revócalo en vercel.com/account/tokens.'
-    }),
-    examples: Object.freeze({
-      'zh-TW': Object.freeze(['列出我的專案，並告訴我最近一次部署的狀態', '最近的生產環境部署為什麼失敗？看建置日誌', '把剛剛失敗的那次部署重新部署一次']),
-      en: Object.freeze(['List my projects and tell me the status of the latest deployment', 'Why did the latest production deployment fail? Look at the build logs', 'Deploy the one that just failed again']),
-      fr: Object.freeze(['Liste mes projets et indique l’état du dernier déploiement', 'Pourquoi le dernier déploiement en production a-t-il échoué ? Regarde les journaux de build', 'Redéploie celui qui vient d’échouer']),
-      ru: Object.freeze(['Покажи мои проекты и состояние последнего развёртывания', 'Почему не удалось последнее развёртывание в продакшене? Посмотри журналы сборки', 'Разверни заново то, которое только что не удалось']),
-      es: Object.freeze(['Lista mis proyectos e indica el estado del último despliegue', '¿Por qué falló el último despliegue en producción? Mira los registros de compilación', 'Vuelve a desplegar el que acaba de fallar'])
-    }),
-    reads: Object.freeze(['vercel_list_teams', 'vercel_list_projects', 'vercel_get_project', 'vercel_list_deployments', 'vercel_get_deployment', 'vercel_get_build_logs', 'vercel_list_project_domains', 'vercel_list_env_vars']),
-    writes: Object.freeze(['vercel_redeploy', 'vercel_cancel_deployment'])
   }),
   Object.freeze({
     id: 'github',
@@ -532,8 +496,6 @@ export const hasReadonlyLogin = (connector) => Boolean(connector?.scopes?.readon
 export const loginScopes = (connector, mode) => [...(mode === 'readonly' && connector?.scopes?.readonly ? connector.scopes.readonly : connector?.scopes?.readwrite || [])];
 /** The login a person is offered first: the read-only one for a service that says so (`defaultLogin`), otherwise the one that reads and writes. */
 export const defaultLoginMode = (connector) => (connector?.defaultLogin === 'readonly' && hasReadonlyLogin(connector) ? 'readonly' : 'readwrite');
-/** Whether a connector is logged in to by a token that the person pastes (not by OAuth). */
-export const hasTokenLogin = (connector) => Boolean(connector?.tokenLogin);
 /** Whether a connector is spoken to by our own code (not an MCP server): its tools are ours, and what a login for reading only allows is known to us. */
 export const isNativeConnector = (connector) => typeof connector?.native === 'string' && connector.native !== '';
 
@@ -574,10 +536,7 @@ export function connectorProblems(connector) {
   if (connector?.native !== undefined) {
     const oauth = connector.oauth || {};
     if (!/^[a-z][a-z0-9]{1,31}$/.test(String(connector.native))) problems.push('native');
-    if (connector.tokenLogin !== undefined) {
-      // A login by a pasted token: it says where a token is made (https), and has no OAuth login beside it.
-      if (!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(connector.tokenLogin?.url || '')) || connector.oauth) problems.push('tokenLogin');
-    } else if (!['issuer', 'authorizationEndpoint', 'tokenEndpoint'].every((key) => /^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(oauth[key] || '')))) problems.push('oauth');
+    if (!['issuer', 'authorizationEndpoint', 'tokenEndpoint'].every((key) => /^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(oauth[key] || '')))) problems.push('oauth');
     if (!Array.isArray(connector.reads) || !connector.reads.length || !Array.isArray(connector.writes) || !connector.writes.length) problems.push('reads and writes');
   }
   if (!connector?.description || !LANGUAGES.every((language) => String(connector.description[language] || '').trim())) problems.push('description in the five languages');
