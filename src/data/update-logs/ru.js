@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.10.1": [
+    "<strong>Примечания к выпуску Noureon 19.10.1</strong>",
+    "В этой версии можно войти в коннектор Vercel.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Коннектор Vercel: </strong>пометка «На рассмотрении» убрана, и Vercel можно подключить на странице «Коннекторы» в расширениях. Вход Vercel теперь принимает приложение, которое представляется документом с метаданными, а в документе Noureon теперь указан значок размером менее 100 КБ, так как Vercel ограничивает размер значка.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "<ul><li>Ничего делать не нужно, обновления базы данных в этой версии нет.</li></ul>"
+  ],
   "19.10.0": [
     "<strong>Примечания к выпуску Noureon 19.10.0</strong>",
     "В этой версии удалён голосовой ввод, исправлен фон, видимый при перетаскивании боковой панели на телефоне, и одна карточка на главной странице заменена на обмен диалогами.",

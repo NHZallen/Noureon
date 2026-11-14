@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.10.1": [
+    "<strong>Notes de version de Noureon 19.10.1</strong>",
+    "Cette version permet de se connecter au connecteur Vercel.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Connecteur Vercel : </strong>la mention « En cours d’examen » disparaît et Vercel peut être connecté depuis la page Connecteurs des extensions. La connexion de Vercel accepte désormais une application qui s’identifie par un document de métadonnées, et celui de Noureon indique maintenant une icône de moins de 100 Ko, car Vercel limite la taille de l’icône.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte aucune mise à jour de la base de données.</li></ul>"
+  ],
   "19.10.0": [
     "<strong>Notes de version de Noureon 19.10.0</strong>",
     "Cette version retire la saisie vocale, corrige l’arrière-plan visible quand on fait glisser le panneau latéral sur téléphone, et remplace une carte de la page d’accueil par le partage de discussions.",

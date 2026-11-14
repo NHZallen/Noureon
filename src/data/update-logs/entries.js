@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "19.10.1",
+    date: "2026-11-14",
+    content: [
+      "<strong>Noureon 19.10.1 發布說明</strong>",
+      "本版本讓 Vercel 連接器可以登入。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>Vercel 連接器：</strong>拿掉「審核中」的標記，可以在擴充的連接器頁面直接連線。Vercel 的登入現在接受以說明檔識別的應用程式，Noureon 的說明檔改用小於 100 KB 的圖示，以符合 Vercel 對圖示大小的限制。</li></ul>",
+      "<strong>相容性</strong>",
+      "<ul><li>不需要任何操作，本版本不含資料庫更新。</li></ul>"
+    ]
+  },
+  {
     version: "19.10.0",
     date: "2026-11-14",
     content: [
