@@ -4,9 +4,14 @@
 // tick to finish. The tick becomes a turning ring while the text is being made. Enter finishes,
 // Escape cancels.
 //
-// The bars are only ever the microphone's own reading: until the microphone is open (the browser is
-// still asking for it, it was refused, or it cannot be shared) nothing is made up, and the dotted
-// line only shows a slow light running along it, which says "waiting" and not "hearing".
+// What the bars show, in order of what is true:
+//  - the microphone's own reading, when the page may measure it without asking a second time (the
+//    recognition has already been allowed and the browser says the page may use the microphone);
+//  - where it may not (a phone's browser asks for the microphone once for the recognition and would
+//    ask again for the page), nothing is measured: the bars swell only while the recognition says
+//    it hears a voice (its speech events and the words coming in), and a quiet moment is a flat line;
+//  - before the recognition has started (the browser is still asking the person) nothing at all is
+//    drawn: the dotted line only shows a slow light running along it, which says "waiting".
 
 import { openMicLevel } from './mic-level.js';
 import { dictationText } from './dictation-texts.js';
@@ -89,6 +94,12 @@ export function openDictation({ document, window, navigator, host, language = 'z
   let closed = false;
   let busy = false;
   let meter = null;
+  // The recognition is listening (it has started, so the person has allowed it).
+  let listening = false;
+  // A voice is heard by the recognition: until when (in the clock of the frames), or for as long as it says so.
+  let speakingFlag = false;
+  let heardPending = false;
+  let heardUntil = 0;
   let frame = 0;
   let lastStep = 0;
   const history = createWaveformHistory();
@@ -102,6 +113,12 @@ export function openDictation({ document, window, navigator, host, language = 'z
     const raw = meter.read();
     peak = Math.max(0.5, raw, peak * 0.995);
     return raw < NOISE_GATE ? 0 : Math.min(1, (raw - NOISE_GATE) / (peak - NOISE_GATE));
+  };
+  // Without a measurement: the swell of a voice that is being heard, which is not its loudness.
+  const swell = (now) => Math.min(0.85, Math.max(0.1, 0.34 + 0.2 * Math.sin(now / 170) + 0.14 * Math.sin(now / 71 + 1.3) + 0.08 * Math.sin(now / 43)));
+  const hearsVoice = (now) => {
+    if (heardPending) { heardPending = false; heardUntil = now + 900; }
+    return speakingFlag || now < heardUntil;
   };
   const reducedMotion = () => Boolean(window?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
@@ -124,7 +141,7 @@ export function openDictation({ document, window, navigator, host, language = 'z
     const colour = window?.getComputedStyle?.(canvas)?.color || 'currentColor';
     context.fillStyle = colour;
     // The dotted line the bars grow along. While there is no microphone reading a light runs slowly along it.
-    const waiting = !meter && !busy && !reducedMotion();
+    const waiting = !listening && !meter && !busy && !reducedMotion();
     const light = waiting ? ((now % WAIT_SWEEP_MS) / WAIT_SWEEP_MS) * (width + 120) - 60 : 0;
     for (let x = width - STEP / 2; x > 0; x -= STEP) {
       context.globalAlpha = waiting ? 0.35 + 0.5 * Math.exp(-(((x - light) / 34) ** 2)) : 0.4;
@@ -152,19 +169,25 @@ export function openDictation({ document, window, navigator, host, language = 'z
     const due = lastStep === 0 ? 1 : Math.min(8, Math.floor((now - lastStep) / STEP_MS));
     if (due > 0) {
       lastStep = lastStep === 0 ? now : lastStep + due * STEP_MS;
-      // Once the text is being made nothing new is heard; the bars hold still. Without a microphone reading there is nothing to draw.
-      if (!busy && meter) for (let index = 0; index < due; index += 1) history.push(fromMicrophone());
+      // Once the text is being made nothing new is heard; the bars hold still. Before the recognition listens there is nothing to draw.
+      if (!busy && (meter || listening)) {
+        for (let index = 0; index < due; index += 1) history.push(meter ? fromMicrophone() : hearsVoice(now) ? swell(now) : 0);
+      }
     }
     draw(now);
     frame = window.requestAnimationFrame(tick);
   };
   if (typeof window?.requestAnimationFrame === 'function') frame = window.requestAnimationFrame(tick);
 
-  void openMicLevel({ navigator, window }).then((opened) => {
-    if (!opened) return;
-    if (closed) opened.stop();
-    else meter = opened;
-  });
+  // The microphone is measured only once the recognition listens, and only where the page may do it without a second question.
+  const measure = () => {
+    if (meter || closed) return;
+    void openMicLevel({ navigator, window, onlyIfAllowed: true }).then((opened) => {
+      if (!opened) return;
+      if (closed || meter) opened.stop();
+      else meter = opened;
+    });
+  };
 
   const keydown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
@@ -184,6 +207,21 @@ export function openDictation({ document, window, navigator, host, language = 'z
 
   return {
     element: root,
+    /** The recognition has started listening (the person has allowed it). */
+    started() {
+      listening = true;
+      measure();
+    },
+    /** The recognition says it hears a voice (true) or that it stopped (false). */
+    speaking(value) {
+      speakingFlag = Boolean(value);
+      if (value) listening = true;
+    },
+    /** Words came in from the recognition: a voice is heard for a moment. */
+    heard() {
+      listening = true;
+      heardPending = true;
+    },
     setBusy(value) {
       busy = Boolean(value);
       confirm.classList.toggle('is-busy', busy);

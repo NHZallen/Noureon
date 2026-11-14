@@ -502,8 +502,20 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         currentSpeechRecognition.interimResults = true;
         // Dictating into the message shows the dictation bar; the words wait until it is finished.
         const session = target === 'message' ? beginDictation(currentSpeechRecognition, openDictation) : null;
+        // What the recognition says of itself drives the bars (ui/voice/dictation.js): it listens, a voice is heard, words come in.
+        if (session) {
+            const bar = session.bar;
+            const on = (name, handler) => currentSpeechRecognition.addEventListener?.(name, handler);
+            on('start', () => bar.started());
+            on('audiostart', () => bar.started());
+            on('soundstart', () => bar.speaking(true));
+            on('speechstart', () => bar.speaking(true));
+            on('speechend', () => bar.speaking(false));
+            on('soundend', () => bar.speaking(false));
+        }
         currentSpeechRecognition.onresult = (event) => {
             if (session) {
+                session.bar.heard?.();
                 if (!session.discarded) session.transcript = Array.from(event.results).map((result) => result[0]?.transcript ?? '').join('');
                 return;
             }

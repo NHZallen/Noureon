@@ -139,6 +139,22 @@ test('the microphone reading is 0 to 1, stops the microphone, and is null where 
   assert.equal(closed, 1);
 });
 
+test('the microphone is opened only where the page is already allowed to, when that is asked for', async () => {
+  let asked = 0;
+  const fake = (state) => ({
+    navigator: { mediaDevices: { getUserMedia: async () => { asked += 1; return { getTracks: () => [] }; } }, permissions: state === 'unsupported' ? undefined : { query: async () => ({ state }) } },
+    window: { AudioContext: class { createMediaStreamSource() { return { connect() {} }; } createAnalyser() { return { fftSize: 0, getByteTimeDomainData(samples) { samples.fill(128); } }; } close() { return Promise.resolve(); } } }
+  });
+  for (const state of ['prompt', 'denied', 'unsupported']) {
+    assert.equal(await openMicLevel({ ...fake(state), onlyIfAllowed: true }), null, `${state}: not opened`);
+  }
+  assert.equal(asked, 0, 'the browser was never made to ask');
+  const meter = await openMicLevel({ ...fake('granted'), onlyIfAllowed: true });
+  assert.ok(meter, 'granted: opened');
+  meter.stop();
+  assert.equal(asked, 1);
+});
+
 test('voice input has its words in all five languages, and the tip names the key', () => {
   assert.deepEqual([...DICTATION_LANGUAGES], ['zh-TW', 'en', 'fr', 'ru', 'es']);
   for (const language of DICTATION_LANGUAGES) {
@@ -150,7 +166,7 @@ test('voice input has its words in all five languages, and the tip names the key
 });
 
 // What is drawn: a fake canvas records each bar, frames are run by hand.
-const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true }) => {
+const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true, start = true, during = () => {} }) => {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   document.body.innerHTML = '<div class="input-wrapper"></div>';
@@ -173,13 +189,19 @@ const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true }) => 
     close() { return Promise.resolve(); }
   }
   window.AudioContext = FakeAudioContext;
-  // mic: true opens at once, false is not offered, 'pending' is the browser still asking the person (it never answers here).
-  const navigator = mic === 'pending' ? { mediaDevices: { getUserMedia: () => new Promise(() => {}) } } : mic ? { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } } : {};
+  // mic: true the page may use the microphone ('granted'), 'prompt' the browser would still have to ask the person, false there is no microphone to share.
+  let asked = 0;
+  const navigator = mic ? {
+    mediaDevices: { getUserMedia: async () => { asked += 1; return { getTracks: () => [] }; } },
+    permissions: { query: async () => ({ state: mic === 'prompt' ? 'prompt' : 'granted' }) }
+  } : {};
   const bar = openDictation({ document, window, navigator, host: document.querySelector('.input-wrapper'), language: 'en' });
+  if (start) bar.started();
   await new Promise((resolve) => setTimeout(resolve, 10));
   let now = 1000;
   for (let index = 0; index < frames; index += 1) {
     now += frameMs;
+    during(bar, index);
     const next = queue.splice(0);
     next.forEach((callback) => callback(now));
   }
@@ -187,7 +209,7 @@ const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true }) => 
   bar.close();
   window.HTMLCanvasElement.prototype.getContext = original;
   window.happyDOM.abort();
-  return { heights, count: heights.length };
+  return { heights, count: heights.length, asked };
 };
 
 const wave = (amplitude) => (target) => {
@@ -210,11 +232,27 @@ test('the room is a flat line, not bars', async () => {
   assert.equal(silent.count, 0, 'silence draws no bar');
 });
 
-test('nothing is made up before there is a microphone reading: no bars while the browser still asks, when it is refused or when there is none', async () => {
-  for (const mic of ['pending', false]) {
-    const result = await drawnWave({ samples: wave(0.5), mic, frames: 120 });
-    assert.equal(result.count, 0, `no bars for mic ${mic}`);
-  }
+test('nothing is drawn before the recognition has started listening, and nothing asks the person for the microphone', async () => {
+  const waiting = await drawnWave({ samples: wave(0.5), start: false, frames: 120 });
+  assert.equal(waiting.count, 0, 'no bars while the browser is still asking');
+  assert.equal(waiting.asked, 0, 'the page has not asked for the microphone');
+});
+
+test('the page does not ask for the microphone a second time: it measures only where it is already allowed', async () => {
+  const unsure = await drawnWave({ samples: wave(0.5), mic: 'prompt', frames: 60 });
+  assert.equal(unsure.asked, 0, 'no second question beside the one of the recognition');
+  const allowed = await drawnWave({ samples: wave(0.5), mic: true, frames: 60 });
+  assert.equal(allowed.asked, 1, 'where it is allowed it measures');
+});
+
+test('where the sound cannot be measured the bars follow the voice the recognition hears, and a quiet moment is a flat line', async () => {
+  const quiet = await drawnWave({ samples: wave(0.5), mic: 'prompt', frames: 60 });
+  assert.equal(quiet.count, 0, 'listening, nobody speaks: a flat line');
+  const speaking = await drawnWave({ samples: wave(0.5), mic: 'prompt', frames: 60, during: (bar, index) => { if (index === 5) bar.speaking(true); if (index === 40) bar.speaking(false); } });
+  assert.ok(speaking.count > 10 && speaking.count < 55, `bars only while a voice is heard: ${speaking.count}`);
+  assert.ok(Math.max(...speaking.heights) >= 8, 'they have a body');
+  const words = await drawnWave({ samples: wave(0.5), mic: false, frames: 60, during: (bar, index) => { if (index === 5) bar.heard(); } });
+  assert.ok(words.count > 5 && words.count < 30, `words coming in make bars for a moment: ${words.count}`);
 });
 
 test('a slow page still gets one bar for every 70 ms that passed', async () => {

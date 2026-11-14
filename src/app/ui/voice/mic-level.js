@@ -1,12 +1,25 @@
 // How loud the microphone is right now, for the waveform while dictating.
 // Opens the microphone beside the browser's own speech recognition (that one
 // gives text, not sound). Where the browser will not share the microphone with
-// it, or refuses, there is no reading, and the waveform then draws no bars (nothing is made up).
+// it, or refuses, there is no reading.
+//
+// `onlyIfAllowed`: the microphone is opened only when the browser already says the page may use it
+// (the permission is 'granted'), so that this never makes the browser ask the person a second time
+// beside the question of the recognition. Where the browser cannot say (it has no such query), it is not opened.
 
 /** Resolves to `{ read(): 0..1, stop() }`, or null when there is no reading to be had. */
-export async function openMicLevel({ navigator, window }) {
+export async function openMicLevel({ navigator, window, onlyIfAllowed = false }) {
   const AudioContextClass = window?.AudioContext || window?.webkitAudioContext;
   if (!AudioContextClass || typeof navigator?.mediaDevices?.getUserMedia !== 'function') return null;
+  if (onlyIfAllowed) {
+    let granted = false;
+    try {
+      granted = (await navigator.permissions?.query?.({ name: 'microphone' }))?.state === 'granted';
+    } catch {
+      granted = false;
+    }
+    if (!granted) return null;
+  }
   let stream = null;
   let context = null;
   try {
