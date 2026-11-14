@@ -56,6 +56,10 @@ export function createWaveformHistory(limit = MAX_HISTORY) {
   };
 }
 
+/** An iPhone or an iPad (which says it is a Mac, but has a touch screen). */
+export const isAppleTouchDevice = (navigator) => /iPad|iPhone|iPod/.test(String(navigator?.userAgent || ''))
+  || (navigator?.platform === 'MacIntel' && Number(navigator?.maxTouchPoints) > 1);
+
 const element = (document, tag, className) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -219,14 +223,20 @@ export function openDictation({ document, window, navigator, host, language = 'z
   };
   if (typeof window?.requestAnimationFrame === 'function') frame = window.requestAnimationFrame(tick);
 
-  // The microphone is measured only once the recognition listens, and only where the page may do it without a second question.
+  // The microphone is measured only once the recognition listens, and only where the page may do it without a second question. Not on a
+  // phone of Apple's (every browser there is WebKit): traced on an iPhone, the meter read 0.00 in every second of the later dictations and 0.03 while a voice
+  // was being recognised, so it measured nothing, and the second capture beside the recognition is a risk to it for no gain.
+  let measuring = false;
   const measure = () => {
-    if (meter || closed || meterDead) return;
+    if (meter || closed || meterDead || measuring) return;
+    if (isAppleTouchDevice(navigator)) { meterDead = true; trace('meter: not used on an iPhone or iPad (it reads silence beside the recognition)'); return; }
+    // The recognition says "start" and "audiostart" together: the second call finds the first one still opening.
+    measuring = true;
     void openMicLevel({ navigator, window, onlyIfAllowed: true, trace: (text) => trace(`meter: ${text}`) }).then((opened) => {
       if (!opened) { trace('meter: none'); return; }
       if (closed || meter) opened.stop();
       else { meter = opened; trace('meter: open'); }
-    });
+    }).finally(() => { measuring = false; });
   };
 
   const keydown = (event) => {
