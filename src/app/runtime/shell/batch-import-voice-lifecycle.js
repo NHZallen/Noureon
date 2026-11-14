@@ -391,6 +391,9 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
     // Without this flag a second click during that window creates a second recognition whose
     // reference overwrites the first, leaving the first running and impossible to stop.
     let voiceStartInFlight = false;
+    // The experiment of reusing one recognition object (see startVoiceInput), and the listeners of the last dictation, taken off before the next.
+    let reusableRecognition = null;
+    const staleVoiceListeners = [];
 
     // Dictating into the message: the composer shows the dictation bar and the words are put into the
     // message only when it is finished (a cross throws them away). Search keeps the plain behaviour.
@@ -484,12 +487,20 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
     };
 
     // The trace of voice input (ui/voice/voice-debug.js): off unless the address asked for it (?voicedebug=1), and then loaded only here.
-    const loadVoiceDebug = async () => {
+    // A switch of the trace kind: asked for by the address (?name=1 on, ?name=0 off) and remembered in this browser.
+    const readVoiceFlag = (name, key) => {
         try {
             const search = window.location?.search || '';
-            if (/[?&]voicedebug=1\b/.test(search)) window.localStorage?.setItem('noureon-voice-debug', '1');
-            else if (/[?&]voicedebug=0\b/.test(search)) window.localStorage?.removeItem('noureon-voice-debug');
-            if (window.localStorage?.getItem('noureon-voice-debug') !== '1') return null;
+            if (new RegExp(`[?&]${name}=1\\b`).test(search)) window.localStorage?.setItem(key, '1');
+            else if (new RegExp(`[?&]${name}=0\\b`).test(search)) window.localStorage?.removeItem(key);
+            return window.localStorage?.getItem(key) === '1';
+        } catch {
+            return false;
+        }
+    };
+    const loadVoiceDebug = async () => {
+        try {
+            if (!readVoiceFlag('voicedebug', 'noureon-voice-debug')) return null;
             const module = await import('../../ui/voice/voice-debug.js');
             const debug = module.createVoiceDebug({ document, window });
             debug.begin('dictation');
@@ -514,7 +525,19 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         const openDictation = target === 'message' ? (await loadDictationBar().catch(() => null))?.openDictation : null;
         setCurrentVoiceTarget?.(target);
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const currentSpeechRecognition = new SpeechRecognition();
+        // An experiment (?voicereuse=1), to be compared by the trace: one recognition object for every dictation of this page, not a new one each time. On the
+        // iPhone traced, the first dictation heard the voice and every later one heard nothing for 8 seconds and ended "aborted", with or without the level meter.
+        const reuseRecognition = readVoiceFlag('voicereuse', 'noureon-voice-reuse');
+        for (const [target_, name, handler] of staleVoiceListeners.splice(0)) target_.removeEventListener?.(name, handler);
+        let currentSpeechRecognition;
+        if (reuseRecognition && reusableRecognition) {
+            currentSpeechRecognition = reusableRecognition;
+            debug?.log('recognition object: reused');
+        } else {
+            currentSpeechRecognition = new SpeechRecognition();
+            if (reuseRecognition) reusableRecognition = currentSpeechRecognition;
+            debug?.log(`recognition object: new${reuseRecognition ? ' (kept for the next dictation)' : ''}`);
+        }
         setCurrentSpeechRecognition?.(currentSpeechRecognition);
         // Resolved at creation time, so switching the interface language applies to the next session.
         currentSpeechRecognition.lang = SPEECH_RECOGNITION_LANGS[getConfig().uiLanguage]
@@ -526,7 +549,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         // What the recognition says of itself drives the bars (ui/voice/dictation.js): it listens, a voice is heard, words come in.
         if (session) {
             const bar = session.bar;
-            const on = (name, handler) => currentSpeechRecognition.addEventListener?.(name, handler);
+            const on = (name, handler) => { currentSpeechRecognition.addEventListener?.(name, handler); staleVoiceListeners.push([currentSpeechRecognition, name, handler]); };
             on('start', () => bar.started());
             on('audiostart', () => bar.started());
             on('soundstart', () => bar.speaking(true));
@@ -575,17 +598,24 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
             clearVoiceInputState();
         };
         if (debug) {
+            const trace = (name, handler) => { currentSpeechRecognition.addEventListener?.(name, handler); staleVoiceListeners.push([currentSpeechRecognition, name, handler]); };
             for (const name of ['start', 'audiostart', 'soundstart', 'speechstart', 'speechend', 'soundend', 'audioend', 'nomatch', 'error', 'end']) {
-                currentSpeechRecognition.addEventListener?.(name, (event) => debug.log(`recognition ${name}${event?.error ? ` (${event.error})` : ''}`));
+                trace(name, (event) => debug.log(`recognition ${name}${event?.error ? ` (${event.error})` : ''}`));
             }
-            currentSpeechRecognition.addEventListener?.('result', (event) => {
+            trace('result', (event) => {
                 const last = event.results?.[event.results.length - 1];
                 debug.log(`recognition result n=${event.results?.length} chars=${String(last?.[0]?.transcript || '').length} final=${Boolean(last?.isFinal)}`);
             });
             window.navigator?.permissions?.query?.({ name: 'microphone' }).then((status) => debug.log(`microphone permission: ${status.state}`), (error) => debug.log(`microphone permission query failed: ${error?.name || error}`));
             debug.log(`recognition.start() (lang ${currentSpeechRecognition.lang}, continuous ${currentSpeechRecognition.continuous}, user activation ${window.navigator?.userActivation?.isActive})`);
         }
-        currentSpeechRecognition.start();
+        try {
+            currentSpeechRecognition.start();
+        } catch (error) {
+            debug?.log(`recognition.start() threw ${error?.name || error}`);
+            if (currentSpeechRecognition === reusableRecognition) reusableRecognition = null;
+            throw error;
+        }
         ALL_ELEMENTS[`voiceInputBtn${target.charAt(0).toUpperCase() + target.slice(1)}`].classList.add('active');
     };
 
