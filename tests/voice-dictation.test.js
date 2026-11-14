@@ -108,7 +108,7 @@ test('the waveform keeps the newest bars at the right edge and only as many as f
   assert.ok(bars[2].x <= 200 - 3, 'the newest touches the right edge');
   for (let index = 0; index < 100; index += 1) history.push(1);
   assert.equal(history.levels.length, 50, 'only what can be drawn is kept');
-  assert.equal(history.bars(20).length, 3, 'as many as fit the width, 6px each');
+  assert.equal(history.bars(20).length, 3, 'as many as fit the width, 6px each (a bar and its gap)');
   history.push(Number.NaN);
   history.push(7);
   assert.ok(history.levels.every((level) => level >= 0 && level <= 1), 'readings are kept within 0 and 1');
@@ -150,7 +150,7 @@ test('voice input has its words in all five languages, and the tip names the key
 });
 
 // What is drawn: a fake canvas records each bar, frames are run by hand.
-const drawnWave = async ({ samples, frames = 60, frameMs = 55, mic = true }) => {
+const drawnWave = async ({ samples, frames = 60, frameMs = 70, mic = true }) => {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   document.body.innerHTML = '<div class="input-wrapper"></div>';
@@ -173,7 +173,8 @@ const drawnWave = async ({ samples, frames = 60, frameMs = 55, mic = true }) => 
     close() { return Promise.resolve(); }
   }
   window.AudioContext = FakeAudioContext;
-  const navigator = mic ? { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } } : {};
+  // mic: true opens at once, false is not offered, 'pending' is the browser still asking the person (it never answers here).
+  const navigator = mic === 'pending' ? { mediaDevices: { getUserMedia: () => new Promise(() => {}) } } : mic ? { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } } : {};
   const bar = openDictation({ document, window, navigator, host: document.querySelector('.input-wrapper'), language: 'en' });
   await new Promise((resolve) => setTimeout(resolve, 10));
   let now = 1000;
@@ -182,7 +183,7 @@ const drawnWave = async ({ samples, frames = 60, frameMs = 55, mic = true }) => 
     const next = queue.splice(0);
     next.forEach((callback) => callback(now));
   }
-  const heights = rects.filter((rect) => rect.width === 3).map((rect) => rect.height);
+  const heights = rects.filter((rect) => rect.width === 2).map((rect) => rect.height);
   bar.close();
   window.HTMLCanvasElement.prototype.getContext = original;
   window.happyDOM.abort();
@@ -193,23 +194,30 @@ const wave = (amplitude) => (target) => {
   for (let index = 0; index < target.length; index += 1) target[index] = 128 + Math.round(amplitude * Math.sin(index / 3) * 127);
 };
 
-test('ordinary speech fills most of the bar height, and a quiet microphone does too once it is spoken into', async () => {
+test('ordinary speech fills most of the bar height, and a quiet voice makes smaller bars than a loud one', async () => {
   const loud = await drawnWave({ samples: wave(0.5) });
-  assert.ok(loud.count >= 40, `bars keep coming: ${loud.count}`);
-  assert.ok(Math.max(...loud.heights) >= 30, `a moderate voice reaches ${Math.max(...loud.heights)}px of the 40px`);
+  assert.ok(loud.count >= 35, `bars keep coming: ${loud.count}`);
+  assert.ok(Math.max(...loud.heights) >= 28, `a moderate voice reaches ${Math.max(...loud.heights)}px of the 40px`);
   const quiet = await drawnWave({ samples: wave(0.08) });
-  assert.ok(Math.max(...quiet.heights) >= 20, `even a quiet microphone reaches ${Math.max(...quiet.heights)}px`);
+  assert.ok(Math.max(...quiet.heights) >= 8, `a quiet voice still shows: ${Math.max(...quiet.heights)}px`);
+  assert.ok(Math.max(...quiet.heights) < Math.max(...loud.heights) * 0.7, 'the microphone is not lifted until a quiet voice looks like a loud one');
 });
 
-test('silence stays flat, and no microphone reading makes the bars rise and fall by themselves', async () => {
+test('the room is a flat line, not bars', async () => {
+  const room = await drawnWave({ samples: wave(0.02) });
+  assert.equal(room.count, 0, 'ordinary room noise draws no bar');
   const silent = await drawnWave({ samples: wave(0.004) });
-  assert.ok(Math.max(...silent.heights) <= 3, 'room noise is a flat line, not bars');
-  const breathing = await drawnWave({ samples: wave(0), mic: false, frames: 120 });
-  const heights = breathing.heights;
-  assert.ok(Math.max(...heights) - Math.min(...heights) >= 10, 'the bars visibly rise and fall');
+  assert.equal(silent.count, 0, 'silence draws no bar');
 });
 
-test('a slow page still gets one bar for every 55 ms that passed', async () => {
+test('nothing is made up before there is a microphone reading: no bars while the browser still asks, when it is refused or when there is none', async () => {
+  for (const mic of ['pending', false]) {
+    const result = await drawnWave({ samples: wave(0.5), mic, frames: 120 });
+    assert.equal(result.count, 0, `no bars for mic ${mic}`);
+  }
+});
+
+test('a slow page still gets one bar for every 70 ms that passed', async () => {
   const slow = await drawnWave({ samples: wave(0.5), frames: 12, frameMs: 330 });
   assert.ok(slow.count >= 24, `12 frames of 330 ms made ${slow.count} bars`);
 });

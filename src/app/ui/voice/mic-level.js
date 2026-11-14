@@ -1,7 +1,7 @@
 // How loud the microphone is right now, for the waveform while dictating.
 // Opens the microphone beside the browser's own speech recognition (that one
 // gives text, not sound). Where the browser will not share the microphone with
-// it, or refuses, there is no reading and the waveform breathes gently instead.
+// it, or refuses, there is no reading, and the waveform then draws no bars (nothing is made up).
 
 /** Resolves to `{ read(): 0..1, stop() }`, or null when there is no reading to be had. */
 export async function openMicLevel({ navigator, window }) {

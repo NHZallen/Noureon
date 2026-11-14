@@ -1,15 +1,26 @@
 // Dictating in the composer, after ChatGPT's: the whole composer row gives way to a bar with the
-// attach mark dimmed at the left, a waveform of how loud the voice is (a dotted line that bars grow
-// along from the right as you speak), a cross to throw the dictation away and a tick to finish. The
-// tick becomes a turning ring while the text is being made. Enter finishes, Escape cancels.
+// attach mark dimmed at the left, a waveform of how loud the voice is (a dotted line that thin
+// round bars grow along from the right as you speak), a cross to throw the dictation away and a
+// tick to finish. The tick becomes a turning ring while the text is being made. Enter finishes,
+// Escape cancels.
+//
+// The bars are only ever the microphone's own reading: until the microphone is open (the browser is
+// still asking for it, it was refused, or it cannot be shared) nothing is made up, and the dotted
+// line only shows a slow light running along it, which says "waiting" and not "hearing".
 
 import { openMicLevel } from './mic-level.js';
 import { dictationText } from './dictation-texts.js';
 
-const STEP_MS = 55;
-const BAR_WIDTH = 3;
-const BAR_GAP = 3;
-const DOT_GAP = 6;
+const STEP_MS = 70;
+const BAR_WIDTH = 2;
+const BAR_GAP = 4;
+// A bar sits on a dot of the line: the dots are one step apart too.
+const STEP = BAR_WIDTH + BAR_GAP;
+// Below this (the reading is already lifted) is the room, not a voice: it stays a flat line.
+const NOISE_GATE = 0.14;
+// The tallest a bar gets, of the height of the wave.
+const BAR_MAX_SHARE = 0.8;
+const WAIT_SWEEP_MS = 1800;
 const LEAVE_MS = 170;
 const MAX_HISTORY = 400;
 
@@ -25,17 +36,17 @@ export function createWaveformHistory(limit = MAX_HISTORY) {
   return {
     push(level) {
       const clean = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : 0;
-      // A little smoothing, so the bars rise and fall instead of flickering.
+      // Smoothing that follows a rise fairly fast and lets go of it slowly, so the bars swell and settle instead of flickering.
       const previous = levels.length ? levels[levels.length - 1] : clean;
-      levels.push(previous * 0.35 + clean * 0.65);
+      levels.push(previous + (clean - previous) * (clean > previous ? 0.55 : 0.22));
       if (levels.length > limit) levels.shift();
     },
     get levels() { return levels; },
-    /** The bars that fit in `width`, newest at the right edge: [{ x, height }] with height 0..1. */
+    /** The bars that fit in `width`, newest at the right edge: [{ x, height }] with height 0..1 (x is the left edge of the bar). */
     bars(width) {
-      const fit = Math.max(0, Math.floor(width / (BAR_WIDTH + BAR_GAP)));
+      const fit = Math.max(0, Math.floor(width / STEP));
       const shown = levels.slice(-fit);
-      return shown.map((level, index) => ({ x: width - (shown.length - index) * (BAR_WIDTH + BAR_GAP) + BAR_GAP, height: level }));
+      return shown.map((level, index) => ({ x: width - STEP / 2 - (shown.length - 1 - index) * STEP - BAR_WIDTH / 2, height: level }));
     }
   };
 }
@@ -83,18 +94,16 @@ export function openDictation({ document, window, navigator, host, language = 'z
   const history = createWaveformHistory();
   const context = canvas.getContext?.('2d') || null;
 
-  // No reading (the microphone is not shared, or is not offered): the bars rise and fall by themselves.
-  const breathing = (now) => 0.3 + 0.22 * Math.sin(now / 210) + 0.12 * Math.sin(now / 97);
-  // The loudest lately, which slowly settles: a quiet microphone still fills the height when its
-  // owner speaks, and room noise below a floor stays flat.
-  let peak = 0.25;
-  const NOISE_FLOOR = 0.03;
+  // The loudest lately, which slowly settles, but never below what a voice at an ordinary distance
+  // reaches: a quiet microphone gets modest bars and a loud one fills the height, and the room
+  // (below the gate) stays a flat line.
+  let peak = 0.5;
   const fromMicrophone = () => {
     const raw = meter.read();
-    peak = Math.max(0.25, raw, peak * 0.992);
-    return raw < NOISE_FLOOR ? 0 : Math.min(1, (raw / peak) ** 0.7);
+    peak = Math.max(0.5, raw, peak * 0.995);
+    return raw < NOISE_GATE ? 0 : Math.min(1, (raw - NOISE_GATE) / (peak - NOISE_GATE));
   };
-  const readLevel = (now) => (meter ? fromMicrophone() : breathing(now));
+  const reducedMotion = () => Boolean(window?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
   const size = () => {
     const ratio = window?.devicePixelRatio || 1;
@@ -107,20 +116,33 @@ export function openDictation({ document, window, navigator, host, language = 'z
     return { width, height, ratio };
   };
 
-  const draw = () => {
+  const draw = (now = 0) => {
     if (!context) return;
     const { width, height, ratio } = size();
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, width, height);
     const colour = window?.getComputedStyle?.(canvas)?.color || 'currentColor';
     context.fillStyle = colour;
-    // The dotted line the bars grow along.
-    context.globalAlpha = 0.4;
-    for (let x = DOT_GAP / 2; x < width; x += DOT_GAP) context.fillRect(x, height / 2 - 0.75, 1.5, 1.5);
+    // The dotted line the bars grow along. While there is no microphone reading a light runs slowly along it.
+    const waiting = !meter && !busy && !reducedMotion();
+    const light = waiting ? ((now % WAIT_SWEEP_MS) / WAIT_SWEEP_MS) * (width + 120) - 60 : 0;
+    for (let x = width - STEP / 2; x > 0; x -= STEP) {
+      context.globalAlpha = waiting ? 0.35 + 0.5 * Math.exp(-(((x - light) / 34) ** 2)) : 0.4;
+      context.fillRect(x - 0.75, height / 2 - 0.75, 1.5, 1.5);
+    }
     context.globalAlpha = 0.9;
     for (const bar of history.bars(width)) {
-      const barHeight = Math.max(3, bar.height * height);
-      context.fillRect(bar.x, (height - barHeight) / 2, BAR_WIDTH, barHeight);
+      // A quiet moment has no bar: the dot of the line shows.
+      if (bar.height < 0.03) continue;
+      const barHeight = Math.max(BAR_WIDTH, bar.height * height * BAR_MAX_SHARE);
+      const top = (height - barHeight) / 2;
+      if (typeof context.roundRect === 'function') {
+        context.beginPath();
+        context.roundRect(bar.x, top, BAR_WIDTH, barHeight, BAR_WIDTH / 2);
+        context.fill();
+      } else {
+        context.fillRect(bar.x, top, BAR_WIDTH, barHeight);
+      }
     }
   };
 
@@ -130,10 +152,10 @@ export function openDictation({ document, window, navigator, host, language = 'z
     const due = lastStep === 0 ? 1 : Math.min(8, Math.floor((now - lastStep) / STEP_MS));
     if (due > 0) {
       lastStep = lastStep === 0 ? now : lastStep + due * STEP_MS;
-      // Once the text is being made nothing new is heard; the bars hold still.
-      if (!busy) for (let index = 0; index < due; index += 1) history.push(readLevel(now));
+      // Once the text is being made nothing new is heard; the bars hold still. Without a microphone reading there is nothing to draw.
+      if (!busy && meter) for (let index = 0; index < due; index += 1) history.push(fromMicrophone());
     }
-    draw();
+    draw(now);
     frame = window.requestAnimationFrame(tick);
   };
   if (typeof window?.requestAnimationFrame === 'function') frame = window.requestAnimationFrame(tick);
