@@ -201,7 +201,6 @@ function createLifecycleHarness(overrides = {}) {
     startNewChat: () => calls.push('startNewChat'),
     renderAll: () => calls.push('renderAll'),
     setTheme: (theme) => calls.push(`setTheme:${theme}`),
-    setupVoiceInput: () => calls.push('setupVoiceInput'),
     setupScrollToBottomButton: () => calls.push('setupScrollToBottomButton'),
     updateDisplayedVersion: () => calls.push('updateDisplayedVersion'),
     checkAndShowLatestUpdate: () => calls.push('checkAndShowLatestUpdate'),
@@ -329,7 +328,6 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
     'startNewChat',
     'updateFunctionButtonsState',
     'updateInputState',
-    'setupVoiceInput',
     'setupScrollToBottomButton',
     'updateDisplayedVersion',
     'checkAndShowLatestUpdate'

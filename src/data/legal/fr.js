@@ -3,7 +3,7 @@
 export default {
   help: {
     title: 'Centre d’aide',
-    updated: 'Dernière mise à jour : 13 novembre 2026 (à partir de Noureon 19.9.0)',
+    updated: 'Dernière mise à jour : 14 novembre 2026 (à partir de Noureon 19.10.0)',
     intro: [
       'Noureon est une application web qui réunit les modèles d’IA de nombreux fournisseurs dans un seul espace de travail : discussion multi-modèles, Conseil des modèles, recherche approfondie, fichiers et présentations, génération d’images, extensions (compétences, outils en ligne de commande et connecteurs), mémoire et synchronisation cloud, le tout dans le navigateur, avec une installation possible comme application. Cette page explique comment fonctionne chaque fonction, où vont vos données et que faire en cas de problème.',
       'Si vous ne trouvez pas de réponse, écrivez à support@noureon.com (ce qu’il faut joindre est indiqué dans « Nous contacter et signaler un problème », à la fin). Les Conditions d’utilisation et la Politique de confidentialité sont des documents séparés ; lisez-les avant d’utiliser les fonctions cloud.'
@@ -42,7 +42,7 @@ export default {
         blocks: [
           [
             'Choisir un modèle : le sélecteur à côté de la zone de message liste tous les modèles disponibles (actuellement 84 options de 20 fournisseurs), avec recherche et regroupement par fournisseur ; les modèles qui acceptent un niveau de réflexion affichent un curseur de réflexion.',
-            'La zone de message : collez du texte, joignez des fichiers, prenez une photo, dictez à la voix, choisissez une compétence avec / et un outil en ligne de commande avec @. La zone peut s’agrandir en grande fenêtre.',
+            'La zone de message : collez du texte, joignez des fichiers, prenez une photo, choisissez une compétence avec / et un outil en ligne de commande avec @. La zone peut s’agrandir en grande fenêtre.',
             'Envoyer pendant qu’une réponse est en cours : avec du texte dans la zone de message, Envoyer fait ce que vous avez choisi dans Réglages → Accessibilité (guider par défaut). Guider confie votre message à la réponse en cours : il apparaît d’abord dans une bulle estompée, et le modèle le voit dès qu’il a fini d’utiliser un outil. La réponse est alors coupée à cet endroit : ce qu’elle a fait jusque-là (recherches, réflexion, étapes) devient un message de réponse à part, votre message le suit comme un message ordinaire (vous pouvez le modifier), et le modèle continue dans un nouveau message de réponse. Une réponse qui n’utilise aucun outil, une réponse produite sur cet appareil et un message avec un fichier ou une citation sont envoyés immédiatement à la place : la réponse est arrêtée (ce qui était écrit reste) et le nouveau message part. La file d’attente envoie à la fin de la réponse, et envoyer maintenant arrête la réponse et envoie aussitôt. Avec une zone vide, le bouton est « Arrêter ». Un message guidé que le modèle n’a jamais eu l’occasion de voir est envoyé comme message suivant à la fin de la réponse.',
             'Nouras : des assistants IA réutilisables, avec leur nom, leur description, leurs instructions et leur avatar. Choisissez des Nouras officiels dans la boutique, créez les vôtres, proposez un nouveau Noura ou partagez-en un par transfert d’appareil à appareil.',
             'Projets, archives et corbeille : les discussions peuvent aller dans des projets (couleur et icône personnalisables, et instructions que suit chaque discussion du projet, et sources : textes et fichiers (un fichier est conservé tel quel, dans votre navigateur et, si la synchronisation est activée, dans votre stockage cloud ; un fichier texte est conservé comme texte ; et les fichiers Google Drive que vous choisissez avec le sélecteur officiel de Google, que la page ne peut lire que pour les fichiers choisis), que chaque discussion du projet peut utiliser), être archivées ou déplacées dans la corbeille ; sélection et déplacement par lots ; la corbeille permet de restaurer ou de supprimer définitivement.',
@@ -101,14 +101,13 @@ export default {
       },
       {
         id: 'attachments',
-        h: '7. Pièces jointes, appareil photo et voix',
+        h: '7. Pièces jointes et appareil photo',
         blocks: [
           [
             'Pièces jointes : images, documents, audio et vidéo. La lecture directe dépend du modèle et du fournisseur ; un document que le modèle ne peut pas lire peut d’abord être converti en texte détaillé par le « modèle de traduction de documents pour un seul modèle » des réglages, pour cette seule requête. Dans une réponse faite par le serveur, cette étape est réalisée sur le serveur : la clé de votre modèle de traduction est envoyée au serveur pour cette seule réponse et n’est pas conservée, et les pages dont l’adresse figure dans votre message y sont lues pour vous.',
             'Fichiers Word, PowerPoint et Excel : pour un modèle qui ne peut pas les lire, l’application lit le fichier (son texte, ses tableaux, ses graphiques et ses images) dans votre navigateur, ou sur le serveur lorsque c’est lui qui fait la réponse, de sorte que la lecture se termine même si vous fermez la page et l’envoie au modèle choisi, avec 10 images au plus par fichier ; le modèle de traduction ne sert que pour ce que cela ne peut pas faire. Dans une réponse faite par le serveur, un fichier Word ou PowerPoint peut aussi être converti en PDF dans le bac à sable du serveur (sans réseau) pour les modèles qui lisent mieux un PDF (pour l’instant, Hy3, Muse Spark 1.3 Contributor, Muse Spark 1.2 Contributor, Claude Haiku 5.5, MiniMax M3, MiniMax M3.1 Flash, Qwen3.8 Max et Qwen3.8 Flash d’OpenCode Go). C’est le cas dès le message que vous envoyez, et les questions suivantes voient le même PDF. Ce PDF est conservé comme cache pour vos questions suivantes, ne fait pas partie de votre conversation et ne compte pas dans vos 500 Mo ; il est supprimé automatiquement avec l’original une fois la conversation supprimée définitivement (en deux jours environ), et dans tous les cas après 30 jours. Une discussion temporaire n’est jamais envoyée au serveur : rien n’en est conservé.',
             'Numéros et noms des pièces jointes : le modèle reçoit le numéro et le nom de fichier de chaque pièce jointe, par exemple « Image 2 of 3 in this message: beach.png » (numérotées dans le message, par type : images, vidéos, autres fichiers), pour que vous puissiez demander « qu’est-ce que la deuxième image ? » ou « que dit le contrat ? ». Le nom du fichier est envoyé au modèle avec la pièce jointe.',
-            'Appareil photo : prenez une photo et joignez-la directement.',
-            'Saisie vocale : appuyez sur le micro, une forme d’onde montre votre voix, appuyez sur la coche pour finir ou sur la croix pour jeter. Votre navigateur transforme la voix en texte et peut transmettre l’audio à votre système d’exploitation ou à un service de reconnaissance vocale en ligne ; Noureon ne garde pas d’enregistrement à part. Ceci est expliqué à la première utilisation.'
+            'Appareil photo : prenez une photo et joignez-la directement.'
           ],
           'Une requête a une taille limite (le serveur accepte des requêtes jusqu’à 25 Mo) ; envoyez les très grosses pièces jointes en plusieurs fois.'
         ]
@@ -177,7 +176,7 @@ export default {
           'Une fois connecté à un compte cloud, les réponses sont produites par défaut sur le serveur de Noureon : fermer l’onglet ou verrouiller le téléphone ne les arrête pas, et le résultat est dans la discussion à votre retour. Cela couvre les réponses ordinaires, le Conseil des modèles, la recherche approfondie, la génération d’images, la recherche web, le mode avancé et le contrôle visuel.',
           [
             'Pour ne produire les réponses que sur votre appareil : Réglages → Confidentialité, choisissez « Cet appareil ».',
-            'Les discussions temporaires, les utilisateurs non connectés et les réponses qui ont besoin du navigateur (saisie vocale, appareil photo) sont toujours produits sur votre appareil.',
+            'Les discussions temporaires, les utilisateurs non connectés et les réponses qui ont besoin du navigateur (appareil photo) sont toujours produits sur votre appareil.',
             'Une réponse peut durer 2 heures au plus ; 5 au plus en même temps ; 10 nouvelles au plus par minute.',
             'Pour la réponse, votre clé API est conservée chiffrée un court moment et supprimée à la fin de la réponse (au plus 2 h 15 pour une réponse ordinaire, 30 minutes pour une image, 3 heures pour une recherche approfondie) ; elle n’est jamais gardée longtemps ni écrite dans des journaux.',
             'Avec plusieurs onglets ouverts, la réponse s’affiche en direct dans tous ; une connexion perdue se rétablit seule.'
@@ -462,7 +461,7 @@ export default {
 
   privacy: {
     title: 'Politique de confidentialité',
-    updated: 'Dernière mise à jour : 13 novembre 2026 (à partir de Noureon 19.9.0)',
+    updated: 'Dernière mise à jour : 14 novembre 2026 (à partir de Noureon 19.10.0)',
     intro: [
       'Cette politique explique quelles données Noureon traite, où elles sont conservées, qui les reçoit, combien de temps, et quels choix vous avez. Elle couvre les flux de données par défaut et ceux qui s’ajoutent quand vous activez la synchronisation cloud, l’exécution sur le serveur, la mémoire et d’autres fonctions.',
       'En une phrase : Noureon est « local d’abord » par défaut, donc discussions, réglages et clés sont conservés dans votre navigateur ; ce que vous envoyez va aux fournisseurs d’IA et de recherche que vous choisissez ; ce n’est que si vous vous connectez à un compte cloud, activez la synchronisation ou faites produire les réponses par le serveur que les données nécessaires sont stockées sur les serveurs de Noureon ou y transitent. Nous ne vendons pas de données personnelles et n’avons ni publicité intégrée ni suivi inter-sites.',
@@ -564,7 +563,7 @@ export default {
             'Nommer une conversation : la page nomme elle-même une nouvelle conversation. Quand la réponse est faite sur le serveur, la page demande aussi au serveur de la nommer si la page est fermée avant d’avoir pu le faire ; le serveur demande alors un titre au modèle de la réponse, avec la clé de cette réponse, à partir des premiers messages de la conversation (raccourcis), mais seulement si la conversation n’a toujours pas de titre un peu plus tard. Le titre est la seule chose qu’il écrit, et rien de nouveau n’est conservé.',
             'La réponse : le serveur écrit la réponse dans le même espace de travail cloud que l’application synchronise déjà.',
             'Messages ajoutés pendant une réponse : le texte ajouté avec « guider » pendant qu’une réponse est en cours passe par la même connexion chiffrée jusqu’au serveur qui fait cette réponse et n’y reste que pour cette exécution ; quand le modèle le prend, le serveur l’écrit dans votre espace de travail cloud comme un message ordinaire de la conversation (comme un message que vous envoyez vous-même) et le transmet, avec le reste, au fournisseur de modèle que vous avez choisi. Un message que le modèle n’a jamais pu prendre est écrit dans l’enregistrement de la réponse pour que votre navigateur l’envoie comme message suivant à la fin de la réponse. Le tout est conservé comme le reste de la conversation, jusqu’à ce que vous la supprimiez.',
-            'Les réponses qui doivent se terminer dans le navigateur (saisie vocale, appareil photo), les utilisateurs non connectés et les discussions temporaires sont toujours produits sur votre appareil et ne sont pas envoyés au serveur.',
+            'Les réponses qui doivent se terminer dans le navigateur (appareil photo), les utilisateurs non connectés et les discussions temporaires sont toujours produits sur votre appareil et ne sont pas envoyés au serveur.',
             'Journaux d’exécution : le serveur garde une trace de chaque exécution (sans clés), pour qu’elle puisse reprendre après un redémarrage du serveur et, une fois terminée, être conservée comme trace de la requête de cette réponse jusqu’à son retrait ; la requête et les images de référence d’une image sont supprimées de la trace à la fin de l’image. Les journaux du serveur ont une ligne par événement et ne contiennent ni contenu de requête, ni clés, ni jetons ; les champs dont le nom ressemble à un secret sont masqués.',
             'Limites : 5 réponses au plus en même temps par personne, 10 nouvelles par minute, requêtes jusqu’à 25 Mo.'
           ]
@@ -617,10 +616,9 @@ export default {
       },
       {
         id: 'voice',
-        h: '10. Saisie vocale, appareil photo et micro',
+        h: '10. Appareil photo et micro',
         blocks: [
           [
-            'La saisie vocale est transformée en texte par votre navigateur, qui peut transmettre l’audio à votre système d’exploitation ou à un service de reconnaissance vocale en ligne ; Noureon ne garde pas d’enregistrement à part, et la forme d’onde est dessinée en direct sur votre appareil. Une explication est affichée, et votre accord demandé, avant la première utilisation.',
             'L’appareil photo et le micro ne sont utilisés qu’après que vous avez appuyé sur le bouton correspondant et accepté la demande d’autorisation du navigateur ; une photo prise est la pièce jointe que vous ajoutez et suit les règles des pièces jointes.'
           ]
         ]
@@ -712,8 +710,7 @@ export default {
             'jsDelivr : chargement de Python dans le navigateur (Pyodide).',
             'PeerJS : le serveur d’appairage du transfert d’appareil à appareil.',
             'Google Forms : retours et propositions de Noura (si l’exploitant le configure).',
-            'Un service d’envoi d’e-mails : courriers de vérification et de récupération des comptes.',
-            'Votre navigateur et votre système d’exploitation : reconnaissance vocale.'
+            'Un service d’envoi d’e-mails : courriers de vérification et de récupération des comptes.'
           ],
           'Chacun de ces services a sa propre politique de confidentialité.'
         ]

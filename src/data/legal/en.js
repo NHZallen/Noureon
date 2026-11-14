@@ -3,7 +3,7 @@
 export default {
   help: {
     title: 'Help Center',
-    updated: 'Last updated: November 13, 2026 (applies from Noureon 19.9.0)',
+    updated: 'Last updated: November 14, 2026 (applies from Noureon 19.10.0)',
     intro: [
       'Noureon is a web app that puts AI models from many vendors in one workspace: multi-model chat, the Model Council, deep research, files and decks, image generation, extensions (skills, command tools and connectors), memory and cloud sync, all in the browser, and it can be installed as an app. This page explains how each feature works, where your data goes, and what to do when something goes wrong.',
       'If you cannot find an answer, write to support@noureon.com (what to include is listed under "Contact us and report a problem" at the end). The Terms of Use and the Privacy Policy are separate documents; read them before you use the cloud features.'
@@ -42,7 +42,7 @@ export default {
         blocks: [
           [
             'Choosing a model: the model picker next to the message box lists every available model (currently 84 options from 20 vendors), with search and grouping by vendor; models that support thinking levels show a thinking-level slider.',
-            'The message box: paste text, attach files, take a photo, dictate by voice, choose a skill with / and a command tool with @. The box can be expanded into a large window.',
+            'The message box: paste text, attach files, take a photo, choose a skill with / and a command tool with @. The box can be expanded into a large window.',
             'Sending while a reply is running: with text in the message box, Send does what you chose in Settings → Accessibility (steer by default). Steer hands your message to the reply that is running: it first shows as a faded bubble, and the model sees it the next time it has finished using a tool. The reply is then split there: what it did so far (searches, thinking, steps) becomes a reply message of its own, your message follows it as an ordinary message (you can edit it), and the model goes on in a new reply message. A reply that uses no tools, a reply made on this device, and a message with a file or a quote are sent at once instead, which stops the reply (what was written stays) and sends the new message. Queue sends it when the reply ends, and send now stops the reply and sends at once. With nothing in the box, the button is "Stop". A message you steered that the model never got the chance to see is sent as the next message when the reply ends.',
             'Nouras: reusable AI assistants with their own name, description, instructions and avatar. Pick official Nouras in the Nouras store, create your own, propose a new Noura, or share one with someone by peer-to-peer transfer.',
             'Projects, archive and trash: conversations can go into projects (with your own color and icon, and instructions that every conversation in the project follows, and sources: texts and files (a file is kept as it is, in your browser and, when sync is on, in your cloud storage; a text file is kept as text; and the files of Google Drive that you choose with Google\'s own file picker, which the page can read only for the files you pick), that every conversation in the project can use), be archived, or be moved to the trash; select and move several at once; the trash can restore or delete for good.',
@@ -101,14 +101,13 @@ export default {
       },
       {
         id: 'attachments',
-        h: '7. Attachments, camera and voice',
+        h: '7. Attachments and camera',
         blocks: [
           [
             'Attachments: images, documents, audio and video. Whether a model can read one directly depends on the model and provider; a document the model cannot read can be turned into detailed text first by the "single-model document translation model" in Settings, for that one request only. In a reply made by the server this step is done on the server: the key of your translation model is sent to the server for that one reply only and is not stored, and the pages whose addresses are in your message are read there on your behalf.',
             'Word, PowerPoint and Excel files: for a model that cannot read them, the app reads the file (its text, tables, charts and pictures) in your browser, or on the server when the server makes the reply, so it is finished even if you close the page and sends that to the model you chose, up to 10 pictures of a file; the translation model is only used for what it cannot do. In a reply made by the server, a Word or PowerPoint file may instead be turned into a PDF in the server\'s sandbox (no network) for the models that read a PDF better (for now, OpenCode Go’s Hy3, Muse Spark 1.3 Contributor, Muse Spark 1.2 Contributor, Claude Haiku 5.5, MiniMax M3, MiniMax M3.1 Flash, Qwen3.8 Max and Qwen3.8 Flash). This happens from the message you send, and follow-up questions see the same PDF. That PDF is kept as a cache for your follow-up questions, is not part of your conversation and does not count toward your 500 MB; it is deleted automatically with the original once the conversation is deleted for good (within about two days), and in any case after 30 days. A temporary chat is never sent to the server, so nothing of it is kept.',
             'Numbers and names of attachments: the model is told each attachment\'s number and file name, for example "Image 2 of 3 in this message: beach.png" (numbered within the message, by kind: images, videos, other files), so you can ask "what is the second picture?" or "what does the contract say?". The file name is sent to the model with the attachment.',
-            'Camera: take a photo and attach it directly.',
-            'Voice input: press the microphone, a waveform shows your voice, press the tick to finish or the cross to throw it away. Your browser turns the voice into text and may pass the audio to your operating system or an online speech service; Noureon does not keep a separate recording. This is explained the first time you use it.'
+            'Camera: take a photo and attach it directly.'
           ],
           'A request has a size limit (the server accepts requests of up to 25 MB), so send very large attachments in parts.'
         ]
@@ -177,7 +176,7 @@ export default {
           'When you are signed in to a cloud account, replies are made on Noureon\'s server by default, so closing the tab or locking the phone does not stop them and the result is in the chat when you come back. This covers ordinary replies, the Model Council, deep research, image generation, web search, Advanced mode and the visual check.',
           [
             'To make replies only on your own device: Settings → Privacy, choose "This device".',
-            'Temporary chats, users who are not signed in, and replies that need the browser (voice input, the camera) are always made on your device.',
+            'Temporary chats, users who are not signed in, and replies that need the browser (the camera) are always made on your device.',
             'One reply may run for 2 hours at most; at most 5 run at once; at most 10 new ones may start in a minute.',
             'For the reply, your API key is kept encrypted for a short time and deleted when the reply ends (at most 2 hours 15 minutes for an ordinary reply, 30 minutes for an image, 3 hours for deep research); it is never kept long term or written to logs.',
             'With several tabs open, the reply is shown live in all of them; a lost connection reconnects by itself.'
@@ -462,7 +461,7 @@ export default {
 
   privacy: {
     title: 'Privacy Policy',
-    updated: 'Last updated: November 13, 2026 (applies from Noureon 19.9.0)',
+    updated: 'Last updated: November 14, 2026 (applies from Noureon 19.10.0)',
     intro: [
       'This policy explains what data Noureon handles, where it is kept, who receives it, for how long, and what choices you have. It covers the default data flows and the extra ones that appear when you turn on cloud sync, server-side running, memory and other features.',
       'In one sentence: Noureon is "local first" by default, so conversations, settings and keys are kept in your browser; what you send goes to the AI and search providers you choose; only when you sign in to a cloud account, turn on sync or have the server run replies does the data needed get stored on or pass through Noureon\'s servers. We do not sell personal data and have no built-in advertising or cross-site tracking.',
@@ -564,7 +563,7 @@ export default {
             'Naming a conversation: the page names a new conversation itself. When the reply is made on the server, the page also asks the server to name it if the page is closed before it could; the server then asks the model of the reply, with the key of that reply, for a title from the first messages of the conversation (shortened), but only if the conversation is still unnamed a little later. The title is the only thing it writes, and nothing new is kept.',
             'The reply: the server writes the reply into the same cloud workspace the app already syncs.',
             'Messages added during a reply: text you add with "steer" while a reply is running goes over the same encrypted connection to the server making that reply and is held only for that run; when the model takes it, the server writes it into your cloud workspace as an ordinary message of the conversation (like one you send yourself) and passes it, with the rest, to the model provider you chose. A message the model never got to take is written into the reply\'s record so that your browser can send it as the next message when the reply ends. All of it is kept like the rest of the conversation, until you delete it.',
-            'Replies that must be finished in the browser (voice input, the camera), users who are not signed in and temporary chats are always made on your device and are not sent to the server.',
+            'Replies that must be finished in the browser (the camera), users who are not signed in and temporary chats are always made on your device and are not sent to the server.',
             'Run records: the server keeps a record of each run (without keys), so that a run can be taken up again after a server restart and, once finished, is kept as the request record of that reply until it is removed; the prompt and the reference pictures of an image are deleted from the record when the image ends. Server logs have one line per event and contain no request content, keys or tokens; fields whose names look like secrets are hidden.',
             'Limits: at most 5 replies at once per person, 10 new ones a minute, requests of up to 25 MB.'
           ]
@@ -617,10 +616,9 @@ export default {
       },
       {
         id: 'voice',
-        h: '10. Voice input, camera and microphone',
+        h: '10. Camera and microphone',
         blocks: [
           [
-            'Voice input is turned into text by your browser, which may pass the audio to your operating system or an online speech service; Noureon keeps no separate recording, and the waveform is drawn live on your device. An explanation is shown, and your agreement asked for, before the first use.',
             'The camera and the microphone are used only after you press the matching button and agree to the browser\'s permission prompt; a photo you take is the attachment you add and is handled under the rules for attachments.'
           ]
         ]
@@ -712,8 +710,7 @@ export default {
             'jsDelivr: loading of Python in the browser (Pyodide).',
             'PeerJS: the pairing server of peer-to-peer transfer.',
             'Google Forms: feedback and Noura proposals (when the operator sets it up).',
-            'An email delivery service: account verification and recovery mail.',
-            'Your browser and operating system: speech recognition.'
+            'An email delivery service: account verification and recovery mail.'
           ],
           'Each of these services has its own privacy policy.'
         ]

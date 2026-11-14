@@ -128,8 +128,6 @@ const RUNTIME_DOM_ELEMENT_IDS = [
   ['cancelAstrasBtn', 'cancel-astras-btn'],
   ['currentAstrasName', 'current-astras-name'],
   ['settingsNav', 'settings-nav'],
-  ['voiceInputBtnMessage', 'voice-input-btn-message'],
-  ['voiceInputBtnSearch', 'voice-input-btn-search'],
   ['uiColorOptions', 'ui-color-options'],
   ['customColorPickerContainer', 'custom-color-picker-container'],
   ['customColorInput', 'custom-color-input'],

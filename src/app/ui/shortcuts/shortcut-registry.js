@@ -16,7 +16,6 @@ export const SHORTCUT_GROUPS = Object.freeze([
  */
 export const SHORTCUTS = Object.freeze([
   { id: 'focusComposer', group: 'composer', textKey: 'scFocusComposer', combo: 'Shift+Escape', modal: false },
-  { id: 'dictate', group: 'composer', textKey: 'scDictate', combo: 'Mod+Shift+D', modal: false },
   { id: 'attachFile', group: 'composer', textKey: 'scAttachFile', combo: 'Mod+Shift+U', modal: false },
   { id: 'newChat', group: 'chat', textKey: 'scNewChat', combo: 'Mod+Shift+O', modal: false },
   { id: 'searchChats', group: 'chat', textKey: 'scSearchChats', combo: 'Mod+K', modal: false },

@@ -851,7 +851,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             performSearchAndRenderResults,
             renderFilePreviews, handleFileSelection, toggleSidebar, handleBatchDelete, handleBatchArchive, handleBatchMove,
             renderBatchMoveModal, handleExport, handleImport, handleImportOnAuth, processAuthImport,
-            setupVoiceInput, closeAllPopovers, copyTextToClipboard
+            closeAllPopovers, copyTextToClipboard
         } = workspaceFeatures;
         const {
             setupTimeAnalysis, applyUiTheme, renderUiColorOptions, openStore, closeStore, renderStore,
@@ -899,7 +899,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getCurrentConversationId: () => conversationStateAccess.getCurrentConversationId(),
             setCurrentConversationId: (id) => conversationStateAccess.setCurrentConversationId(id),
             setSidebarOpen: sidebar.setSidebarOpen, setSendConfirmed: reply.setSendConfirmed, getAbortController: reply.getAbortController,
-            startNewChat, renderAll, setTheme, setupVoiceInput, setupScrollToBottomButton, updateDisplayedVersion, checkAndShowLatestUpdate,
+            startNewChat, renderAll, setTheme, setupScrollToBottomButton, updateDisplayedVersion, checkAndShowLatestUpdate,
             updateFunctionButtonsState, updateInputState, setupSettingsModal, toggleSidebar, toggleModal, saveSettings, saveAppData,
             handleExport, handleImport, handleLogout, handleFileSelection, handleFormSubmit, handleRename, handleSaveFolderSettings,
             performSearchAndRenderResults, loadChat, openDashboard, getActiveConversation, copyTextToClipboard, startMessageEditing,

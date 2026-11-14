@@ -229,7 +229,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
     document,
     escapeHTML,
     getActiveConversation,
-    getComposerAnchor: () => ALL_ELEMENTS.voiceInputBtnMessage,
+    getComposerAnchor: () => ALL_ELEMENTS.submitButton,
     getConfig: getLiveConfig,
     getCouncilModelList,
     getCouncilRuntimeTexts,

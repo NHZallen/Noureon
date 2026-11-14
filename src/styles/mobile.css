@@ -3,8 +3,8 @@
 @media (min-width: 769px) {
     #input-bar-container .input-wrapper {
         display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
-        grid-template-areas: "file input input reasoning voice submit";
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas: "file input input reasoning submit";
         align-items: center !important;
         gap: 0.15rem 0.35rem !important;
         min-height: 3.55rem !important;
@@ -13,15 +13,15 @@
     }
 
     #input-bar-container .input-wrapper.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
-        grid-template-areas: "file input input reasoning voice submit";
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+        grid-template-areas: "file input input reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-multiline-input {
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
-            "input input input input input input"
-            "file . . reasoning voice submit";
+            "input input input input input"
+            "file . . reasoning submit";
         min-height: 5.9rem !important;
         padding-top: 0.65rem !important;
         padding-bottom: 0.65rem !important;
@@ -29,69 +29,69 @@
 
     #input-bar-container .input-wrapper.has-quote-inquiry {
         grid-template-areas:
-            "quote quote quote quote quote quote"
-            "file input input reasoning voice submit";
+            "quote quote quote quote quote"
+            "file input input reasoning submit";
         min-height: 6.1rem !important;
         padding-top: 0.42rem !important;
         padding-bottom: 0.5rem !important;
     }
 
     #input-bar-container .input-wrapper.has-quote-inquiry.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
-            "quote quote quote quote quote quote"
-            "file input input reasoning voice submit";
+            "quote quote quote quote quote"
+            "file input input reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-quote-inquiry.has-multiline-input {
         grid-template-areas:
-            "quote quote quote quote quote quote"
-            "input input input input input input"
-            "file . . reasoning voice submit";
+            "quote quote quote quote quote"
+            "input input input input input"
+            "file . . reasoning submit";
         min-height: 8.45rem !important;
     }
 
     #input-bar-container .input-wrapper.has-file-previews {
         grid-template-areas:
-            "preview preview preview preview preview preview"
-            "file input input reasoning voice submit";
+            "preview preview preview preview preview"
+            "file input input reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry {
         grid-template-areas:
-            "preview preview preview preview preview preview"
-            "quote quote quote quote quote quote"
-            "file input input reasoning voice submit";
+            "preview preview preview preview preview"
+            "quote quote quote quote quote"
+            "file input input reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
-            "preview preview preview preview preview preview"
-            "file input input reasoning voice submit";
+            "preview preview preview preview preview"
+            "file input input reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-multiline-input {
         grid-template-areas:
-            "preview preview preview preview preview preview"
-            "input input input input input input"
-            "file . . reasoning voice submit";
+            "preview preview preview preview preview"
+            "input input input input input"
+            "file . . reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-indicators:not(.has-multiline-input) {
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
         grid-template-areas:
-            "preview preview preview preview preview preview"
-            "quote quote quote quote quote quote"
-            "file input input reasoning voice submit";
+            "preview preview preview preview preview"
+            "quote quote quote quote quote"
+            "file input input reasoning submit";
     }
 
     #input-bar-container .input-wrapper.has-file-previews.has-quote-inquiry.has-multiline-input {
         grid-template-areas:
-            "preview preview preview preview preview preview"
-            "quote quote quote quote quote quote"
-            "input input input input input input"
-            "file . . reasoning voice submit";
+            "preview preview preview preview preview"
+            "quote quote quote quote quote"
+            "input input input input input"
+            "file . . reasoning submit";
     }
 
     #input-bar-container .input-wrapper > .input-media-preview {
@@ -126,10 +126,6 @@
 
     #input-indicator-container {
         display: none !important;
-    }
-
-    #voice-input-btn-message {
-        grid-area: voice;
     }
 
     #reasoning-depth-control {

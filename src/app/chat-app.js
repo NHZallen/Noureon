@@ -16,7 +16,6 @@ import '../styles/share.css';
 import '../styles/step-icons.css';
 import '../styles/model-picker.css';
 import '../styles/notification.css';
-import '../styles/dictation.css';
 import { startRuntimeEntry } from './runtime-entry.js';
 
 export const chatAppReady = startRuntimeEntry();

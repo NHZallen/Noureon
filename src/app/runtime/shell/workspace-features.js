@@ -1,9 +1,9 @@
-// The workspace features of the chat page: the search, the uploads and the sidebar; the batch actions, the import and export and the
-// voice input; the dashboard, made the first time it is used; the warning on the API key; the
+// The workspace features of the chat page: the search, the uploads and the sidebar; the batch actions, the import and export;
+// the dashboard, made the first time it is used; the warning on the API key; the
 // closing of popovers and the copy to the clipboard. Made once by the application shell (shell.js), which hands in what they use.
 
 import { collapseTriggers } from '../features/popover-escape.js';
-import { createBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
+import { createBatchImportLifecycle } from './batch-import-lifecycle.js';
 import { createSearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
 import { keysSettled } from '../security/keys-settled.js';
@@ -33,8 +33,7 @@ export function createWorkspaceFeatures({
 }) {
     const getConfig = () => runtimeConfigAccess.getConfig();
     const getConversations = () => liveConversationsBridge.getConversations();
-    // The speech recognition of the voice input running now, and the chart of the dashboard drawn last.
-    let currentSpeechRecognition = null;
+    // The chart of the dashboard drawn last.
     let modelPieChart = null;
 
     const resolveUploadUpdateInputState = (...args) => updateInputState(...args);
@@ -78,7 +77,7 @@ export function createWorkspaceFeatures({
         toggleSidebar
     } = searchUploadSidebarLifecycle;
 
-    const batchImportVoiceLifecycle = createBatchImportVoiceLifecycle({
+    const batchImportLifecycle = createBatchImportLifecycle({
         window,
         document,
         navigator,
@@ -132,10 +131,6 @@ export function createWorkspaceFeatures({
         applyLanguage,
         loadChat,
         getOutputMode,
-        resolveUploadUpdateInputState,
-        performSearchAndRenderResults,
-        getCurrentSpeechRecognition: () => currentSpeechRecognition,
-        setCurrentSpeechRecognition: (nextRecognition) => (currentSpeechRecognition = nextRecognition),
         i18n,
         randomUUID: () => crypto.randomUUID(),
         getGeneratedImageBlob: async descriptor => (await getGeneratedImageRuntime()).assetStore.getBlob(descriptor),
@@ -157,10 +152,8 @@ export function createWorkspaceFeatures({
         performImport,
         handleImport,
         handleImportOnAuth,
-        processAuthImport,
-        setupVoiceInput,
-        toggleVoiceInput
-    } = batchImportVoiceLifecycle;
+        processAuthImport
+    } = batchImportLifecycle;
 
     // The memory of notes reads the old conversations with the same small-request runner (memory-store/page-rebuild.js).
     setMemoryModelRunner((...args) => runMemoryModel(...args));
@@ -253,8 +246,6 @@ export function createWorkspaceFeatures({
         handleImport,
         handleImportOnAuth,
         processAuthImport,
-        setupVoiceInput,
-        toggleVoiceInput,
         closeAllPopovers,
         copyTextToClipboard
     };

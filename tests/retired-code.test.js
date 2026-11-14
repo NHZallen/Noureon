@@ -290,8 +290,8 @@ const RETIRED = {
       /objectStoreNames\.contains/
     ],
   },
-  'src/app/runtime/shell/batch-import-voice-lifecycle.js': {
-    "batch import voice lifecycle moves batch import and voice ownership out of 03": [
+  'src/app/runtime/shell/batch-import-lifecycle.js': {
+    "batch import lifecycle moves batch import ownership out of 03": [
       /legacy-runtime\/fragments|virtual:legacy-app-runtime/
     ],
     "conversation state access owns selected active conversation lookups without stale snapshots": [
@@ -731,11 +731,9 @@ const RETIRED = {
       /createUploadedFilePreviewLifecycle\(\{/,
       /function\s+toggleSidebar\(show\)\s*\{/
     ],
-    "batch import voice lifecycle moves batch import and voice ownership out of 03": [
+    "batch import lifecycle moves batch import ownership out of 03": [
       /const\s+handleBatchDelete\s*=\s*async\s*\(\)\s*=>\s*\{/,
       /const\s+handleBatchArchive\s*=\s*async\s*\(\)\s*=>\s*\{/,
-      /const\s+setupVoiceInput\s*=\s*\(\)\s*=>\s*\{/,
-      /const\s+toggleVoiceInput\s*=\s*(?:async\s*)?\(target\)\s*=>\s*\{/,
       /createImportExportLifecycle|createAuthImportLifecycle/
     ],
     "batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary": [

@@ -186,10 +186,6 @@
         stroke-width: 1.5;
     }
 
-    #voice-input-btn-message svg {
-        stroke-width: 1.6;
-    }
-
     #file-options-popover:not(.message-edit-shared-popover) > button > svg,
     #file-options-popover:not(.message-edit-shared-popover) > button > .composer-menu-icon {
         flex: 0 0 1.25rem;

@@ -21,10 +21,10 @@ test('desktop chat input keeps active modes inside the rich editor at any caret 
   const richEditor = readUiSource('src/app/runtime/features/composer-rich-editor.js');
 
   assert.match(appShell, /id="message-input"[^>]*role="textbox"[^>]*contenteditable="true"[^>]*data-composer-editor/);
-  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input reasoning voice submit"/s);
+  assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-bar-container\s+\.input-wrapper[^{]*\{[^}]*display:\s*grid\s*!important;[^}]*grid-template-areas:\s*"file input input reasoning submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper,\s*#input-bar-container\s+\.input-wrapper:focus-within[^{]*\{[^}]*border:\s*1px solid transparent\s*!important;[^}]*border-radius:\s*9999px\s*!important;[^}]*box-shadow:[^}]*!important;/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"file input input reasoning voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input input"\s*"file \. \. reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"file input input reasoning submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"input input input input input"\s*"file \. \. reasoning submit"/s);
   assert.match(css, /@media\s*\(min-width:\s*769px\)[^{]*\{[\s\S]*#input-indicator-container[^{]*\{[^}]*display:\s*none\s!important;/s);
   assert.match(css, /#message-input\s+\.composer-inline-mode-token[^{]*\{[^}]*display:\s*inline-flex;[^}]*user-select:\s*text;/s);
   assert.match(css, /#message-input\s+\.composer-inline-mode-token:hover[^{]*\{[^}]*background:\s*transparent;/s);
@@ -65,9 +65,9 @@ test('composer upload previews occupy a full-width row above desktop input contr
   const previewLifecycle = readUiSource('src/app/ui/files/attachment-card.js');
 
   assert.match(inputMediaPlacement, /inputMediaPreview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(inputMediaPreview,\s*wrapper\.firstChild\)/);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"file input input reasoning voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"file input input reasoning voice submit"/s);
-  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"input input input input input input"\s*"file \. \. reasoning voice submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"file input input reasoning submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-indicators:not\(\.has-multiline-input\)[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"file input input reasoning submit"/s);
+  assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview"\s*"input input input input input"\s*"file \. \. reasoning submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);
   assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*position:\s*absolute/s);
   assert.match(previewLifecycle, /button\.className\s*=\s*'file-preview-remove';[\s\S]*button\.innerHTML\s*=\s*'<svg[^']*aria-hidden="true"[^']*<\/svg>';[\s\S]*event\.stopPropagation\(\);[\s\S]*onRemove\(file\)/);
@@ -98,17 +98,17 @@ test('desktop active modes have no hover close control and remain selectable tex
   assert.match(css, /#input-indicator-container[^{]*\{[^}]*display:\s*none\s!important;/s);
 });
 
-test('mobile keeps the existing stacked indicator layout and the message mic', () => {
+test('mobile keeps the existing stacked indicator layout, with no voice input left', () => {
   const css = readUiSource('src/styles/main.css');
 
-  assert.doesNotMatch(css, /#voice-input-btn-message[^{]*\{[^}]*display:\s*none\s*!important;/s);
+  assert.doesNotMatch(css, /voice-input-btn/);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*max-width:\s*1\.25rem;[^}]*flex:\s*0\s+0\s+1\.25rem;[^}]*object-fit:\s*contain;/s);
 });
 
-test('mobile composer puts the editor on its own row above the tools, the mic beside the send button', () => {
+test('mobile composer puts the editor on its own row above the tools, the send button at the end', () => {
   const mobile = readUiSource('src/styles/mobile-composer-layout.css');
 
-  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input input input"\s*"file model model voice submit"/s);
+  assert.match(mobile, /#input-bar-container\s+\.input-wrapper\s*\{[^}]*display:\s*grid\s*!important;[^}]*"input input input input"\s*"file model model submit"/s);
   assert.match(mobile, /#model-council-control\s*\{[^}]*grid-area:\s*model;[^}]*min-width:\s*0;/s);
   assert.match(mobile, /#model-council-control\s+\.mp-anchor\s+\.mp-trigger\s*\{[^}]*max-width:\s*100%;/s);
   assert.match(mobile, /\.input-media-preview\s*\{[^}]*grid-area:\s*preview;/s);
@@ -133,7 +133,6 @@ test('desktop tools menu follows the centered or docked composer without changin
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button:hover[\s\S]*background:\s*color-mix\(in srgb, var\(--text-secondary\) 12%, transparent\)\s*!important/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*transform:\s*none\s*!important;[^}]*transition:\s*opacity\s+0\.16s\s+ease-out,\s*visibility\s+0\.16s\s*!important/s);
   assert.match(css, /#add-file-btn\s+svg[^{]*\{[^}]*stroke-width:\s*1\.5/s);
-  assert.match(css, /#voice-input-btn-message\s+svg[^{]*\{[^}]*stroke-width:\s*1\.6/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button\s*>\s*\.composer-menu-icon[^{]*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;[^}]*object-fit:\s*contain;/s);
   assert.match(css, /#chat-workspace:has\(#file-options-popover\.visible:not\(\.message-edit-shared-popover\)\)\s+#scroll-to-bottom-btn[^{]*\{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;/s);
   assert.match(bootstrap, /cameraBtn\.addEventListener\('click',[\s\S]*imageVideoInput\.value\s*=\s*'';[\s\S]*uploadImageBtn\.addEventListener\('click',[\s\S]*imageVideoInput\.value\s*=\s*'';[\s\S]*uploadFileBtn\.addEventListener\('click',[\s\S]*fileUploadInput\.value\s*=\s*'';/s);

@@ -3,7 +3,7 @@
 export default {
   help: {
     title: 'Centro de ayuda',
-    updated: 'Última actualización: 13 de noviembre de 2026 (desde Noureon 19.9.0)',
+    updated: 'Última actualización: 14 de noviembre de 2026 (desde Noureon 19.10.0)',
     intro: [
       'Noureon es una aplicación web que reúne modelos de IA de muchos proveedores en un solo espacio de trabajo: chat con varios modelos, Consejo de modelos, investigación profunda, archivos y presentaciones, generación de imágenes, extensiones (habilidades, herramientas de línea de comandos y conectores), memoria y sincronización en la nube. Todo funciona en el navegador y se puede instalar como aplicación. Esta página explica cómo funciona cada función, adónde van tus datos y qué hacer cuando algo falla.',
       'Si no encuentras la respuesta, escribe a support@noureon.com (lo que conviene incluir está en «Contacto e informe de problemas», al final). Los Términos de uso y la Política de privacidad son documentos aparte; léelos antes de usar las funciones en la nube.'
@@ -42,7 +42,7 @@ export default {
         blocks: [
           [
             'Elegir un modelo: el selector junto al cuadro de mensaje lista todos los modelos disponibles (ahora 84 opciones de 20 proveedores), con búsqueda y agrupación por proveedor; los modelos que admiten niveles de razonamiento muestran un control deslizante.',
-            'El cuadro de mensaje: pega texto, adjunta archivos, haz una foto, dicta por voz, elige una habilidad con / y una herramienta de línea de comandos con @. El cuadro se puede ampliar a una ventana grande.',
+            'El cuadro de mensaje: pega texto, adjunta archivos, haz una foto, elige una habilidad con / y una herramienta de línea de comandos con @. El cuadro se puede ampliar a una ventana grande.',
             'Enviar mientras responde: con texto en el cuadro de mensaje, Enviar hace lo que elegiste en Ajustes → Accesibilidad (guiar por defecto). Guiar entrega tu mensaje a la respuesta en curso: primero aparece en una burbuja atenuada, y el modelo lo ve la próxima vez que termina de usar una herramienta. La respuesta se parte entonces ahí: lo que hizo hasta ese momento (búsquedas, razonamiento, pasos) queda como un mensaje de respuesta propio, tu mensaje le sigue como un mensaje normal (puedes editarlo) y el modelo continúa en un nuevo mensaje de respuesta. Una respuesta que no usa herramientas, una respuesta hecha en este dispositivo y un mensaje con un archivo o una cita se envían al instante: la respuesta se detiene (lo escrito se queda) y sale el mensaje nuevo. En cola envía al terminar la respuesta, y enviar ya detiene la respuesta y envía de inmediato. Con el cuadro vacío, el botón es «Detener». Un mensaje guiado que el modelo no llegó a ver se envía como el mensaje siguiente cuando termina la respuesta.',
             'Nouras: asistentes de IA reutilizables con su propio nombre, descripción, instrucciones y avatar. Elige Nouras oficiales en la tienda, crea los tuyos, propón un Noura nuevo o comparte uno con otra persona mediante transferencia directa entre dispositivos.',
             'Proyectos, archivo y papelera: las conversaciones pueden ir a proyectos (con color e icono propios y con instrucciones que sigue cada conversación del proyecto y con fuentes: textos y archivos (un archivo se guarda tal cual, en tu navegador y, si la sincronización está activada, en tu almacenamiento en la nube; un archivo de texto se guarda como texto; y los archivos de Google Drive que elijas con el selector oficial de Google, que la página solo puede leer para los archivos elegidos), que puede usar cada conversación del proyecto), archivarse o moverse a la papelera; puedes seleccionar y mover varias a la vez; la papelera permite restaurar o eliminar para siempre.',
@@ -101,14 +101,13 @@ export default {
       },
       {
         id: 'attachments',
-        h: '7. Adjuntos, cámara y voz',
+        h: '7. Adjuntos y cámara',
         blocks: [
           [
             'Adjuntos: imágenes, documentos, audio y vídeo. Que un modelo pueda leerlos directamente depende del modelo y del proveedor; un documento que el modelo no puede leer se puede convertir antes en texto detallado con el «modelo de traducción de documentos para un solo modelo» de Ajustes, solo para esa petición. En una respuesta hecha por el servidor, este paso se hace en el servidor: la clave de tu modelo de traducción se envía al servidor solo para esa respuesta y no se guarda, y las páginas cuyas direcciones aparecen en tu mensaje también se leen allí en tu nombre.',
             'Archivos de Word, PowerPoint y Excel: para un modelo que no puede leerlos, la aplicación lee el archivo (su texto, tablas, gráficos e imágenes) en tu navegador, o en el servidor cuando es él quien hace la respuesta, de modo que termina aunque cierres la página y lo envía al modelo elegido, con 10 imágenes como máximo por archivo; el modelo de traducción solo se usa para lo que no puede hacer así. En una respuesta hecha por el servidor, un archivo de Word o PowerPoint puede convertirse además en PDF en el entorno aislado del servidor (sin red) para los modelos que leen mejor un PDF (por ahora, Hy3, Muse Spark 1.3 Contributor, Muse Spark 1.2 Contributor, Claude Haiku 5.5, MiniMax M3, MiniMax M3.1 Flash, Qwen3.8 Max y Qwen3.8 Flash de OpenCode Go). Ocurre desde el mensaje que envías, y en las preguntas siguientes el modelo ve el mismo PDF. Ese PDF se guarda como caché para tus preguntas siguientes, no forma parte de tu conversación y no cuenta en tus 500 MB; se elimina automáticamente junto con el original cuando la conversación se borra de forma definitiva (en unos dos días) y, en cualquier caso, a los 30 días. Un chat temporal nunca se envía al servidor, así que no se conserva nada de él.',
             'Números y nombres de los adjuntos: el modelo recibe el número y el nombre de archivo de cada adjunto, por ejemplo «Image 2 of 3 in this message: beach.png» (numerados dentro del mensaje, por tipo: imágenes, vídeos, otros archivos), para que puedas preguntar «¿qué es la segunda imagen?» o «¿qué dice el contrato?». El nombre del archivo se envía al modelo junto con el adjunto.',
-            'Cámara: haz una foto y adjúntala directamente.',
-            'Entrada de voz: pulsa el micrófono, una onda muestra tu voz, pulsa la marca para terminar o la cruz para descartar. Tu navegador convierte la voz en texto y puede pasar el audio a tu sistema operativo o a un servicio de voz en línea; Noureon no guarda una grabación aparte. Esto se explica la primera vez que la usas.'
+            'Cámara: haz una foto y adjúntala directamente.'
           ],
           'Una petición tiene un límite de tamaño (el servidor acepta peticiones de hasta 25 MB); envía los adjuntos muy grandes por partes.'
         ]
@@ -177,7 +176,7 @@ export default {
           'Cuando has iniciado sesión en una cuenta en la nube, las respuestas las hace por defecto el servidor de Noureon, así que cerrar la pestaña o bloquear el teléfono no las detiene y, al volver, el resultado ya está en el chat. Esto abarca las respuestas normales, el Consejo de modelos, la investigación profunda, la generación de imágenes, la búsqueda web, el modo avanzado y la revisión visual.',
           [
             'Para hacer las respuestas solo en tu dispositivo: Ajustes → Privacidad, elige «Este dispositivo».',
-            'Los chats temporales, los usuarios sin sesión iniciada y las respuestas que necesitan el navegador (entrada de voz, cámara) se hacen siempre en tu dispositivo.',
+            'Los chats temporales, los usuarios sin sesión iniciada y las respuestas que necesitan el navegador (cámara) se hacen siempre en tu dispositivo.',
             'Una respuesta puede ejecutarse como máximo 2 horas; como máximo 5 a la vez; como máximo 10 nuevas por minuto.',
             'Para la respuesta, tu clave de API se guarda cifrada un breve tiempo y se elimina al terminar (como máximo 2 h 15 min para una respuesta normal, 30 minutos para una imagen, 3 horas para una investigación profunda); nunca se guarda a largo plazo ni se escribe en registros.',
             'Con varias pestañas abiertas, la respuesta se muestra en directo en todas; una conexión perdida se restablece sola.'
@@ -462,7 +461,7 @@ export default {
 
   privacy: {
     title: 'Política de privacidad',
-    updated: 'Última actualización: 13 de noviembre de 2026 (desde Noureon 19.9.0)',
+    updated: 'Última actualización: 14 de noviembre de 2026 (desde Noureon 19.10.0)',
     intro: [
       'Esta política explica qué datos trata Noureon, dónde se guardan, quién los recibe, durante cuánto tiempo y qué opciones tienes. Abarca los flujos de datos por defecto y los adicionales que aparecen cuando activas la sincronización en la nube, la ejecución en el servidor, la memoria y otras funciones.',
       'En una frase: Noureon es «primero en local» por defecto, así que las conversaciones, los ajustes y las claves se guardan en tu navegador; lo que envías va a los proveedores de IA y de búsqueda que elijas; solo cuando inicias sesión en una cuenta en la nube, activas la sincronización o haces que el servidor ejecute respuestas, los datos necesarios se guardan en los servidores de Noureon o pasan por ellos. No vendemos datos personales ni tenemos publicidad integrada ni seguimiento entre sitios.',
@@ -564,7 +563,7 @@ export default {
             'Nombre de la conversación: la página pone nombre a una conversación nueva. Cuando la respuesta se hace en el servidor, la página también pide al servidor que le ponga nombre si la página se cierra antes de poder hacerlo; el servidor pide entonces un título al modelo de la respuesta, con la clave de esa respuesta, a partir de los primeros mensajes de la conversación (acortados), pero solo si un poco después la conversación sigue sin nombre. El título es lo único que escribe, y no se guarda nada nuevo.',
             'La respuesta: el servidor escribe la respuesta en el mismo espacio de trabajo en la nube que la aplicación ya sincroniza.',
             'Mensajes añadidos durante una respuesta: el texto que añades con «guiar» mientras se hace una respuesta viaja por la misma conexión cifrada hasta el servidor que la hace y se guarda solo durante esa ejecución; cuando el modelo lo toma, el servidor lo escribe en tu espacio de trabajo en la nube como un mensaje normal de la conversación (como uno que envías tú) y lo pasa, con el resto, al proveedor de modelo que elegiste. Un mensaje que el modelo no llegó a tomar se escribe en el registro de la respuesta para que tu navegador lo envíe como el mensaje siguiente al terminar la respuesta. Todo se conserva como el resto de la conversación, hasta que la elimines.',
-            'Las respuestas que deben terminarse en el navegador (entrada de voz, cámara), los usuarios sin sesión iniciada y los chats temporales se hacen siempre en tu dispositivo y no se envían al servidor.',
+            'Las respuestas que deben terminarse en el navegador (cámara), los usuarios sin sesión iniciada y los chats temporales se hacen siempre en tu dispositivo y no se envían al servidor.',
             'Registros de ejecución: el servidor guarda un registro de cada ejecución (sin claves), para que una ejecución pueda retomarse tras un reinicio del servidor y, una vez terminada, se conserva como registro de la petición de esa respuesta hasta que se retira; el prompt y las imágenes de referencia de una imagen se eliminan del registro cuando termina la imagen. Los registros del servidor tienen una línea por evento y no contienen el contenido de las peticiones, claves ni tokens; los campos cuyo nombre parece un secreto se ocultan.',
             'Límites: como máximo 5 respuestas a la vez por persona, 10 nuevas por minuto, peticiones de hasta 25 MB.'
           ]
@@ -617,10 +616,9 @@ export default {
       },
       {
         id: 'voice',
-        h: '10. Entrada de voz, cámara y micrófono',
+        h: '10. Cámara y micrófono',
         blocks: [
           [
-            'La entrada de voz la convierte en texto tu navegador, que puede pasar el audio a tu sistema operativo o a un servicio de voz en línea; Noureon no guarda una grabación aparte, y la onda se dibuja en directo en tu dispositivo. Antes del primer uso se muestra una explicación y se pide tu acuerdo.',
             'La cámara y el micrófono se usan solo después de que pulses el botón correspondiente y aceptes la solicitud de permiso del navegador; una foto que haces es el adjunto que añades y se trata según las reglas de los adjuntos.'
           ]
         ]
@@ -712,8 +710,7 @@ export default {
             'jsDelivr: carga de Python en el navegador (Pyodide).',
             'PeerJS: el servidor de emparejamiento de la transferencia directa entre dispositivos.',
             'Google Forms: comentarios y propuestas de Noura (cuando el operador lo configura).',
-            'Un servicio de envío de correo: correos de verificación y recuperación de cuentas.',
-            'Tu navegador y tu sistema operativo: reconocimiento de voz.'
+            'Un servicio de envío de correo: correos de verificación y recuperación de cuentas.'
           ],
           'Cada uno de estos servicios tiene su propia política de privacidad.'
         ]

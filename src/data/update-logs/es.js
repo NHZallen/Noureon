@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.10.0": [
+    "<strong>Notas de la versión de Noureon 19.10.0</strong>",
+    "Esta versión elimina la entrada de voz, corrige el fondo que se veía al arrastrar la barra lateral en el teléfono y sustituye una tarjeta de la página de inicio por compartir conversaciones.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Entrada de voz eliminada: </strong>el botón del micrófono en el cuadro de mensaje y en la búsqueda de chats, el atajo de la entrada de voz y la explicación del primer uso se han quitado, tanto en el teléfono como en el ordenador. En iPhone, el reconocimiento de voz integrado en el navegador solo funciona una vez por página; después, el micrófono de toda la página solo recibe silencio. Es un problema del propio navegador, que ni siquiera una página web en blanco puede evitar. La conversión de voz a texto de grabaciones y vídeos adjuntos no se ve afectada.</li><li><strong>Barra lateral en el teléfono: </strong>al arrastrar la barra lateral más allá de su borde, la parte que aparece conserva el color de la barra en lugar de mostrar la pantalla de detrás.</li><li><strong>Página de inicio: </strong>la tarjeta de la entrada de voz en «Y más» se sustituye por compartir conversaciones.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "<ul><li>No hay que hacer nada, y esta versión no tiene actualización de la base de datos.</li><li>Una tecla personalizada para el atajo de la entrada de voz se ignora; los demás atajos no cambian.</li></ul>"
+  ],
   "19.9.0": [
     "<strong>Notas de la versión de Noureon 19.9.0</strong>",
     "Esta versión rediseña el panel «+» en el teléfono y todos los paneles que suben desde abajo, cambia los iconos de las funciones por iconos vectoriales, da un nuevo diseño a las páginas de contraseña olvidada y envía un aviso de seguridad cuando se completa un restablecimiento de contraseña.",

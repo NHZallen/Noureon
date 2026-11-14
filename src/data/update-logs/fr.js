@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.10.0": [
+    "<strong>Notes de version de Noureon 19.10.0</strong>",
+    "Cette version retire la saisie vocale, corrige l’arrière-plan visible quand on fait glisser le panneau latéral sur téléphone, et remplace une carte de la page d’accueil par le partage de discussions.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Saisie vocale retirée : </strong>le bouton du micro dans la zone de message et dans la recherche de discussions, le raccourci de la saisie vocale et l’explication affichée à la première utilisation sont supprimés, sur téléphone comme sur ordinateur. Sur iPhone, la reconnaissance vocale intégrée au navigateur ne fonctionne qu’une fois par page ; ensuite, le micro de toute la page ne reçoit plus que du silence. C’est un problème du navigateur lui-même, qu’aucune page, même vide, ne peut éviter. La transcription des enregistrements et des vidéos jointes n’est pas concernée.</li><li><strong>Panneau latéral sur téléphone : </strong>quand on fait glisser le panneau au-delà de son bord, la partie qui apparaît garde la couleur du panneau au lieu de montrer l’écran derrière.</li><li><strong>Page d’accueil : </strong>la carte de la saisie vocale dans « Et aussi » est remplacée par le partage de discussions.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte aucune mise à jour de la base de données.</li><li>Une touche personnalisée pour le raccourci de la saisie vocale est ignorée ; les autres raccourcis ne changent pas.</li></ul>"
+  ],
   "19.9.0": [
     "<strong>Notes de version de Noureon 19.9.0</strong>",
     "Cette version refond le panneau « + » sur téléphone et tous les panneaux qui montent depuis le bas, remplace les icônes de fonctions par des icônes vectorielles, donne une nouvelle mise en page aux pages du mot de passe oublié et envoie un avis de sécurité lorsqu'une réinitialisation de mot de passe est terminée.",

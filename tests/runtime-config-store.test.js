@@ -41,7 +41,6 @@ const expectedConfig = (defaultModelId) => ({
   enableUpdateNotifications: true,
   lastSeenVersion: '',
   isLearningMode: false,
-  voicePrivacyNoticeAcknowledged: false,
   lastCouncilConfig: {
     enabled: false,
     mode: 'consensus',

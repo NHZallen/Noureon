@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.10.0": [
+    "<strong>Noureon 19.10.0 Release Notes</strong>",
+    "This version removes voice input, fixes the background showing when the sidebar is dragged on a phone, and replaces one card on the home page with conversation sharing.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Voice input removed: </strong>the microphone button in the message box and in chat search, the voice input shortcut and the explanation shown on first use are gone, on phones and computers alike. On an iPhone, the browser's built-in speech recognition works only once per page; after that the whole page's microphone receives only silence. This is a problem of the browser itself, and even a blank web page cannot avoid it. Speech to text for attached recordings and videos is not affected.</li><li><strong>Sidebar on phones: </strong>when the sidebar is dragged past its edge, the part that shows keeps the sidebar's colour instead of the screen behind it.</li><li><strong>Home page: </strong>the voice input card under \"And more\" is replaced by conversation sharing.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update.</li><li>A custom key for the voice input shortcut is ignored; other shortcuts are not affected.</li></ul>"
+  ],
   "19.9.0": [
     "<strong>Noureon 19.9.0 Release Notes</strong>",
     "This version redesigns the \"+\" panel on phones and every panel that rises from the bottom, turns the function icons into vector icons, gives the forgotten-password pages a new layout, and sends a security notice when a password reset is completed.",

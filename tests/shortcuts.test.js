@@ -69,7 +69,6 @@ test('every shortcut of the list has a group, words in the five languages and a 
   const byId = Object.fromEntries(SHORTCUTS.map((shortcut) => [shortcut.id, shortcut.combo]));
   assert.equal(byId.togglePanel, 'Mod+Shift+S');
   assert.equal(byId.openSettings, 'Mod+,');
-  assert.equal(byId.dictate, 'Mod+Shift+D');
 });
 
 test('what is saved is checked: only known shortcuts, only combinations of the right form, only what differs', () => {

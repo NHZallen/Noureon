@@ -62,8 +62,6 @@ function createHarness(overrides = {}) {
   const elements = {
     batchMoveFolderList: createNode(),
     batchMoveModal: createNode(),
-    voiceInputBtnMessage: createNode(),
-    voiceInputBtnSearch: createNode(),
     messageInput: createNode(),
     modalSearchInput: createNode(),
     filePreviewContainer: createNode(),
@@ -81,8 +79,6 @@ function createHarness(overrides = {}) {
     uploadedFiles: [],
     sidebarOpen: false,
     currentUser: null,
-    currentSpeechRecognition: null,
-    currentVoiceTarget: null,
     selectedConversationIds: new Set(['c1']),
     modelPieChart: null,
     sendConfirmed: false,
@@ -218,9 +214,7 @@ test('the workspace features are made at once and handed out by name', () => {
     'handleExport',
     'handleImport',
     'handleImportOnAuth',
-    'processAuthImport',
-    'setupVoiceInput',
-    'toggleVoiceInput'
+    'processAuthImport'
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }

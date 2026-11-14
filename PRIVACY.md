@@ -1,6 +1,6 @@
 # Privacy
 
-_Last updated: November 13, 2026 (applies from Noureon 19.9.0)_
+_Last updated: November 14, 2026 (applies from Noureon 19.10.0)_
 
 > This file is made from `src/data/legal/en.js` (`node scripts/generate-privacy-md.mjs`). The same text, in five languages, is published at https://noureon.com/privacy.
 
@@ -76,7 +76,7 @@ For users signed in to a cloud account, replies are made on Noureon's server by 
 - Naming a conversation: the page names a new conversation itself. When the reply is made on the server, the page also asks the server to name it if the page is closed before it could; the server then asks the model of the reply, with the key of that reply, for a title from the first messages of the conversation (shortened), but only if the conversation is still unnamed a little later. The title is the only thing it writes, and nothing new is kept.
 - The reply: the server writes the reply into the same cloud workspace the app already syncs.
 - Messages added during a reply: text you add with "steer" while a reply is running goes over the same encrypted connection to the server making that reply and is held only for that run; when the model takes it, the server writes it into your cloud workspace as an ordinary message of the conversation (like one you send yourself) and passes it, with the rest, to the model provider you chose. A message the model never got to take is written into the reply's record so that your browser can send it as the next message when the reply ends. All of it is kept like the rest of the conversation, until you delete it.
-- Replies that must be finished in the browser (voice input, the camera), users who are not signed in and temporary chats are always made on your device and are not sent to the server.
+- Replies that must be finished in the browser (the camera), users who are not signed in and temporary chats are always made on your device and are not sent to the server.
 - Run records: the server keeps a record of each run (without keys), so that a run can be taken up again after a server restart and, once finished, is kept as the request record of that reply until it is removed; the prompt and the reference pictures of an image are deleted from the record when the image ends. Server logs have one line per event and contain no request content, keys or tokens; fields whose names look like secrets are hidden.
 - Limits: at most 5 replies at once per person, 10 new ones a minute, requests of up to 25 MB.
 
@@ -116,9 +116,8 @@ Feature by feature, this is which data passes where.
 - Project memory: when you make a project you can choose "Project only" (it cannot be changed afterwards). The chats of such a project read and add only the notes of that project (each note carries the project's id) and do not use your general memory; the notes learned there do not appear in other chats, the search over past conversations from inside the project looks at the chats of the same project only (and chats outside it never search the project's chats), and the export of notes leaves them out. Deleting the project deletes its notes. They are kept and sent in the same way as the other notes; only the scope differs.
 - Controls: Settings → Memory has the switches for using and learning (and a pause), the choice of the model, the list of notes, export, clear all and the search by meaning. The memory summaries of earlier versions are no longer used.
 
-## 10. Voice input, camera and microphone
+## 10. Camera and microphone
 
-- Voice input is turned into text by your browser, which may pass the audio to your operating system or an online speech service; Noureon keeps no separate recording, and the waveform is drawn live on your device. An explanation is shown, and your agreement asked for, before the first use.
 - The camera and the microphone are used only after you press the matching button and agree to the browser's permission prompt; a photo you take is the attachment you add and is handled under the rules for attachments.
 
 ## 11. Peer-to-peer transfer
@@ -180,7 +179,6 @@ Noureon has no built-in analytics, advertising tracking or cross-site tracking s
 - PeerJS: the pairing server of peer-to-peer transfer.
 - Google Forms: feedback and Noura proposals (when the operator sets it up).
 - An email delivery service: account verification and recovery mail.
-- Your browser and operating system: speech recognition.
 
 Each of these services has its own privacy policy.
 

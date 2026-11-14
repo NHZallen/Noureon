@@ -106,7 +106,7 @@ Use models from different vendors in the same conversation list and switch betwe
 
 ### Chat
 
-- **Message box:** paste text, attach files, take a photo, dictate by voice, type `/` to choose a skill and `@` to choose a command tool, and expand the box into a large editor. On a phone, the **+** button opens a bottom panel with camera, photos, files, Google Drive, search, council, deep research, learning and design.
+- **Message box:** paste text, attach files, take a photo, type `/` to choose a skill and `@` to choose a command tool, and expand the box into a large editor. On a phone, the **+** button opens a bottom panel with camera, photos, files, Google Drive, search, council, deep research, learning and design.
 - **Steering while a reply runs:** sending a message during a reply can steer it (the model sees your message the next time it finishes using a tool), queue it for after the reply, or stop the reply and send it at once. You choose the default in Settings.
 - **Nouras:** reusable assistants with their own name, description, instructions and avatar. Pick official ones from the Nouras store, create your own, propose a new one, or hand one to another person directly between devices.
 - **Organizing:** put conversations in projects, archive them, or move them to the trash. Select and move several at once. The trash can restore or delete for good.
@@ -155,7 +155,6 @@ Research runs on the server for accounts that use it, so you can leave and come 
 - When a model cannot read a document, a "document translation" model you choose can turn it into detailed text for that one request. Word, PowerPoint and Excel files are read (text, tables, charts, pictures) for models that cannot open them.
 - Each attachment is numbered for the model ("Image 2 of 3 in this message"), so you can say "the second picture" or "what does the contract say?".
 - **Camera:** take a photo and attach it in one step.
-- **Voice input:** dictate with the microphone; your browser turns speech into text.
 - **Speech to text for recordings** (off by default): write down what is said in recordings and videos you attach so that a model that cannot listen can read it, using your own key or a Whisper model that needs none.
 
 ### Files and decks

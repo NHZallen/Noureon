@@ -100,22 +100,6 @@
         background-color: var(--active-bg);
         font-weight: bold;
     }
-    .voice-input-btn {
-        flex-shrink: 0;
-        height: 2.5rem;
-        width: 2.5rem;
-        border-radius: 9999px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-secondary);
-    }
-    @media (hover: hover) { .voice-input-btn:hover { background-color: var(--hover-bg); }
-}
-    .voice-input-btn.active {
-        color: var(--state-danger);
-        background-color: var(--hover-bg);
-    }
     .pinned-icon {
         color: var(--pin-color);
     }
@@ -438,9 +422,6 @@
         }
         #perform-search-btn {
             order: 3;
-        }
-        #voice-input-btn-search {
-            order: 4;
         }
     }
     .sidebar-item, .folder-summary {

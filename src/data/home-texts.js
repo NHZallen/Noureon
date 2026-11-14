@@ -74,7 +74,7 @@ export const HOME_TEXTS = {
         ['search', '網路搜尋', '需要最新資訊時先查再答，並在句中標出來源。'],
         ['book', '學習模式', '以引導的方式協助你理解，而不是直接給答案。'],
         ['ghost', '臨時對話', '用完即走，不留下紀錄。'],
-        ['mic', '語音輸入', '用說的，比打字更快。'],
+        ['share', '分享對話', '用一個連結分享整段對話，隨時可以撤銷。'],
         ['globe', '五種語言', '繁體中文、English、Français、Русский、Español。']
       ]
     },
@@ -155,7 +155,7 @@ export const HOME_TEXTS = {
         ['search', 'Web search', 'When something recent matters, it looks first and answers after, with sources marked in the text.'],
         ['book', 'Learning mode', 'Helps you understand by guiding you, instead of handing over the answer.'],
         ['ghost', 'Temporary chat', 'Use it and go. No record is kept.'],
-        ['mic', 'Voice input', 'Say it. It is faster than typing.'],
+        ['share', 'Share a chat', 'Share a whole conversation with one link, and revoke it at any time.'],
         ['globe', 'Five languages', '繁體中文, English, Français, Русский, Español.']
       ]
     },
@@ -236,7 +236,7 @@ export const HOME_TEXTS = {
         ['search', 'Recherche web', 'Quand l’actualité compte, il cherche d’abord et répond ensuite, avec les sources indiquées dans le texte.'],
         ['book', 'Mode apprentissage', 'Vous aide à comprendre en vous guidant, au lieu de donner la réponse.'],
         ['ghost', 'Discussion temporaire', 'On l’utilise et on part. Aucune trace n’est gardée.'],
-        ['mic', 'Saisie vocale', 'Dites-le. C’est plus rapide que de taper.'],
+        ['share', 'Partager une discussion', 'Partagez toute une discussion avec un seul lien, révocable à tout moment.'],
         ['globe', 'Cinq langues', '繁體中文, English, Français, Русский, Español.']
       ]
     },
@@ -317,7 +317,7 @@ export const HOME_TEXTS = {
         ['search', 'Поиск в сети', 'Когда важны свежие сведения, сначала ищет, потом отвечает, отмечая источники в тексте.'],
         ['book', 'Режим обучения', 'Помогает понять, направляя вас, а не выдавая готовый ответ.'],
         ['ghost', 'Временный чат', 'Воспользовались и ушли. Записей не остаётся.'],
-        ['mic', 'Голосовой ввод', 'Просто скажите. Быстрее, чем печатать.'],
+        ['share', 'Поделиться диалогом', 'Поделитесь всем диалогом по одной ссылке и отзовите её в любой момент.'],
         ['globe', 'Пять языков', '繁體中文, English, Français, Русский, Español.']
       ]
     },
@@ -398,7 +398,7 @@ export const HOME_TEXTS = {
         ['search', 'Búsqueda web', 'Cuando importa lo reciente, busca primero y responde después, con las fuentes marcadas en el texto.'],
         ['book', 'Modo aprendizaje', 'Te ayuda a comprender guiándote, en lugar de darte la respuesta hecha.'],
         ['ghost', 'Chat temporal', 'Lo usas y te vas. No queda ningún registro.'],
-        ['mic', 'Entrada de voz', 'Dilo en voz alta. Es más rápido que escribir.'],
+        ['share', 'Compartir un chat', 'Comparte una conversación entera con un solo enlace y revócalo cuando quieras.'],
         ['globe', 'Cinco idiomas', '繁體中文, English, Français, Русский, Español.']
       ]
     },

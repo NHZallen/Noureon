@@ -36,7 +36,6 @@ export function createAppBootstrapLifecycle({
     getAbortController,
     startNewChat,
     renderAll,
-    setupVoiceInput,
     setupScrollToBottomButton,
     updateDisplayedVersion,
     checkAndShowLatestUpdate,
@@ -136,7 +135,6 @@ export function createAppBootstrapLifecycle({
         await startNewChat();
         updateFunctionButtonsState();
         resolveEventsUpdateInputState();
-        setupVoiceInput();
         setupScrollToBottomButton();
         updateDisplayedVersion();
         checkAndShowLatestUpdate();

@@ -5,11 +5,11 @@
        A single row leaves the editor a few pixels wide next to the model picker. */
     #input-bar-container .input-wrapper {
         display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
         grid-template-areas:
-            "preview preview preview preview preview"
-            "input input input input input"
-            "file model model voice submit";
+            "preview preview preview preview"
+            "input input input input"
+            "file model model submit";
         align-items: center !important;
         gap: 0 0.3rem !important;
         padding: 0.35rem 0.55rem 0.45rem !important;
@@ -51,16 +51,10 @@
     }
 
     /* One more class than the base trigger rule, so the picker name gives way (ellipsis) instead of running under the
-       mic and send buttons on a narrow phone. */
+       send button on a narrow phone. */
     #model-council-control .mp-anchor .mp-trigger {
         max-width: 100%;
         min-width: 0;
-    }
-
-    /* The mic sits on the row of tools, just before the send button at its end. */
-    #voice-input-btn-message {
-        grid-area: voice;
-        align-self: center;
     }
 
     #submit-btn {
