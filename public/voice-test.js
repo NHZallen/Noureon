@@ -84,8 +84,29 @@
     try { current.start(); } catch (error) { log(`${label} start() threw ${error?.name || error}`); }
   }
 
+  // E: the recognition runs in a new frame each time, and the frame is removed when it ends.
+  let frame = null;
+  let frameRun = 0;
+  addEventListener('message', (event) => {
+    if (event.origin !== location.origin || typeof event.data?.voiceTestFrame !== 'string' || !frame) return;
+    log(`E${frameRun} ${event.data.voiceTestFrame}`);
+    if (event.data.voiceTestFrame === 'end') { frame.remove(); frame = null; log(`E${frameRun} frame removed`); }
+  });
+  document.getElementById('frame-recognition').addEventListener('click', () => {
+    if (busy()) return;
+    frameRun += 1;
+    log(`--- E${frameRun}: recognition in a new frame`);
+    frame = document.createElement('iframe');
+    frame.setAttribute('allow', 'microphone');
+    frame.style.cssText = 'width:0;height:0;border:0;position:absolute';
+    // A srcdoc frame: it has no response headers of its own, so the site's frame-ancestors 'none' and X-Frame-Options do not block it.
+    frame.srcdoc = '<!doctype html><meta charset="utf-8"><script src="/voice-test-frame.js"></script>';
+    document.body.append(frame);
+  });
+  document.getElementById('reload').addEventListener('click', () => location.reload());
+
   const busy = () => {
-    if (recognition || mic) { log('still running: press 停止 first'); return true; }
+    if (recognition || mic || frame) { log('still running: press 停止 first'); return true; }
     return false;
   };
 
@@ -119,6 +140,7 @@
   document.getElementById('stop').addEventListener('click', () => {
     log('--- stop');
     try { recognition?.stop(); } catch { /* it had ended */ }
+    frame?.contentWindow?.postMessage('stop', location.origin);
     closeMic();
   });
   document.getElementById('clear').addEventListener('click', () => { logNode.textContent = ''; });
