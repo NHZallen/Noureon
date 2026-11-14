@@ -70,7 +70,7 @@ test('the list: the connectors are in their groups, each with its words, "Connec
   const t = setup();
   await settle(t);
   assert.deepEqual(names(t, '.cs-section-title'), ['辦公與日常', '筆記與專案', '設計與白板', '開發', '金融']);
-  assert.deepEqual(names(t, '.cs-name-text'), ['Google', 'Pally', 'Notion', 'Linear', 'Miro', 'Canva', 'Context7', 'Upstash', 'Vercel', 'GitHub', 'Supabase', 'Hugging Face', 'ether.fi']);
+  assert.deepEqual(names(t, '.cs-name-text'), ['Google', 'Pally', 'Notion', 'Linear', 'Miro', 'Canva', 'Context7', 'Upstash', 'Vercel', 'Vercel (token)', 'GitHub', 'Supabase', 'Hugging Face', 'ether.fi']);
   assert.equal(t.host.querySelector('[data-connector-id="linear"] .cs-conn-status').textContent, '已連線');
   assert.match(t.host.querySelector('[data-connector-id="notion"] .cs-connect').textContent, /連線/);
   assert.equal(t.calls.filter(([method, path]) => path === '/v1/connectors' && method === 'GET').length, 1, 'read once, not at every drawing');
@@ -160,7 +160,7 @@ test('Vercel logs in by a pasted token: a sheet with one field and where to make
   const t = setup({ connections: [] });
   await settle(t);
   assert.ok(CONNECTORS.every((connector) => !connector.pending), 'no connector waits for an approval now');
-  const row = t.host.querySelector('[data-connector-id="vercel"]');
+  const row = t.host.querySelector('[data-connector-id="vercel-token"]');
   assert.equal(row.querySelector('.cs-pending'), null);
   assert.ok(row.querySelector('.cs-connect'), 'it has a "Connect"');
   row.querySelector('.cs-action').click();
@@ -180,20 +180,20 @@ test('Vercel logs in by a pasted token: a sheet with one field and where to make
   input.value = TOKEN;
   sheet.querySelector('.cs-button-primary').click();
   await flush();
-  assert.deepEqual(t.calls.filter(([method, path]) => method === 'POST' && /vercel/.test(path)), [['POST', '/v1/connectors/vercel/token', { token: TOKEN }]]);
+  assert.deepEqual(t.calls.filter(([method, path]) => method === 'POST' && /vercel/.test(path)), [['POST', '/v1/connectors/vercel-token/token', { token: TOKEN }]]);
   assert.ok(!t.calls.some(([, path]) => /\/connect$/.test(path)), 'no login page was asked for');
   assert.deepEqual(t.assigned, [], 'the page does not leave');
   assert.equal(t.host.querySelector('.cs-dialog'), null, 'the sheet closed');
   assert.equal(input.value, '', 'the field was emptied');
   assert.ok(t.notices.some(([text]) => /已連線：Vercel/.test(text)));
   await settle(t);
-  assert.equal(t.host.querySelector('[data-connector-id="vercel"] .cs-conn-status').textContent, '已連線');
+  assert.equal(t.host.querySelector('[data-connector-id="vercel-token"] .cs-conn-status').textContent, '已連線');
 });
 
 test('a token that is not the shape of one is not sent; one Vercel refuses or a service that is down says so and keeps the sheet open', async () => {
   const t = setup({ connections: [] });
   await settle(t);
-  t.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  t.host.querySelector('[data-connector-id="vercel-token"] .cs-action').click();
   const input = t.host.querySelector('.cs-token-input');
   input.value = 'has spaces';
   t.host.querySelector('.cs-dialog .cs-button-primary').click();
@@ -203,17 +203,17 @@ test('a token that is not the shape of one is not sent; one Vercel refuses or a 
 
   const refused = setup({ connections: [], tokenAnswer: { ok: false, status: 400, code: 'bad_request', data: { error: { reason: 'bad_request', detail: 'invalid_token' } } } });
   await settle(refused);
-  refused.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  refused.host.querySelector('[data-connector-id="vercel-token"] .cs-action').click();
   refused.host.querySelector('.cs-token-input').value = TOKEN;
   refused.host.querySelector('.cs-dialog .cs-button-primary').click();
   await flush();
-  assert.match(refused.host.querySelector('.cs-dialog-error').textContent, /Vercel 不接受這個 token/);
+  assert.match(refused.host.querySelector('.cs-dialog-error').textContent, /不接受這個 token/);
   assert.equal(refused.host.querySelector('.cs-dialog .cs-button-primary').disabled, false, 'it can be tried again');
   assert.ok(refused.host.querySelector('.cs-dialog'), 'the sheet stays');
 
   const down = setup({ connections: [], tokenAnswer: { ok: false, status: 400, code: 'bad_request', data: { error: { reason: 'failed', detail: 'unreachable' } } } });
   await settle(down);
-  down.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  down.host.querySelector('[data-connector-id="vercel-token"] .cs-action').click();
   down.host.querySelector('.cs-token-input').value = TOKEN;
   down.host.querySelector('.cs-dialog .cs-button-primary').click();
   await flush();
@@ -224,9 +224,9 @@ test('the words of the token sheet are in all five languages, and a connection t
   const keys = ['connectorTokenNote', 'connectorTokenLabel', 'connectorTokenPlaceholder', 'connectorTokenCreate', 'connectorTokenKept', 'connectorTokenNoReadonly', 'connectorTokenGo', 'connectorTokenBusy', 'connectorTokenInvalid', 'connectorTokenShape', 'connectorTokenUnreachable', 'connectorTokenFailed'];
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) for (const key of keys) assert.ok(connectorText(language, key, { name: 'Vercel' }).length > 1, `${language} ${key}`);
   assert.match(connectorText('en', 'connectorTokenNote', { name: 'Vercel' }), /Vercel/);
-  const t = setup({ connections: [{ id: 'vercel', status: 'needs_login', mode: 'readwrite', error: 'expired', tools: [] }] });
+  const t = setup({ connections: [{ id: 'vercel-token', status: 'needs_login', mode: 'readwrite', error: 'expired', tools: [] }] });
   await settle(t);
-  t.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  t.host.querySelector('[data-connector-id="vercel-token"] .cs-action').click();
   assert.ok(t.host.querySelector('.cs-dialog .cs-token-input'), 'a new token is pasted in the same sheet');
 });
 

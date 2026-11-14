@@ -30,7 +30,13 @@ The owner decided (2026-11-14) not to wait: a person may paste a token of their 
 - **Team:** a token of the whole account reaches every team; a tool takes an optional `team_id` (found with `vercel_list_teams`).
 - **Texts:** the five languages, the privacy policy (a token kept sealed, on the server, until it is disconnected) and the help center.
 
-## 5. What is left
+## 5. Update, same day: CIMD works, the token is the second card
+
+The probe on the VPS (2026-11-14, after the small logo was deployed) shows `Vercel: CIMD` (PKCE S256, refresh and revocation endpoints). So the catalog now has two Vercel cards:
+`vercel` (Vercel's own MCP, OAuth, the client is our metadata document, `logo-small.png` under 100 KB, the "under review" mark taken out) and `vercel-token` ("Vercel (token)", this design). The owner prefers the CIMD login; the token card stays until the owner has seen the CIMD login work on `staging`, and may then be taken out (the catalog entry, `server/mcp/native/vercel/`, the route and the sheet are all in commit c48e9d3c).
+Not verified yet: that Vercel's authorisation page accepts our document (only a real login shows it).
+
+## 6. What is left
 
 - A real token on `staging` (the owner), then a look at the list of tools and what a reply does with them.
-- If Vercel's CIMD works for us (`scripts/mcp-probe.mjs` shows `CIMD` for Vercel; a logo under 100 KB is needed), the OAuth way can come back as the first choice and the token stays as the second.
+- A real login of the `vercel` card on `staging` (the owner); if it works, decide whether the `vercel-token` card goes.

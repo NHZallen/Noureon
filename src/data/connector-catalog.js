@@ -216,6 +216,39 @@ export const CONNECTORS = Object.freeze([
     id: 'vercel',
     name: 'Vercel',
     category: 'dev',
+    endpoint: 'https://mcp.vercel.com',
+    icon: 'https://github.com/vercel.png?size=96',
+    // Vercel's MCP login now takes a client that is the address of a metadata document (CIMD; the probe of 2026-11-14 shows it), so the "under review" mark is gone. If the login is still refused, the entry below logs in with a pasted token.
+    // Vercel announces scopes with no difference between reading and writing, so the login is one: what a reply may do is the person's setting for each tool (some of its tools deploy or buy domains; the person decides, as for every tool).
+    scopes: Object.freeze({ readwrite: Object.freeze(['openid', 'email', 'profile', 'offline_access']) }),
+    description: Object.freeze({
+      'zh-TW': '查看你的專案、部署與日誌，並部署專案、管理網域。',
+      en: 'Look at your projects, deployments and logs, and deploy projects and manage domains.',
+      fr: 'Consulter vos projets, déploiements et journaux, déployer des projets et gérer des domaines.',
+      ru: 'Просмотр ваших проектов, развёртываний и журналов, развёртывание проектов и управление доменами.',
+      es: 'Consulta tus proyectos, despliegues y registros, y despliega proyectos y gestiona dominios.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Vercel 後，模型可以列出你的團隊與專案、查看部署狀態、建置與執行日誌，也能搜尋 Vercel 文件，並在你允許時部署專案、管理網域與環境變數。Vercel 的授權沒有讀寫之分，所以每個工具能不能用由你決定；會修改或花錢的動作（部署、買網域等）預設每次都先問你。Vercel 的 MCP 目前是 Beta。',
+      en: 'Once Vercel is connected, the model can list your teams and projects, look at the status of deployments and the build and runtime logs, search Vercel\'s documentation and, where you allow it, deploy projects and manage domains and environment variables. Vercel\'s authorisation does not separate reading from writing, so what each tool may do is up to you; an action that changes things or costs money (a deployment, buying a domain and the like) asks you first by default. Vercel\'s MCP is in beta.',
+      fr: 'Une fois Vercel connecté, le modèle peut lister vos équipes et projets, consulter l’état des déploiements et les journaux de build et d’exécution, chercher dans la documentation de Vercel et, si vous l’autorisez, déployer des projets et gérer domaines et variables d’environnement. L’autorisation de Vercel ne sépare pas lecture et écriture : c’est vous qui décidez de ce que chaque outil peut faire ; une action qui modifie ou coûte de l’argent (déploiement, achat de domaine, etc.) vous demande d’abord, par défaut. Le MCP de Vercel est en bêta.',
+      ru: 'После подключения Vercel модель может перечислять ваши команды и проекты, смотреть состояние развёртываний и журналы сборки и выполнения, искать в документации Vercel и, если вы разрешите, развёртывать проекты и управлять доменами и переменными окружения. Авторизация Vercel не разделяет чтение и запись, поэтому что может каждый инструмент, решаете вы; действие, которое что-то меняет или стоит денег (развёртывание, покупка домена и т. п.), по умолчанию сначала спрашивает вас. MCP Vercel сейчас в бета-версии.',
+      es: 'Una vez conectado Vercel, el modelo puede listar tus equipos y proyectos, ver el estado de los despliegues y los registros de compilación y ejecución, buscar en la documentación de Vercel y, si lo permites, desplegar proyectos y gestionar dominios y variables de entorno. La autorización de Vercel no separa lectura y escritura, así que lo que puede hacer cada herramienta lo decides tú; una acción que cambia cosas o cuesta dinero (un despliegue, comprar un dominio y similares) te pregunta antes, por defecto. El MCP de Vercel está en beta.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['列出我的專案，並告訴我最近一次部署的狀態', '最近的生產環境部署為什麼失敗？看建置日誌', '這個網域可以買嗎？價格多少？']),
+      en: Object.freeze(['List my projects and tell me the status of the latest deployment', 'Why did the latest production deployment fail? Look at the build logs', 'Can this domain be bought, and at what price?']),
+      fr: Object.freeze(['Liste mes projets et indique l’état du dernier déploiement', 'Pourquoi le dernier déploiement en production a-t-il échoué ? Regarde les journaux de build', 'Ce domaine peut-il être acheté, et à quel prix ?']),
+      ru: Object.freeze(['Покажи мои проекты и состояние последнего развёртывания', 'Почему не удалось последнее развёртывание в продакшене? Посмотри журналы сборки', 'Можно ли купить этот домен и за сколько?']),
+      es: Object.freeze(['Lista mis proyectos e indica el estado del último despliegue', '¿Por qué falló el último despliegue en producción? Mira los registros de compilación', '¿Se puede comprar este dominio y a qué precio?'])
+    }),
+    reads: Object.freeze(['search_vercel_documentation', 'web_fetch_vercel_url', 'check_domain_availability_and_price', 'count_events', 'count_pageviews', 'aggregate_events', 'aggregate_pageviews', 'artifact_query', 'search_domains', 'search_repo', 'filter_project_envs', 'git_namespaces']),
+    writes: Object.freeze(['get_access_to_vercel_url', 'buy_domain', 'buy_domains', 'buy_single_domain', 'deploy_to_vercel', 'create_deployment'])
+  }),
+  Object.freeze({
+    id: 'vercel-token',
+    name: 'Vercel (token)',
+    category: 'dev',
     // Native, and the login is a token the person pastes (`tokenLogin`; docs/superpowers/specs/2026-11-14-connector-token-login-design.md): Vercel's MCP server takes only the clients Vercel has
     // approved (our application was sent on 2026-10-11 and has had no answer), so Noureon's server speaks to Vercel's own REST API (server/mcp/native/vercel/) with the person's token.
     native: 'vercel',

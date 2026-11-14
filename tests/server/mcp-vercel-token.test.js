@@ -12,7 +12,7 @@ import { connectorProblems, defaultToolState, getConnector, hasTokenLogin, isNat
 const USER = '123e4567-e89b-12d3-a456-426614174000';
 const OTHER = '223e4567-e89b-12d3-a456-426614174001';
 const TOKEN = 'vcp_abcdefghijklmnopqrstuvwxyz0123456789';
-const vercel = getConnector('vercel');
+const vercel = getConnector('vercel-token');
 const tool = (name) => PROVIDERS.vercel.tools.find((item) => item.name === name);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -165,23 +165,23 @@ function fakeVercel() {
 test('a pasted token is tried, kept sealed (never in the clear), shown as connected with its tools, and used for the calls', async () => {
   const world = fakeVercel();
   const { service, db, logs } = setup(world.fetchImpl);
-  const result = await service.connectWithToken(USER, 'vercel', `  ${TOKEN}\n`);
+  const result = await service.connectWithToken(USER, 'vercel-token', `  ${TOKEN}\n`);
   assert.deepEqual(result, { ok: true });
-  const row = db.rows.find((entry) => entry.connector_id === 'vercel');
+  const row = db.rows.find((entry) => entry.connector_id === 'vercel-token');
   assert.equal(row.status, 'connected');
   assert.equal(row.mode, 'readwrite');
   assert.ok(!JSON.stringify(row).includes(TOKEN), 'the token is only in the sealed envelope');
   assert.ok(!JSON.stringify(logs).includes(TOKEN), 'and never in the log');
-  assert.equal(await service.accessToken(USER, 'vercel'), TOKEN);
-  const entry = (await service.list(USER)).find((item) => item.id === 'vercel');
+  assert.equal(await service.accessToken(USER, 'vercel-token'), TOKEN);
+  const entry = (await service.list(USER)).find((item) => item.id === 'vercel-token');
   assert.equal(entry.status, 'connected');
   assert.equal(entry.tools.length, nativeToolNames('vercel').length);
   assert.equal(entry.tools.find((item) => item.name === 'vercel_redeploy').state, 'ask');
   assert.equal(entry.tools.find((item) => item.name === 'vercel_list_projects').state, 'allow');
   assert.ok(!JSON.stringify(entry).includes(TOKEN));
   // The token is bound to this person: another person's account cannot open it.
-  assert.equal((await service.list(OTHER)).find((item) => item.id === 'vercel').status, 'none');
-  const client = createNativeClient('vercel', { getToken: () => service.accessToken(USER, 'vercel'), fetchImpl: world.fetchImpl });
+  assert.equal((await service.list(OTHER)).find((item) => item.id === 'vercel-token').status, 'none');
+  const client = createNativeClient('vercel', { getToken: () => service.accessToken(USER, 'vercel-token'), fetchImpl: world.fetchImpl });
   const called = await client.callTool('vercel_list_teams', {});
   assert.equal(called.isError, false);
   assert.equal(world.state.requests.at(-1).authorization, `Bearer ${TOKEN}`);
@@ -191,33 +191,33 @@ test('a token that is not the shape of one, one Vercel refuses, and a service th
   const world = fakeVercel();
   const { service, db } = setup(world.fetchImpl);
   for (const bad of ['', 'short', 'has spaces in it and is long enough', `${TOKEN}\nextra`, 'x'.repeat(600), 42, null]) {
-    await assert.rejects(() => service.connectWithToken(USER, 'vercel', bad), (error) => error.code === 'bad_request' && error.detail === 'invalid_token');
+    await assert.rejects(() => service.connectWithToken(USER, 'vercel-token', bad), (error) => error.code === 'bad_request' && error.detail === 'invalid_token');
   }
   assert.equal(world.state.requests.length, 0, 'nothing that is not a token is sent anywhere');
-  await assert.rejects(() => service.connectWithToken(USER, 'vercel', 'vcp_this_one_is_not_accepted_by_vercel'), (error) => error.code === 'bad_request' && error.detail === 'invalid_token');
+  await assert.rejects(() => service.connectWithToken(USER, 'vercel-token', 'vcp_this_one_is_not_accepted_by_vercel'), (error) => error.code === 'bad_request' && error.detail === 'invalid_token');
   world.state.down = true;
-  await assert.rejects(() => service.connectWithToken(USER, 'vercel', TOKEN), (error) => error.code === 'failed' && error.detail === 'unreachable');
+  await assert.rejects(() => service.connectWithToken(USER, 'vercel-token', TOKEN), (error) => error.code === 'failed' && error.detail === 'unreachable');
   assert.equal(db.rows.length, 0, 'no connection was made');
   await assert.rejects(() => service.connectWithToken(USER, 'linear', TOKEN), (error) => error.code === 'bad_request');
   await assert.rejects(() => service.connectWithToken(USER, 'nothing', TOKEN), (error) => error.code === 'unknown_connector');
-  await assert.rejects(() => service.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'bad_request', 'there is no login page for it');
+  await assert.rejects(() => service.startLogin(USER, 'vercel-token', 'readwrite'), (error) => error.code === 'bad_request', 'there is no login page for it');
 });
 
 test('a token Vercel stops taking needs a new token; pasting a new one connects again; disconnecting deletes what is kept and says it could not revoke it', async () => {
   const world = fakeVercel();
   const { service, db } = setup(world.fetchImpl);
-  await service.connectWithToken(USER, 'vercel', TOKEN);
+  await service.connectWithToken(USER, 'vercel-token', TOKEN);
   world.state.accepts.delete(TOKEN);
-  const client = createNativeClient('vercel', { getToken: () => service.accessToken(USER, 'vercel'), onUnauthorized: () => service.accessToken(USER, 'vercel', { force: true }).catch(() => null), fetchImpl: async () => new Response('', { status: 401 }) });
+  const client = createNativeClient('vercel', { getToken: () => service.accessToken(USER, 'vercel-token'), onUnauthorized: () => service.accessToken(USER, 'vercel-token', { force: true }).catch(() => null), fetchImpl: async () => new Response('', { status: 401 }) });
   await assert.rejects(() => client.callTool('vercel_list_teams', {}), (error) => error.code === 'unauthorized');
-  assert.equal(db.rows.find((entry) => entry.connector_id === 'vercel').status, 'needs_login');
+  assert.equal(db.rows.find((entry) => entry.connector_id === 'vercel-token').status, 'needs_login');
   const NEW = 'vcp_a_new_token_0123456789abcdefghijkl';
   world.state.accepts.add(NEW);
-  await service.connectWithToken(USER, 'vercel', NEW);
-  assert.equal(await service.accessToken(USER, 'vercel'), NEW);
-  assert.equal(db.rows.filter((entry) => entry.connector_id === 'vercel').length, 1, 'one row, replaced');
+  await service.connectWithToken(USER, 'vercel-token', NEW);
+  assert.equal(await service.accessToken(USER, 'vercel-token'), NEW);
+  assert.equal(db.rows.filter((entry) => entry.connector_id === 'vercel-token').length, 1, 'one row, replaced');
   const before = world.state.requests.length;
-  assert.deepEqual(await service.disconnect(USER, 'vercel'), { revoked: false });
+  assert.deepEqual(await service.disconnect(USER, 'vercel-token'), { revoked: false });
   assert.equal(db.rows.length, 0);
   assert.equal(world.state.requests.length, before, 'nothing is sent to anyone when it is disconnected');
 });
