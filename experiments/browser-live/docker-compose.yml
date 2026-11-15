@@ -9,8 +9,8 @@ services:
     ports:
       - "8080:8080"
       - "52000-52100:52000-52100/udp"
-      # The DevTools port is only for the machine itself: it lets a program drive the same browser that the person watches.
-      - "127.0.0.1:9222:9222"
+      # The DevTools port (9222) is NOT published: Chromium listens only inside the container. Programs reach it through the container's own network
+      # (docker run --network container:neko-spike ...), which keeps it off the host and off the internet.
     volumes:
       - ./chromium.conf:/etc/neko/supervisord/chromium.conf:ro
     environment:

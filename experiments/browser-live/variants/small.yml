@@ -1,0 +1,8 @@
+# Variant 2: fewer pixels and frames (960x540 at 15 fps, about a third of the pixels per second of the default) and a faster VP8 setting.
+services:
+  neko:
+    environment:
+      NEKO_CAPTURE_VIDEO_CODEC: vp8
+      NEKO_CAPTURE_VIDEO_IDS: main
+      NEKO_CAPTURE_VIDEO_PIPELINES: |
+        {"main":{"width":"960","height":"540","fps":"15","gst_encoder":"vp8enc","gst_params":{"target-bitrate":"round(1200 * 650)","cpu-used":"8","end-usage":"cbr","threads":"4","deadline":"1","undershoot":"95","buffer-size":"(1200 * 4)","buffer-initial-size":"(1200 * 2)","buffer-optimal-size":"(1200 * 3)","keyframe-max-dist":"30","min-quantizer":"4","max-quantizer":"30"}}}

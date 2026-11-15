@@ -1,0 +1,9 @@
+# Variant 1: the same VP8 stream, but the screen is captured only when it changes (use-damage=true). A still page should cost almost nothing.
+# Watch for: a viewer who joins a still page may see no picture until something moves.
+services:
+  neko:
+    environment:
+      NEKO_CAPTURE_VIDEO_CODEC: vp8
+      NEKO_CAPTURE_VIDEO_IDS: main
+      NEKO_CAPTURE_VIDEO_PIPELINES: |
+        {"main":"ximagesrc display-name={display} show-pointer=false use-damage=true ! videoconvert ! queue max-size-buffers=1 max-size-time=0 max-size-bytes=0 leaky=downstream ! vp8enc target-bitrate=1996800 deadline=1 cpu-used=4 end-usage=cbr threads=4 undershoot=95 buffer-size=12288 buffer-initial-size=6144 buffer-optimal-size=9216 keyframe-max-dist=25 min-quantizer=4 max-quantizer=20 ! appsink name=appsink"}

@@ -36,6 +36,22 @@ docker run --rm --network container:neko-spike -v "$PWD":/work -w /work node:22-
 - 接管：在電腦上點畫面拿到控制，程式的捲動會和你的操作打架，這就是「接管時模型要暫停」的原因。
 - 回報四種情況的 CPU 平均與最高、`docker stats` 的記憶體、主觀的延遲感，最好附一段螢幕錄影。
 
+## 第二輪（2026-11-15 第一輪之後）
+
+第一輪結果：一個觀看者、畫面不動，neko 容器就吃約 2.5 核（VP8 軟體編碼，每秒抓滿 25 張 1280×720）。第二輪比較三種設定，看能降到多少（用 `-f` 疊上去）：
+
+| 設定 | 檔案 | 想驗證的事 |
+|---|---|---|
+| 只在畫面有變化時才抓 | `variants/damage.yml` | 靜止的網頁幾乎不吃 CPU；要注意新加入的觀看者會不會看到黑畫面 |
+| 960×540、15 fps、VP8 快檔 | `variants/small.yml` | 像素乘幀率約三分之一，CPU 大約降多少、清晰度能不能接受 |
+| H.264（x264 ultrafast） | `variants/h264.yml` | 軟體 H.264 比 VP8 便宜多少；先確認映像有 `x264enc` |
+
+```
+docker compose -f docker-compose.yml -f variants/small.yml up -d
+```
+
+換設定前先 `docker compose down`。每種設定都跑 B（一個觀看者不動）與 C（一個觀看者加 `drive.mjs` 捲動），另外跑一次兩個觀看者，看第二個觀看者是否各自編碼。
+
 ## 結束
 
 `docker compose down`，把防火牆那兩個埠關掉。

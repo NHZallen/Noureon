@@ -16,7 +16,9 @@ if (!WebSocketImpl) {
 }
 
 const targets = await (await fetch(`${devtools}/json`)).json();
-const page = targets.find((target) => target.type === 'page');
+// The stock neko image opens pages of its own extensions (SponsorBlock's help page, for one); those are not a place to drive. Prefer a normal web page, then the new tab page.
+const pages = targets.filter((target) => target.type === 'page' && !/^(chrome-extension|devtools|chrome-untrusted):/.test(target.url));
+const page = pages.find((target) => /^https?:/.test(target.url)) || pages.find((target) => target.url.startsWith('chrome://newtab')) || pages[0];
 if (!page) {
   console.error('No page target found at', devtools);
   process.exit(1);

@@ -1,0 +1,9 @@
+# Variant 3: H.264 with x264 (ultrafast, zerolatency) at 1280x720 and 20 fps. x264 is often much cheaper than VP8 in software, and every browser and iPhone can decode H.264.
+# First check that the image has the encoder:  docker exec neko-spike gst-inspect-1.0 x264enc
+services:
+  neko:
+    environment:
+      NEKO_CAPTURE_VIDEO_CODEC: h264
+      NEKO_CAPTURE_VIDEO_IDS: main
+      NEKO_CAPTURE_VIDEO_PIPELINES: |
+        {"main":{"fps":"20","gst_prefix":"! video/x-raw,format=I420","gst_encoder":"x264enc","gst_params":{"threads":"4","bitrate":"2500","key-int-max":"20","byte-stream":"true","tune":"zerolatency","speed-preset":"ultrafast"},"gst_suffix":"! video/x-h264,stream-format=byte-stream"}}
