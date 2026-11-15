@@ -52,6 +52,15 @@ docker compose -f docker-compose.yml -f variants/small.yml up -d
 
 換設定前先 `docker compose down`。每種設定都跑 B（一個觀看者不動）與 C（一個觀看者加 `drive.mjs` 捲動），另外跑一次兩個觀看者，看第二個觀看者是否各自編碼。
 
+## 第二輪之後（DevTools 進不了分頁）
+
+第二輪回報：瀏覽器層級的 DevTools 正常，但兩個分頁的連線全部逾時。最可疑的原因是 neko 映像自帶的政策檔 `DeveloperToolsAvailability: 2`（關閉開發者工具），它同時還強制安裝兩個擴充功能。
+我在自己的機器上用有畫面的 Chromium 加同樣旗標沒有重現（但那個建置不一定讀這個政策），所以這**還沒證實**。現在的套件：
+- `policies.json`：neko 原本的政策，改成允許開發者工具、不裝擴充功能，掛進容器。
+- `drive.mjs`：改成連瀏覽器層級、自己開一個分頁（Playwright 也是這樣連），不再依賴 `/json` 裡剛好有哪些分頁。
+
+驗證順序：先用 `git stash` 或暫時拿掉 compose 裡 policies.json 那一行，確認原本的設定下 drive.mjs 還是逾時（證明原因），再放回去確認可以跑。
+
 ## 結束
 
 `docker compose down`，把防火牆那兩個埠關掉。

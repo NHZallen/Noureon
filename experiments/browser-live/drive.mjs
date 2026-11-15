@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Experiment: drives the Chromium of the neko container over the Chrome DevTools Protocol, the way the model would, while a person watches the same browser
-// in the neko page. It opens a page, then scrolls it every 120 ms for the given number of seconds, and prints how long each step took.
+// in the neko page. It connects to the BROWSER (not to one page), opens a tab of its own, loads the page, then scrolls it every 120 ms for the given number of
+// seconds and prints how long each step took. Working through the browser socket and a session is how Playwright and Puppeteer attach too, and it does not depend on which
+// tabs happen to be open (the stock image opens extension pages).
 //
 //   node drive.mjs <url> [seconds=60] [devtools=http://127.0.0.1:9222]
 //
@@ -15,16 +17,8 @@ if (!WebSocketImpl) {
   process.exit(2);
 }
 
-const targets = await (await fetch(`${devtools}/json`)).json();
-// The stock neko image opens pages of its own extensions (SponsorBlock's help page, for one); those are not a place to drive. Prefer a normal web page, then the new tab page.
-const pages = targets.filter((target) => target.type === 'page' && !/^(chrome-extension|devtools|chrome-untrusted):/.test(target.url));
-const page = pages.find((target) => /^https?:/.test(target.url)) || pages.find((target) => target.url.startsWith('chrome://newtab')) || pages[0];
-if (!page) {
-  console.error('No page target found at', devtools);
-  process.exit(1);
-}
-
-const socket = new WebSocketImpl(page.webSocketDebuggerUrl);
+const version = await (await fetch(`${devtools}/json/version`)).json();
+const socket = new WebSocketImpl(version.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => {
   socket.addEventListener('open', resolve, { once: true });
   socket.addEventListener('error', () => reject(new Error('Could not open the DevTools socket')), { once: true });
@@ -39,21 +33,26 @@ socket.addEventListener('message', (event) => {
     waiting.delete(message.id);
   }
 });
-const send = (method, params = {}) => new Promise((resolve, reject) => {
+const send = (method, params = {}, sessionId = undefined, limitMs = 20_000) => new Promise((resolve, reject) => {
   const id = nextId++;
-  const timer = setTimeout(() => reject(new Error(`${method} took more than 20 s`)), 20_000);
+  const timer = setTimeout(() => { waiting.delete(id); reject(new Error(`${method} took more than ${limitMs / 1000} s`)); }, limitMs);
   waiting.set(id, (message) => {
     clearTimeout(timer);
     if (message.error) reject(new Error(`${method}: ${message.error.message}`));
     else resolve(message.result);
   });
-  socket.send(JSON.stringify({ id, method, params }));
+  socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
 });
 
 const started = Date.now();
-await send('Page.enable');
-await send('Page.navigate', { url });
+const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+console.log(`own tab opened and attached: ${Date.now() - started} ms`);
+const page = (method, params) => send(method, params, sessionId);
+await page('Page.enable');
+await page('Page.navigate', { url });
 console.log(`navigate ${url}: ${Date.now() - started} ms`);
+await send('Target.activateTarget', { targetId });
 await new Promise((resolve) => setTimeout(resolve, 4000));
 
 let scrolls = 0;
@@ -61,12 +60,13 @@ let slowest = 0;
 const end = Date.now() + seconds * 1000;
 while (Date.now() < end) {
   const tick = Date.now();
-  await send('Runtime.evaluate', { expression: 'window.scrollBy(0, 40); if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 5) window.scrollTo(0, 0);' });
+  await page('Runtime.evaluate', { expression: 'window.scrollBy(0, 40); if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 5) window.scrollTo(0, 0);' });
   slowest = Math.max(slowest, Date.now() - tick);
   scrolls += 1;
   await new Promise((resolve) => setTimeout(resolve, 120));
 }
 console.log(`scrolled ${scrolls} times in ${seconds} s, slowest command ${slowest} ms`);
-const title = await send('Runtime.evaluate', { expression: 'document.title' });
+const title = await page('Runtime.evaluate', { expression: 'document.title' });
 console.log(`page title: ${title.result?.value}`);
+await send('Target.closeTarget', { targetId }).catch(() => {});
 socket.close();

@@ -13,6 +13,9 @@ services:
       # (docker run --network container:neko-spike ...), which keeps it off the host and off the internet.
     volumes:
       - ./chromium.conf:/etc/neko/supervisord/chromium.conf:ro
+      # neko's own policy file has DeveloperToolsAvailability=2, which most likely blocks DevTools on page targets (round two: the browser socket answered, every page socket timed out),
+      # and it force-installs two extensions. This copy allows DevTools and installs no extensions.
+      - ./policies.json:/etc/chromium/policies/managed/policies.json:ro
     environment:
       NEKO_DESKTOP_SCREEN: 1280x720@30
       NEKO_WEBRTC_EPR: 52000-52100
