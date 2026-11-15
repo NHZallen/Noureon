@@ -1,0 +1,11 @@
+# Variant for the new host (round six): the LOW quality of the design (the preview card), the same 1024x768 browser scaled down to 640x480 at 15 fps,
+# H.264 ultrafast, about 1.2 Mbps. UNVERIFIED: whether neko's pipeline accepts a videoscale in gst_prefix. If the container does not start or shows
+# no picture, say so in the report (docker logs neko-spike) and skip this variant.
+services:
+  neko:
+    environment:
+      NEKO_DESKTOP_SCREEN: 1024x768@30
+      NEKO_CAPTURE_VIDEO_CODEC: h264
+      NEKO_CAPTURE_VIDEO_IDS: main
+      NEKO_CAPTURE_VIDEO_PIPELINES: |
+        {"main":{"fps":"15","gst_prefix":"! videoscale ! video/x-raw,width=640,height=480,format=I420","gst_encoder":"x264enc","gst_params":{"threads":"2","bitrate":"1200","key-int-max":"15","byte-stream":"true","tune":"zerolatency","speed-preset":"ultrafast"},"gst_suffix":"! video/x-h264,stream-format=byte-stream"}}

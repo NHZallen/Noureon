@@ -1,0 +1,10 @@
+# Variant for the new host (round six): the 4:3 screen of the settled design, 1024x768 at 20 fps, H.264 (x264 veryfast), about 4 Mbps.
+# 4 vCPU of AWS are about 2 physical cores, so threads are 2. Use it like the others:  docker compose -f docker-compose.yml -f variants/h264-43.yml up -d
+services:
+  neko:
+    environment:
+      NEKO_DESKTOP_SCREEN: 1024x768@30
+      NEKO_CAPTURE_VIDEO_CODEC: h264
+      NEKO_CAPTURE_VIDEO_IDS: main
+      NEKO_CAPTURE_VIDEO_PIPELINES: |
+        {"main":{"fps":"20","gst_prefix":"! video/x-raw,format=I420","gst_encoder":"x264enc","gst_params":{"threads":"2","bitrate":"4000","key-int-max":"20","byte-stream":"true","tune":"zerolatency","speed-preset":"veryfast"},"gst_suffix":"! video/x-h264,stream-format=byte-stream"}}

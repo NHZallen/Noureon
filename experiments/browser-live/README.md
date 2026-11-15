@@ -64,3 +64,20 @@ docker compose -f docker-compose.yml -f variants/small.yml up -d
 ## 結束
 
 `docker compose down`，把防火牆那兩個埠關掉。
+
+## 第六輪（2026-11-17，新主機：AWS 俄勒岡，4 vCPU／8 GB）
+
+瀏覽器要搬到獨立主機，前面的數字是在 Contabo 6 核上量的，**不能直接用**（AWS 的 vCPU 是超執行緒，4 vCPU 約等於 2 顆實體核心）。用同一組做法重量，這輪的設定是定版的 4:3：
+
+| 設定 | 檔案 |
+|---|---|
+| 專注模式（高畫質）：1024×768、20 fps、H.264 veryfast、約 4 Mbps | `variants/h264-43.yml` |
+| 預覽卡（低畫質）：縮到 640×480、15 fps、H.264 ultrafast、約 1.2 Mbps（**映像不一定接受 videoscale，沒畫面就回報、跳過**） | `variants/h264-43-lq.yml` |
+
+每種設定跑 B（一個觀看者不動）與 C（一個觀看者加 `drive.mjs` 捲動 60 秒），再加一次「兩個觀看者」。每次另外記：
+
+- 開始前的 `nproc`、`lscpu | grep -E 'Model name|Thread|Core|Socket'`、AWS 的 instance type；
+- 量測期間的 `vmstat 1 10` 的 `st` 欄（被偷走的 CPU；t 系列的 CPU 額度用完會很高）；
+- `./measure.sh 60` 的輸出。
+
+觀看的人在台灣：看畫面是否順、打字與移動滑鼠的延遲感（接管）。延遲數字另外用 `browser-host/measure-latency.sh` 量。

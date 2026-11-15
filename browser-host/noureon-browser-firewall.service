@@ -1,0 +1,14 @@
+[Unit]
+Description=Noureon browser host: firewall rules for the browser containers
+After=docker.service network-online.target
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/noureon-browser/firewall.sh apply
+ExecStop=/opt/noureon-browser/firewall.sh remove
+
+[Install]
+WantedBy=multi-user.target
