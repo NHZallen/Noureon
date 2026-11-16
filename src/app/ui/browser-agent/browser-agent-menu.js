@@ -48,8 +48,8 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
       button.querySelector('.composer-menu-label').textContent = label;
       button.querySelector('.composer-menu-description').textContent = text('baMenuDescription');
     }
-    // A temporary chat is never made on the server, so there is no browser for it.
-    const available = Boolean(conversation) && !conversation.isTemporary && conversation.retentionMode !== 'ephemeral';
+    // A temporary chat (kept on this device only) is never made on the server, so there is no browser for it. (`isTemporary` alone is a new chat that has no message yet: it has the row.)
+    const available = Boolean(conversation) && conversation.retentionMode !== 'ephemeral';
     const sees = available && visionOf(conversation);
     button.style.display = available ? 'flex' : 'none';
     button.style.opacity = sees ? '' : '0.5';

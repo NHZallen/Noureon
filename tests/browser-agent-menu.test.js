@@ -73,9 +73,11 @@ test('a model that cannot see keeps the row greyed and says why; someone with no
   assert.deepEqual(down.notes.at(-1), [en.baMenuUnavailable, 'warning']);
 });
 
-test('a temporary chat has no row, and it follows the conversation that is open', () => {
-  const t = setup({ conversation: { id: 'c1', isTemporary: true } });
+test('a temporary chat has no row, a new chat that has no message yet has it, and it follows the conversation that is open', () => {
+  const t = setup({ conversation: { id: 'c1', retentionMode: 'ephemeral' } });
   assert.equal(t.menu.sync().style.display, 'none');
+  t.set({ id: 'c0', isTemporary: true });
+  assert.equal(t.menu.sync().style.display, 'flex', 'a new chat with no message yet');
   t.set({ id: 'c2' });
   assert.equal(t.menu.sync().style.display, 'flex');
 });
