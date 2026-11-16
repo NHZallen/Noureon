@@ -76,7 +76,7 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, waitForSpaceMs = 120_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, waitForSpaceMs = 120_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
   let actions = 0;
   let lastDomain = '';
   let announcedQueue = null;
@@ -130,7 +130,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       if (here.conversationId && here.conversationId !== conversationId) return { problem: 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' };
       return { sessionId: here.sessionId };
     }
-    const opened = await sessions.open(userId, { conversationId, keepLogin: true });
+    const opened = await sessions.open(userId, { conversationId, keepLogin });
     await sessions.waitReady(opened.sessionId, userId, {
       timeoutMs: waitForSpaceMs,
       signal,

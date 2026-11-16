@@ -205,6 +205,10 @@ test('the browser switch of a conversation is a plain true or false, kept for a 
   const off = good();
   assert.equal(validateRunSpec(off).spec.tools.browser, undefined, 'nothing is added when it is off');
   const bad = good();
+  const noKeep = structuredClone(on); noKeep.tools.browserKeepLogin = false;
+  assert.equal(validateRunSpec(noKeep).spec.tools.browserKeepLogin, false, 'a person who does not want the login kept says so');
+  const keeps = structuredClone(on); keeps.tools.browserKeepLogin = true;
+  assert.equal(validateRunSpec(keeps).spec.tools.browserKeepLogin, undefined, 'kept is the default and is not stored');
   bad.tools.browser = 'yes';
   assert.equal(validateRunSpec(bad).ok, false);
 });

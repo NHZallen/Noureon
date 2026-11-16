@@ -7,7 +7,7 @@ import { BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowserLoader, snapshotText }
 
 const PAGE = { ok: true, tabId: 'T1', url: 'https://shop.example/items?q=secret-search', title: 'Shop', scroll: { y: 0, height: 2000, view: 700 }, elements: [{ ref: 3, role: 'searchbox', name: 'Search' }, { ref: 4, role: 'password field', name: 'Password' }, { ref: 5, role: 'button', name: 'Go', disabled: true }], text: 'Welcome to the shop', truncated: false };
 
-function setup({ current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null } = {}) {
+function setup({ current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null, keepLogin } = {}) {
   const calls = [];
   const events = [];
   let open = current;
@@ -18,7 +18,7 @@ function setup({ current = null, actions = {}, language = 'en', maxActions = 0, 
     action: async (id, userId, action) => { calls.push(['action', action]); const handler = actions[action.type]; if (handler) return handler(action); return action.type === 'screenshot' ? { ok: true, mime: 'image/jpeg', base64: 'AAAA' } : action.type === 'snapshot' ? PAGE : { ok: true, url: 'https://shop.example/', title: 'Shop' }; },
     close: async (id) => { calls.push(['close', id]); open = null; return true; }
   };
-  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, sleep: async () => {} });
+  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
   return { loader, calls, events, sessions, setOpen: (value) => { open = value; } };
 }
 const call = (name, args = {}) => ({ id: 'x', name, args });
@@ -333,4 +333,10 @@ test('browser_download: a full space and a failed save are said, and nothing is 
   full.setOpen({ sessionId: 'b1', conversationId: 'c1' });
   assert.match(await full.loader.run(call('browser_download', { ref: 1 })), /space is full/);
   assert.equal(full.events.filter((e) => e.event === 'file').length, 0);
+});
+
+test('a person who turned "keep me logged in" off gets a browser that keeps nothing', async () => {
+  const t = setup({ keepLogin: false });
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.deepEqual(t.calls[0], ['open', 'u1', { conversationId: 'c1', keepLogin: false }]);
 });
