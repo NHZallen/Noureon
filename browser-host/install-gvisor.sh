@@ -65,7 +65,9 @@ if [ "$VERIFY" = 1 ]; then
   bad=0
   for f in runsc containerd-shim-runsc-v1; do
     [ -f "$SRC/$f" ] || continue
-    if [ ! -f "/usr/local/bin/$f" ]; then echo "MISSING /usr/local/bin/$f"; bad=1
+    if [ ! -f "/usr/local/bin/$f" ]; then
+      # The shim is for containerd and Kubernetes. Docker starts runsc itself (the "path" in daemon.json), so a missing shim is not a problem here.
+      if [ "$f" = containerd-shim-runsc-v1 ]; then echo "absent  /usr/local/bin/$f (only containerd/Kubernetes use it; Docker does not need it)"; else echo "MISSING /usr/local/bin/$f"; bad=1; fi
     elif cmp -s "$SRC/$f" "/usr/local/bin/$f"; then echo "same    /usr/local/bin/$f"
     else echo "DIFFERS /usr/local/bin/$f"; bad=1; fi
   done
