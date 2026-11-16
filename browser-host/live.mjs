@@ -7,6 +7,27 @@ import { HostError } from './session-manager.mjs';
 
 export const RATIO_SIZES = Object.freeze({ '4:3': { w: 1024, h: 768 }, '16:9': { w: 1280, h: 720 }, portrait: { w: 768, h: 1024 } });
 const randomHex = (bytes) => crypto.randomBytes(bytes).toString('hex');
+const CARD_TICKET_MS = 5 * 60_000;
+const CARD_TRIES = 5;
+const sameSecret = (a, b) => { const x = Buffer.from(String(a)); const y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+
+// eslint-disable-next-line no-control-regex
+const clean = (value, limit) => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, limit) : '');
+/** The card as the host takes it: only these fields, each checked; `null` when what is needed (number, expiry, security code, name) is not there. Nothing of it is ever logged or given back. */
+export function checkCard(input) {
+  const digits = clean(input?.number, 40).replace(/[\s-]/g, '');
+  if (!/^[0-9]{12,19}$/.test(digits)) return null;
+  const exp = clean(input?.exp, 10).replace(/\s/g, '');
+  const match = /^(0?[1-9]|1[0-2])\/?([0-9]{2}|[0-9]{4})$/.exec(exp);
+  if (!match) return null;
+  const cvc = clean(input?.cvc, 6);
+  if (!/^[0-9]{3,4}$/.test(cvc)) return null;
+  const name = clean(input?.name, 80);
+  if (!name) return null;
+  const card = { number: digits, expMonth: match[1].padStart(2, '0'), expYear: match[2].slice(-2), expYear4: match[2].length === 4 ? match[2] : `20${match[2]}`, cvc, name };
+  for (const [key, limit] of [['line1', 120], ['line2', 120], ['city', 80], ['state', 60], ['zip', 20], ['country', 60], ['phone', 30], ['email', 120]]) { const value = clean(input?.[key], limit); if (value) card[key] = value; }
+  return card;
+}
 
 /**
  * config: { publicIp, bindIp?, portBase, slots, host (the name of the viewer's address, e.g. live-staging.noureon.com), maxViewers, viewerWaitMs, viewerGoneMs }
@@ -43,6 +64,7 @@ export function createLive({ config, makeNeko = (baseUrl, apiToken) => createNek
       if (!s.live) return;
       used.delete(s.live.slot);
       byPath.delete(s.live.pathToken);
+      s.live.cardTicket = null;
       s.live.neko = null;
       s.live.viewers.clear();
     },
@@ -107,6 +129,38 @@ export function createLive({ config, makeNeko = (baseUrl, apiToken) => createNek
       s.screen = { w: size.w, h: size.h };
       s.lastActionAt = now();
       return { ratio, width: size.w, height: size.h };
+    },
+    /** A one-time permission for the person's page to hand a card straight to this browser (never through the main server): bound to the site the browser is on now. */
+    createCardTicket(s, { origin }) {
+      const live = need(s);
+      if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(String(origin || ''))) throw new HostError(400, 'bad_request', 'the page cannot take a card');
+      live.cardTicket = { ticket: makeSecret(24), origin, expiresAt: now() + CARD_TICKET_MS, tries: 0 };
+      s.lastActionAt = now();
+      return { ticket: live.cardTicket.ticket, host: cfg.host, path: `/s/${live.pathToken}/card`, expiresInMs: CARD_TICKET_MS };
+    },
+    /**
+     * The card arrives from the person's page: { status, body }. The ticket must be the one given, not too old and not tried more than a few times; the card is checked, typed into the
+     * page by `run(sessionId, action)`, and only the names of the fields that were filled are answered. The ticket goes when the card is in.
+     */
+    async fillCard({ pathToken, ticket, card, run }) {
+      const s = byPath.get(String(pathToken));
+      const held = s?.live?.cardTicket;
+      if (!held || !s.live.neko) return { status: 404, body: { error: 'not_found' } };
+      if (now() > held.expiresAt || held.tries >= CARD_TRIES) { s.live.cardTicket = null; return { status: 404, body: { error: 'not_found' } }; }
+      held.tries += 1;
+      if (!sameSecret(ticket, held.ticket)) return { status: 404, body: { error: 'not_found' } };
+      const checked = checkCard(card);
+      if (!checked) return { status: 400, body: { error: 'bad_card' } };
+      try {
+        const done = await run(s.sessionId, { type: 'fill-card', origins: [held.origin], card: checked });
+        s.lastActionAt = now();
+        s.live.cardTicket = null;
+        log({ ev: 'card_filled', sessionId: s.sessionId });
+        return { status: 200, body: { ok: true, filled: done.filled || [], missing: done.missing || [] } };
+      } catch (error) {
+        const known = error instanceof HostError && error.status < 500;
+        return { status: known ? 409 : 502, body: { error: 'not_filled', message: known ? String(error.message).slice(0, 200) : 'the browser could not take it' } };
+      }
     },
     /** Removes viewers who never came, and those who went away and did not return; keeps a browser that is being looked at from counting as idle. */
     async tick(sessions) {

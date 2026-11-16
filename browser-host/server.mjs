@@ -32,6 +32,7 @@ function liveRoutes(manager, live) {
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/viewers$`), run: async ({ match }) => ({ status: 200, body: await live.createViewer(session(match[1])) }) },
     { method: 'DELETE', re: new RegExp(`^/v1/sessions/${ID}/viewers/${VIEWER}$`), run: async ({ match }) => { await live.closeViewer(session(match[1]), match[2]); return { status: 200, body: { ok: true } }; } },
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/control$`), run: async ({ match, body }) => { const b = json(body); return { status: 200, body: await live.control(session(match[1]), { mode: b.mode, viewerId: typeof b.viewerId === 'string' ? b.viewerId : undefined }) }; } },
+    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/card-ticket$`), run: async ({ match, body }) => ({ status: 200, body: live.createCardTicket(session(match[1]), { origin: json(body).origin }) }) },
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/screen$`), run: async ({ match, body }) => ({ status: 200, body: await live.setRatio(session(match[1]), json(body).ratio) }) }
   ];
 }

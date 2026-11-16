@@ -78,8 +78,8 @@ test('the host client signs the live calls and refuses a bad viewer id', async (
   const seen = [];
   const fetchImpl = async (url, init) => { seen.push([init.method, url, init.body ? JSON.parse(init.body) : null]); return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } }); };
   const client = createBrowserHostClient({ url: 'http://172.29.0.1:40010', secret: 's'.repeat(40), fetchImpl });
-  await client.createViewer(SID); await client.control(SID, { mode: 'user', viewerId: 'v-1' }); await client.setScreen(SID, 'portrait'); await client.closeViewer(SID, 'v-1');
-  assert.deepEqual(seen.map((s) => `${s[0]} ${s[1].replace('http://172.29.0.1:40010', '')}`), [`POST /v1/sessions/${SID}/viewers`, `POST /v1/sessions/${SID}/control`, `POST /v1/sessions/${SID}/screen`, `DELETE /v1/sessions/${SID}/viewers/v-1`]);
+  await client.createViewer(SID); await client.control(SID, { mode: 'user', viewerId: 'v-1' }); await client.setScreen(SID, 'portrait'); await client.cardTicket(SID, 'https://shop.example'); await client.closeViewer(SID, 'v-1');
+  assert.deepEqual(seen.map((s) => `${s[0]} ${s[1].replace('http://172.29.0.1:40010', '')}`), [`POST /v1/sessions/${SID}/viewers`, `POST /v1/sessions/${SID}/control`, `POST /v1/sessions/${SID}/screen`, `POST /v1/sessions/${SID}/card-ticket`, `DELETE /v1/sessions/${SID}/viewers/v-1`]);
   assert.deepEqual(seen[1][2], { mode: 'user', viewerId: 'v-1' });
   await assert.rejects(() => client.closeViewer(SID, '../x'), (e) => e.code === 'bad_viewer_id');
 });

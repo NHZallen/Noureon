@@ -30,7 +30,7 @@ const removed = await manager.recover().catch((error) => { log({ ev: 'recover_fa
 log({ ev: 'starting', leftoversRemoved: removed, maxSessions: config.manager.maxSessions, enabled: config.manager.enabled, allowedIps: config.allowedIps });
 const timer = setInterval(() => { manager.tick().catch((error) => log({ ev: 'tick_failed', why: String(error?.message || error).slice(0, 160) })); }, 10_000);
 server.listen(config.port, config.bind, () => log({ ev: 'listening', bind: config.bind, port: config.port, tls: Boolean(config.tls) }));
-const liveProxy = live ? createLiveProxy({ live, log, idleMs: 0 }) : null;
+const liveProxy = live ? createLiveProxy({ live, log, idleMs: 0, allowedOrigins: config.live.allowedOrigins, fillCard: (request) => live.fillCard({ ...request, run: (sessionId, action) => manager.action(sessionId, action) }) }) : null;
 liveProxy?.listen(config.live.proxyPort, config.live.proxyBind, () => log({ ev: 'live_listening', bind: config.live.proxyBind, port: config.live.proxyPort, host: config.live.host }));
 
 let stopping = false;

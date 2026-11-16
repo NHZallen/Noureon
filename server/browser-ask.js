@@ -4,6 +4,8 @@
 //   kind 'confirm'  { action: 'payment' | 'delete' | 'change' | 'irreversible', domain, summary }     answer { decision: 'confirm' | 'cancel' }
 //   kind 'login'    { domain, methods: [...] }                                                           answer { method, username?, password?, save? }
 //   kind 'code'     { domain, digits }                                                                   answer { code } | { method: 'other' }
+//   kind 'payment'  { domain, methods: ['card', 'applepay', 'other'] }                                  answer { method }
+//   kind 'card'     { domain, host, path, ticket }  the card goes from the page to the browser host, not here   answer { done: true, filled, missing } | { cancel: true }
 //   kind 'takeover' { domain, reason }                                                                   answer { decision: 'done' | 'cancel' }  (the person works the browser themselves, then gives it back)
 
 import { randomUUID } from 'node:crypto';
@@ -15,7 +17,22 @@ const text = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().s
 
 // What each kind says in the question and takes as an answer. `check(answer)` returns { result, shown } or null (not an answer to this question): `result` goes to the reply, `shown`
 // goes into the event that tells the pages the question is over (never a secret).
+const PAY_METHODS = new Set(['card', 'applepay', 'other']);
+const CARD_FIELDS = new Set(['number', 'exp', 'expMonth', 'expYear', 'cvc', 'name', 'line1', 'line2', 'city', 'state', 'zip', 'country', 'phone', 'email']);
+const fieldNames = (list) => (Array.isArray(list) ? list.filter((name) => CARD_FIELDS.has(name)) : []);
 const KINDS = {
+  payment: {
+    info: (info) => ({ domain: text(info.domain, 100), methods: (Array.isArray(info.methods) ? info.methods : ['card', 'other']).filter((method) => PAY_METHODS.has(method)) }),
+    check: (answer) => (PAY_METHODS.has(answer?.method) ? { result: { method: answer.method }, shown: answer.method } : null)
+  },
+  card: {
+    // The ticket is for this one question (the page uses it once to hand the card to the browser host); the card itself never comes here: only the names of the fields that were filled.
+    info: (info) => ({ domain: text(info.domain, 100), host: text(info.host, 100), path: text(info.path, 100), ticket: text(info.ticket, 100) }),
+    check: (answer) => {
+      if (answer?.cancel === true) return { result: { cancel: true }, shown: 'cancel' };
+      return answer?.done === true ? { result: { done: true, filled: fieldNames(answer.filled), missing: fieldNames(answer.missing) }, shown: 'done' } : null;
+    }
+  },
   takeover: {
     info: (info) => ({ domain: text(info.domain, 100), reason: text(info.reason, 200) }),
     check: (answer) => (answer?.decision === 'done' || answer?.decision === 'cancel' ? { result: { decision: answer.decision }, shown: answer.decision } : null)

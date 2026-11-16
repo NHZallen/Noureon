@@ -147,6 +147,7 @@ test('the live routes: viewers, control, screen; missing without live, 409 befor
     createViewer: async (s) => { log.push(['viewer', s.sessionId]); return { viewerId: 'v-1', token: 't', host: 'live.example.com', wsPath: '/s/x/api/ws' }; },
     closeViewer: async (s, id) => { log.push(['close', s.sessionId, id]); },
     control: async (s, a) => { log.push(['control', a]); return { control: a.mode }; },
+    createCardTicket: (s, { origin }) => { log.push(['ticket', origin]); return { ticket: 't', host: 'live.example.com', path: '/s/x/card' }; },
     setRatio: async (s, ratio) => { log.push(['ratio', ratio]); return { ratio, width: 1280, height: 720 }; }
   };
   const t = await start({ live });
@@ -158,8 +159,9 @@ test('the live routes: viewers, control, screen; missing without live, 409 befor
     assert.equal(v.status, 200); assert.equal(v.json.viewerId, 'v-1');
     assert.equal((await t.call('POST', `/v1/sessions/${SID}/control`, { body: { mode: 'user', viewerId: 'v-1' } })).json.control, 'user');
     assert.equal((await t.call('POST', `/v1/sessions/${SID}/screen`, { body: { ratio: '16:9' } })).json.width, 1280);
+    assert.equal((await t.call('POST', `/v1/sessions/${SID}/card-ticket`, { body: { origin: 'https://shop.example' } })).json.ticket, 't');
     assert.equal((await t.call('DELETE', `/v1/sessions/${SID}/viewers/v-1`)).status, 200);
-    assert.deepEqual(log.map((e) => e[0]), ['viewer', 'control', 'ratio', 'close']);
+    assert.deepEqual(log.map((e) => e[0]), ['viewer', 'control', 'ratio', 'ticket', 'close']);
     assert.equal((await t.call('POST', `/v1/sessions/${SID}/viewers`, { sign: false })).status, 401);
   } finally { await t.close(); }
 });

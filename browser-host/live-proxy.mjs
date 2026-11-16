@@ -5,14 +5,39 @@ import http from 'node:http';
 import net from 'node:net';
 
 const WS_PATH = /^\/s\/([0-9a-f]{32})\/api\/ws$/;
+const CARD_PATH = /^\/s\/([0-9a-f]{32})\/card$/;
+const MAX_CARD_BODY = 4096;
 const MAX_HEADER = 8 * 1024;
 const REMOVE = new Set(['origin', 'host', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-server', 'x-real-ip', 'forwarded', 'cookie', 'authorization']);
 
-export function createLiveProxy({ live, log = () => {}, connect = (port, ip) => net.connect({ host: ip, port }), idleMs = 0 }) {
+export function createLiveProxy({ live, log = () => {}, connect = (port, ip) => net.connect({ host: ip, port }), idleMs = 0, fillCard = null, allowedOrigins = [] }) {
+  const notFound = (res) => { res.writeHead(404, { 'content-type': 'text/plain', 'cache-control': 'no-store', connection: 'close' }); res.end('not found'); };
+  // The card comes straight from the person's page (a one-time ticket in the Authorization header, the card in the body): it is typed into the browser and never kept or logged here.
   const server = http.createServer((req, res) => {
-    // Anything that is not a WebSocket upgrade is not served at all.
-    res.writeHead(404, { 'content-type': 'text/plain', 'cache-control': 'no-store', connection: 'close' });
-    res.end('not found');
+    const url = new URL(req.url || '/', 'http://live.invalid');
+    const match = CARD_PATH.exec(url.pathname);
+    const origin = String(req.headers.origin || '');
+    const allowed = allowedOrigins.includes(origin);
+    if (!match || !fillCard || !allowed || (req.method !== 'POST' && req.method !== 'OPTIONS')) { notFound(res); return; }
+    const cors = { 'access-control-allow-origin': origin, vary: 'Origin', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-max-age': '600' };
+    if (req.method === 'OPTIONS') { res.writeHead(204, cors); res.end(); return; }
+    const reply = (status, body) => { const text = JSON.stringify(body); res.writeHead(status, { ...cors, 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }); res.end(text); };
+    const ticket = /^Bearer ([0-9a-f]{32,64})$/.exec(String(req.headers.authorization || ''))?.[1];
+    if (!ticket || Number(req.headers['content-length'] || 0) > MAX_CARD_BODY) { reply(ticket ? 413 : 404, { error: ticket ? 'too_large' : 'not_found' }); return; }
+    const chunks = []; let size = 0; let over = false;
+    req.on('data', (chunk) => { size += chunk.length; if (size > MAX_CARD_BODY) { over = true; req.destroy(); return; } chunks.push(chunk); });
+    req.on('error', () => {});
+    req.on('end', async () => {
+      if (over) return;
+      let card;
+      try { card = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { reply(400, { error: 'bad_card' }); return; }
+      try {
+        const answer = await fillCard({ pathToken: match[1], ticket, card });
+        reply(answer.status, answer.body);
+      } catch {
+        reply(502, { error: 'not_filled' });
+      }
+    });
   });
   server.headersTimeout = 10_000; server.requestTimeout = 10_000; server.maxHeadersCount = 40;
 

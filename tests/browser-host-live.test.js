@@ -131,3 +131,63 @@ test('the tick removes a viewer who never came, and one who went and did not ret
   assert.equal(s.live.viewers.size, 0);
   assert.equal(neko.members.size, 0);
 });
+
+import { checkCard } from '../browser-host/live.mjs';
+
+const CARD = { number: '4242 4242 4242 4242', exp: '08/29', cvc: '123', name: 'Chen Da-Ming', line1: '1 Main St', zip: '100' };
+
+test('the card is checked: only known fields, the right shapes, and what is needed must be there', () => {
+  assert.deepEqual(checkCard(CARD), { number: '4242424242424242', expMonth: '08', expYear: '29', expYear4: '2029', cvc: '123', name: 'Chen Da-Ming', line1: '1 Main St', zip: '100' });
+  assert.equal(checkCard({ ...CARD, exp: '0829' }).expMonth, '08');
+  assert.equal(checkCard({ ...CARD, exp: '8/2029' }).expYear4, '2029');
+  for (const bad of [{ ...CARD, number: '1234' }, { ...CARD, number: 'abcd efgh ijkl mnop' }, { ...CARD, exp: '13/29' }, { ...CARD, cvc: '12' }, { ...CARD, name: '' }, { ...CARD, exp: undefined }, null, 'x']) assert.equal(checkCard(bad), null, JSON.stringify(bad));
+  assert.equal(checkCard({ ...CARD, evil: 'x', line1: 'a\u0000b' }).evil, undefined);
+  assert.equal(checkCard({ ...CARD, line1: 'a\u0000b' }).line1, 'ab');
+});
+
+async function withTicket() {
+  const { live, clock } = make();
+  const s = session('sess-card0001');
+  const allocated = live.allocate(s);
+  await live.ready(s);
+  const ticket = live.createCardTicket(s, { origin: 'https://shop.example' });
+  const runs = [];
+  const run = async (sessionId, action) => { runs.push([sessionId, action]); return { ok: true, filled: ['number', 'exp', 'cvc', 'name'], missing: ['line1'] }; };
+  return { live, clock, s, ticket, runs, run, pathToken: allocated.pathToken };
+}
+
+test('a card ticket is for one site and one browser; the card goes to that site only and the answer holds names, never values', async () => {
+  const w = await withTicket();
+  assert.match(w.ticket.path, /^\/s\/[0-9a-f]+\/card$/); assert.equal(w.ticket.host, 'live-staging.noureon.com');
+  assert.throws(() => w.live.createCardTicket(w.s, { origin: 'http://insecure.example' }), (e) => e.status === 400);
+  const done = await w.live.fillCard({ pathToken: w.pathToken, ticket: w.ticket.ticket, card: CARD, run: w.run });
+  assert.equal(done.status, 200);
+  assert.deepEqual(done.body, { ok: true, filled: ['number', 'exp', 'cvc', 'name'], missing: ['line1'] });
+  assert.ok(!JSON.stringify(done).includes('4242'));
+  assert.equal(w.runs[0][1].type, 'fill-card'); assert.deepEqual(w.runs[0][1].origins, ['https://shop.example']); assert.equal(w.runs[0][1].card.number, '4242424242424242');
+  assert.equal((await w.live.fillCard({ pathToken: w.pathToken, ticket: w.ticket.ticket, card: CARD, run: w.run })).status, 404, 'a ticket works until the card is in, once');
+});
+
+test('a wrong ticket, an old one, too many tries, another path and a bad card are all refused; a failed fill keeps the ticket for another try', async () => {
+  const w = await withTicket();
+  const call = (extra) => w.live.fillCard({ pathToken: w.pathToken, ticket: w.ticket.ticket, card: CARD, run: w.run, ...extra });
+  assert.equal((await call({ ticket: 'f'.repeat(48) })).status, 404);
+  assert.equal((await call({ pathToken: 'e'.repeat(32) })).status, 404);
+  assert.equal((await call({ card: { ...CARD, number: '1' } })).status, 400);
+  assert.equal(w.runs.length, 0);
+  const failing = await call({ run: async () => { const { HostError } = await import('../browser-host/session-manager.mjs'); throw new HostError(400, 'action_failed', 'this page is not the site the card is for; nothing was typed'); } });
+  assert.equal(failing.status, 409); assert.match(failing.body.message, /not the site/);
+  assert.equal((await call()).status, 200, 'the ticket is still good after a try that did not fill');
+  const old = await withTicket();
+  old.clock.t += 6 * 60_000;
+  assert.equal((await old.live.fillCard({ pathToken: old.pathToken, ticket: old.ticket.ticket, card: CARD, run: old.run })).status, 404);
+  const many = await withTicket();
+  for (let i = 0; i < 5; i += 1) await many.live.fillCard({ pathToken: many.pathToken, ticket: 'a'.repeat(48), card: CARD, run: many.run });
+  assert.equal((await many.live.fillCard({ pathToken: many.pathToken, ticket: many.ticket.ticket, card: CARD, run: many.run })).status, 404, 'five wrong tries and the ticket is gone');
+});
+
+test('releasing a browser takes its ticket away', async () => {
+  const w = await withTicket();
+  w.live.release(w.s);
+  assert.equal((await w.live.fillCard({ pathToken: w.pathToken, ticket: w.ticket.ticket, card: CARD, run: w.run })).status, 404);
+});

@@ -71,6 +71,8 @@ export function createBrowserHostClient({ url, secret, fetchImpl = fetch, timeou
     async createViewer(id) { return (await request('POST', `${sessionPath(id)}/viewers`, { json: {}, wait: 15_000 })).json; },
     async closeViewer(id, viewerId) { return (await request('DELETE', `${sessionPath(id)}/viewers/${checkViewer(viewerId)}`, { wait: 15_000 })).json; },
     async control(id, { mode, viewerId }) { return (await request('POST', `${sessionPath(id)}/control`, { json: { mode, ...(viewerId ? { viewerId: checkViewer(viewerId) } : {}) }, wait: 15_000 })).json; },
+    /** A one-time permission for the person's page to hand a card straight to the browser: { ticket, host, path, expiresInMs }. */
+    async cardTicket(id, origin) { return (await request('POST', `${sessionPath(id)}/card-ticket`, { json: { origin }, wait: 15_000 })).json; },
     async setScreen(id, ratio) { return (await request('POST', `${sessionPath(id)}/screen`, { json: { ratio }, wait: 20_000 })).json; },
     /** The login state kept after the host stopped a browser by itself (idle, time limit): a Buffer, or throws `not_found` when it is gone. */
     async collect(id) { return (await request('GET', `${sessionPath(id)}/profile`, { wait: 120_000 })).bytes; },

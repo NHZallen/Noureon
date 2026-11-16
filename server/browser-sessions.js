@@ -98,6 +98,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     async closeViewer(id, userId, viewerId) { return host.closeViewer(own(id, userId).id, viewerId); },
     async control(id, userId, request) { return host.control(own(id, userId).id, request); },
     async screen(id, userId, ratio) { return host.setScreen(own(id, userId).id, ratio); },
+    async cardTicket(id, userId, origin) { return host.cardTicket(own(id, userId).id, origin); },
     /** Keeps the login state now (the browser goes on). Resolves whether it was kept. */
     async saveNow(id, userId) {
       const session = own(id, userId);

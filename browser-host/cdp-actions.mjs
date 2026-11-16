@@ -5,6 +5,7 @@
 //   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close", tabId?, url?}
 //   snapshot {tabId?, maxChars?}  the page as a list of things to act on, each with a number (`ref`) that stays good while the page stays the same document
 //   click {ref, tabId?}   type {ref, text, submit?, tabId?}   press {key, tabId?}   scroll {direction: "up"|"down"|"left"|"right"|"top"|"bottom", tabId?}   back {tabId?}   wait {ms}
+//   fill-card {card: {number, expMonth, expYear, expYear4, cvc, name, line1?, …}, origins: ["https://…"], tabId?}  (also on standard input)  types the card into the fields of the page it can find; says which fields it filled and which it did not find, never a value
 //   fill-code {code, origins: ["https://…"], tabId?}  (also on standard input)  types a one-time code into the code field of the page (one box, or one box for each digit); says only how many boxes it filled
 //   fill-login {username?, password?, origins: ["https://…"], tabId?}  (body arrives on standard input: `--stdin`)  fills the visible login fields of the page, only when the page is of one of `origins`; says which
 //   fields it filled, never their values. A password field is never read and never typed into by the other actions (logins go through the password vault, design doc §7).
@@ -223,6 +224,66 @@ async function fillCode(cdp, action, targetId, sessionId) {
   return { ok: true, tabId: targetId, origin, boxes: boxes.length };
 }
 
+// A card: the fields of the page that take it, found by what the page itself says they are (autocomplete, then name, label and the like). The page may have its card fields in a frame of
+// another site (many shops do); those cannot be reached from here, and the answer says which fields were not found so that the person can finish by taking over.
+const CARD_FINDER = `(() => {
+  const visible = (el) => { const box = el.getBoundingClientRect(); const style = getComputedStyle(el); return box.width > 4 && box.height > 4 && style.visibility !== 'hidden' && style.display !== 'none' && !el.disabled && !el.readOnly; };
+  const fields = [...document.querySelectorAll('input, select')].filter(visible);
+  const text = (el) => [el.name, el.id, el.autocomplete, el.getAttribute('aria-label'), el.placeholder, el.labels && el.labels[0] && el.labels[0].textContent].join(' ');
+  const pick = (autocompletes, pattern, tag) => fields.find((el) => (!tag || el.tagName === tag) && autocompletes.includes(el.autocomplete)) || fields.find((el) => (!tag || el.tagName === tag) && pattern.test(text(el))) || null;
+  const found = {
+    number: pick(['cc-number'], /card.?number|cardnumber|card no|卡號|numéro de carte|номер карты|número de tarjeta/i),
+    exp: pick(['cc-exp'], /expir|exp.?date|mm ?\\/ ?yy|有效期/i),
+    expMonth: pick(['cc-exp-month'], /exp.*month|month|有效月/i),
+    expYear: pick(['cc-exp-year'], /exp.*year|year|有效年/i),
+    cvc: pick(['cc-csc'], /cvc|cvv|csc|security code|安全碼|code de sécurité|код безопасности|código de seguridad/i),
+    name: pick(['cc-name'], /name on card|card.?holder|cardholder|持卡人|titulaire|держатель|titular/i),
+    line1: pick(['address-line1', 'street-address'], /address.*1|street|addr1|地址/i),
+    line2: pick(['address-line2'], /address.*2|apt|suite|addr2/i),
+    city: pick(['address-level2'], /city|town|城市|ville|город|ciudad/i),
+    state: pick(['address-level1'], /state|province|region|縣|州|省/i),
+    zip: pick(['postal-code'], /zip|postal|post.?code|郵遞區號|code postal|индекс|código postal/i),
+    country: pick(['country', 'country-name'], /country|國家|pays|страна|país/i),
+    phone: pick(['tel'], /phone|tel|電話/i),
+    email: pick(['email'], /e-?mail|信箱/i)
+  };
+  return Object.assign({ origin: location.origin }, found);
+})()`;
+
+async function fillCard(cdp, action, targetId, sessionId) {
+  const allowed = Array.isArray(action.origins) ? action.origins.filter((o) => typeof o === 'string' && /^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(o)) : [];
+  if (!allowed.length) throw new Error('the card does not say which site it is for');
+  const card = action.card && typeof action.card === 'object' ? action.card : null;
+  if (!card || typeof card.number !== 'string' || typeof card.cvc !== 'string') throw new Error('there is no card to type');
+  const found = await cdp.send('Runtime.evaluate', { expression: CARD_FINDER, returnByValue: false }, sessionId);
+  if (found.exceptionDetails) throw new Error('the page could not be looked at');
+  const props = await cdp.send('Runtime.getProperties', { objectId: found.result.objectId, ownProperties: true }, sessionId);
+  const of = (name) => props.result.find((p) => p.name === name)?.value;
+  const origin = String(of('origin')?.value || '');
+  if (!allowed.includes(origin)) throw new Error('this page is not the site the card is for; nothing was typed');
+  const values = { number: card.number, exp: `${card.expMonth}/${card.expYear}`, expMonth: card.expMonth, expYear: card.expYear4 || card.expYear, cvc: card.cvc, name: card.name, line1: card.line1, line2: card.line2, city: card.city, state: card.state, zip: card.zip, country: card.country, phone: card.phone, email: card.email };
+  const filled = []; const missing = [];
+  const required = ['number', 'exp', 'cvc', 'name'];
+  for (const [key, value] of Object.entries(values)) {
+    const element = of(key);
+    if (!value) continue;
+    // One of the two ways to give the expiry is enough (a box for both, or one for the month and one for the year).
+    if (!element?.objectId) { if (required.includes(key) && !(key === 'exp' && of('expMonth')?.objectId && of('expYear')?.objectId)) missing.push(key); continue; }
+    const kind = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { return this.tagName; }', returnByValue: true }, sessionId);
+    if (kind.result?.value === 'SELECT') {
+      const chosen = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function (wanted) { const w = String(wanted).toLowerCase(); const o = [...this.options].find((x) => x.value.toLowerCase() === w || x.text.trim().toLowerCase() === w || (w.length <= 2 && x.value.replace(/^0+/, "") === w.replace(/^0+/, ""))); if (!o) return false; this.value = o.value; this.dispatchEvent(new Event("input", { bubbles: true })); this.dispatchEvent(new Event("change", { bubbles: true })); return true; }', arguments: [{ value }], returnByValue: true }, sessionId);
+      (chosen.result?.value === true ? filled : missing).push(key);
+    } else {
+      const focused = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
+      if (focused.result?.value !== true) { missing.push(key); continue; }
+      await cdp.send('Input.insertText', { text: String(value) }, sessionId);
+      filled.push(key);
+    }
+  }
+  if (!filled.length) throw new Error('no card field can be seen on this page; the person can take over and type the card');
+  return { ok: true, tabId: targetId, origin, filled, missing };
+}
+
 async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'snapshot') {
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
@@ -243,6 +304,7 @@ async function pageAction(cdp, action, targetId, sessionId) {
   }
   if (action.type === 'fill-login') return fillLogin(cdp, action, targetId, sessionId);
   if (action.type === 'fill-code') return fillCode(cdp, action, targetId, sessionId);
+  if (action.type === 'fill-card') return fillCard(cdp, action, targetId, sessionId);
   if (action.type === 'click') {
     const ref = checkRef(action.ref);
     const { x, y } = await centerOf(cdp, sessionId, ref);
@@ -338,7 +400,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       await wait(Math.min(10_000, Math.max(0, Math.floor(Number(action.ms)) || 1000)));
       return { ok: true };
     }
-    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code'].includes(action.type)) {
+    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code', 'fill-card'].includes(action.type)) {
       const targetId = await pickTab(cdp, action.tabId);
       const sessionId = await attach(cdp, targetId);
       await cdp.send('Page.enable', {}, sessionId);

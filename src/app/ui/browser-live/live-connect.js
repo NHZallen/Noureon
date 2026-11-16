@@ -6,8 +6,10 @@
 import { createNekoSource } from './neko-source.js';
 
 const RETRY_MS = [1500, 4000, 10_000];
+// A stream that lived this long was a real one: the tries start again after it. A stream that ends within seconds is a failure however often it comes back.
+const STABLE_MS = 20_000;
 
-export function connectBrowserLive({ card, sessionId, api, document, createSource = createNekoSource, readClipboard = null, setTimer = (...a) => setTimeout(...a), clearTimer = (...a) => clearTimeout(...a) }) {
+export function connectBrowserLive({ card, sessionId, api, document, createSource = createNekoSource, readClipboard = null, setTimer = (...a) => setTimeout(...a), clearTimer = (...a) => clearTimeout(...a), now = Date.now, log = (...a) => console.info('[browser-live]', ...a) }) {
   const base = `/v1/browser/${encodeURIComponent(sessionId)}`;
   let state = { phase: 'run', view: 'front', focus: false };
   let source = null;
@@ -17,6 +19,10 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   let retry = null;
   let over = false;
   let quality = 'lq';
+  let liveSince = 0;
+  // While a stream is being let go (the card says "look again" at every change it makes), and after it failed until the next try is due, nothing connects by itself.
+  let letting = 0;
+  let waiting = false;
 
   const wanted = () => !over && state.phase === 'run' && (state.focus || state.view === 'front');
 
@@ -31,11 +37,12 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
 
   async function release() {
     clearTimer(retry); retry = null;
+    liveSince = 0;
     const had = viewer;
     const gone = source;
     source = null; viewer = null;
     gone?.destroy();
-    if (had) card.setLive(null);
+    if (had) { letting += 1; try { card.setLive(null); } finally { letting -= 1; } }
     if (had) await api('DELETE', `${base}/viewer/${encodeURIComponent(had.viewerId)}`).catch(() => {});
   }
 
@@ -52,7 +59,7 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     if (!wanted()) { void api('DELETE', `${base}/viewer/${encodeURIComponent(granted.viewerId)}`).catch(() => {}); return; }
     try {
       viewer = granted;
-      source = createSource({ viewer: granted, document, quality: state.focus ? 'hq' : 'lq', onState: (next) => { if (next === 'live') attempts = 0; if (next === 'closed') lost(); } });
+      source = createSource({ viewer: granted, document, quality: state.focus ? 'hq' : 'lq', onState: (next, reason) => { log(next, reason || ''); if (next === 'live') liveSince = now(); if (next === 'closed') lost(reason); } });
     } catch {
       viewer = null; source = null;
       void api('DELETE', `${base}/viewer/${encodeURIComponent(granted.viewerId)}`).catch(() => {});
@@ -67,23 +74,31 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   }
 
   // The stream ended by itself (the host closed the viewer, the network went): let go, and look again if somebody still wants to see.
-  function lost() {
+  function lost(reason) {
     if (!source) return;
+    if (liveSince && now() - liveSince >= STABLE_MS) attempts = 0;
+    log('lost', reason || '', `try ${attempts + 1} of ${RETRY_MS.length + 1}`);
+    waiting = true;
     void release().then(() => { if (wanted()) schedule(); });
   }
   function schedule() {
-    if (!wanted() || retry || attempts >= RETRY_MS.length) return;
-    retry = setTimer(() => { retry = null; attempts += 1; if (wanted()) void connect(); }, RETRY_MS[attempts]);
+    if (!wanted()) return;
+    waiting = true;
+    if (retry || attempts >= RETRY_MS.length) return;
+    retry = setTimer(() => { retry = null; attempts += 1; waiting = false; if (wanted()) void connect(); }, RETRY_MS[attempts]);
   }
 
   card.watch((next) => {
     state = next;
     if (next.phase !== 'run' && next.phase !== 'queued') over = true;
+    if (letting) return;
     if (wanted()) {
+      if (waiting) return;
       if (source) { const wantQuality = next.focus ? 'hq' : 'lq'; if (wantQuality !== quality) { quality = wantQuality; source.setQuality(wantQuality); } }
       else void connect();
-    } else if (source || viewer || retry) {
-      void release();
+    } else {
+      waiting = false;
+      if (source || viewer || retry) void release();
     }
   });
 

@@ -52,3 +52,40 @@ test('everything else is 404: wrong token, other paths, plain requests', async (
     assert.equal(t.seen.length, 0);
   } finally { await t.close(); }
 });
+
+test('the card door: only from an allowed page, only POST with a ticket, small, and the card goes to the filler and nowhere else', async () => {
+  const calls = [];
+  const live = { target: () => null };
+  const proxy = createLiveProxy({ live, allowedOrigins: ['https://staging.noureon.com'], fillCard: async (request) => { calls.push(request); return request.ticket.startsWith('aa') ? { status: 200, body: { ok: true, filled: ['number'], missing: [] } } : { status: 404, body: { error: 'not_found' } }; } });
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${proxy.address().port}`;
+  const path = `/s/${'a'.repeat(32)}/card`;
+  const post = (headers, body = '{"number":"4242424242424242"}', url = path) => fetch(`${base}${url}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body });
+  try {
+    const ok = await post({ origin: 'https://staging.noureon.com', authorization: `Bearer ${'aa'.repeat(24)}` });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('access-control-allow-origin'), 'https://staging.noureon.com');
+    assert.deepEqual(await ok.json(), { ok: true, filled: ['number'], missing: [] });
+    assert.deepEqual(calls[0], { pathToken: 'a'.repeat(32), ticket: 'aa'.repeat(24), card: { number: '4242424242424242' } });
+    const pre = await fetch(`${base}${path}`, { method: 'OPTIONS', headers: { origin: 'https://staging.noureon.com', 'access-control-request-method': 'POST' } });
+    assert.equal(pre.status, 204); assert.match(pre.headers.get('access-control-allow-headers'), /authorization/);
+    assert.equal((await post({ origin: 'https://evil.example', authorization: `Bearer ${'aa'.repeat(24)}` })).status, 404, 'a page that is not allowed');
+    assert.equal((await post({ authorization: `Bearer ${'aa'.repeat(24)}` })).status, 404, 'no page at all');
+    assert.equal((await post({ origin: 'https://staging.noureon.com' })).status, 404, 'no ticket');
+    assert.equal((await post({ origin: 'https://staging.noureon.com', authorization: 'Bearer nonsense' })).status, 404);
+    assert.equal((await post({ origin: 'https://staging.noureon.com', authorization: `Bearer ${'bb'.repeat(24)}` })).status, 404, 'a wrong ticket is the filler\'s answer');
+    assert.equal((await post({ origin: 'https://staging.noureon.com', authorization: `Bearer ${'aa'.repeat(24)}` }, 'x'.repeat(5000))).status, 413);
+    assert.equal((await post({ origin: 'https://staging.noureon.com', authorization: `Bearer ${'aa'.repeat(24)}` }, 'not json')).status, 400);
+    assert.equal((await fetch(`${base}${path}`, { headers: { origin: 'https://staging.noureon.com' } })).status, 404, 'GET is not a door');
+    assert.equal((await post({ origin: 'https://staging.noureon.com', authorization: `Bearer ${'aa'.repeat(24)}` }, '{}', '/s/short/card')).status, 404);
+  } finally { await new Promise((resolve) => { proxy.closeAllConnections?.(); proxy.close(resolve); }); }
+});
+
+test('without a filler or without allowed pages there is no card door at all', async () => {
+  const proxy = createLiveProxy({ live: { target: () => null }, allowedOrigins: [], fillCard: async () => ({ status: 200, body: {} }) });
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  try {
+    const answer = await fetch(`http://127.0.0.1:${proxy.address().port}/s/${'a'.repeat(32)}/card`, { method: 'POST', headers: { origin: 'https://staging.noureon.com', authorization: `Bearer ${'aa'.repeat(24)}` }, body: '{}' });
+    assert.equal(answer.status, 404);
+  } finally { await new Promise((resolve) => { proxy.closeAllConnections?.(); proxy.close(resolve); }); }
+});

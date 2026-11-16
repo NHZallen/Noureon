@@ -37,7 +37,7 @@ export function loadConfig(env = process.env) {
     const portBase = int(env, 'BROWSER_LIVE_PORT_BASE', 52000, { min: 1024, max: 65535 - slots });
     live = {
       publicIp: check('BROWSER_LIVE_PUBLIC_IP', env.BROWSER_LIVE_PUBLIC_IP), bindIp: env.BROWSER_LIVE_BIND_IP ? check('BROWSER_LIVE_BIND_IP', env.BROWSER_LIVE_BIND_IP) : undefined,
-      host, slots, portBase, maxViewers: int(env, 'BROWSER_LIVE_MAX_VIEWERS', 3, { min: 1, max: 10 }),
+      host, slots, portBase, allowedOrigins: list(env.BROWSER_LIVE_ALLOWED_ORIGINS).filter((origin) => /^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(origin)), maxViewers: int(env, 'BROWSER_LIVE_MAX_VIEWERS', 3, { min: 1, max: 10 }),
       proxyBind: env.BROWSER_LIVE_PROXY_BIND || '172.29.0.1', proxyPort: int(env, 'BROWSER_LIVE_PROXY_PORT', 40011, { min: 1024, max: 65535 })
     };
   }

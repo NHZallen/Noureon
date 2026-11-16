@@ -35,7 +35,8 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
   let wheelRemainder = { x: 0, y: 0 };
   const pending = []; // candidates that arrived before the offer
 
-  const setState = (next) => { if (state === next || destroyed) return; state = next; onState(next); };
+  const setState = (next, reason = '') => { if (state === next || destroyed) return; state = next; onState(next, reason); };
+  let mediaTimer = null;
   const send = (event, payload = {}) => { if (socket && socket.readyState === 1) socket.send(JSON.stringify({ event, payload })); };
   const attach = (video) => { if (stream && video.srcObject !== stream) video.srcObject = stream; video.play?.()?.catch?.(() => {}); };
   const select = (id) => ({ selector: { id, type: 'exact' } });
@@ -46,10 +47,14 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
     pc.ontrack = (event) => {
       stream = event.streams?.[0] || (MediaStreamImpl ? new MediaStreamImpl([event.track]) : null);
       for (const video of videos) attach(video);
+      clearTimeout(mediaTimer);
       setState('live');
     };
     pc.onicecandidate = (event) => { if (event.candidate) send('signal/candidate', event.candidate.toJSON ? event.candidate.toJSON() : event.candidate); };
-    pc.onconnectionstatechange = () => { if (pc?.connectionState === 'failed' || pc?.connectionState === 'closed') setState('closed'); };
+    pc.onconnectionstatechange = () => { if (pc?.connectionState === 'failed' || pc?.connectionState === 'closed') setState('closed', `rtc-${pc.connectionState}`); };
+    // The offer came but no picture: the media does not get through (a network that blocks it); say so instead of waiting for ever.
+    clearTimeout(mediaTimer);
+    mediaTimer = setTimeout(() => { if (state !== 'live') setState('closed', 'no-media'); }, 15_000);
     await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp });
     for (const candidate of pending.splice(0)) await pc.addIceCandidate(candidate).catch(() => {});
     const answer = await pc.createAnswer();
@@ -63,10 +68,10 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
       if (next?.width > 0 && next?.height > 0) screen = { w: next.width, h: next.height };
       send('signal/request', { video: select(wanted), audio: { disabled: true } });
     },
-    'signal/provide': (payload) => { void onProvide(payload || {}).catch(() => setState('closed')); },
+    'signal/provide': (payload) => { void onProvide(payload || {}).catch(() => setState('closed', 'rtc-setup')); },
     'signal/candidate': (payload) => { if (pc?.remoteDescription) void pc.addIceCandidate(payload).catch(() => {}); else pending.push(payload); },
     'screen/updated': (payload) => { if (payload?.width > 0 && payload?.height > 0) screen = { w: payload.width, h: payload.height }; },
-    'system/disconnect': () => setState('closed')
+    'system/disconnect': (payload) => setState('closed', `server-${String(payload?.message || payload || 'disconnect').slice(0, 60)}`)
   };
 
   socket = new WebSocketImpl(url);
@@ -75,8 +80,8 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
     try { data = JSON.parse(typeof message.data === 'string' ? message.data : ''); } catch { return; }
     handlers[data?.event]?.(data.payload);
   };
-  socket.onclose = () => setState('closed');
-  socket.onerror = () => setState('closed');
+  socket.onclose = (event) => setState('closed', `ws-closed-${event?.code ?? ''}`);
+  socket.onerror = () => setState('closed', 'ws-error');
 
   const pixel = (x, y) => ({ x: Math.min(screen.w - 1, Math.floor(clamp01(x) * screen.w)), y: Math.min(screen.h - 1, Math.floor(clamp01(y) * screen.h)) });
   const keysymOf = (key) => {
@@ -138,6 +143,7 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
     get screen() { return { ...screen }; },
     destroy() {
       destroyed = true;
+      clearTimeout(mediaTimer);
       for (const video of videos) { video.srcObject = null; video.remove?.(); }
       videos.clear();
       try { pc?.close(); } catch { /* already closed */ }

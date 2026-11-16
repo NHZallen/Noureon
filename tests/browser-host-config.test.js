@@ -42,7 +42,8 @@ test('the browser policies keep cookies: the image\'s own preferences set cookie
 test('the live screen is off by default and checked when on', () => {
   assert.equal(loadConfig(GOOD).live, null);
   const on = loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '203.0.113.7', BROWSER_LIVE_HOST: 'Live.Example.com' });
-  assert.deepEqual({ ...on.live }, { publicIp: '203.0.113.7', bindIp: undefined, host: 'live.example.com', slots: 8, portBase: 52000, maxViewers: 3, proxyBind: '172.29.0.1', proxyPort: 40011 });
+  assert.deepEqual({ ...on.live }, { publicIp: '203.0.113.7', bindIp: undefined, host: 'live.example.com', slots: 8, allowedOrigins: [], portBase: 52000, maxViewers: 3, proxyBind: '172.29.0.1', proxyPort: 40011 });
+  assert.deepEqual(loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '203.0.113.7', BROWSER_LIVE_HOST: 'live.example.com', BROWSER_LIVE_ALLOWED_ORIGINS: 'https://staging.noureon.com, http://bad.example, https://noureon.com' }).live.allowedOrigins, ['https://staging.noureon.com', 'https://noureon.com']);
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '999.1.1.1', BROWSER_LIVE_HOST: 'live.example.com' }), /IPv4/);
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '203.0.113.7', BROWSER_LIVE_HOST: 'https://x/y' }), /BROWSER_LIVE_HOST/);
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '203.0.113.7', BROWSER_LIVE_HOST: 'live.example.com', BROWSER_LIVE_PORT_BASE: '80' }), /BROWSER_LIVE_PORT_BASE/);

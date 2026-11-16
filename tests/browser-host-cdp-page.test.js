@@ -194,3 +194,53 @@ test('a code is typed into one box or into a box for each digit, only on a site 
   const values = (await act({ type: 'snapshot' })).elements.filter((e) => /^Digit/.test(e.name)).map((e) => e.value);
   assert.deepEqual(values, ['6', '5', '4', '3', '2', '1']);
 });
+
+const CARD_PAGE = `<!doctype html><title>Pay</title><form onsubmit="return false">
+<input name="cardnumber" autocomplete="cc-number" aria-label="Card number"><input name="exp" placeholder="MM / YY" aria-label="Expiry">
+<input autocomplete="cc-csc" aria-label="CVC"><input autocomplete="cc-name" aria-label="Name on card">
+<input autocomplete="address-line1" aria-label="Address"><input autocomplete="postal-code" aria-label="ZIP">
+<select autocomplete="country" aria-label="Country"><option value="">Choose</option><option value="TW">Taiwan</option><option value="US">United States</option></select>
+<button>Pay now</button></form>`;
+const CARD_SPLIT = `<!doctype html><title>Pay two</title><input autocomplete="cc-number" aria-label="Card number"><select autocomplete="cc-exp-month" aria-label="Month"><option>01</option><option>08</option></select><select autocomplete="cc-exp-year" aria-label="Year"><option>2028</option><option>2029</option></select>`;
+const FULL_CARD = { number: '4242424242424242', expMonth: '08', expYear: '29', expYear4: '2029', cvc: '123', name: 'Chen Da-Ming', line1: '1 Main St', zip: '100', country: 'Taiwan' };
+
+test('a card is typed into the fields of the page, only on the site it is for; the answer names the fields and holds no value; a field the page does not have is said', { skip: chromium() && spawnSync('openssl', ['version']).status === 0 ? false : 'no Chromium or no openssl here' }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-card-'));
+  const keyPath = path.join(dir, 'key.pem'); const certPath = path.join(dir, 'cert.pem');
+  spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certPath, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' });
+  const site = https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }, (req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(req.url === '/split' ? CARD_SPLIT : CARD_PAGE); });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-card-profile-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', '--ignore-certificate-errors', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const origin = `https://127.0.0.1:${site.address().port}`;
+  await act({ type: 'navigate', url: `${origin}/` });
+  const refused = await act({ type: 'fill-card', origins: ['https://other.example'], card: FULL_CARD }).catch((e) => e);
+  assert.match(String(refused.message), /not the site the card is for/);
+  assert.ok(!String(refused.message).includes('4242'));
+  const done = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  assert.deepEqual(done.filled.sort(), ['country', 'cvc', 'exp', 'line1', 'name', 'number', 'zip'].sort());
+  assert.deepEqual(done.missing, []);
+  assert.ok(!JSON.stringify(done).includes('4242'));
+  const look = await act({ type: 'snapshot' });
+  const value = (name) => look.elements.find((e) => e.name === name)?.value;
+  assert.equal(value('Card number'), '4242424242424242'); assert.equal(value('Expiry'), '08/29'); assert.equal(value('Name on card'), 'Chen Da-Ming'); assert.equal(value('ZIP'), '100');
+  assert.ok(look.text.length >= 0);
+  // A month and a year in two boxes (selects); a page with no name or address field says which required ones it did not find.
+  await act({ type: 'navigate', url: `${origin}/split` });
+  const split = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  assert.ok(split.filled.includes('number') && split.filled.includes('expMonth') && split.filled.includes('expYear'));
+  assert.deepEqual(split.missing.sort(), ['cvc', 'name']);
+  await assert.rejects(act({ type: 'fill-card', origins: ['http://x.example'], card: FULL_CARD }), /does not say which site/);
+});

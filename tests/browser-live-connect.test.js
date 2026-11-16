@@ -99,3 +99,26 @@ test('the reply is over: the stream goes and does not come back', async () => {
   assert.ok(names(w).includes('DELETE /viewer/v-1'));
   assert.equal(w.sources.length, 1);
 });
+
+test('a stream that ends within seconds is not brought back at once and without end: the tries are counted, with a wait, and only a stream that lived long starts them again', async () => {
+  const w = world();
+  await settle();
+  const closeNow = (index, reason) => w.sources[index].options.onState('closed', reason);
+  w.sources[0].options.onState('live');
+  closeNow(0, 'ws-closed-1006');
+  await settle();
+  assert.equal(w.sources.length, 1, 'no new stream at the moment the old one went');
+  assert.equal(w.timers.length, 1);
+  assert.deepEqual(names(w).filter((n) => n.startsWith('POST /viewer')).length, 1);
+  w.timers[0][0](); await settle();
+  assert.equal(w.sources.length, 2);
+  w.sources[1].options.onState('live'); closeNow(1, 'rtc-failed'); await settle();
+  assert.equal(w.timers.length, 2);
+  w.timers[1][0](); await settle();
+  closeNow(2, 'no-media'); await settle();
+  w.timers[2][0](); await settle();
+  closeNow(3, 'no-media'); await settle();
+  assert.equal(w.timers.length, 3, 'after the last try nothing is scheduled');
+  assert.equal(w.sources.length, 4);
+  assert.deepEqual(w.card.element.querySelector('.bcard-live'), null);
+});
