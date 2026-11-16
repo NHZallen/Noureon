@@ -436,6 +436,16 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 - **要在真機驗的**：lq 的 `videoscale` 只指定寬度（16:9／直式不變形）；從外面連到發佈的 UDP／TCP 連接埠；同一個 MediaStream 設給兩個 `<video>`；水平捲動 `delta_x` 的正負號（目前假設與垂直相同的反向，沒有證據）；`wss://` 的 CSP（`vercel.json` 已加 `live.noureon.com`、`live-staging.noureon.com`）。
 - **還沒做**：分頁操作（新增、切換、關閉、網址列）與截圖給模型要新的主機動作，歸 P4；Traefik 動態設定檔、Contabo 防火牆、DNS 要 Allen 同意；Linear `contract` 筆記（新事件 `live`）等 Allen 確認。
 
+### 12.4 P4／P5／P6 實作筆記（2026-11-17，staging；除非另寫，都用假的 host 與真的 Chromium 測過，**還沒在真機上串過**）
+
+- **P4 密碼庫與面板**：表 `browser_logins`（只有 service role；每個登入一個封存信封，`server/key-vault.js` 的 `seal/open`，綁使用者與登入 id）；路由 `/v1/browser/logins`（列、存、刪、`reveal`）；`browser_fill_login`／`fill-code`／`fill-card` 的值只走 stdin、不進 argv，host 在填入當下再驗網域；答案裡只有欄位名稱。詢問系統 `server/browser-ask.js`（confirm／login／code／takeover／payment／card），頁面面板取代卡片，答案走 `POST /v1/runs/:id/browser`。絆線 `server/browser-tripwire.js`（付款／刪除／更改等按鈕、卡片頁送出鈕、可執行檔下載），同網域確認一次管 2 分鐘。
+- **卡片資料**：頁面 → host 直送；一次性憑證（5 分鐘、最多 5 次、綁網域、成功即作廢）；CORS 白名單 `BROWSER_LIVE_ALLOWED_ORIGINS`（要設成 `https://staging.noureon.com`，正式站另設）。
+- **已知缺口**：下載的檔案還沒變成訊息裡的檔案卡片；沒有 `browser_upload`；沒有「把截圖給模型」；`fill-card` 只處理主頁面欄位（Stripe 這類跨網域 iframe 會回 `missing`，退回接管）；驗證碼面板沒有重寄倒數；直播畫面在真機上 5–7 秒就斷（Hark 的紀錄；已改重連規則，但還要看使用者瀏覽器 Console 的 `[browser-live]` 原因，Allen 暫時不回報）。
+- **P5 邀請碼**：表 `browser_invites`、`browser_access`（只有 service role）；`NRN-XXXX-XXXX`（字母表沒有 0、1、I、O），每人兩組；`BROWSER_ADMINS`（環境變數）名單內的帳號視為有權限且是管理員。路由 `/v1/browser/access`、`/redeem`、`/profile`（看）、`/profile/logout`（只能 https 網站，下次開瀏覽器時登出）、`DELETE /profile`、`/admin/stop-all`、`/admin/codes`（後兩者只有管理員，其他人看到的是「找不到」）。
+- **設定頁「瀏覽器代理」（Allen 2026-11-17 審批）**：獨立分頁（`src/app/ui/browser-agent/`）：邀請碼兌換（沒有權限時）、已連接的網站帳號（網站自己的 favicon，載入失敗用地球圖示；⋯ 選單：登出這個網站、刪除密碼，要按兩次）、登入狀態（保持登入開關＝設定 `browserKeepLogin`，隨帳號同步；全部刪除要按兩次）、我的邀請碼（可複製）。管理員功能**不在設定頁**，在 `noureon.com/admin/browser`（`src/app/browser-admin/`；管理員才看得到，其他人是平台的 404）：停止所有瀏覽器、產生邀請碼。`browserKeepLogin: false` 會經 `tools.browserKeepLogin` 帶到伺服器，該次瀏覽器不載入也不保存登入狀態。
+- **還沒做**：「＋」選單的「瀏覽器代理」開關（暫時仍是網址 `?browser=1`）；host 健康檢查與警示信（§2.5）。
+- **P6**：協助中心（擴充一節）、使用條款（擴充一節加使用規範與提示詞注入殘留風險）、隱私權政策（資料流、日誌、保存期限）已寫五語；`PRIVACY.md` 已重新產生。版本號與更新紀錄由 Allen 在發版時改。
+
 ## 13. 建置時要驗證的事（沒有證據，不要當成已知）
 
 1. neko 怎麼給**單一工作階段、一次性**的存取憑證，以及怎麼嵌進我們的頁面（iframe 或自己的前端）；
