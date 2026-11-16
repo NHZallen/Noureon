@@ -27,7 +27,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null, onBrowserCancel = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -89,6 +89,12 @@ export function createSandboxLedger({ document, host, before = null, language = 
         return cards;
       });
     connectorCards.catch(() => {});
+  };
+  // The browser the model works: one card in the conversation under the line of the steps (browser-card.js), loaded when the first event comes.
+  let browserCard = null;
+  const browserEvent = (event) => {
+    browserCard = (browserCard || import('./browser-card.js').then(({ createBrowserCard }) => createBrowserCard({ document, host: askCardHost(), language, onCancel: onBrowserCancel })));
+    browserCard.then((card) => card.handle(event)).catch(() => {});
   };
   // The picture the text model draws (generate_image): a row that runs while the picture is made, and the card that asks first when the person has not allowed it for good.
   let imageCards = null;
@@ -380,7 +386,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image', 'memory'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'browser', 'image', 'memory'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -401,6 +407,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') connectorCall(event);
         else askAboutConnector(event);
+      } else if (event.type === 'browser') {
+        browserEvent(event);
       } else if (event.type === 'image') {
         imageEvent(event);
       } else if (event.type === 'searching') {
@@ -426,7 +434,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
         }
         // A round that could still call a tool may be followed by more work: the line says it is over only when the answer is known to be
         // the last (`answered`), not while the model may yet write the code of its next step.
-        if (!event.more) answered = true;
+        if (!event.more) {
+          answered = true;
+          browserCard?.then((card) => card.complete()).catch(() => {});
+        }
         if (line && !event.more) {
           // The line becomes what the saved reply shows once the answer is written: "Thought for 12s · Searched 5 sites".
           line.setLabel([

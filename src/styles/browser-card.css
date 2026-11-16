@@ -1,0 +1,72 @@
+/* The card of the browser agent in the conversation (browser-card.js; design section 16): the screen, a solid capsule at its lower edge that turns the card
+   over to the steps, two round buttons at the lower right, and the pill or tag it folds into. Colours are the names of tokens.css only: the capsule and the
+   buttons lie on a screen, so they are dark in both themes (the media colours). */
+
+.bcard { display: flex; flex-direction: column; align-items: flex-start; margin: 0.6rem 0; width: 100%; max-width: 26rem; }
+.bcard [hidden] { display: none; }
+.bcard svg { color: inherit; }
+
+.bcard-card { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 1.1rem; border: 1px solid var(--border-color); background: var(--surface-muted); overflow: hidden; perspective: 1200px; }
+.bcard-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform var(--dur-modal, 0.3s) var(--ease-in-out, ease); }
+.bcard-front { transform: rotateY(0deg); }
+.bcard-back { transform: rotateY(180deg); background: var(--gpt-subtle); display: flex; flex-direction: column; padding: 0.75rem 0.875rem; }
+.bcard-card.is-flipped .bcard-front { transform: rotateY(-180deg); }
+.bcard-card.is-flipped .bcard-back { transform: rotateY(0deg); }
+
+/* The screen: until the live screen comes, a quiet place with the name of the site. */
+.bcard-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; color: var(--text-tertiary); font-size: 0.8125rem; }
+.bcard-site { max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.bcard-capsule, .bcard-pill { display: inline-flex; align-items: center; gap: 0.45rem; height: 1.9rem; max-width: 100%; padding: 0 0.8rem 0 0.55rem; border: 1px solid var(--media-control-bg); border-radius: 999px; background: var(--media-bg); color: var(--on-color); font: inherit; font-size: 0.8125rem; font-weight: 400; line-height: 1; cursor: pointer; }
+.bcard-capsule { position: absolute; left: 0.75rem; bottom: 0.875rem; max-width: calc(100% - 6.2rem); }
+.bcard-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.bcard-buttons { position: absolute; right: 0.75rem; bottom: 0.875rem; display: flex; gap: 0.375rem; }
+.bcard-round { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; padding: 0; border: 1px solid var(--media-control-bg); border-radius: 50%; background: var(--media-bg); color: var(--on-color); cursor: pointer; }
+
+/* The state icon: a ring that turns, a tick, a triangle, a cross (the colours of the states). */
+.bcard-lead, .bcard-icon { display: inline-grid; place-items: center; flex: none; width: 1rem; height: 1rem; }
+.bcard-icon.is-done { color: var(--state-success); }
+.bcard-icon.is-help { color: var(--state-warning); }
+.bcard-icon.is-fail { color: var(--state-danger); }
+.bcard-spin { width: 0.85rem; height: 0.85rem; border-radius: 50%; border: 1.6px solid var(--media-control-bg); border-top-color: var(--on-color); animation: bcard-turn 0.9s linear infinite; }
+@keyframes bcard-turn { to { transform: rotate(360deg); } }
+
+/* The back: the steps. */
+.bcard-back-head { display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 0.8125rem; letter-spacing: 0.02em; }
+.bcard-back-close { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.3rem -0.4rem 0 0; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.bcard-steps { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; min-height: 0; overflow-y: auto; }
+.bcard-step { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.8125rem; line-height: 1.35; color: var(--text-primary); }
+.bcard-step > span { min-width: 0; overflow-wrap: anywhere; }
+.bcard-tick { display: grid; place-items: center; flex: none; width: 0.95rem; height: 0.95rem; margin-top: 0.08rem; border-radius: 50%; border: 1.4px solid var(--text-tertiary); box-sizing: border-box; }
+.bcard-step.is-done .bcard-tick { background: var(--text-primary); border-color: var(--text-primary); color: var(--chat-bg); }
+.bcard-step.is-fail .bcard-tick { background: var(--state-danger); border-color: var(--state-danger); color: var(--on-color); }
+.bcard-step.is-run .bcard-tick { border-color: var(--text-secondary); border-top-color: transparent; animation: bcard-turn 0.9s linear infinite; }
+
+/* The pill the card shrinks to, and the tag it folds into when the work is over (light, and a press opens the card again). */
+.bcard-pill.is-tag { background: var(--gpt-subtle); border-color: var(--border-color); color: var(--text-secondary); }
+
+/* The cross inside the pill of a task that waits in the line. */
+.bcard-pill-cross { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; margin: 0 -0.5rem 0 0.1rem; padding-left: 0.1rem; border-left: 1px solid var(--media-control-bg); opacity: 0.8; cursor: pointer; }
+
+/* The question before a task is cancelled: a small card in the middle, a light veil, no blur. */
+.bcard-veil { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: var(--page-gutter, 1rem); background: var(--scrim-soft); }
+.bcard-dialog { width: min(20rem, 100%); padding: 1.25rem 1.1rem 1rem; border: 1px solid var(--border-color); border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); text-align: center; box-shadow: var(--shadow-lg); }
+.bcard-dialog-text { font-size: 1.0625rem; font-weight: 500; }
+.bcard-dialog-body { margin: 0.5rem 0 1.1rem; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.6; }
+.bcard-dialog-row { display: flex; gap: 0.6rem; }
+.bcard-dialog-button { flex: 1; height: 2.35rem; padding: 0 1rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+.bcard-dialog-button.is-danger { background: var(--state-danger); border-color: var(--state-danger); color: var(--on-color); }
+
+@media (hover: hover) {
+    .bcard-round:hover, .bcard-capsule:hover { border-color: var(--on-color); }
+    .bcard-back-close:hover { background: var(--hover-bg); }
+    .bcard-dialog-button:hover { background: var(--hover-bg); }
+    .bcard-dialog-button.is-danger:hover { background: var(--state-danger); opacity: 0.9; }
+}
+.bcard-capsule:active, .bcard-round:active, .bcard-pill:active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+    .bcard-face { transition: none; }
+    .bcard-spin, .bcard-step.is-run .bcard-tick { animation-duration: 2.4s; }
+}
