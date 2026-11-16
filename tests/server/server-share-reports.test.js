@@ -13,13 +13,13 @@ test('the mail says which share, what state it is in, what was written, and wher
   assert.match(mail.text, /狀態：仍有效/);
   assert.match(mail.text, /- it is rude/);
   assert.match(mail.text, new RegExp(`https://noureon.com/s/${'A'.repeat(32)}\\?review=1`));
-  assert.match(mail.text, /https:\/\/noureon.com\/admin\/shares/);
+  assert.match(mail.text, /https:\/\/noureon.com\/admin/);
   const paused = reportMailFor(row({ status: 'suspended', readers: 3 }), { appUrl: 'https://noureon.com' });
   assert.match(paused.subject, /已暫停/);
   assert.match(paused.text, /已暫停（3 位不同讀者檢舉/);
   const gone = reportMailFor(row({ code: null, status: null, title: null, mode: null }), { appUrl: 'https://noureon.com' });
   assert.match(gone.text, /已經不在了/);
-  assert.doesNotMatch(gone.text, /admin\/shares/);
+  assert.doesNotMatch(gone.text, /noureon.com\/admin/);
 });
 
 test('what a reader or an owner wrote cannot break the subject or run on', () => {
@@ -128,7 +128,7 @@ test('the mails come with an HTML version that has the mark, the words and the b
   assert.doesNotMatch(mail.html, /<img src=x|<script>/, 'what a person wrote is not markup');
   assert.match(mail.html, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;quotes&quot;/);
   assert.match(mail.html, new RegExp(`href="https://noureon.com/s/${'A'.repeat(32)}\\?review=1"`));
-  assert.match(mail.html, /href="https:\/\/noureon.com\/admin\/shares"/);
+  assert.match(mail.html, /href="https:\/\/noureon.com\/admin"/);
   assert.ok(mail.text.length > 20, 'the text version stays');
   const gone = reportMailFor(row({ code: null, status: null }), { appUrl: 'https://noureon.com' });
   assert.doesNotMatch(gone.html, /\/s\/|admin\/shares/, 'nothing to open for a share that is gone');

@@ -22,6 +22,7 @@ const expectedSections = [
   'tool-models',
   'accessibility',
   'trash',
+  'browser-agent',
   'about'
 ];
 
@@ -32,7 +33,7 @@ test('settings mobile metadata preserves section order', () => {
   assert.deepEqual([...sections].sort(), [...expectedSections].sort());
   assert.deepEqual(groups.map((group) => group.items.map((item) => item.section)), [
     ['user', 'security'],
-    ['personalization', 'memory', 'model-management', 'tool-models'],
+    ['personalization', 'memory', 'model-management', 'tool-models', 'browser-agent'],
     ['data-management', 'privacy', 'permissions', 'accessibility', 'trash'],
     ['about']
   ]);
@@ -77,6 +78,7 @@ test('settings mobile labels use injected text resolution without DOM access', (
     'memoryManagement',
     'modelManagement',
     'toolModels',
+    'baNav',
     'appSettings',
     'dataManagement',
     'privacy',

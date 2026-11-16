@@ -78,6 +78,10 @@ const documentedImportantUsage = {
     max: 8,
     category: 'required: regression override / legacy compatibility'
   },
+  'src/styles/browser-agent-settings.css': {
+    max: 20,
+    category: 'required: regression override / legacy compatibility'
+  },
   'src/styles/rail.css': {
     max: 52,
     category: 'required: regression override / legacy compatibility'

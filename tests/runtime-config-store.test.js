@@ -20,6 +20,7 @@ const expectedConfig = (defaultModelId) => ({
   sandboxNetwork: 'on',
   replyInputMode: 'steer',
   keyboardShortcuts: {},
+  browserKeepLogin: true,
   localKeyProtection: null,
   decisionModel: 'typesafe/jev-1.14',
     reduceMotion: 'system',
