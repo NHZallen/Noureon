@@ -26,6 +26,24 @@ cleanup() {
   for id in "$A" "$B" "$C" "$D"; do call DELETE "/v1/sessions/$id" >/dev/null; done
   rm -rf "$OUT"
 }
+# What is inside a cookie database (the names, the sites, how they are kept, when they expire; never a value): the way to see what a browser did to it.
+dump_cookies() { # file label
+  python3 - "$1" "$2" <<'PY' 2>&1 | sed 's/^/    /'
+import sqlite3, sys, time
+path, label = sys.argv[1], sys.argv[2]
+try:
+    db = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
+    meta = dict(db.execute("select key, value from meta").fetchall())
+    now_chrome = int((time.time() + 11644473600) * 1_000_000)
+    rows = db.execute("select host_key, name, is_persistent, expires_utc, length(encrypted_value), hex(substr(encrypted_value,1,3)), length(value) from cookies").fetchall()
+    print(f"{label}: meta {meta}; {len(rows)} cookies")
+    for host, name, persistent, expires, enc_len, enc_head, plain_len in rows[:12]:
+        left = "never" if not expires else f"{(expires - now_chrome) / 3_600_000_000:.1f} h left"
+        print(f"{label}:   {host} {name} persistent={persistent} {left} encrypted={enc_len} bytes head={enc_head} plain={plain_len}")
+except Exception as error:
+    print(f"{label}: could not read ({error})")
+PY
+}
 wait_ready() { # id
   i=0; while [ "$i" -lt 60 ]; do st=$(field "$(body "$(call GET "/v1/sessions/$1")")" state); [ "$st" = ready ] && return 0; [ "$st" = failed ] && return 1; i=$((i + 1)); sleep 2; done; return 1
 }
@@ -88,12 +106,14 @@ if printf '%s' "$t" | grep -q e2elong && printf '%s' "$t" | grep -q e2eshort; th
   info "  files of the archive that are about cookies, with sizes:"; (cd "$X" && find . \( -iname '*cookie*' -o -name 'Local State' -o -name 'Preferences' \) -type f -exec ls -l --time-style=full-iso {} \; 2>/dev/null | awk '{print "    " $5 " " $6 " " $7 " " $9}')
   info "  how the cookie values are sealed in the archive (v10 = fixed key, v11 = a key from a keyring): $(for f in $COOKIE_FILES; do grep -a -o 'v1[01]' "$f" | sort | uniq -c | tr '\n' ' '; done)"
   info "  Local State mentions os_crypt: $(grep -a -c os_crypt "$X/Local State" 2>/dev/null)"
+  for f in $COOKIE_FILES; do dump_cookies "$f" "archive"; done
   for f in $COOKIE_FILES; do info "  $(printf '%s' "$f" | sed "s#$X/##"): $(wc -c < "$f") bytes; has e2elong: $(grep -a -c e2elong "$f"); has e2eshort: $(grep -a -c e2eshort "$f"); journal beside it: $([ -e "$f-journal" ] && echo yes || echo no)"; done
   [ -z "$(docker ps -aq --filter "name=$NAME_A")" ] && [ -z "$(docker volume ls -q --filter "name=noureon-profile-$A")" ] && pass "no container and no volume of it is left" || bad "something of the first browser is left"
   r=$(call POST /v1/sessions --json "{\"sessionId\":\"$D\",\"userId\":\"e2e-user-a\",\"screen\":{},\"hasProfile\":true}"); [ "$(field "$(body "$r")" state)" = awaiting_profile ] && pass "a new browser waits for the login state" || bad "unexpected: $r"
   r=$(call PUT "/v1/sessions/$D/profile" --file "$OUT/profile.tar.gz"); [ "$(status "$r")" = 202 ] && pass "the login state was sent" || bad "could not send it: $r"
   wait_ready "$D" && pass "the second browser is ready" || bad "the second browser did not start"
   # And in the second browser's own folder, as the browser found it (and what its log says about cookies, the database, and the key):
+  docker cp "noureon-browser-$D:/home/neko/.config/chromium/Default/Cookies" "$OUT/second-Cookies" >/dev/null 2>&1 && dump_cookies "$OUT/second-Cookies" "second browser"
   info "  second browser, cookie files: $(docker exec "noureon-browser-$D" sh -c "cd /home/neko/.config/chromium && ls -l --time-style=full-iso Default/Cookies* 2>&1 | awk '{print \$5, \$6, \$7, \$9}'" | tr '\n' ';')"
   info "  second browser, the folder as found: $(docker exec "noureon-browser-$D" sh -c "cd /home/neko/.config/chromium && ls -l --time-style=full-iso e2e-marker 'Local State' Default/Preferences Default/Cookies 2>&1 | awk '{print \$5, \$7, \$9, \$10}'" | tr '\n' ';')"
   info "  second browser, what is in /var/log/neko: $(docker exec "noureon-browser-$D" sh -c "ls /var/log/neko 2>&1 | tr '\n' ' '; echo; tail -5 /var/log/neko/chromium.log 2>&1 | cut -c1-200" | tr '\n' '|')"
