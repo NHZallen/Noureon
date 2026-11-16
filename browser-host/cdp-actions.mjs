@@ -43,7 +43,17 @@ async function connect(devtools) {
   return { send, events, close: () => socket.close() };
 }
 
-const pagesOf = async (cdp) => (await cdp.send('Target.getTargets')).targetInfos.filter((t) => t.type === 'page');
+// The browser's own windows (the address bar's drop-down, the tab strip, DevTools…) are also "page" targets; they are not what a person sees as a tab, and the
+// policy turns their documents into error pages. Seen on the real machine: pages were opened in the drop-down of the address bar, and the next action looked at another target.
+// Real tabs: any web page, about:blank, the new tab page, and the error page of a tab that could not load.
+export function isUserPage(info) {
+  if (!info || info.type !== 'page') return false;
+  const url = String(info.url || '');
+  if (/^(chrome-untrusted|devtools|chrome-extension):/.test(url)) return false;
+  if (/^chrome:\/\//.test(url)) return /^chrome:\/\/(newtab|new-tab-page)(\/|$)/.test(url);
+  return true;
+}
+const pagesOf = async (cdp) => (await cdp.send('Target.getTargets')).targetInfos.filter(isUserPage);
 async function pickTab(cdp, tabId) {
   const pages = await pagesOf(cdp);
   if (tabId) { const found = pages.find((p) => p.targetId === tabId); if (!found) throw new Error('no such tab'); return found.targetId; }

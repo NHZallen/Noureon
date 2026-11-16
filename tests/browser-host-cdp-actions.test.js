@@ -1,7 +1,7 @@
 // Which addresses the browser may be sent to (browser-host/cdp-actions.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkNavigableUrl } from '../browser-host/cdp-actions.mjs';
+import { checkNavigableUrl, isUserPage } from '../browser-host/cdp-actions.mjs';
 
 test('web pages are allowed and normalised', () => {
   assert.equal(checkNavigableUrl('https://example.com/a?b=1#c'), 'https://example.com/a?b=1#c');
@@ -25,4 +25,13 @@ test('addresses with a password, control characters, spaces inside, or absurd le
   for (const bad of ['https://user:pass@example.com/', 'https://user@example.com/', 'https://exa mple.com/', 'https://example.com/\nx', 'https://example.com/\u0000', `https://example.com/${'a'.repeat(5000)}`, '', null, 42, undefined]) {
     assert.throws(() => checkNavigableUrl(bad), /bad url|not allowed/, String(bad).slice(0, 40));
   }
+});
+
+test('the browser\'s own windows are not tabs; real pages, the new tab page and an error page are', () => {
+  const page = (url) => ({ type: 'page', url, targetId: 'x' });
+  for (const url of ['https://example.com/', 'http://127.0.0.1:8000/a', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/', 'chrome-error://chromewebdata/']) assert.equal(isUserPage(page(url)), true, url);
+  for (const url of ['chrome://omnibox-popup.top-chrome/', 'chrome://tab-strip.top-chrome/', 'chrome://sandbox/', 'chrome-untrusted://top-chrome/', 'devtools://devtools/bundled/devtools_app.html', 'chrome-extension://abc/page.html']) assert.equal(isUserPage(page(url)), false, url);
+  assert.equal(isUserPage({ type: 'service_worker', url: 'https://example.com/sw.js' }), false);
+  assert.equal(isUserPage({ type: 'background_page', url: 'https://example.com/' }), false);
+  assert.equal(isUserPage(null), false);
 });

@@ -36,7 +36,7 @@ NAME_A="noureon-browser-$A"
 
 echo "== The service"
 r=$(call GET /v1/health); [ "$(status "$r")" = 200 ] && pass "the service answers a signed health check: $(body "$r")" || { bad "the service does not answer: $r"; exit 1; }
-r=$(BROWSER_HOST_SECRET="$(printf 'x%.0s' $(seq 1 40))" node "$SVC/call.mjs" GET /v1/health 2>&1); [ "$(status "$r")" = 401 ] && pass "a request signed with the wrong secret is refused (401)" || bad "a wrong secret was not refused: $r"
+r=$(BROWSER_HOST_SECRET="$(printf 'x%.0s' $(seq 1 40))" BROWSER_HOST_BIND="${BROWSER_HOST_BIND:-172.29.0.1}" BROWSER_HOST_PORT="${BROWSER_HOST_PORT:-40010}" node "$SVC/call.mjs" GET /v1/health 2>&1); [ "$(status "$r")" = 401 ] && pass "a request signed with the wrong secret is refused (401)" || bad "a wrong secret was not refused: $r"
 
 echo; echo "== A browser starts, opens a page, and shows it"
 r=$(call POST /v1/sessions --json "{\"sessionId\":\"$A\",\"userId\":\"e2e-user-a\",\"screen\":{\"w\":1024,\"h\":768}}")
@@ -44,16 +44,17 @@ r=$(call POST /v1/sessions --json "{\"sessionId\":\"$A\",\"userId\":\"e2e-user-a
 wait_ready "$A" && pass "it is ready" || { bad "it did not become ready: $(body "$(call GET "/v1/sessions/$A")")"; docker logs "$NAME_A" 2>&1 | tail -8; exit 1; }
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"https://example.com/"}'); [ "$(status "$r")" = 200 ] && pass "a page opens through the egress proxy: $(field "$(body "$r")" title)" || bad "could not open https://example.com/ : $r"
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"screenshot"}' --out "$OUT/shot.png"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/shot.png" ] && pass "a screenshot came back ($(wc -c < "$OUT/shot.png") bytes, $(file -b "$OUT/shot.png" | cut -c1-40))" || bad "no screenshot: $r"
+W=$(file -b "$OUT/shot.png" | sed -n 's/.*, \([0-9][0-9]*\) x \([0-9][0-9]*\).*/\1/p'); [ "${W:-0}" -ge 900 ] && pass "the screenshot is of the whole page area (width $W)" || bad "the screenshot is only ${W:-?} pixels wide: it may be of another window of the browser, not the tab"
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"chrome://sandbox"}'); [ "$(status "$r")" = 400 ] && pass "an internal page is refused (400)" || bad "chrome://sandbox was not refused: $r"
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"snapshot","maxChars":500}'); printf '%s' "$r" | grep -q '"role":"link"' && pass "snapshot lists the things on the page that can be acted on" || bad "snapshot found no link on https://example.com/ : $(printf '%s' "$r" | cut -c1-150)"
-r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"tabs","op":"list"}'); [ "$(status "$r")" = 200 ] && pass "tabs: $(body "$r" | cut -c1-120)" || bad "tabs failed: $r"
+r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"tabs","op":"list"}'); [ "$(status "$r")" = 200 ] && pass "tabs: $(body "$r" | cut -c1-300)" || bad "tabs failed: $r"
 
 echo; echo "== The sandbox, DevTools, and what the container has (design 10.6 items 1, 2, 7)"
 out=$(sidecar "$A" "$EXP/check-sandbox.mjs"); printf '%s' "$out" | grep -q "adequately sandboxed" && ! printf '%s' "$out" | grep -q "NOT adequately" && pass "chrome://sandbox says: adequately sandboxed" || { bad "the sandbox is not confirmed"; printf '%s\n' "$out" | sed 's/^/        /' | head -12; }
 if out=$(sidecar "$A" "$SVC/check-origin.mjs"); then pass "a page cannot talk to DevTools (a foreign Origin is refused, the controller is let in)"; else bad "DevTools can be reached from a page"; printf '%s\n' "$out" | sed 's/^/        /'; fi
 n=$(docker exec "$NAME_A" sh -c "ps -eo args | grep -c '[n]o-sandbox'" 2>/dev/null); [ "${n:-1}" = 0 ] && pass "no process of the browser has --no-sandbox" || bad "--no-sandbox is on a command line ($n)"
 users=$(docker exec "$NAME_A" sh -c "ps -eo user:12,args | grep '[u]sr/lib/chromium/chromium' | awk '{print \$1}' | sort -u | tr '\n' ' '" 2>/dev/null); [ "$users" = "neko " ] && pass "Chromium runs as the user neko, not root" || bad "Chromium runs as: $users"
-caps=$(docker inspect -f '{{range .HostConfig.CapAdd}}{{.}} {{end}}' "$NAME_A" | tr ' ' '\n' | sort | tr '\n' ' ')
+caps=$(docker inspect -f '{{range .HostConfig.CapAdd}}{{.}} {{end}}' "$NAME_A" | sed 's/CAP_//g' | tr ' ' '\n' | grep -v '^$' | sort | tr '\n' ' ')
 [ "$caps" = "CHOWN DAC_OVERRIDE FOWNER KILL SETGID SETUID " ] && pass "capabilities: all dropped, only $caps added back" || bad "capabilities are: $caps"
 [ "$(docker inspect -f '{{.HostConfig.Privileged}}' "$NAME_A")" = false ] && pass "not privileged" || bad "the container is privileged"
 docker inspect -f '{{.HostConfig.SecurityOpt}}' "$NAME_A" | grep -q no-new-privileges && pass "no-new-privileges is on" || bad "no-new-privileges is missing"
