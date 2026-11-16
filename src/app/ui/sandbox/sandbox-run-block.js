@@ -162,6 +162,17 @@ export function normalizeConnectors(connectors) {
   return [...new Set((Array.isArray(connectors) ? connectors : []).map((name) => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean))].slice(0, MAX_CONNECTORS);
 }
 
+// What the browser agent did in a reply (server/executor.js): the steps as the card showed them and how it ended. The message draws the tag "Done" from it.
+const BROWSER_ENDS = ['done', 'failed', 'cancelled'];
+const oneLine = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
+export function normalizeBrowserRecord(browser) {
+  if (!browser || typeof browser !== 'object') return null;
+  const steps = (Array.isArray(browser.steps) ? browser.steps : []).slice(0, 80)
+    .map((step) => ({ action: oneLine(step?.action, 20), domain: oneLine(step?.domain, 120), label: oneLine(step?.label, 160) }))
+    .filter((step) => step.label);
+  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps } : null;
+}
+
 const COUNCIL_STAGES = ['translation', 'firstRound', 'deliberation', 'synthesis'];
 const MEMBER_STATUSES = ['done', 'failed', 'exited', 'skipped', 'running', 'pending'];
 const count = (value) => Math.max(0, Math.min(100_000_000, Math.round(Number(value) || 0)));
@@ -207,6 +218,7 @@ export function normalizeSandboxRun(run = {}) {
     ...(run.segment ? { segment: true } : {}),
     // The pictures a text model looked at, asked about and drew (data/picture-steps.js).
     ...(normalizePictureSteps(run.pictures).length ? { pictures: normalizePictureSteps(run.pictures) } : {}),
+    ...(normalizeBrowserRecord(run.browser) ? { browser: normalizeBrowserRecord(run.browser) } : {}),
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
     ...(run.thought && run.thoughtKind === 'summary' ? { thoughtKind: 'summary' } : {}),
     ...(run.thought && run.thoughtInterrupted ? { thoughtInterrupted: true } : {}),

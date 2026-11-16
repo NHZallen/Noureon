@@ -498,3 +498,42 @@ test('the card panel: a refused send says so and can be tried again; cancel goes
   d.buttons()[0].click();
   assert.equal(d.answers.length, 1);
 });
+
+test('until the first picture arrives the card says it is loading; with the first frame the live picture takes its place', () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    const source = { mount(el) { const video = el.ownerDocument.createElement('video'); el.append(video); }, mountLens() {}, destroy() {}, input: {} };
+    card.setLive({ source, controller: {}, tabs: [] });
+    assert.equal(q('.bcard-screen').hidden, false, 'not a black card');
+    assert.ok(q('.bcard-screen').classList.contains('is-loading'));
+    assert.equal(q('.bcard-site').textContent, 'Loading the browser');
+    q('.bl-picture video').dispatchEvent(new window.Event('playing'));
+    assert.equal(q('.bcard-screen').hidden, true);
+    assert.equal(q('.bcard-screen').classList.contains('is-loading'), false);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('a saved message draws the tag of the browser work from its record: done, cancelled, failed; a press opens the card and the capsule turns it to the steps', async () => {
+  const { browserTagElement } = await import('../src/app/ui/sandbox/browser-tag.js');
+  for (const [end, expectPhase] of [['done', 'done'], ['cancelled', 'cancelled'], ['failed', 'failed']]) {
+    const window = new Window();
+    const { document } = window;
+    try {
+      const host = browserTagElement(document, { end, steps: [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }, { action: 'click', domain: 'acme.com', label: 'Working in acme.com' }] }, { language: 'en' });
+      document.body.append(host);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const root = host.querySelector('.bcard');
+      assert.equal(root.dataset.phase, expectPhase);
+      assert.equal(root.dataset.view, 'pill', 'it is folded into its tag');
+      host.querySelector('.bcard-pill').click();
+      assert.equal(root.dataset.view, 'front');
+      host.querySelector('.bcard-capsule').click();
+      assert.equal(host.querySelectorAll('.bcard-step').length, 2);
+    } finally {
+      window.happyDOM.abort();
+    }
+  }
+});

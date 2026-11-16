@@ -175,7 +175,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     pillText.textContent = label;
     pill.classList.toggle('is-tag', phase === 'done' || phase === 'cancelled');
     pill.setAttribute('aria-label', label);
-    screenSite.textContent = domain;
+    screenSite.textContent = screen.classList.contains('is-loading') ? t('browserLoading') : domain;
     // Once it is over there is no task to cancel: only the shrink button stays (and a queue can be left, but not shrunk).
     cancelButton.hidden = phase === 'done' || phase === 'failed' || phase === 'cancelled';
     list.replaceChildren(...steps.map((step) => {
@@ -370,14 +370,24 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       card.style.aspectRatio = '';
       return;
     }
-    // The screen of the card is the live picture; the place holder is not needed.
-    screen.hidden = true;
     liveView = createLiveView({ document, host: front, ratio, source: live.source });
     liveView.element.classList.add('bcard-live');
     liveView.element.style.aspectRatio = '';
     liveView.element.addEventListener('click', () => { if (view === 'front') openFocus(); });
     front.prepend(liveView.element);
     card.style.aspectRatio = cssRatio(ratio);
+    // Until the first picture arrives the card says it is loading (a black card for seconds looks broken); the live picture takes its place with the first frame.
+    const video = liveView.element.querySelector('video');
+    if (video && video.readyState < 2) {
+      screen.hidden = false;
+      screen.classList.add('is-loading');
+      screenSite.textContent = t('browserLoading');
+      const ready = () => { screen.hidden = true; screen.classList.remove('is-loading'); render(); };
+      video.addEventListener('loadeddata', ready, { once: true });
+      video.addEventListener('playing', ready, { once: true });
+    } else {
+      screen.hidden = true;
+    }
   };
 
   render();
@@ -387,6 +397,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     watch(fn) { watchers.push(fn); fn({ phase, view, focus: Boolean(focus) }); },
     complete,
     cancel,
+    /** Folds the card into its pill or tag (a saved message draws it so). */
+    fold() { setView('pill'); },
     /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */
     setLive(next) {
       live = next || null;

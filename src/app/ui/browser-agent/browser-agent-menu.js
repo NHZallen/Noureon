@@ -85,7 +85,7 @@ export function startBrowserAgentMenu({ document, configAccess, i18n, getActiveC
   const text = (key) => String((i18n[language()] || i18n['zh-TW'] || {})[key] ?? key);
   const menu = createBrowserAgentMenu({ document, getActiveConversation, normalizeConversationModel, text, client, showNotification });
   // On the document and in the capture phase, so the row is ready before anything that opens the menu or the sheet runs (the sheet of a phone stops the press at the container of the button, so a listener on the button itself never hears it).
-  document.addEventListener('click', (event) => { if (event.target?.closest?.('#add-file-btn')) menu.sync(); }, true);
+  document.addEventListener('click', (event) => { if (event.target?.closest?.('[id="add-file-btn"]')) menu.sync(); }, true);
   menu.sync();
   return menu;
 }

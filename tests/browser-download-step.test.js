@@ -24,3 +24,14 @@ test('a download step is worded as a download and a code step keeps its words', 
 test('the five languages word it', () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) assert.match(sandboxText(language, 'browserDownloaded', { title: 'x.pdf' }), /x\.pdf/, language);
 });
+
+test('the record of what the browser did survives the saved text, and a message with only that still draws its tag', async () => {
+  const { formatSandboxRunBlock, liftSandboxRunBlock } = await import('../src/app/ui/sandbox/sandbox-run-block.js');
+  const saved = formatSandboxRunBlock({ status: 'done', elapsedMs: 3000, steps: [], browser: { end: 'done', steps: [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }, { action: 'x', domain: '', label: '' }] } });
+  const { run: lifted } = liftSandboxRunBlock(`${saved}Done.`);
+  assert.deepEqual(lifted.browser, { end: 'done', steps: [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }] }, 'a step without words is dropped');
+  const window = new Window();
+  const element = createSandboxRunElement(window.document, lifted, { language: 'en' });
+  assert.ok(element.querySelector('.bcard-saved'), 'the tag has its place under the line of the process');
+  window.happyDOM.abort();
+});

@@ -130,6 +130,15 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   });
   const downloadSteps = () => downloaded().map((file) => ({ title: file.name, code: '', stdout: '', stderr: '', files: [{ name: file.name, size: file.size, id: file.id }], elapsedMs: 0 }));
   const downloadParts = () => downloaded().map((file) => ({ sandboxFile: { id: file.id, name: file.name, mimeType: file.mimeType || 'application/octet-stream', size: file.size, data: file.data } }));
+  // What the browser agent did, kept with the reply (the page draws the tag "Done" from it once the live card is gone): the steps as the card showed them, and how it ended.
+  const browserTrace = [];
+  let browserEnded = '';
+  const noteBrowser = (event) => {
+    if (event?.type !== 'browser') return;
+    if (event.event === 'call' && browserTrace.length < 80) browserTrace.push({ action: String(event.action || '').slice(0, 20), domain: String(event.domain || '').slice(0, 120), label: String(event.label || '').slice(0, 160) });
+    if (event.event === 'failed') browserEnded = 'failed';
+  };
+  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice() } : null);
   const record = (status, { downloads = status !== 'running' } = {}) => ({
     status,
     steps: downloads ? downloadSteps() : [],
@@ -140,6 +149,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(usedTools.length ? { tools: usedTools.slice(0, 20) } : {}),
     ...(usedWeb.length ? { web: usedWeb } : {}),
+    ...(browserTrace.length ? { browser: browserRecord() } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
@@ -147,7 +157,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // (After a cut, only what came after it: the earlier message keeps its own.)
   let pictureBase = 0;
   const pictureSteps = () => (imageLoader?.record || []).slice(pictureBase);
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || usedTools.length || pictureSteps().length || (status !== 'running' && downloaded().length) ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || usedTools.length || browserTrace.length || pictureSteps().length || (status !== 'running' && downloaded().length) ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
@@ -436,8 +446,11 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         if (browserControl) browserControl.answer = browserAsker.answer;
         browserLoader = createBrowserLoader({
           sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, files, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions, keepLogin: spec.tools.browserKeepLogin !== false, inputFiles: () => collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
-          emit: (event) => emitEvent(event)
+          emit: (event) => { noteBrowser(event); emitEvent(event); }
         });
+        // The rows of the steps come from the loader (what the card shows): the record keeps the same ones.
+        const stepEventOf = browserLoader.stepEvent;
+        browserLoader.stepEvent = (call, ...rest) => { const event = stepEventOf(call, ...rest); noteBrowser(event); return event; };
       }
     } catch (error) {
       onProblem('browser_failed', error);
@@ -797,6 +810,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (usedTools.length || run.tools?.length) run.tools = [...(run.tools || []), ...usedTools].slice(0, 20);
     if (usedWeb.length && !run.web?.length) run.web = usedWeb;
     if (pictureSteps().length) run.pictures = pictureSteps();
+    if (browserTrace.length) run.browser = browserRecord();
     // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
     if (stepBase > 0) run.steps = run.steps.slice(stepBase);
     // The files the browser agent downloaded come after the steps of the code.

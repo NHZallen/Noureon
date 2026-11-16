@@ -12,6 +12,7 @@ import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } fr
 import { RUN_STATUS } from './sandbox-run-block.js';
 import { appendMiniRefs, pictureStepRow } from './picture-steps-view.js';
 import { councilTimelineHTML } from '../council/council-timeline.js';
+import { browserTagElement } from './browser-tag.js';
 
 const element = (document, tag, className, text) => {
   const node = document.createElement(tag);
@@ -207,8 +208,14 @@ function renderReplyThinking(document, run, language) {
   return animateDetails(details);
 }
 
-// A finished run (from the saved text) or a fallback notice.
-export function createSandboxRunElement(document, run, { language = 'zh-TW' } = {}) {
+// A finished run (from the saved text) or a fallback notice; what the browser agent did comes last, as its tag.
+export function createSandboxRunElement(document, run, options = {}) {
+  const container = createRunBody(document, run, options);
+  if (container && run.browser) container.append(browserTagElement(document, run.browser, { language: options.language || 'zh-TW' }));
+  return container;
+}
+
+function createRunBody(document, run, { language = 'zh-TW' } = {}) {
   if (!run) return null;
   const container = element(document, 'div', 'sandbox-run');
   if (run.fallback) {
