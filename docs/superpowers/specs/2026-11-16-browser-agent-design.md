@@ -401,6 +401,33 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 所有表與函式的 `supabase/migrations/` 檔先套在測試專案，Allen 驗過才套正式專案。Sun 負責畫面與內容（預覽卡、藥丸、專注模式、接管介面、設定頁、邀請碼畫面、付款與登入面板、文字），Allen 負責伺服器與 browser-host、資料庫、金鑰與部署、安全。
 
+### 12.2 P3c 真機調查結果（Hark，2026-11-17，neko 3.2.0，映像 digest `sha256:270face8…`；原始輸出在 Allen 手上的合併檔）
+
+**443 與網域**：80／443 是 Coolify 的 Traefik（v3.7，檔案型動態設定資料夾 `/data/coolify/proxy/dynamic/`，憑證 resolver `letsencrypt`、HTTP-01）。**方案 A 實測成功**：加一個動態設定檔把 `live-staging.noureon.com` 轉到 `http://172.29.0.1:40011`（Traefik 容器連得到這個位址，已用 40010 的 401 回應證明），Let's Encrypt 憑證自動簽發（到期 2027-02-14）、TLS 1.3、h2、WebSocket 升級 101 成功；路徑 `/s/<128 位元隨機>/…` 以外一律 404；neko 的 8080 沒有對外（`docker port` 空）；Coolify 前後都回 200。Hark 已全部還原（刪了動態設定檔、測試代理與容器）。
+
+**neko 3.2.0 的介面（實測，不是猜的）**
+- REST 基底 `/api`，標頭 `Authorization: Bearer <token>`。`POST /api/login {username,password}` → `{id, token(64 字元), profile, state}`；`GET /api/whoami`。
+- **一次性憑證**：用 `NEKO_MEMBER_PROVIDER=file`（`NEKO_MEMBER_FILE_PATH=/tmp/neko-members.json`）加 `NEKO_SESSION_API_TOKEN=<每個工作階段隨機>`，主機端用 api_token 呼叫 `POST /api/members {username,password,profile}` 建臨時成員、`DELETE /api/members/{id}`（204）刪掉；**刪除後 WebSocket 在約 10 毫秒內被斷線（`system/disconnect: session deleted`）、舊 token 回 401、再登入回 401**。`DELETE /api/sessions/{id}` 也能踢人。`GET /api/members`、`/api/sessions` 看得到誰在。
+- **WebSocket** `wss://…/api/ws?token=<session token>`；事件格式 `{"event":"…","payload":{…}}`。開頭 `system/init`（含 `screen_size`、`webrtc.videos`）。
+- **信令**：客戶端送 `signal/request {video:{selector?},audio:{disabled:true}}` → 伺服器回 `signal/provide {sdp, iceservers, video}`（伺服器先 offer）→ 客戶端回 `signal/answer {sdp}`、`signal/candidate`；之後客戶端要重新協商時送 `signal/offer`。資料通道叫 `data`（二進位游標資料，可不理）。
+- **控制訊息（WebSocket，與 xdotool 基準對照過）**：`control/move {x,y}`（**虛擬螢幕像素**，超出會夾在 0…W-1、0…H-1）、`control/buttondown|buttonup {code:1 左｜3 右}`、`control/scroll {delta_x,delta_y,control_key}`（**delta_y 負＝往下捲，1 單位＝1 格滾輪＝120 的 DOM wheel**；正＝往上）、`control/keydown|keyup {keysym}`（X11 keysym：a=97、Shift=65505、Ctrl=65507、Enter=65293）、`control/paste {text}`（設剪貼簿並按 Ctrl+V，**中文可用**）、`clipboard/set {text}`、`control/request`／`control/release`。**大寫字母直接送 keysym（例如 90）打不出來（變成小寫）**，所以：可印字元一律用 `control/paste`，具名鍵（Enter、Esc、Tab、方向鍵、Backspace…）才送 keysym。
+- **誰能控制**：預設設定下沒接管的人輸入無效、第二個人的輸入被擋、只會對目前的控制者發出 `control/request`。**我們的做法：`locked_controls: true`（`POST /api/room/settings`），模型用 DevTools 操作；使用者接管時主機端呼叫 `POST /api/room/control/give/{sessionId}`、歸還時 `POST /api/room/control/reset`（都用 api_token）**。上鎖後使用者自己發 `control/request` 無效、輸入被擋（已實測）。
+- **畫面大小**：`POST /api/room/screen {width,height,rate}`（api_token）在約 0.1 秒內回 200，觀看者收到 `screen/updated`、畫面尺寸在同一條連線上改變（約 0.1 秒，**不重連**），Chromium 視窗（最大化）跟著、DevTools 截圖尺寸跟著新大小；**容器沒有重啟、行程不變**。1280×720、768×1024 實測都可（直式不在 neko 列出的清單內但被接受）。`GET /api/room/screen/configurations` 可列清單。
+- **座標**：頁面（`<video>` 元素、等比縮放）換虛擬螢幕像素 `x = floor(u·W)`、`y = floor(v·H)`，最大誤差 0.5 像素（含 letterbox 與各種元素大小）。Chromium 的頁面座標比螢幕座標少約 87 像素（分頁列＋網址列）；游標疊加要把頁面座標加上這個高度（用 `outerHeight − innerHeight` 量，不要寫死）。
+
+**畫質與只在有人看時才編碼**
+- 預設只有一條 VP8 `main`。要兩檔：`NEKO_CAPTURE_VIDEO_CODEC=h264`、`NEKO_CAPTURE_VIDEO_IDS="hq lq"`（**用空白分隔，逗號會變成一條名叫 `hq,lq` 的管線**）、`NEKO_CAPTURE_VIDEO_PIPELINES=<JSON>`（hq：x264enc 4 Mbps、20 fps、veryfast；lq：先 videoscale 到 640×480、1.2 Mbps、15 fps、ultrafast）。客戶端用 `signal/request {video:{selector:{id:'lq',type:'exact'}}}` 選，**連線中用 `signal/video {selector:{id:'hq',type:'exact'}}` 即時切換**（約 0.05 秒、不重連、畫面大小跟著管線變）。沒指定時用第一個（`hq`，不是 `lq`）。
+- **沒人看時管線真的會被拆掉（log：`destroying pipeline`）**：容器無人觀看且頁面靜止約 4%（1 核＝100%）；頁面捲動（`drive.mjs`）無人看約 48%。一個觀看者：`lq` 靜止 44%／捲動 93%；`hq` 靜止 111%／捲動 142%；兩個觀看者（一 lq 一 hq）222%；兩個都看 `hq` 約 205%（共用一條管線但每個觀看者仍有成本）。頻寬：`lq` 約 1.1–1.3 Mbps、`hq` 靜止約 0.25 Mbps、捲動時 3.5–4.9 Mbps。有 4 次左右超過 300 毫秒的卡頓（兩個觀看者時較多）。
+- **注意**：`lq` 現在固定縮成 640×480，換成 16:9 或直式會變形；要改成只指定寬度的 videoscale（讓高度跟著比例），**這個要請 Hark 在真機驗**（待辦）。
+- 「一份畫面畫兩份」（主畫面＋放大鏡）：neko 內建客戶端只把 `streams[0]` 給一個 `<video>`；我們自己的客戶端用同一個 `MediaStream` 設給兩個 `<video>` 是瀏覽器標準做法，**但沒有在真的瀏覽器裡驗過**。
+
+**UDP／TCP 連接埠與同時多個工作階段**
+- 用 `NEKO_WEBRTC_UDPMUX=<連接埠>`（單一連接埠多工，取代 EPR）；`NEKO_WEBRTC_NAT1TO1=<公開 IP>` 讓候選位址變成公開 IP；**再加 `NEKO_WEBRTC_TCPMUX=<同一個連接埠>` 就有 TCP 備援**（候選有 `tcptype passive`）。每個瀏覽器容器一個連接埠（兩個同時：例如 52000、52001），UDP 與 TCP 都要對外。容器要 `-p <連接埠>:<連接埠>/udp -p <連接埠>:<連接埠>/tcp` 發佈（Hark 沒發佈，所以**從外面真的連上這件事還沒驗**）。
+- 主機 INPUT 預設 ACCEPT、`ufw` 未啟用，所以主機防火牆那一半不用動；Contabo 後台防火牆要 Allen 開。
+- 容器出不去，所以 neko 預設的 STUN（`stun.l.google.com`）只會逾時警告；後端的 STUN 設空、前端（使用者的瀏覽器）才需要。
+
+**要記的坑**：neko 容器的 `--memory 2g`、`--cap-drop=ALL` 那組限制照舊，測過 neko 正常；容器內 `NEKO_DESKTOP_SCREEN=1024x768@20`。
+
 ## 13. 建置時要驗證的事（沒有證據，不要當成已知）
 
 1. neko 怎麼給**單一工作階段、一次性**的存取憑證，以及怎麼嵌進我們的頁面（iframe 或自己的前端）；
