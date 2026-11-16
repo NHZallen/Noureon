@@ -66,6 +66,25 @@
 }
 .bcard-capsule:active, .bcard-round:active, .bcard-pill:active { transform: scale(0.97); }
 
+/* The panel that asks the person something (a confirmation, how to log in, a code): it takes the place of the card (browser-panels.js). */
+.bcard-panel { width: 100%; border: 1px solid var(--border-color); border-radius: 1.1rem; background: var(--surface-muted); overflow: hidden; }
+.bpanel { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.1rem 1rem 0.9rem; }
+.bpanel-title { font-size: 1.0625rem; font-weight: 500; color: var(--text-primary); }
+.bpanel-site { font-size: 0.8125rem; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bpanel-summary { padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: var(--modal-bg); color: var(--text-primary); font-size: 0.8125rem; line-height: 1.55; overflow-wrap: anywhere; }
+.bpanel-row { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+.bpanel-button { flex: 1; height: 2.5rem; padding: 0 1rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.875rem; font-weight: 400; cursor: pointer; }
+.bpanel-button.is-primary { background: var(--gpt-primary-action-bg); border-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.bpanel-button.is-danger { background: var(--state-danger); border-color: var(--state-danger); color: var(--on-color); }
+.bpanel-button:disabled { opacity: 0.5; cursor: default; }
+.bpanel-hint { font-size: 0.75rem; color: var(--text-tertiary); text-align: center; }
+.bpanel.is-sent .bpanel-hint { visibility: hidden; }
+.bcard-ask-open { align-self: flex-start; margin-top: 0.5rem; height: 2.25rem; padding: 0 1rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+.bcard-ask-open:active, .bpanel-button:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .bpanel-button:hover:not(.is-primary), .bcard-ask-open:hover { background: var(--hover-bg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .bcard-face { transition: none; }
     .bcard-spin, .bcard-step.is-run .bcard-tick { animation-duration: 2.4s; }

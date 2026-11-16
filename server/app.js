@@ -303,6 +303,18 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
+      if (runPath && request.method === 'POST' && runPath[2] === '/browser') {
+        // The person's answer to what the browser agent asks: { askId, answer } (a confirmation, how to log in, a code; the answer may hold a password, which is never logged).
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 8192);
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !body?.answer || typeof body.answer !== 'object') throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        const result = await runs.answerBrowser({ userId: user.id, runId: runPath[1], askId: body.askId, answer: body.answer });
+        if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+        send(response, 200, { ok: true, answered: result.answered }, origin);
+        status = 200;
+        return;
+      }
       if (runPath && request.method === 'POST' && runPath[2] === '/image') {
         // The person's answer to a question a text model's picture tool asks: { askId, answer } ('once', 'always' or 'deny' to whether it may draw).
         const user = await authenticate(request);

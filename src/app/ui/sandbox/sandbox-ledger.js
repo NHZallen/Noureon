@@ -27,7 +27,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null, onBrowserCancel = null, onBrowserLive = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null, onBrowserCancel = null, onBrowserLive = null, onBrowserAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -93,7 +93,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // The browser the model works: one card in the conversation under the line of the steps (browser-card.js), loaded when the first event comes.
   let browserCard = null;
   const browserEvent = (event) => {
-    browserCard = (browserCard || import('./browser-card.js').then(({ createBrowserCard }) => createBrowserCard({ document, host: askCardHost(), language, onCancel: onBrowserCancel })));
+    browserCard = (browserCard || import('./browser-card.js').then(({ createBrowserCard }) => createBrowserCard({ document, host: askCardHost(), language, onCancel: onBrowserCancel, onAnswer: onBrowserAnswer })));
     // The live screen is not a step: the page connects to it (what the connector does is up to the owner of the reply).
     if (event.event === 'live') { browserCard.then((card) => onBrowserLive?.(card, event.sessionId)).catch(() => {}); return; }
     browserCard.then((card) => card.handle(event)).catch(() => {});

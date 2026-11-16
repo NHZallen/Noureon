@@ -297,3 +297,38 @@ test('on a computer the person who has the browser points at the screen itself: 
     window.happyDOM.abort();
   }
 });
+
+test('a question of the server takes the place of the card; the answer goes out once; the server saying it is over takes the panel away', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push([id, payload]) });
+  w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'shop.example', label: 'x' });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'confirm', action: 'payment', domain: 'shop.example', summary: 'Pay 12 dollars' });
+  const root = w.card.element;
+  assert.equal(root.querySelector('.bcard-card').hidden, true);
+  assert.equal(root.querySelector('.bcard-panel').hidden, false);
+  assert.match(root.querySelector('.bpanel-summary').textContent, /Pay 12 dollars/);
+  assert.match(root.querySelector('.bcard-text').textContent, /確認|OK/);
+  const [cancel, confirm] = root.querySelectorAll('.bpanel-button');
+  confirm.click(); confirm.click(); cancel.click();
+  assert.deepEqual(answers, [['ask-1', { decision: 'confirm' }]]);
+  w.card.handle({ type: 'browser', event: 'answer', id: 'ask-1', kind: 'confirm', decision: 'confirm' });
+  assert.equal(root.querySelector('.bcard-card').hidden, false);
+  assert.equal(root.querySelector('.bcard-panel').hidden, true);
+});
+
+test('a question while the card is a pill: the pill says it needs you and a button opens the question; deleting is red; a kind that is not known leaves the card alone', () => {
+  const w = make();
+  w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'a.example', label: 'x' });
+  w.card.element.querySelector('.bcard-round').click(); // to a pill
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-2', kind: 'confirm', action: 'delete', domain: 'a.example', summary: 'Delete the file' });
+  const root = w.card.element;
+  assert.equal(root.querySelector('.bcard-pill').hidden, false);
+  assert.equal(root.querySelector('.bcard-ask-open').hidden, false);
+  assert.ok(root.querySelector('.bcard-pill .bcard-icon.is-help'), 'the yellow triangle');
+  root.querySelector('.bcard-ask-open').click();
+  assert.equal(root.querySelector('.bcard-panel').hidden, false);
+  assert.ok(root.querySelector('.bpanel-button.is-danger'));
+  const w2 = make();
+  w2.card.handle({ type: 'browser', event: 'ask', id: 'ask-3', kind: 'unknown-kind' });
+  assert.equal(w2.card.element.querySelector('.bcard-panel').hidden, true);
+});

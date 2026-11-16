@@ -419,6 +419,8 @@ export function createServerReply({
     answerConnector: (askId, decision) => request('POST', `/v1/runs/${runId}/connector`, { body: JSON.stringify({ askId, decision }) }),
     // The person's answer to a question a text model's picture tool asks (whether it may draw): 'once', 'always' or 'deny'.
     answerImage: (askId, answer) => request('POST', `/v1/runs/${runId}/image`, { body: JSON.stringify({ askId, answer }) }),
+    // The person's answer to what the browser agent asks (a confirmation, how to log in, a code): { decision } / { method, … }. The answer may hold a password; it goes to the server and nowhere else.
+    answerBrowser: (askId, answer) => request('POST', `/v1/runs/${runId}/browser`, { body: JSON.stringify({ askId, answer }) }),
     /** Follows an image the server is making until it is over: resolves { parts } or throws a ServerReplyError (server-image.js). */
     async followImage(options) {
       return (await import('./server-image.js')).followImageRun({ stop: () => this.stop(), watchRun, readMessage, hydrateParts, wait, setTimer, clearTimer, warn, ServerReplyError, graceMs: STOP_GRACE_MS, runId, assistantMessageId }, options);

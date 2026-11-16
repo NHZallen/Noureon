@@ -8,6 +8,7 @@ import { createFocusMode } from '../browser-live/focus-mode.js';
 import { createLiveView } from '../browser-live/live-view.js';
 import { createPanelDock } from '../browser-live/panel-dock.js';
 import { cssRatio, DEFAULT_RATIO } from '../browser-live/ratios.js';
+import { askWords, createAskPanel } from './browser-panels.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const ICONS = {
@@ -39,7 +40,7 @@ const icon = (document, name, size = 16, width = 2) => {
  * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person cancelled the task (the reply is stopped).
  * `handle(event)` takes the `browser` events of the server; `complete()` says the reply is over.
  */
-export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, isWide = null, storage = null }) {
+export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null }) {
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
   const steps = [];
@@ -55,6 +56,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let ratio = DEFAULT_RATIO;
   let control = 'model';
   let zoomed = false;
+  // The question the person is asked now (a confirmation, a login…): its panel takes the place of the card.
+  let asking = null;
   const watchers = [];
   // Who looks at the picture changes what it costs: the live connection is made only while the card shows it (or the focus mode is open).
   const notify = () => { const now = { phase, view, focus: Boolean(focus) }; watchers.forEach((fn) => fn(now)); };
@@ -121,10 +124,15 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   pillCross.addEventListener('click', pillCrossAction);
   pillCross.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') pillCrossAction(event); });
   capsule.addEventListener('click', () => setView('back'));
-  root.append(card, pill);
+  const panelBox = make('div', 'bcard-panel');
+  panelBox.hidden = true;
+  const askOpen = make('button', 'bcard-ask-open', { type: 'button' });
+  askOpen.hidden = true;
+  askOpen.addEventListener('click', () => setView('front'));
+  root.append(card, pill, askOpen, panelBox);
   host.append(root);
 
-  const statusOf = () => (phase === 'queued' ? 'run' : phase === 'cancelled' || phase === 'failed' ? 'fail' : phase);
+  const statusOf = () => (asking && phase === 'run' ? 'help' : phase === 'queued' ? 'run' : phase === 'cancelled' || phase === 'failed' ? 'fail' : phase);
   const leadFor = (state) => {
     const wrap = make('span', `bcard-icon is-${state}`);
     if (state === 'run') wrap.append(make('i', 'bcard-spin'));
@@ -133,6 +141,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
   const labelNow = () => {
     if (phase === 'queued') return queuedLabel;
+    if (asking && phase === 'run') return askWords(language).need;
     if (phase === 'done') return t('browserDone');
     if (phase === 'cancelled') return t('browserCancelled');
     if (phase === 'failed') return t('browserFailed');
@@ -150,8 +159,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     root.dataset.view = view;
     pillCross.hidden = phase !== 'queued';
     pillCross.setAttribute('aria-label', t('browserCancelQueue'));
-    card.hidden = view === 'pill';
+    const panelShown = Boolean(asking) && phase === 'run' && view !== 'pill';
+    card.hidden = view === 'pill' || panelShown;
     pill.hidden = view !== 'pill';
+    panelBox.hidden = !panelShown;
+    askOpen.hidden = !(asking && phase === 'run' && view === 'pill');
+    askOpen.textContent = askWords(language).open;
     // The card is turned over (or not): the face that is not seen does not take the focus.
     card.classList.toggle('is-flipped', view === 'back');
     front.inert = view === 'back';
@@ -226,6 +239,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const cancel = () => {
     if (phase === 'done' || phase === 'failed' || phase === 'cancelled') return;
     steps.forEach((step) => { if (step.state === 'run') step.state = 'fail'; });
+    closeAsk();
     phase = 'cancelled';
     view = 'pill';
     closeFocus();
@@ -240,7 +254,14 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const finishRunning = (state) => steps.forEach((step) => { if (step.state === 'run') step.state = state; });
 
   // The work is over: the card folds into its tag. A second look is one press away.
+  const closeAsk = () => {
+    asking?.panel?.destroy();
+    asking = null;
+    panelBox.replaceChildren();
+  };
+
   const over = (next) => {
+    closeAsk();
     phase = next;
     if (next === 'done') view = 'pill';
     render();
@@ -248,6 +269,22 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   const handle = (event) => {
     if (phase === 'cancelled') return;
+    if (event?.event === 'ask') {
+      closeAsk();
+      const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => onAnswer?.(id, payload) });
+      if (!panel) return;
+      if (phase === 'queued') phase = 'run';
+      asking = { id: event.id, panel };
+      panelBox.replaceChildren(panel.element);
+      if (view === 'back') view = 'front';
+      render();
+      panel.focus?.();
+      return;
+    }
+    if (event?.event === 'answer') {
+      if (asking && asking.id === event.id) { closeAsk(); render(); }
+      return;
+    }
     if (event?.event === 'queued') {
       phase = 'queued';
       view = 'pill';

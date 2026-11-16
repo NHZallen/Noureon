@@ -28,6 +28,7 @@ import { transcribeServerParts } from './transcribe-parts.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createBrowserLoader } from './browser-tools.js';
+import { createBrowserAsk } from './browser-ask.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { categoriesOf } from '../src/app/runtime/memory-notes/categories.js';
@@ -100,7 +101,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, browser = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, browser = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, browserControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -420,8 +421,11 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   if (browser && spec.tools.browser === true && mode !== 'grounding' && userId) {
     try {
       if (await browser.mayUse(userId)) {
+        // The questions to the person (a confirmation, a login, a code): the reply waits, and the time it waits is not the reply's time.
+        const browserAsker = createBrowserAsk({ emit: (event) => emitEvent(event), signal, now, onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); } });
+        if (browserControl) browserControl.answer = browserAsker.answer;
         browserLoader = createBrowserLoader({
-          sessions: browser.sessions, logins: browser.logins, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions,
+          sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions,
           emit: (event) => emitEvent(event)
         });
       }

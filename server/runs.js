@@ -256,6 +256,7 @@ export function createRunManager({
     const memoryOut = { used: [], events: [] };
     // And for the question a text model's picture tool asks (whether it may draw): server/image-ask.js.
     const imageControl = { answer: null };
+    const browserControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
     // The title of the conversation, when the page may be closed before it makes one (server/conversation-naming.js): the page asks once the reply is taken, it is done
@@ -264,7 +265,7 @@ export function createRunManager({
     const live = { holding: false, answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
     // What the person adds while an ordinary reply is made is taken at the next boundary of its loop (reply/steer-queue.js), where the reply is cut (below).
     const steer = isVision || isResearch || isImage || isCouncil ? null : createSteerQueue({ now });
-    active.set(runId, { steer, controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl, naming });
+    active.set(runId, { steer, controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, browserControl, councilControl, naming });
     let finalStatus = 'error';
     // The message the reply is being written into now. A reply that takes messages of the person is cut at the boundary that took them: the message so far is finished,
     // the person's messages are written after it, and the rest of the reply goes into a new message (`cut`). Writes into the new message wait until the cut is whole.
@@ -425,6 +426,7 @@ export function createRunManager({
         credentialControl,
         connectorControl,
         imageControl,
+        browserControl,
         onPaused: extendLimit,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
@@ -742,6 +744,13 @@ export function createRunManager({
       const entry = active.get(runId);
       if (!entry || entry.userId !== userId || !entry.connectorControl?.answer) return { ok: false, reason: 'not_running' };
       return { ok: true, answered: Boolean(entry.connectorControl.answer(askId, decision)?.answered) };
+    },
+
+    /** A person's answer to a question the browser agent asks (a confirmation, how to log in, a code): { ok: true, answered } or { ok: false, reason: 'not_running' }. */
+    async answerBrowser({ userId, runId, askId, answer }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.browserControl?.answer) return { ok: false, reason: 'not_running' };
+      return { ok: true, answered: Boolean(entry.browserControl.answer(askId, answer)?.answered) };
     },
 
     /**
