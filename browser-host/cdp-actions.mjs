@@ -253,6 +253,43 @@ const CARD_FINDER = `(() => {
   return Object.assign({ origin: location.origin }, found);
 })()`;
 
+// The frames that may hold card fields of a page: only those of a payment provider (a page cannot make the card go to a frame of its own choosing).
+const PAYMENT_FRAME_HOSTS = ['stripe.com', 'stripe.network', 'paypal.com', 'braintreegateway.com', 'braintree-api.com', 'adyen.com', 'checkout.com', 'squareup.com', 'squarecdn.com', 'recurly.com', 'authorize.net', 'tappaysdk.com'];
+let extraPaymentFrameHosts = [];
+/** For tests only: more hosts that count as a payment provider (the real command never calls it). */
+export const setPaymentFrameHostsForTest = (hosts) => { extraPaymentFrameHosts = Array.isArray(hosts) ? hosts.map(String) : []; };
+const isPaymentFrame = (info) => {
+  if (info?.type !== 'iframe') return false;
+  let host = '';
+  try { const url = new URL(info.url); if (url.protocol !== 'https:') return false; host = url.hostname.toLowerCase(); } catch { return false; }
+  return [...PAYMENT_FRAME_HOSTS, ...extraPaymentFrameHosts].some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+};
+async function paymentFrames(cdp) {
+  const { targetInfos } = await cdp.send('Target.getTargets').catch(() => ({ targetInfos: [] }));
+  return (targetInfos || []).filter(isPaymentFrame).slice(0, 12);
+}
+
+// The fields a finder gave back for one document (the page, or a frame of it), typed with the keys asked for; `of(name)` is the element of that name or nothing.
+async function typeCardFields(cdp, frameSession, of, values, keys, filled, missing, required) {
+  for (const key of keys) {
+    const value = values[key];
+    const element = of(key);
+    if (!value) continue;
+    // One of the two ways to give the expiry is enough (a box for both, or one for the month and one for the year).
+    if (!element?.objectId) { if (required.includes(key) && !(key === 'exp' && of('expMonth')?.objectId && of('expYear')?.objectId)) missing.push(key); continue; }
+    const kind = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { return this.tagName; }', returnByValue: true }, frameSession);
+    if (kind.result?.value === 'SELECT') {
+      const chosen = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function (wanted) { const w = String(wanted).toLowerCase(); const o = [...this.options].find((x) => x.value.toLowerCase() === w || x.text.trim().toLowerCase() === w || (w.length <= 2 && x.value.replace(/^0+/, "") === w.replace(/^0+/, ""))); if (!o) return false; this.value = o.value; this.dispatchEvent(new Event("input", { bubbles: true })); this.dispatchEvent(new Event("change", { bubbles: true })); return true; }', arguments: [{ value }], returnByValue: true }, frameSession);
+      (chosen.result?.value === true ? filled : missing).push(key);
+    } else {
+      const focused = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, frameSession);
+      if (focused.result?.value !== true) { missing.push(key); continue; }
+      await cdp.send('Input.insertText', { text: String(value) }, frameSession);
+      filled.push(key);
+    }
+  }
+}
+
 async function fillCard(cdp, action, targetId, sessionId) {
   const allowed = Array.isArray(action.origins) ? action.origins.filter((o) => typeof o === 'string' && /^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(o)) : [];
   if (!allowed.length) throw new Error('the card does not say which site it is for');
@@ -267,21 +304,28 @@ async function fillCard(cdp, action, targetId, sessionId) {
   const values = { number: card.number, exp: `${card.expMonth}/${card.expYear}`, expMonth: card.expMonth, expYear: card.expYear4 || card.expYear, cvc: card.cvc, name: card.name, line1: card.line1, line2: card.line2, city: card.city, state: card.state, zip: card.zip, country: card.country, phone: card.phone, email: card.email };
   const filled = []; const missing = [];
   const required = ['number', 'exp', 'cvc', 'name'];
-  for (const [key, value] of Object.entries(values)) {
-    const element = of(key);
-    if (!value) continue;
-    // One of the two ways to give the expiry is enough (a box for both, or one for the month and one for the year).
-    if (!element?.objectId) { if (required.includes(key) && !(key === 'exp' && of('expMonth')?.objectId && of('expYear')?.objectId)) missing.push(key); continue; }
-    const kind = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { return this.tagName; }', returnByValue: true }, sessionId);
-    if (kind.result?.value === 'SELECT') {
-      const chosen = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function (wanted) { const w = String(wanted).toLowerCase(); const o = [...this.options].find((x) => x.value.toLowerCase() === w || x.text.trim().toLowerCase() === w || (w.length <= 2 && x.value.replace(/^0+/, "") === w.replace(/^0+/, ""))); if (!o) return false; this.value = o.value; this.dispatchEvent(new Event("input", { bubbles: true })); this.dispatchEvent(new Event("change", { bubbles: true })); return true; }', arguments: [{ value }], returnByValue: true }, sessionId);
-      (chosen.result?.value === true ? filled : missing).push(key);
-    } else {
-      const focused = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
-      if (focused.result?.value !== true) { missing.push(key); continue; }
-      await cdp.send('Input.insertText', { text: String(value) }, sessionId);
-      filled.push(key);
+  await typeCardFields(cdp, sessionId, of, values, Object.keys(values), filled, missing, required);
+  // Card fields that live in a frame of another site (a payment provider's: Stripe's number, expiry and security code boxes are one frame each) are typed into the same way, but only in frames of the providers named below.
+  const wanted = Object.keys(values).filter((key) => values[key] && !filled.includes(key));
+  if (wanted.length) {
+    for (const frame of await paymentFrames(cdp)) {
+      const stillWanted = wanted.filter((key) => !filled.includes(key));
+      if (!stillWanted.length) break;
+      let frameSession;
+      try {
+        frameSession = await attach(cdp, frame.targetId);
+        const seen = await cdp.send('Runtime.evaluate', { expression: CARD_FINDER, returnByValue: false }, frameSession);
+        if (seen.exceptionDetails) continue;
+        const frameProps = await cdp.send('Runtime.getProperties', { objectId: seen.result.objectId, ownProperties: true }, frameSession);
+        const frameOf = (name) => frameProps.result.find((p) => p.name === name)?.value;
+        await typeCardFields(cdp, frameSession, frameOf, values, stillWanted, filled, missing, required);
+      } catch { /* a frame that cannot be reached is skipped */ } finally {
+        if (frameSession) await cdp.send('Target.detachFromTarget', { sessionId: frameSession }).catch(() => {});
+      }
     }
+    // What a frame filled is no longer missing.
+    for (let i = missing.length - 1; i >= 0; i -= 1) if (filled.includes(missing[i])) missing.splice(i, 1);
+    if (!filled.includes('exp') && filled.includes('expMonth') && filled.includes('expYear')) { const at = missing.indexOf('exp'); if (at >= 0) missing.splice(at, 1); }
   }
   if (!filled.length) throw new Error('no card field can be seen on this page; the person can take over and type the card');
   return { ok: true, tabId: targetId, origin, filled, missing };

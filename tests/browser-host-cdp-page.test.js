@@ -245,7 +245,7 @@ test('a card is typed into the fields of the page, only on the site it is for; t
   await assert.rejects(act({ type: 'fill-card', origins: ['http://x.example'], card: FULL_CARD }), /does not say which site/);
 });
 
-import { downloadName } from '../browser-host/cdp-actions.mjs';
+import { downloadName, setPaymentFrameHostsForTest } from '../browser-host/cdp-actions.mjs';
 
 test('the name of a downloaded file: what the server says, never a path, never odd characters', () => {
   const h = (value) => [{ name: 'Content-Disposition', value }];
@@ -406,4 +406,60 @@ test('a file of the person is put into the file field of the page, from its byte
   await assert.rejects(act({ type: 'upload', ref: field.ref, files: [{ name: 'x.txt', base64: '***' }] }), /could not be read/);
   await assert.rejects(act({ type: 'upload', ref: field.ref, files: [] }), /which files/);
   assert.ok(heading === undefined || typeof heading.ref === 'number');
+});
+
+test('card boxes that sit in frames of another site are typed into only when the frame is of a payment provider; the page itself gets the rest', { skip: chromium() && spawnSync('openssl', ['version']).status === 0 ? false : 'no Chromium or no openssl here' }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-frames-'));
+  const keyPath = path.join(dir, 'key.pem'); const certPath = path.join(dir, 'cert.pem');
+  spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certPath, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1,DNS:localhost'], { stdio: 'ignore' });
+  const tls = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+  const frameServer = https.createServer(tls, (req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(req.url === '/cvc' ? '<!doctype html><input autocomplete="cc-csc" aria-label="Security code">' : '<!doctype html><input autocomplete="cc-number" aria-label="Card number in frame">'); });
+  await new Promise((resolve) => frameServer.listen(0, '127.0.0.1', resolve));
+  const framePort = frameServer.address().port;
+  const main = https.createServer(tls, (req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(`<!doctype html><title>Pay</title><input autocomplete="cc-name" aria-label="Name on card"><iframe title="number" src="https://localhost:${framePort}/number"></iframe><iframe title="cvc" src="https://localhost:${framePort}/cvc"></iframe>`); });
+  await new Promise((resolve) => main.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-frames-profile-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', '--ignore-certificate-errors', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    setPaymentFrameHostsForTest([]);
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    for (const server of [main, frameServer]) { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); }
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const origin = `https://127.0.0.1:${main.address().port}`;
+  await act({ type: 'navigate', url: `${origin}/` });
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  // The frames are of a host nobody named as a payment provider: only the page's own box is typed.
+  setPaymentFrameHostsForTest([]);
+  const own = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  assert.deepEqual(own.filled, ['name']);
+  assert.ok(own.missing.includes('number') && own.missing.includes('cvc'));
+  // The same frames, now of a provider: the number and the code go in, and the answer still holds no value.
+  setPaymentFrameHostsForTest(['localhost']);
+  const done = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  assert.ok(done.filled.includes('number') && done.filled.includes('cvc') && done.filled.includes('name'), JSON.stringify(done));
+  assert.ok(!done.missing.includes('number') && !done.missing.includes('cvc'));
+  assert.ok(!JSON.stringify(done).includes('4242'));
+  // What is in the boxes of the frames now (read through the browser's own DevTools, as the test's eyes).
+  const version = await (await fetch(`${devtools}/json/version`)).json();
+  const socket = new WebSocket(version.webSocketDebuggerUrl);
+  await new Promise((resolve) => socket.addEventListener('open', resolve, { once: true }));
+  let next = 1; const waiting = new Map();
+  socket.addEventListener('message', (event) => { const m = JSON.parse(String(event.data)); if (m.id && waiting.has(m.id)) { waiting.get(m.id)(m); waiting.delete(m.id); } });
+  const send = (method, params = {}, sessionId) => new Promise((resolve) => { const id = next++; waiting.set(id, (m) => resolve(m.result)); socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); });
+  const { targetInfos } = await send('Target.getTargets');
+  const values = [];
+  for (const info of targetInfos.filter((i) => i.type === 'iframe')) {
+    const { sessionId } = await send('Target.attachToTarget', { targetId: info.targetId, flatten: true });
+    const read = await send('Runtime.evaluate', { expression: 'document.querySelector("input") && document.querySelector("input").value', returnByValue: true }, sessionId);
+    values.push(read.result?.value);
+  }
+  socket.close();
+  assert.deepEqual(values.sort(), ['123', '4242424242424242']);
 });
