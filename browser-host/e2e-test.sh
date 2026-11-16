@@ -45,6 +45,7 @@ wait_ready "$A" && pass "it is ready" || { bad "it did not become ready: $(body 
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"https://example.com/"}'); [ "$(status "$r")" = 200 ] && pass "a page opens through the egress proxy: $(field "$(body "$r")" title)" || bad "could not open https://example.com/ : $r"
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"screenshot"}' --out "$OUT/shot.png"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/shot.png" ] && pass "a screenshot came back ($(wc -c < "$OUT/shot.png") bytes, $(file -b "$OUT/shot.png" | cut -c1-40))" || bad "no screenshot: $r"
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"chrome://sandbox"}'); [ "$(status "$r")" = 400 ] && pass "an internal page is refused (400)" || bad "chrome://sandbox was not refused: $r"
+r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"snapshot","maxChars":500}'); printf '%s' "$r" | grep -q '"role":"link"' && pass "snapshot lists the things on the page that can be acted on" || bad "snapshot found no link on https://example.com/ : $(printf '%s' "$r" | cut -c1-150)"
 r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"tabs","op":"list"}'); [ "$(status "$r")" = 200 ] && pass "tabs: $(body "$r" | cut -c1-120)" || bad "tabs failed: $r"
 
 echo; echo "== The sandbox, DevTools, and what the container has (design 10.6 items 1, 2, 7)"
