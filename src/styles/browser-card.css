@@ -79,6 +79,12 @@
 .bpanel-button:disabled { opacity: 0.5; cursor: default; }
 .bpanel-hint { font-size: 0.75rem; color: var(--text-tertiary); text-align: center; }
 .bpanel.is-sent .bpanel-hint { visibility: hidden; }
+.bpanel-head { display: flex; align-items: center; justify-content: space-between; }
+.bpanel-dots { display: inline-flex; gap: 0.3rem; }
+.bpanel-dots i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--border-color); }
+.bpanel-dots i.is-on { background: var(--text-primary); }
+.bpanel-error { font-size: 0.8125rem; color: var(--state-danger); }
+.bpanel-error[hidden] { display: none; }
 .bpanel.is-inline { padding-top: 0.75rem; }
 .bpanel-methods { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.3rem; }
 .bpanel-method { height: 2.6rem; padding: 0 1rem; border: 1px solid var(--border-color); border-radius: 0.8rem; background: var(--modal-bg); color: var(--text-primary); font: inherit; font-size: 0.875rem; font-weight: 400; text-align: left; cursor: pointer; }

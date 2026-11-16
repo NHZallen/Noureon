@@ -407,3 +407,75 @@ test('the hand-over panel: the card stays, the person can take over, and giving 
   done.click(); done.click(); cancel.click();
   assert.deepEqual(answers, [{ decision: 'done' }]);
 });
+
+test('the payment panel: three ways, one tap each', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'payment', domain: 'shop.example', methods: ['card', 'applepay', 'other'] });
+  assert.deepEqual([...w.card.element.querySelectorAll('.bpanel-method')].map((b) => b.textContent), ['Credit card (used once)', 'Apple Pay', 'Another way']);
+  w.card.element.querySelector('.bpanel-method').click();
+  assert.deepEqual(answers, [{ method: 'card' }]);
+});
+
+function cardWorld({ response = { ok: true, status: 200, json: async () => ({ ok: true, filled: ['number', 'exp', 'cvc', 'name'], missing: ['line1'] }) } } = {}) {
+  const answers = []; const posts = [];
+  const fetchImpl = async (url, init) => { posts.push([url, init]); return response; };
+  const w = make({ onAnswer: (id, payload) => answers.push(payload), fetchImpl });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'card', domain: 'shop.example', host: 'live.example.com', path: `/s/${'a'.repeat(32)}/card`, ticket: 'f'.repeat(48) });
+  const root = w.card.element;
+  const inputs = () => [...root.querySelectorAll('.bpanel-input')];
+  const buttons = () => [...root.querySelectorAll('.bpanel-row .bpanel-button')];
+  return { w, root, answers, posts, inputs, buttons };
+}
+const settleCard = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+test('the card panel: two steps, the next one is grey until what is required is in, the card goes straight to the host with the ticket, and only field names go to the server', async () => {
+  const c = cardWorld();
+  const [number, exp, cvc, name] = c.inputs();
+  assert.equal(c.buttons()[1].disabled, true);
+  typeInto(number, '4242424242424242'); assert.equal(number.value, '4242 4242 4242 4242', 'groups of four');
+  typeInto(exp, '0829'); assert.equal(exp.value, '08/29', 'the slash');
+  typeInto(cvc, '12a3'); assert.equal(cvc.value, '123');
+  assert.equal(c.buttons()[1].disabled, true, 'the name is still needed');
+  assert.match(c.root.querySelector('.bpanel-hint').textContent, /Still needed: Name on the card/);
+  typeInto(name, 'Chen Da-Ming');
+  assert.equal(c.buttons()[1].disabled, false);
+  c.buttons()[1].click(); // next
+  assert.equal(c.buttons()[0].textContent, 'Back');
+  assert.equal(c.buttons()[1].disabled, true, 'the address is required');
+  c.buttons()[0].click(); // back to the first step, what was typed is kept
+  assert.equal(number.value, '4242 4242 4242 4242');
+  c.buttons()[1].click();
+  const line1 = c.inputs().find((i) => !i.closest('div').hidden && i !== number) ? c.root.querySelectorAll('.bpanel-input')[4] : null;
+  typeInto(line1, '1 Main St');
+  assert.equal(c.buttons()[1].disabled, false);
+  c.buttons()[1].click();
+  await settleCard();
+  assert.equal(c.posts.length, 1);
+  const [url, init] = c.posts[0];
+  assert.equal(url, `https://live.example.com/s/${'a'.repeat(32)}/card`);
+  assert.equal(init.headers.Authorization, `Bearer ${'f'.repeat(48)}`);
+  assert.equal(init.credentials, 'omit');
+  assert.deepEqual(JSON.parse(init.body), { number: '4242 4242 4242 4242', exp: '08/29', cvc: '123', name: 'Chen Da-Ming', line1: '1 Main St' });
+  assert.deepEqual(c.answers, [{ done: true, filled: ['number', 'exp', 'cvc', 'name'], missing: ['line1'] }]);
+  assert.ok(!JSON.stringify(c.answers).includes('4242'));
+  assert.ok(c.inputs().every((i) => i.value === ''), 'what was typed is wiped');
+});
+
+test('the card panel: a refused send says so and can be tried again; cancel goes out as a cancel; nothing is sent twice', async () => {
+  const c = cardWorld({ response: { ok: false, status: 409, json: async () => ({ error: 'not_filled' }) } });
+  const [number, exp, cvc, name] = c.inputs();
+  typeInto(number, '4242424242424242'); typeInto(exp, '0829'); typeInto(cvc, '123'); typeInto(name, 'A');
+  c.buttons()[1].click();
+  typeInto(c.root.querySelectorAll('.bpanel-input')[4], 'x');
+  c.buttons()[1].click();
+  await settleCard();
+  assert.equal(c.root.querySelector('.bpanel-error').hidden, false);
+  assert.deepEqual(c.answers, []);
+  assert.equal(c.buttons()[1].disabled, false, 'tried again');
+  const d = cardWorld();
+  d.buttons()[0].click();
+  assert.deepEqual(d.answers, [{ cancel: true }]);
+  d.buttons()[0].click();
+  assert.equal(d.answers.length, 1);
+});

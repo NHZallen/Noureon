@@ -160,8 +160,122 @@ function takeoverPanel({ document, language, info, answer, helpers }) {
   return { element: root, below: true, finish, focus: () => take.focus?.(), destroy: () => root.remove() };
 }
 
-const BUILDERS = { confirm: confirmPanel, login: loginPanel, code: codePanel, takeover: takeoverPanel };
-const OPEN_KEYS = { confirm: 'browserAskOpenConfirm', login: 'browserAskOpenLogin', code: 'browserAskOpenCode', takeover: 'browserAskOpenHand' };
+// How to pay: the card (used once), Apple Pay, or another way. The card itself is asked in the next panel.
+function paymentPanel({ document, language, info, answer }) {
+  const t = (key, values) => sandboxText(language, key, values);
+  const root = make(document, 'div', 'bpanel');
+  root.setAttribute('role', 'group');
+  root.append(make(document, 'div', 'bpanel-title', t('browserPayTitle')));
+  if (info.domain) root.append(make(document, 'div', 'bpanel-site', t('browserAskSite', { domain: info.domain })));
+  const list = make(document, 'div', 'bpanel-methods');
+  const keys = { card: 'browserPayCard', applepay: 'browserPayApple', other: 'browserPayOther' };
+  let sent = false;
+  for (const method of (info.methods || []).filter((m) => keys[m])) {
+    const button = make(document, 'button', 'bpanel-method', t(keys[method]));
+    button.type = 'button';
+    button.addEventListener('click', () => { if (sent) return; sent = true; root.classList.add('is-sent'); root.querySelectorAll('button').forEach((el) => { el.disabled = true; }); answer({ method }); });
+    list.append(button);
+  }
+  root.append(list);
+  return { element: root, focus: () => list.querySelector('button')?.focus?.(), destroy: () => root.remove() };
+}
+
+// The card, in two steps (the card and the holder, then the address). It goes from this page straight to the browser host with the one-time ticket of the question: the answer to the
+// server holds only which fields were filled. What was typed is wiped when it has gone, and is never written anywhere else.
+const CARD_STEP1 = [['number', 'browserCardNumber', { inputMode: 'numeric', autocomplete: 'off', max: 23 }], ['exp', 'browserCardExp', { inputMode: 'numeric', autocomplete: 'off', max: 5, placeholder: 'MM/YY' }], ['cvc', 'browserCardCvc', { inputMode: 'numeric', autocomplete: 'off', max: 4 }], ['name', 'browserCardName', { autocomplete: 'off' }]];
+const CARD_STEP2 = [['line1', 'browserCardLine1', { required: true }], ['line2', 'browserCardLine2'], ['city', 'browserCardCity'], ['state', 'browserCardState'], ['zip', 'browserCardZip'], ['country', 'browserCardCountry'], ['phone', 'browserCardPhone', { inputMode: 'tel' }], ['email', 'browserCardEmail', { inputMode: 'email' }]];
+const REQUIRED = new Set(['number', 'exp', 'cvc', 'name', 'line1']);
+
+function cardPanel({ document, language, info, answer, helpers }) {
+  const t = (key, values) => sandboxText(language, key, values);
+  const root = make(document, 'div', 'bpanel');
+  root.setAttribute('role', 'group');
+  const title = make(document, 'div', 'bpanel-title', t('browserCardTitle'));
+  const dots = make(document, 'span', 'bpanel-dots');
+  const dot = [make(document, 'i', 'is-on'), make(document, 'i')];
+  dots.append(...dot);
+  const head = make(document, 'div', 'bpanel-head');
+  head.append(title, dots);
+  const stepName = make(document, 'div', 'bpanel-site');
+  const inputs = {};
+  const rows = {};
+  const build = (list) => list.map(([key, labelKey, extra = {}]) => {
+    const label = make(document, 'label', 'bpanel-field');
+    const top = make(document, 'span', 'bpanel-label');
+    top.textContent = `${t(labelKey)} · ${t(REQUIRED.has(key) ? 'browserCardRequired' : 'browserCardOptional')}`;
+    const input = make(document, 'input', 'bpanel-input');
+    input.type = 'text'; input.spellcheck = false; input.autocomplete = extra.autocomplete || 'off';
+    if (extra.inputMode) input.inputMode = extra.inputMode;
+    if (extra.max) input.maxLength = extra.max;
+    if (extra.placeholder) input.placeholder = extra.placeholder;
+    input.setAttribute('autocapitalize', 'off');
+    label.append(top, input);
+    inputs[key] = input; rows[key] = label;
+    return label;
+  });
+  const one = make(document, 'div', 'bpanel-form'); one.append(...build(CARD_STEP1));
+  const two = make(document, 'div', 'bpanel-form'); two.append(...build(CARD_STEP2));
+  two.hidden = true;
+  // The number in groups of four, the expiry with its slash.
+  inputs.number.addEventListener('input', () => { inputs.number.value = inputs.number.value.replace(/\D/g, '').slice(0, 19).replace(/(.{4})/g, '$1 ').trim(); });
+  inputs.exp.addEventListener('input', () => { const digits = inputs.exp.value.replace(/\D/g, '').slice(0, 4); inputs.exp.value = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits; });
+  inputs.cvc.addEventListener('input', () => { inputs.cvc.value = inputs.cvc.value.replace(/\D/g, '').slice(0, 4); });
+  const hint = make(document, 'div', 'bpanel-hint');
+  const row = make(document, 'div', 'bpanel-row');
+  const left = make(document, 'button', 'bpanel-button', t('browserCardCancel'));
+  const right = make(document, 'button', 'bpanel-button is-primary', t('browserCardNext'));
+  left.type = 'button'; right.type = 'button';
+  row.append(left, right);
+  const note = make(document, 'div', 'bpanel-hint', t('browserCardNote'));
+  const error = make(document, 'div', 'bpanel-error');
+  error.hidden = true;
+  let step = 1;
+  let busy = false;
+  let sent = false;
+  const validShape = {
+    number: (v) => /^[0-9]{12,19}$/.test(v.replace(/\s/g, '')),
+    exp: (v) => /^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(v.replace(/\s/g, '')),
+    cvc: (v) => /^[0-9]{3,4}$/.test(v),
+    name: (v) => v.trim().length > 0,
+    line1: (v) => v.trim().length > 0
+  };
+  const lacking = () => (step === 1 ? ['number', 'exp', 'cvc', 'name'] : ['line1']).filter((key) => !validShape[key](inputs[key].value));
+  const refresh = () => {
+    const missing = lacking();
+    stepName.textContent = t(step === 1 ? 'browserCardStep1' : 'browserCardStep2');
+    one.hidden = step !== 1; two.hidden = step !== 2;
+    dot[0].classList.toggle('is-on', step === 1); dot[1].classList.toggle('is-on', step === 2);
+    left.textContent = t(step === 1 ? 'browserCardCancel' : 'browserCardBack');
+    right.textContent = t(step === 1 ? 'browserCardNext' : 'browserCardSend');
+    right.disabled = busy || missing.length > 0;
+    hint.textContent = missing.length && Object.values(inputs).some((el) => el.value) ? t('browserCardMissing', { fields: missing.map((key) => t((CARD_STEP1.concat(CARD_STEP2).find((item) => item[0] === key))[1])).join(', ') }) : '';
+  };
+  const wipe = () => { for (const input of Object.values(inputs)) input.value = ''; };
+  const finish = (payload) => { if (sent) return; sent = true; root.classList.add('is-sent'); wipe(); root.querySelectorAll('button, input').forEach((el) => { el.disabled = true; }); answer(payload); };
+  const card = () => Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()]).filter(([, value]) => value));
+  async function submit() {
+    busy = true; error.hidden = true; refresh();
+    try {
+      const fetchImpl = helpers?.fetch || document.defaultView?.fetch?.bind(document.defaultView);
+      const response = await fetchImpl(`https://${info.host}${info.path}`, { method: 'POST', headers: { Authorization: `Bearer ${info.ticket}`, 'Content-Type': 'application/json' }, body: JSON.stringify(card()), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result?.ok) { finish({ done: true, filled: result.filled || [], missing: result.missing || [] }); return; }
+      error.textContent = t('browserCardFailed');
+    } catch {
+      error.textContent = t('browserCardFailed');
+    }
+    error.hidden = false; busy = false; refresh();
+  }
+  left.addEventListener('click', () => { if (busy) return; if (step === 2) { step = 1; refresh(); } else { finish({ cancel: true }); } });
+  right.addEventListener('click', () => { if (busy || lacking().length) return; if (step === 1) { step = 2; refresh(); inputs.line1.focus?.(); } else void submit(); });
+  root.addEventListener('input', refresh);
+  root.append(head, stepName, one, two, error, hint, row, note);
+  refresh();
+  return { element: root, focus: () => inputs.number.focus?.(), destroy: () => { wipe(); root.remove(); } };
+}
+
+const BUILDERS = { confirm: confirmPanel, login: loginPanel, code: codePanel, takeover: takeoverPanel, payment: paymentPanel, card: cardPanel };
+const OPEN_KEYS = { confirm: 'browserAskOpenConfirm', login: 'browserAskOpenLogin', code: 'browserAskOpenCode', takeover: 'browserAskOpenHand', payment: 'browserPayTitle', card: 'browserCardTitle' };
 
 /** `ask`: the event of the server ({ id, kind, … }). Returns null for a kind this page does not know (the question then waits for the answer of the timeout). */
 export function createAskPanel({ document, language, ask, onAnswer, helpers = null }) {

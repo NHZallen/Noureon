@@ -40,7 +40,7 @@ const icon = (document, name, size = 16, width = 2) => {
  * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person cancelled the task (the reply is stopped).
  * `handle(event)` takes the `browser` events of the server; `complete()` says the reply is over.
  */
-export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null }) {
+export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null }) {
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
   const steps = [];
@@ -271,7 +271,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (phase === 'cancelled') return;
     if (event?.event === 'ask') {
       closeAsk();
-      const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => onAnswer?.(id, payload), helpers: { takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); } } });
+      const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => onAnswer?.(id, payload), helpers: { fetch: fetchImpl, takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); } } });
       if (!panel) return;
       if (phase === 'queued') phase = 'run';
       asking = { id: event.id, kind: event.kind, panel };
