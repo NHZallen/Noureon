@@ -10,7 +10,7 @@ SECONDS_TO_RUN="${1:-90}"; LIMIT="${2:-12}"
 ENV_FILE=/etc/noureon-browser/host.env; SVC=/opt/noureon-browser/service
 . "$ENV_FILE"
 STAMP=$(date +%s); IDS="load-$STAMP-aaa load-$STAMP-bbb"
-call() { ( BROWSER_HOST_BIND="${BROWSER_HOST_BIND:-172.29.0.1}" node "$SVC/call.mjs" "$@" 2>&1 ); }
+call() { ( BROWSER_HOST_SECRET="$BROWSER_HOST_SECRET" BROWSER_HOST_BIND="${BROWSER_HOST_BIND:-172.29.0.1}" BROWSER_HOST_PORT="${BROWSER_HOST_PORT:-40010}" node "$SVC/call.mjs" "$@" 2>&1 ); }
 field() { printf '%s' "$1" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(String(JSON.parse(s)[process.argv[1]]??""))}catch{console.log("")}})' "$2"; }
 cleanup() { for id in $IDS; do call DELETE "/v1/sessions/$id" >/dev/null; done; }
 trap cleanup EXIT INT TERM

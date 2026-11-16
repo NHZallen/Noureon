@@ -180,7 +180,7 @@ run systemctl enable noureon-browser-host.service
 run systemctl restart noureon-browser-host.service
 if [ "$DRY" = 0 ]; then
   sleep 3
-  if ( . "$ENV_FILE"; BROWSER_HOST_BIND="$BROWSER_NET_GATEWAY" node "$APP/service/call.mjs" GET /v1/health ) ; then echo "the browser host answers"; else journalctl -u noureon-browser-host -n 15 --no-pager | sed 's/^/    /'; fail "the browser host service does not answer (see the lines above)"; fi
+  if ( set -a; . "$ENV_FILE"; set +a; BROWSER_HOST_BIND="$BROWSER_NET_GATEWAY" node "$APP/service/call.mjs" GET /v1/health ) ; then echo "the browser host answers"; else journalctl -u noureon-browser-host -n 15 --no-pager | sed 's/^/    /'; fail "the browser host service does not answer (see the lines above)"; fi
 fi
 
 say "Done. Next:"

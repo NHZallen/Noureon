@@ -18,7 +18,7 @@ FAILS=0
 pass() { printf 'PASS  %s\n' "$1"; }
 bad() { printf 'FAIL  %s\n' "$1"; FAILS=$((FAILS + 1)); }
 info() { printf 'INFO  %s\n' "$1"; }
-call() { ( BROWSER_HOST_BIND="${BROWSER_HOST_BIND:-172.29.0.1}" node "$SVC/call.mjs" "$@" 2>&1 ); }
+call() { ( BROWSER_HOST_SECRET="$BROWSER_HOST_SECRET" BROWSER_HOST_BIND="${BROWSER_HOST_BIND:-172.29.0.1}" BROWSER_HOST_PORT="${BROWSER_HOST_PORT:-40010}" node "$SVC/call.mjs" "$@" 2>&1 ); }
 status() { printf '%s' "$1" | sed -n 1p | awk '{print $2}'; }
 body() { printf '%s' "$1" | sed -n 2p; }
 field() { printf '%s' "$1" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(String(JSON.parse(s)[process.argv[1]]??""))}catch{console.log("")}})' "$2"; }
