@@ -31,3 +31,10 @@ test('numbers are checked, and without TLS the service may not listen on a publi
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_HOST_TLS_CERT: '/c' }), /go together/);
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_APP_DIR: 'relative' }), /absolute/);
 });
+
+test('the browser policies keep cookies: the image\'s own preferences set cookies to "session only" (4), which deletes a login the next time the browser starts', async () => {
+  const policies = JSON.parse((await import('node:fs')).readFileSync(new URL('../browser-host/policies.json', import.meta.url), 'utf8'));
+  assert.equal(policies.DefaultCookiesSetting, 1);
+  assert.deepEqual(policies.URLBlocklist.includes('chrome://*'), true);
+  assert.equal(policies.BrowserGuestModeEnabled, false);
+});
