@@ -133,7 +133,7 @@ export function browserRunArgs(options) {
 }
 
 /** The actions that carry a secret (a password, a card): their body goes in through standard input, never as an argument (an argument is in the process list of the machine). */
-export const SECRET_ACTIONS = Object.freeze(['fill-login', 'fill-card']);
+export const SECRET_ACTIONS = Object.freeze(['fill-login', 'fill-code', 'fill-card']);
 const MAX_STDIN_ACTION = 32 * 1024;
 
 /** One DevTools action, run in a throw-away container that joins the browser's network (the DevTools port is never published). */

@@ -5,6 +5,7 @@
 //   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close", tabId?, url?}
 //   snapshot {tabId?, maxChars?}  the page as a list of things to act on, each with a number (`ref`) that stays good while the page stays the same document
 //   click {ref, tabId?}   type {ref, text, submit?, tabId?}   press {key, tabId?}   scroll {direction: "up"|"down"|"left"|"right"|"top"|"bottom", tabId?}   back {tabId?}   wait {ms}
+//   fill-code {code, origins: ["https://…"], tabId?}  (also on standard input)  types a one-time code into the code field of the page (one box, or one box for each digit); says only how many boxes it filled
 //   fill-login {username?, password?, origins: ["https://…"], tabId?}  (body arrives on standard input: `--stdin`)  fills the visible login fields of the page, only when the page is of one of `origins`; says which
 //   fields it filled, never their values. A password field is never read and never typed into by the other actions (logins go through the password vault, design doc §7).
 import { pathToFileURL } from 'node:url';
@@ -182,6 +183,46 @@ async function fillLogin(cdp, action, targetId, sessionId) {
   return { ok: true, tabId: targetId, origin, filled };
 }
 
+// The code of a message or an authenticator app: one box (autocomplete one-time-code, a name like otp or code) or one box for each digit. The code is typed, never given back.
+const CODE_FINDER = `(() => {
+  const visible = (el) => { const box = el.getBoundingClientRect(); const style = getComputedStyle(el); return box.width > 4 && box.height > 4 && style.visibility !== 'hidden' && style.display !== 'none' && !el.disabled && !el.readOnly; };
+  const inputs = [...document.querySelectorAll('input')].filter((el) => visible(el) && !['password', 'checkbox', 'radio', 'hidden', 'submit', 'button'].includes(el.type));
+  const hinted = (el) => /one-time-code/.test(el.autocomplete) || /otp|code|token|verification|pin|驗證/i.test([el.name, el.id, el.getAttribute('aria-label'), el.placeholder].join(' '));
+  const single = inputs.filter((el) => Number(el.maxLength) === 1);
+  if (single.length >= 4 && single.length <= 8) return { boxes: single, origin: location.origin };
+  const one = inputs.find(hinted) || null;
+  return { boxes: one ? [one] : [], origin: location.origin };
+})()`;
+
+async function fillCode(cdp, action, targetId, sessionId) {
+  const allowed = Array.isArray(action.origins) ? action.origins.filter((o) => typeof o === 'string' && /^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(o)) : [];
+  if (!allowed.length) throw new Error('the code does not say which sites it is for');
+  const code = typeof action.code === 'string' && /^[0-9]{4,8}$/.test(action.code) ? action.code : '';
+  if (!code) throw new Error('there is no code to type');
+  const found = await cdp.send('Runtime.evaluate', { expression: CODE_FINDER, returnByValue: false }, sessionId);
+  if (found.exceptionDetails) throw new Error('the page could not be looked at');
+  const top = await cdp.send('Runtime.getProperties', { objectId: found.result.objectId, ownProperties: true }, sessionId);
+  const origin = String(top.result.find((p) => p.name === 'origin')?.value?.value || '');
+  if (!allowed.includes(origin)) throw new Error('this page is not a site of that login; nothing was typed');
+  const list = top.result.find((p) => p.name === 'boxes')?.value;
+  const boxes = list?.objectId ? (await cdp.send('Runtime.getProperties', { objectId: list.objectId, ownProperties: true }, sessionId)).result.filter((p) => /^\d+$/.test(p.name)).map((p) => p.value) : [];
+  if (!boxes.length) throw new Error('no code field can be seen on this page');
+  const focus = (objectId) => cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
+  if (boxes.length === 1) {
+    if ((await focus(boxes[0].objectId)).result?.value !== true) throw new Error('the code field cannot take text');
+    await cdp.send('Input.insertText', { text: code }, sessionId);
+    return { ok: true, tabId: targetId, origin, boxes: 1 };
+  }
+  // A box for each digit: each box takes its digit (a page that moves on by itself is not in the way: the box is focused again for the next one).
+  for (const [index, digit] of [...code].entries()) {
+    const box = boxes[index];
+    if (!box) break;
+    if ((await focus(box.objectId)).result?.value !== true) throw new Error('a code box cannot take text');
+    await cdp.send('Input.insertText', { text: digit }, sessionId);
+  }
+  return { ok: true, tabId: targetId, origin, boxes: boxes.length };
+}
+
 async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'snapshot') {
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
@@ -201,6 +242,7 @@ async function pageAction(cdp, action, targetId, sessionId) {
     return { ok: true, tabId: targetId, url: page.url, title: page.title, scroll: { y: page.scrollY, height: page.height, view: page.view }, elements: elements.slice(0, MAX_ELEMENTS), elementsCut: elements.length > MAX_ELEMENTS, text: text.slice(0, limit), truncated: text.length > limit };
   }
   if (action.type === 'fill-login') return fillLogin(cdp, action, targetId, sessionId);
+  if (action.type === 'fill-code') return fillCode(cdp, action, targetId, sessionId);
   if (action.type === 'click') {
     const ref = checkRef(action.ref);
     const { x, y } = await centerOf(cdp, sessionId, ref);
@@ -296,7 +338,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       await wait(Math.min(10_000, Math.max(0, Math.floor(Number(action.ms)) || 1000)));
       return { ok: true };
     }
-    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login'].includes(action.type)) {
+    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code'].includes(action.type)) {
       const targetId = await pickTab(cdp, action.tabId);
       const sessionId = await attach(cdp, targetId);
       await cdp.send('Page.enable', {}, sessionId);

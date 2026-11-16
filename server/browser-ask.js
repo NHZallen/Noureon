@@ -4,6 +4,7 @@
 //   kind 'confirm'  { action: 'payment' | 'delete' | 'change' | 'irreversible', domain, summary }     answer { decision: 'confirm' | 'cancel' }
 //   kind 'login'    { domain, methods: [...] }                                                           answer { method, username?, password?, save? }
 //   kind 'code'     { domain, digits }                                                                   answer { code } | { method: 'other' }
+//   kind 'takeover' { domain, reason }                                                                   answer { decision: 'done' | 'cancel' }  (the person works the browser themselves, then gives it back)
 
 import { randomUUID } from 'node:crypto';
 
@@ -15,6 +16,10 @@ const text = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().s
 // What each kind says in the question and takes as an answer. `check(answer)` returns { result, shown } or null (not an answer to this question): `result` goes to the reply, `shown`
 // goes into the event that tells the pages the question is over (never a secret).
 const KINDS = {
+  takeover: {
+    info: (info) => ({ domain: text(info.domain, 100), reason: text(info.reason, 200) }),
+    check: (answer) => (answer?.decision === 'done' || answer?.decision === 'cancel' ? { result: { decision: answer.decision }, shown: answer.decision } : null)
+  },
   confirm: {
     info: (info) => ({ action: CONFIRM_ACTIONS.has(info.action) ? info.action : 'irreversible', domain: text(info.domain, 100), summary: text(info.summary, 400) }),
     check: (answer) => (answer?.decision === 'confirm' || answer?.decision === 'cancel' ? { result: { decision: answer.decision }, shown: answer.decision } : null)

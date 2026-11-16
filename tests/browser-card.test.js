@@ -332,3 +332,78 @@ test('a question while the card is a pill: the pill says it needs you and a butt
   w2.card.handle({ type: 'browser', event: 'ask', id: 'ask-3', kind: 'unknown-kind' });
   assert.equal(w2.card.element.querySelector('.bcard-panel').hidden, true);
 });
+
+const typeInto = (input, text) => { input.value = text; input.dispatchEvent(new input.ownerDocument.defaultView.Event('input', { bubbles: true })); };
+
+test('the login panel: the ways of the page; the user name and password open on their choice, go out once, and are wiped', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push([id, payload]) });
+  w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'github.com', label: 'x' });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'login', domain: 'github.com', methods: ['password', 'google', 'takeover'] });
+  const root = w.card.element;
+  assert.deepEqual([...root.querySelectorAll('.bpanel-method')].map((b) => b.textContent), ['User name and password', 'Google', 'Take over instead']);
+  assert.equal(root.querySelector('.bpanel-form').hidden, true);
+  [...root.querySelectorAll('.bpanel-method')][0].click();
+  assert.equal(root.querySelector('.bpanel-form').hidden, false);
+  const [user, pass] = root.querySelectorAll('.bpanel-input');
+  assert.equal(pass.type, 'password');
+  assert.equal(root.querySelector('.bpanel-form button[type=submit]').disabled, true, 'both fields are needed');
+  typeInto(user, 'who@example.com'); typeInto(pass, 'S3cret-pw-1');
+  assert.equal(root.querySelector('.bpanel-form button[type=submit]').disabled, false);
+  root.querySelector('.bpanel-form').dispatchEvent(new (root.ownerDocument.defaultView.Event)('submit', { bubbles: true, cancelable: true }));
+  assert.deepEqual(answers, [['ask-1', { method: 'password', username: 'who@example.com', password: 'S3cret-pw-1', save: true }]]);
+  assert.equal(pass.value, '', 'the password is not left in the page');
+  w.card.handle({ type: 'browser', event: 'answer', id: 'ask-1', kind: 'login', decision: 'password' });
+  assert.ok(!root.textContent.includes('S3cret'));
+});
+
+test('the login panel: another way is one tap; taking over is a way; a login not to be saved is said so', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'login', domain: 'a.example', methods: ['google', 'takeover'] });
+  [...w.card.element.querySelectorAll('.bpanel-method')][0].click();
+  assert.deepEqual(answers, [{ method: 'google' }]);
+  const w2 = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w2.card.handle({ type: 'browser', event: 'ask', id: 'ask-2', kind: 'login', domain: 'a.example', methods: ['password'] });
+  w2.card.element.querySelector('.bpanel-method').click();
+  const [user, pass] = w2.card.element.querySelectorAll('.bpanel-input');
+  typeInto(user, 'u'); typeInto(pass, 'p');
+  w2.card.element.querySelector('input[type=checkbox]').checked = false;
+  w2.card.element.querySelector('.bpanel-form').dispatchEvent(new (w2.card.element.ownerDocument.defaultView.Event)('submit', { bubbles: true, cancelable: true }));
+  assert.equal(answers.at(-1).save, false);
+});
+
+test('the code panel: cells fill from the keypad, the code goes out only when whole, and another way is always there', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'code', domain: 'github.com', digits: 6 });
+  const root = w.card.element;
+  assert.equal(root.querySelectorAll('.bpanel-cell').length, 6);
+  const key = (label) => [...root.querySelectorAll('.bpanel-key')].find((b) => b.textContent === label);
+  const send = [...root.querySelectorAll('.bpanel-button')].find((b) => b.textContent === 'Send');
+  for (const digit of '12345') key(digit).click();
+  assert.equal(send.disabled, true);
+  key('⌫').click(); key('5').click(); key('6').click(); key('7').click(); // a seventh digit is not taken
+  assert.equal([...root.querySelectorAll('.bpanel-cell')].map((c) => c.textContent).join(''), '123456');
+  assert.equal(send.disabled, false);
+  send.click(); send.click();
+  assert.deepEqual(answers, [{ code: '123456' }]);
+  const w2 = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w2.card.handle({ type: 'browser', event: 'ask', id: 'ask-2', kind: 'code', digits: 4 });
+  w2.card.element.querySelector('.bpanel-link').click();
+  assert.deepEqual(answers.at(-1), { method: 'other' });
+});
+
+test('the hand-over panel: the card stays, the person can take over, and giving the browser back answers it', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'a.example', label: 'x' });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'takeover', domain: 'a.example', reason: 'Sign in with Google' });
+  const root = w.card.element;
+  assert.equal(root.querySelector('.bcard-card').hidden, false, 'the screen stays in view');
+  assert.equal(root.querySelector('.bcard-panel').hidden, false);
+  assert.match(root.querySelector('.bpanel-summary').textContent, /Sign in with Google/);
+  const [cancel, , done] = root.querySelectorAll('.bpanel-button');
+  done.click(); done.click(); cancel.click();
+  assert.deepEqual(answers, [{ decision: 'done' }]);
+});

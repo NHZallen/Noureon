@@ -157,3 +157,40 @@ test('the login fields of a real page are filled only on a site of the login, in
   assert.deepEqual(first.filled, ['username']);
   await act({ type: 'navigate', url: 'about:blank' }).catch(() => {});
 });
+
+const CODE_ONE = `<!doctype html><title>Code</title><input id="c" name="otp" autocomplete="one-time-code" aria-label="Code"><button>Verify</button>`;
+const CODE_SIX = `<!doctype html><title>Code six</title><div>${[1, 2, 3, 4, 5, 6].map((n) => `<input class="d" maxlength="1" aria-label="Digit ${n}" oninput="if(this.value&&this.nextElementSibling)this.nextElementSibling.focus()">`).join('')}</div><input name="email" aria-label="Email">`;
+
+test('a code is typed into one box or into a box for each digit, only on a site of the login, and is not given back', { skip: chromium() && spawnSync('openssl', ['version']).status === 0 ? false : 'no Chromium or no openssl here' }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-code-'));
+  const keyPath = path.join(dir, 'key.pem'); const certPath = path.join(dir, 'cert.pem');
+  spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certPath, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' });
+  const site = https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }, (req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(req.url === '/six' ? CODE_SIX : CODE_ONE); });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-code-profile-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', '--ignore-certificate-errors', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const origin = `https://127.0.0.1:${site.address().port}`;
+  await act({ type: 'navigate', url: `${origin}/` });
+  await assert.rejects(act({ type: 'fill-code', origins: ['https://other.example'], code: '123456' }), /not a site of that login/);
+  await assert.rejects(act({ type: 'fill-code', origins: [origin], code: '12ab56' }), /no code to type/);
+  const one = await act({ type: 'fill-code', origins: [origin], code: '123456' });
+  assert.equal(one.boxes, 1); assert.ok(!JSON.stringify(one).includes('123456'));
+  assert.equal((await act({ type: 'snapshot' })).elements.find((e) => e.name === 'Code').value, '123456');
+  await act({ type: 'navigate', url: `${origin}/six` });
+  const six = await act({ type: 'fill-code', origins: [origin], code: '654321' });
+  assert.equal(six.boxes, 6);
+  const values = (await act({ type: 'snapshot' })).elements.filter((e) => /^Digit/.test(e.name)).map((e) => e.value);
+  assert.deepEqual(values, ['6', '5', '4', '3', '2', '1']);
+});

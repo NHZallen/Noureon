@@ -141,7 +141,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
   const labelNow = () => {
     if (phase === 'queued') return queuedLabel;
-    if (asking && phase === 'run') return askWords(language).need;
+    if (asking && phase === 'run') return askWords(language, asking.kind).need;
     if (phase === 'done') return t('browserDone');
     if (phase === 'cancelled') return t('browserCancelled');
     if (phase === 'failed') return t('browserFailed');
@@ -160,11 +160,11 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     pillCross.hidden = phase !== 'queued';
     pillCross.setAttribute('aria-label', t('browserCancelQueue'));
     const panelShown = Boolean(asking) && phase === 'run' && view !== 'pill';
-    card.hidden = view === 'pill' || panelShown;
+    card.hidden = view === 'pill' || (panelShown && !asking.panel.below);
     pill.hidden = view !== 'pill';
     panelBox.hidden = !panelShown;
     askOpen.hidden = !(asking && phase === 'run' && view === 'pill');
-    askOpen.textContent = askWords(language).open;
+    askOpen.textContent = askWords(language, asking?.kind).open;
     // The card is turned over (or not): the face that is not seen does not take the focus.
     card.classList.toggle('is-flipped', view === 'back');
     front.inert = view === 'back';
@@ -271,10 +271,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (phase === 'cancelled') return;
     if (event?.event === 'ask') {
       closeAsk();
-      const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => onAnswer?.(id, payload) });
+      const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => onAnswer?.(id, payload), helpers: { takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); } } });
       if (!panel) return;
       if (phase === 'queued') phase = 'run';
-      asking = { id: event.id, panel };
+      asking = { id: event.id, kind: event.kind, panel };
       panelBox.replaceChildren(panel.element);
       if (view === 'back') view = 'front';
       render();
@@ -342,7 +342,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       onZoom: (value) => { zoomed = Boolean(value); dock.setZoom(zoomed); focus?.update({ zoomed }); live?.controller?.onZoom?.(zoomed); },
       onStop: () => askCancel(),
       onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
-      onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); },
+      onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); if (asking?.kind === 'takeover') asking.panel.finish?.('done'); },
       onRatio: (key) => { setRatio(key); live?.controller?.onRatio?.(key); }
     };
     // Whatever the card does not answer itself goes to the owner of the live picture (looked up when it is asked, so a later owner is the one).

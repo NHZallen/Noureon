@@ -80,3 +80,12 @@ test('on a page that takes a card, a button that sends the form counts as paying
   assert.equal(tripwireFor({ role: 'button', name: 'Continue' }, { takesCard: false }), null);
   assert.equal(tripwireFor({ role: 'link', name: 'Continue' }, { takesCard: true }), null);
 });
+
+test('a hand-over to the person is answered done or cancelled', async () => {
+  const t = setup();
+  const pending = t.asker.ask('takeover', { domain: 'github.com', reason: 'Sign in with Google' });
+  assert.deepEqual(t.events[0], { type: 'browser', event: 'ask', id: 'ask-000001', kind: 'takeover', waitMs: 600000, domain: 'github.com', reason: 'Sign in with Google' });
+  assert.deepEqual(t.asker.answer('ask-000001', { decision: 'maybe' }), { answered: false });
+  t.asker.answer('ask-000001', { decision: 'done' });
+  assert.deepEqual(await pending, { decision: 'done' });
+});
