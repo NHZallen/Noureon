@@ -1,0 +1,7 @@
+# For the production machine: Traefik already listens on 8080 there, so the experiment's neko page moves to 18080 (open it in the browser as http://<IP>:18080).
+# `!override` needs Docker Compose v2.24 or newer. The UDP range for the live screen stays the same.
+services:
+  neko:
+    ports: !override
+      - "18080:8080"
+      - "52000-52100:52000-52100/udp"

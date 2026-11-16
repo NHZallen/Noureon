@@ -1,0 +1,12 @@
+# The share of this machine the browsers may use, so the production services keep running when a page eats the CPU. The browser containers join it
+# with  docker run --cgroup-parent=noureon-browser.slice  (P1). Numbers are a start: measure, then change them.
+[Unit]
+Description=Noureon browser containers (limited share of the machine)
+
+[Slice]
+CPUWeight=20
+CPUQuota=250%
+MemoryHigh=3500M
+MemoryMax=4G
+MemorySwapMax=0
+TasksMax=2048

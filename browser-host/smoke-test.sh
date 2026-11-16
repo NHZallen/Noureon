@@ -9,7 +9,7 @@ ENV_FILE="${NOUREON_BROWSER_ENV:-/etc/noureon-browser/host.env}"
 [ -f "$ENV_FILE" ] && . "$ENV_FILE"
 NET="${BROWSER_NET_NAME:-noureon-browser}"
 BR="${BROWSER_NET_BRIDGE:-nbr0}"
-GW="${BROWSER_NET_GATEWAY:-172.30.0.1}"
+GW="${BROWSER_NET_GATEWAY:-172.29.0.1}"
 PORT="${EGRESS_PORT:-40001}"
 PUBLIC="${PUBLIC_IP:-}"
 IMAGE=curlimages/curl:8.10.1

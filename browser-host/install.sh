@@ -6,6 +6,7 @@
 #     git clone -b staging https://github.com/NHZallen/Noureon.git && cd Noureon && sudo sh browser-host/install.sh --dry-run   # look first
 #     sudo sh browser-host/install.sh
 # Safe to run again (it updates files, rules and the proxy; the settings file stays).
+# It never restarts Docker (on the production machine that would stop every container: live-restore is off there) and never touches existing networks or rules.
 set -eu
 
 DRY=0
@@ -25,11 +26,11 @@ APP=/opt/noureon-browser
 CONF=/etc/noureon-browser
 ENV_FILE="$CONF/host.env"
 # Defaults (the settings file overrides them); also what --dry-run shows when the file does not exist yet.
-BROWSER_NET_NAME=noureon-browser; BROWSER_NET_BRIDGE=nbr0; BROWSER_NET_SUBNET=172.30.0.0/24; BROWSER_NET_GATEWAY=172.30.0.1; EGRESS_PORT=40001; PUBLIC_IP=; EGRESS_EXTRA_BLOCK=
+BROWSER_NET_NAME=noureon-browser; BROWSER_NET_BRIDGE=nbr0; BROWSER_NET_SUBNET=172.29.0.0/24; BROWSER_NET_GATEWAY=172.29.0.1; EGRESS_PORT=40001; PUBLIC_IP=; EGRESS_EXTRA_BLOCK=
 
 say "1. Packages"
 if ! command -v docker >/dev/null 2>&1; then run apt-get update; run apt-get install -y docker.io; fi
-run apt-get install -y iptables curl ca-certificates jq bc conntrack
+run apt-get install -y iptables curl ca-certificates bc
 if [ "$DRY" = 0 ]; then
   systemctl enable --now docker
   docker info >/dev/null 2>&1 || fail "Docker is not running"
@@ -64,6 +65,12 @@ fi
 
 say "3. The private network of the browsers"
 if [ "$DRY" = 0 ]; then
+  # The subnet must not overlap anything that exists (on the production machine the Python sandbox uses 172.30.0.0/16 and 172.31.0.0/16 with rules of their own).
+  prefix=$(printf '%s' "$BROWSER_NET_SUBNET" | cut -d. -f1-3)
+  taken=$( { ip -4 route; for n in $(docker network ls -q); do docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}' "$n"; done; } 2>/dev/null | grep -F "$prefix." | grep -v " $BROWSER_NET_BRIDGE " || true )
+  if [ -n "$taken" ] && ! docker network inspect "$BROWSER_NET_NAME" >/dev/null 2>&1; then
+    fail "something already uses $BROWSER_NET_SUBNET ($taken). Choose another BROWSER_NET_SUBNET and BROWSER_NET_GATEWAY in $ENV_FILE and run this again."
+  fi
   if docker network inspect "$BROWSER_NET_NAME" >/dev/null 2>&1; then
     echo "network $BROWSER_NET_NAME already exists"
   else
@@ -82,6 +89,7 @@ run install -m 0755 browser-host/smoke-test.sh "$APP/smoke-test.sh"
 run install -m 0755 browser-host/warp-proxy.sh "$APP/warp-proxy.sh"
 run install -m 0644 browser-host/egress-proxy.mjs "$APP/egress-proxy.mjs"
 run install -m 0644 browser-host/noureon-browser-firewall.service /etc/systemd/system/noureon-browser-firewall.service
+run install -m 0644 browser-host/noureon-browser.slice /etc/systemd/system/noureon-browser.slice
 run systemctl daemon-reload
 run systemctl enable noureon-browser-firewall.service
 run systemctl restart noureon-browser-firewall.service
@@ -103,7 +111,7 @@ fi
 
 say "Done. Next:"
 cat <<NEXT
-  1. AWS (console): security group opens only what is needed (22 from your own address; the UDP range of the live screen when P3 comes).
+  1. Cloud firewall or security group of the provider (if there is one): open only what is needed (22 from your own address; the UDP range of the live screen when P3 comes). On the production Contabo machine the existing ports stay as they are.
      Instance: IMDSv2 required, hop limit 1, NO IAM role.
   2. Cloudflare WARP, proxy mode only:   sudo sh $APP/warp-proxy.sh --yes      (read the text it prints first)
   3. Check everything:                    sudo sh $APP/smoke-test.sh
