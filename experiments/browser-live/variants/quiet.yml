@@ -1,0 +1,8 @@
+# Round eight: Chromium WITHOUT --no-sandbox and with the background activity switched off (background networking, component updates, default apps, pings).
+# Round seven saw failed background connections (Google's push service) and a much higher idle CPU under gVisor; this tells how much of it was that.
+# Use with runsc.yml, and AFTER prod-host.yml (it replaces sandbox-on.yml).
+services:
+  neko:
+    volumes: !override
+      - ./chromium-proxy-quiet.conf:/etc/neko/supervisord/chromium.conf:ro
+      - ./policies.json:/etc/chromium/policies/managed/policies.json:ro

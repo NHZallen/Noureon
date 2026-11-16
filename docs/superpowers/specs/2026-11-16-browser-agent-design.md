@@ -89,6 +89,32 @@
 
 數字都受主機負載干擾（實驗期間主機閒置常低於 20%），只當量級用。
 
+### 3.1 第七輪（2026-11-16，同一台 Contabo 正式機，neko 在隔離網段、經出口代理與 WARP 上網；1024×768@20，H.264 4 Mbps；容器上限 2.5 核、3 GB）
+
+P＝普通 Docker、Chromium `--no-sandbox`；G＝gVisor（runsc）、`--no-sandbox`；GS＝gVisor、Chromium 自己的沙盒開著。CPU 是單核的百分比，60 秒、30 個樣本的平均。
+
+| 情境 | P | G | GS |
+|---|---|---|---|
+| 沒人看 | 23% | 147% | 126% |
+| 一人看、不動 | 244% | 263% | 247% |
+| 一人看、程式捲動 | 281% | 270%（捲動失敗） | 247%（捲動失敗） |
+
+**能下的結論（有證據）：**
+
+* 三種都能完整跑起來：Allen 從自己的電腦連上畫面（WebRTC 連得上，沒有被瀏覽器網段的防火牆擋掉）、瀏覽器經出口代理上網；**GS（gVisor ＋ Chromium 沙盒開著）沒有任何 sandbox 或 zygote 錯誤**。
+* 防火牆有效：Chromium 背景的 GCM 直連（5228）被拒（`-111`），沒有漏出去。
+* 正式服務：三組都沒有 CPU steal（`st` 0），整機閒置 49–86%；負載 5–10（6 核）。hermes 本來就在 7–182% 之間跳，與實驗無法區分。
+* **gVisor 下不能用 `docker run --network container:<容器>` 去連瀏覽器的 DevTools（9222）**：G、GS 的 `drive.mjs` 都得到 `ECONNREFUSED`。原因推測：runsc 把網路介面接進自己的網路堆疊，Chromium 監聽的 `127.0.0.1` 在 gVisor 裡面，外面加入同一個網路命名空間的容器看不到。**P1 的 CDP 控制必須設計成在容器內、或經容器自己的網路位址轉出**，不能照實驗的做法。
+
+**不能下的結論（量測有缺陷，不要引用成效能數字）：**
+
+* 「一人看」三組的平均 244–263% 都貼著 2.5 核（250%）的上限，**代表一個被看的工作階段的需求至少 2.5 核**，P／G／GS 的差異被上限蓋掉了，比較不出來。
+* 「沒人看」G 與 GS 比 P 高約 5–6 倍，但 G、GS 是剛啟動後量的，P 是啟動後約 1 分鐘量的，**啟動初期的工作量沒有排除**；也沒有排除 Chromium 背景網路（GCM 重試、元件更新）在 gVisor 下的放大。
+* `docker stats` 單次讀數常超過上限（692%、330%），只看平均。
+* 主觀的流暢度與延遲沒有回報；「兩個觀看者」沒有量。
+
+**第八輪要回答的：** 把上限放寬到 4 核，量真實需求；啟動後等 3 分鐘再量「沒人看」；試關掉 Chromium 背景活動後，gVisor 的「沒人看」會降到多少。
+
 ## 4. 架構
 
 ```
@@ -307,11 +333,11 @@
 2. 同時定義低、高兩條 H.264 管線時，用戶端怎麼選、沒人選的那條是不是真的不編碼；
 3. 信令經 browser-host 自己的反向代理（不經 Cloudflare 代理）的實際設定，HTTPS 與 WebSocket 是否正常；
 4. iPhone 打字、點擊、接管的實際操作（直向）；
-5. 同時多個真觀看者、加入瞬間的 CPU 尖峰在 `--cpus` 限制下的行為；
+5. 同時多個真觀看者、加入瞬間的 CPU 尖峰在 `--cpus` 限制下的行為；**gVisor 下 CDP 控制怎麼連**（`--network container:` 不行，§3.1）；
 6. 重網頁（影片、複雜網站）的 CPU 與記憶體；**在這台 Contabo、gVisor 之下，一個被看的瀏覽器與正式服務同時的承載量（正式服務有沒有變慢）**；
 7. 瀏覽器資料排除快取後，登入狀態是否真的能跨次保留（Chromium 的 cookie 加密與 `--user-data-dir` 搬移）；
 8. `Page.setInterceptFileChooserDialog` 與下載行為在這個版本是否如預期；
-9. **Chromium 能否在容器內開自己的沙盒**；gVisor 下 Chromium 能否正常跑（`--no-sandbox`）、WebRTC 串流與 neko 的 X11／音訊在 gVisor 下是否正常、CPU 負擔多大；`systemctl reload docker` 後現有容器是否完全不受影響（`install-gvisor.sh` 會比對）；
+9. **【已量，第七輪，§3.1】** 普通 Docker 下 Chromium 自己的沙盒起不來（主機擋使用者命名空間）；**gVisor 下起得來**，gVisor 下 neko、WebRTC、Chromium 都正常；`systemctl reload docker` 後 11 個既有容器完全沒動。**還沒答的：gVisor 的 CPU 代價**（第八輪）；
 10. 擋 UDP 的網路（公司、飯店）怎麼辦：先讓使用者看到明確提示，TURN 之後再說；
 11. **WARP 的 proxy 模式**：Chromium 經它上網、同時 WebRTC 串流不受影響；WARP 條款；
 12. **台灣到 Contabo（亞洲）的延遲**對接管打字的影響（`measure-latency.sh` 在 Allen 電腦跑）；

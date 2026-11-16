@@ -1,0 +1,5 @@
+# Round eight: raises the limit of the neko container from 2.5 to 4 cores, so the real need of one watched session shows (round seven sat on the 2.5-core ceiling
+# in every setup, which hid the differences). Put it AFTER prod-host.yml. Still below the 6 cores of the machine.
+services:
+  neko:
+    cpus: 4
