@@ -29,6 +29,8 @@ using (user_id = (select auth.uid()));
 
 revoke all on public.browser_profiles from anon, authenticated;
 grant select (user_id, size_bytes, pending_clear, updated_at, last_used_at) on public.browser_profiles to authenticated;
+-- The server writes and reads it with the service key; the project does not give that role the table by itself (seen on the test project: REFERENCES, TRIGGER and TRUNCATE only, so every read and write answered 42501).
+grant select, insert, update, delete on public.browser_profiles to service_role;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('browser-profiles', 'browser-profiles', false, 167772160, array['application/octet-stream'])
