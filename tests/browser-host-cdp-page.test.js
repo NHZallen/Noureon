@@ -58,8 +58,15 @@ test('a real page: look, type, submit, click, scroll, go back; a password is nev
   await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-page-'));
   const port = 20000 + Math.floor(Math.random() * 20000);
-  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore' });
-  t.after(async () => { browser.kill('SIGKILL'); site.closeAllConnections(); await new Promise((resolve) => site.close(resolve)); fs.rmSync(profile, { recursive: true, force: true }); });
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); } // the whole group: the browser's helper processes too
+    await gone; // the browser's helper processes may still be writing to the profile for a moment
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder that could not be removed is not a failure of the test */ }
+  });
   const devtools = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
