@@ -244,6 +244,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/admin/browser",
+      "destination": "/index.html"
+    },
+    {
       "source": "/help",
       "destination": "/help.html"
     },

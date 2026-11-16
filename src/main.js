@@ -23,7 +23,7 @@ import { resolveStartupIdentity } from './app/auth/startup-identity.js';
 import { ensureLanguage, setStartupLanguage } from './app/i18n/language-packs.js';
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './app/runtime/features/login-language.js';
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
-import { isAdminSharesRoute, isShareRoute } from './app/share-page/share-route.js';
+import { isAdminBrowserRoute, isAdminSharesRoute, isShareRoute } from './app/share-page/share-route.js';
 import { isChatLinkRoute, isJoinRoute, rememberChatLink, rememberJoinCode } from './app/runtime/project-sharing/join-route.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
@@ -82,6 +82,14 @@ async function bootstrap() {
     await import('./app/share-page/share-page-styles.js');
     const { initializeShareAdminPage } = await import('./app/share-page/share-admin-page.js');
     await initializeShareAdminPage({ window, document });
+    return;
+  }
+
+  // Where the owner of the service looks after the browser agent (only an account the server names gets anything).
+  if (isAdminBrowserRoute(window.location.pathname)) {
+    await import('./app/share-page/share-page-styles.js');
+    const { initializeBrowserAdminPage } = await import('./app/browser-admin/browser-admin-page.js');
+    await initializeBrowserAdminPage({ window, document });
     return;
   }
 
