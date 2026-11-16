@@ -41,9 +41,10 @@ export function normalizeAddress(address) {
 
 /**
  * options: secrets [string…] (at least one, each 32+ characters), allowedIps ['1.2.3.4', '10.0.0.0/8'…] (empty = nobody, unless allowAnyIp),
- * allowAnyIp (tests and a closed network only), windowMs 60000, nonceTtlMs 300000, maxNonces 20000, now() -> ms
+ * allowAnyIp (tests and a closed network only), isLocalAddress(ip) -> boolean (the machine's own addresses: what a program on this machine shows as its source depends on the state of the network
+ * interfaces, so the service cannot rely on one fixed address for the machine itself), windowMs 60000, nonceTtlMs 300000, maxNonces 20000, now() -> ms
  */
-export function createVerifier({ secrets, allowedIps = [], allowAnyIp = false, windowMs = 60_000, nonceTtlMs = 300_000, maxNonces = 20_000, now = Date.now } = {}) {
+export function createVerifier({ secrets, allowedIps = [], allowAnyIp = false, isLocalAddress = null, windowMs = 60_000, nonceTtlMs = 300_000, maxNonces = 20_000, now = Date.now } = {}) {
   const list = (Array.isArray(secrets) ? secrets : []).map((s) => String(s).trim()).filter(Boolean);
   if (!list.length) throw new Error('at least one secret is needed');
   for (const secret of list) if (secret.length < MIN_SECRET_LENGTH) throw new Error(`every secret must be at least ${MIN_SECRET_LENGTH} characters`);
@@ -55,7 +56,7 @@ export function createVerifier({ secrets, allowedIps = [], allowAnyIp = false, w
     const ip = normalizeAddress(remoteAddress);
     if (!ip) return false;
     const value = ipToInt(ip);
-    return ranges.some((range) => value >= range.start && value <= range.end);
+    return ranges.some((range) => value >= range.start && value <= range.end) || (typeof isLocalAddress === 'function' && isLocalAddress(ip) === true);
   };
   const prune = (at) => { for (const [nonce, until] of seen) if (until <= at) seen.delete(nonce); };
 

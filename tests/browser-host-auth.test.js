@@ -136,3 +136,19 @@ test('the address can be checked on its own (the server does it before it reads 
   assert.equal(v.addressAllowed('198.51.100.9'), false);
   assert.equal(v.addressAllowed(undefined), false);
 });
+
+test('the machine\'s own addresses can be let in as one group, and nothing else outside the list is', () => {
+  const secret = 's'.repeat(40);
+  const own = new Set(['203.0.113.9', '172.29.0.1']);
+  const verifier = createVerifier({ secrets: [secret], allowedIps: ['10.0.1.0/24'], isLocalAddress: (ip) => own.has(ip) });
+  assert.equal(verifier.addressAllowed('203.0.113.9'), true, 'the public address of this machine');
+  assert.equal(verifier.addressAllowed('::ffff:172.29.0.1'), true);
+  assert.equal(verifier.addressAllowed('10.0.1.7'), true, 'the list still works');
+  assert.equal(verifier.addressAllowed('203.0.113.10'), false, 'another address next to it');
+  assert.equal(verifier.addressAllowed('172.29.0.2'), false, 'a browser container');
+  const headers = signRequest({ secret, method: 'GET', pathWithQuery: '/v1/health', time: Date.now() });
+  assert.equal(verifier.verify({ method: 'GET', pathWithQuery: '/v1/health', headers, body: Buffer.alloc(0), remoteAddress: '203.0.113.9' }).ok, true);
+  const unsigned = verifier.verify({ method: 'GET', pathWithQuery: '/v1/health', headers: {}, body: Buffer.alloc(0), remoteAddress: '203.0.113.9' });
+  assert.equal(unsigned.ok, false, 'a local address is not a reason to skip the signature');
+  assert.equal(createVerifier({ secrets: [secret], allowedIps: ['10.0.1.0/24'] }).addressAllowed('203.0.113.9'), false, 'off unless asked for');
+});
