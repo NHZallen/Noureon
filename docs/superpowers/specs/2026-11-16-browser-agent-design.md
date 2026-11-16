@@ -376,7 +376,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 | 期 | 內容 | 驗收 |
 |---|---|---|
-| P0 | **同機基礎建設與安全**（先做 Contabo 快照）：`inspect-host.sh`、`install.sh`（專用網段、防火牆鏈、出口代理、資源 slice）、WARP 當出口代理上游、`smoke-test.sh`（25/25，已完成）；實驗（第七到九輪，已完成，§3）；**剩下：普通 Docker 下用 `make-chromium-seccomp.sh` 的規則讓 Chromium 沙盒起得來**（`probe-chromium-sandbox.sh` 變體 2） | §10.6 的 1、2、7 通過；現有容器沒有被動到；數字已寫回 §3 |
+| P0 | **同機基礎建設與安全**（先做 Contabo 快照）：`inspect-host.sh`、`install.sh`（專用網段、防火牆鏈、出口代理、資源 slice）、WARP 當出口代理上游、`smoke-test.sh`（25/25，已完成）；實驗（第七到九輪，已完成，§3）；**Chromium 沙盒在普通 Docker 下起得來（已驗證，只換 seccomp 規則）** | **P0 已完成（2026-11-16）**：§10.6 的 1、2、7 在 P1 用真的瀏覽器容器再驗；現有容器沒有被動到；數字已寫回 §3 |
 | P1 | `browser-host/`：映像、政策、啟動旗標（開沙盒）、容器開關、同時數量與排隊、瀏覽器資料解封與封存、CDP 控制器、閒置與 2 小時回收、控制通道簽章、`smoke-test.sh`。沒有畫面、沒有模型 | 用 `curl` 開瀏覽器、開頁面、拿截圖、關掉；登入狀態能跨兩次開關保留；擋內網的規則有效 |
 | P2 | 模型的瀏覽器工具、`BROWSER_ALLOWED`、`BROWSER_ENABLED`、事件與步驟、操作與時間上限、「＋」開關與自然語言開啟、只支援看得到圖的模型；測試用假的 browser-host | Allen 在 staging 請模型開網頁、搜尋、讀內容 |
 | P3 | 即時畫面：`live` 網域、一次性憑證、預覽卡、藥丸、專注模式、兩檔畫質、畫面比例切換、游標、接管與歸還、閒置 10 分鐘、手機直式 | Allen 用 iPhone（Wi-Fi 與行動網路）看、接管、歸還；打字能用；延遲可接受 |
@@ -396,7 +396,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 6. 重網頁（影片、複雜網站）的 CPU 與記憶體；一個被看的瀏覽器與正式服務同時的承載量已量（§3.2、§3.3：正式服務沒有異常，`st` 0），重網頁還沒量；
 7. 瀏覽器資料排除快取後，登入狀態是否真的能跨次保留（Chromium 的 cookie 加密與 `--user-data-dir` 搬移）；
 8. `Page.setInterceptFileChooserDialog` 與下載行為在這個版本是否如預期；
-9. **【已量，§3.1–§3.3】** 普通 Docker 下 Chromium 自己的沙盒起不來（Docker 預設 seccomp 擋建立使用者命名空間，且主機有 AppArmor 限制）；gVisor 下起得來但手感與 CPU 代價太大，**決定不用 gVisor**（§2.6）。**待驗證：** 用 `make-chromium-seccomp.sh` 的規則（只換 seccomp，不動主機）後，普通 Docker 下沙盒是否起得來；不夠時的 AppArmor 做法。
+9. **【已驗證，2026-11-16】** 普通 Docker 下 Chromium 自己的沙盒起不來的原因是 Docker 預設 seccomp 擋建立使用者命名空間；用 `make-chromium-seccomp.sh` 的規則（Docker 預設加 `clone`、`clone3`、`unshare`、`setns`、`chroot`）加預設 AppArmor，**探測變體 2 `SANDBOX OK`，主機不用動**。決定不用 gVisor（§2.6）。**P1 還要做：** 用真的瀏覽器容器（neko 或自己的映像）在 `--cap-drop=ALL`、`no-new-privileges`、非 root 之下再驗證一次；用 `chrome://sandbox` 或等價檢查確認沙盒是開的（探測只證明帶著沙盒啟動成功）。
 10. 擋 UDP 的網路（公司、飯店）怎麼辦：先讓使用者看到明確提示，TURN 之後再說；
 11. **WARP 的 proxy 模式**：Chromium 經它上網、同時 WebRTC 串流不受影響；WARP 條款；
 12. **台灣到 Contabo 的延遲**對接管打字的影響：**已量一次（§3.2），中位數 106 ms、最慢 288 ms**；其他機房與不同時段還沒量（Windows 版腳本 `browser-host/measure-latency.ps1`）；
