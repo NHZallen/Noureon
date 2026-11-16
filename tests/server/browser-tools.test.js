@@ -372,3 +372,37 @@ test('without the confirmation nothing is sent; an unknown name lists the attach
   const noRef = setup({ current: { sessionId: 'b00000001', conversationId: 'c1' }, inputFiles: [attached('cv.pdf', 'x')] });
   assert.match(asText(await noRef.loader.run(call('browser_upload', { file: 'cv.pdf' }))), /number/);
 });
+
+const realJpeg = async () => {
+  const canvas = await import('@napi-rs/canvas');
+  const surface = canvas.createCanvas(1024, 768);
+  const context = surface.getContext('2d');
+  context.fillStyle = '#3366cc';
+  context.fillRect(0, 0, 1024, 768);
+  context.fillStyle = '#ffffff';
+  context.fillRect(100, 100, 600, 300);
+  return surface.toBuffer('image/jpeg', 70).toString('base64');
+};
+
+test('the last picture the model saw is kept as a small JPEG for the tag of the message; a fresh look is taken before the browser is closed', async () => {
+  const base64 = await realJpeg();
+  const t = setup({ actions: { screenshot: () => ({ ok: true, mime: 'image/jpeg', base64 }) } });
+  assert.equal(await t.loader.frame(), '', 'nothing was seen yet');
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  await t.loader.run(call('browser_snapshot'));
+  const before = t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length;
+  await t.loader.run(call('browser_close'));
+  assert.equal(t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length, before + 1, 'one more look at the end');
+  const frame = await t.loader.frame();
+  assert.match(frame, /^data:image\/jpeg;base64,/);
+  assert.ok(frame.length < 60_000, `small: ${frame.length}`);
+});
+
+test('a page that asks for a card is not kept as the last picture', async () => {
+  const base64 = await realJpeg();
+  const cardPage = { ...PAGE, elements: [{ ref: 1, role: 'textbox', name: 'Card number' }] };
+  const t = setup({ actions: { screenshot: () => ({ ok: true, mime: 'image/jpeg', base64 }), snapshot: () => cardPage } });
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  await t.loader.run(call('browser_snapshot'));
+  assert.equal(await t.loader.frame(), '');
+});

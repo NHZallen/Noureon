@@ -375,3 +375,26 @@ test('what the browser did is kept in the record of the reply (the steps and how
   assert.match(result.parts[0].text, /"browser":\{"end":"done"/, 'the record is in the process block of the message');
   assert.doesNotMatch(JSON.stringify(result.run.browser), /password|token|secret/i);
 });
+
+test('the last picture of the browser goes with the record of the reply, as a small JPEG', async () => {
+  const canvas = await import('@napi-rs/canvas');
+  const surface = canvas.createCanvas(1024, 768);
+  surface.getContext('2d').fillRect(0, 0, 1024, 768);
+  const base64 = surface.toBuffer('image/jpeg', 70).toString('base64');
+  let round = 0;
+  const browser = browserFor({});
+  browser.sessions.action = async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : action.type === 'screenshot' ? { ok: true, mime: 'image/jpeg', base64 } : action.type === 'snapshot' ? { ok: true, tabId: 'T1', url: 'https://shop.example/', title: 'Shop', scroll: { y: 0, height: 700, view: 700 }, elements: [], text: 'Welcome' } : { ok: true });
+  const result = await executeReply({
+    spec: specFor({ tools: { webSearch: 'off', advanced: false, browser: true } }),
+    secrets,
+    userId: '123e4567-e89b-12d3-a456-426614174000',
+    browser,
+    fetchImpl: async () => {
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })) : round === 2 ? sse(toolCall('call_2', 'browser_snapshot', {})) : sse(content('Looked at the shop.')));
+    }
+  });
+  assert.match(result.run.browser.frame, /^data:image\/jpeg;base64,/);
+  assert.ok(result.run.browser.frame.length < 60_000);
+  assert.match(result.parts[0].text, /"frame":"data:image\/jpeg;base64,/, 'it is in the block of the message');
+});

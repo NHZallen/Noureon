@@ -170,7 +170,9 @@ export function normalizeBrowserRecord(browser) {
   const steps = (Array.isArray(browser.steps) ? browser.steps : []).slice(0, 80)
     .map((step) => ({ action: oneLine(step?.action, 20), domain: oneLine(step?.domain, 120), label: oneLine(step?.label, 160) }))
     .filter((step) => step.label);
-  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps } : null;
+  // The last picture of the browser: a small JPEG as a data address (server/browser-tools.js makes it), nothing else is taken.
+  const frame = typeof browser.frame === 'string' && browser.frame.length <= 60_000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(browser.frame) ? browser.frame : '';
+  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps, ...(frame ? { frame } : {}) } : null;
 }
 
 const COUNCIL_STAGES = ['translation', 'firstRound', 'deliberation', 'synthesis'];

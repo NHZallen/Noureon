@@ -2,7 +2,7 @@
 // reply, but the record keeps the steps and how the work ended, so the message shows the tag ("Done", "Cancelled", the red cross) in the place of the card. A press opens the
 // card again (the place holder of the screen and the capsule that turns it over to the steps), as it does for the one that has just finished.
 
-/** `record`: { end: 'done' | 'failed' | 'cancelled', steps: [{ action, domain, label }] } (sandbox-run-block.js). */
+/** `record`: { end: 'done' | 'failed' | 'cancelled', steps: [{ action, domain, label }], frame?: the last picture } (sandbox-run-block.js). */
 export function browserTagElement(document, record, { language = 'zh-TW' } = {}) {
   const host = document.createElement('div');
   host.className = 'bcard-saved';
@@ -12,6 +12,7 @@ export function browserTagElement(document, record, { language = 'zh-TW' } = {})
     if (record.end === 'failed') card.handle({ event: 'failed' });
     else if (record.end === 'cancelled') card.cancel();
     else card.complete();
+    if (record.frame) card.setStill(record.frame);
     card.fold();
   }).catch(() => {});
   return host;

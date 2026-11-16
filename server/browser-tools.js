@@ -5,6 +5,7 @@
 
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { MAX_RESULT_IMAGE_CHARS } from '../src/data/tool-result.js';
+import { makeThumbnail } from './picture-thumb.js';
 import { LoginError, originOf } from './browser-logins.js';
 import { EXECUTABLE_FILE, pageTakesCard, tripwireFor } from './browser-tripwire.js';
 
@@ -36,6 +37,10 @@ export const BROWSER_TOOLS = Object.freeze([
 const NAMES = new Set(BROWSER_TOOLS.map((entry) => entry.name));
 export const isBrowserToolName = (name) => NAMES.has(name);
 
+// The picture kept with the message: small (the longest side, the quality and the size of the text are limited, as the record is kept in the text of the message).
+const FRAME_SIDE = 560;
+const FRAME_QUALITY = 55;
+export const FRAME_MAX_CHARS = 60_000;
 const ACTION_OF = { browser_open: 'open', browser_snapshot: 'snapshot', browser_click: 'click', browser_type: 'type', browser_press: 'press', browser_scroll: 'scroll', browser_back: 'back', browser_wait: 'wait', browser_tabs: 'tabs', browser_fill_login: 'login', browser_request_confirmation: 'confirm', browser_request_login: 'ask', browser_request_code: 'ask', browser_request_handover: 'ask', browser_request_payment: 'ask', browser_download: 'download', browser_upload: 'upload', browser_close: 'close' };
 
 export const BROWSER_INSTRUCTION = [
@@ -84,6 +89,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   let announcedQueue = null;
   // What the last snapshot showed (for the tripwire: the name of what a click is on) and when the user last confirmed something on a site (one confirmation covers what follows at once).
   const keptFiles = [];
+  let lastShot = null;
   let lastElements = new Map();
   let takesCard = false;
   let confirmed = { domain: '', at: 0 };
@@ -153,7 +159,11 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     for (const quality of [60, 35]) {
       try {
         const shot = await act(sessionId, { type: 'screenshot', format: 'jpeg', quality });
-        if (typeof shot?.base64 === 'string' && shot.base64.length <= MAX_RESULT_IMAGE_CHARS) return { label: 'The page now', mimeType: shot.mime || 'image/jpeg', data: shot.base64 };
+        if (typeof shot?.base64 === 'string' && shot.base64.length <= MAX_RESULT_IMAGE_CHARS) {
+          // The last picture the model saw is kept for the tag of the message (not while the page asks for a card: nothing of such a page is kept).
+          if (!takesCard) lastShot = { mime: shot.mime || 'image/jpeg', base64: shot.base64 };
+          return { label: 'The page now', mimeType: shot.mime || 'image/jpeg', data: shot.base64 };
+        }
       } catch {
         return null;
       }
@@ -169,6 +179,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       if (call.name === 'browser_close') {
         const sessionId = current();
         if (!sessionId) return 'No browser is open.';
+        // The last look, before it is closed.
+        if (!takesCard) await picture(sessionId);
         const kept = await sessions.close(sessionId, userId);
         actions += 1;
         return kept ? 'The browser is closed; the logins are kept for next time.' : 'The browser is closed.';
@@ -351,6 +363,13 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     get tools() { return maxActions > 0 && actions >= maxActions ? [] : BROWSER_TOOLS; },
     /** The files the reply downloaded for the person ({ name, size, mimeType, data: the marker of the stored file }). */
     get files() { return keptFiles; },
+    /** The last picture of the browser as a small JPEG data address (the message shows it when the tag of the work is opened), or '' when there is none. */
+    async frame() {
+      if (!lastShot) return '';
+      const small = await makeThumbnail(Buffer.from(lastShot.base64, 'base64'), lastShot.mime, { side: FRAME_SIDE, quality: FRAME_QUALITY });
+      const url = small ? `data:${small.mimeType};base64,${small.data}` : '';
+      return url.length <= FRAME_MAX_CHARS && /^data:image\/jpeg;base64,/.test(url) ? url : '';
+    },
     handles: isBrowserToolName,
     noteFor: () => null,
     /** The row of the step list for a call: the domain and the kind of action, nothing of the address, the words typed or the page. */

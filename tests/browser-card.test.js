@@ -537,3 +537,28 @@ test('a saved message draws the tag of the browser work from its record: done, c
     }
   }
 });
+
+test('the last picture of a saved message is the screen of the opened tag; a data address that is not a small JPEG is not taken', async () => {
+  const { normalizeBrowserRecord } = await import('../src/app/ui/sandbox/sandbox-run-block.js');
+  const steps = [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }];
+  assert.equal(normalizeBrowserRecord({ end: 'done', steps, frame: 'https://evil.example/x.jpg' }).frame, undefined);
+  assert.equal(normalizeBrowserRecord({ end: 'done', steps, frame: 'data:image/svg+xml;base64,AAAA' }).frame, undefined);
+  assert.equal(normalizeBrowserRecord({ end: 'done', steps, frame: `data:image/jpeg;base64,${'A'.repeat(70_000)}` }).frame, undefined);
+  const frame = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+  assert.equal(normalizeBrowserRecord({ end: 'done', steps, frame }).frame, frame);
+  const { browserTagElement } = await import('../src/app/ui/sandbox/browser-tag.js');
+  const window = new Window();
+  const { document } = window;
+  try {
+    const host = browserTagElement(document, { end: 'done', steps, frame }, { language: 'en' });
+    document.body.append(host);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    host.querySelector('.bcard-pill').click();
+    const still = host.querySelector('.bcard-still');
+    assert.equal(still.hidden, false);
+    assert.equal(still.getAttribute('src'), frame);
+    assert.equal(host.querySelector('.bcard-screen').hidden, true, 'the place holder goes');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

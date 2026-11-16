@@ -146,3 +146,13 @@ test('the store copies a file of the person into the share\'s folder through the
   const missing = createShareStore({ url: 'https://x.supabase.test', serviceKey: 'service', fetchImpl: async () => new Response('{}', { status: 404 }) });
   assert.equal(await missing.copyUserFile({ userId: USER, shareId, hash: HASH_A }), null, 'a file that is not there any more is not an error');
 });
+
+test('a share keeps what the browser did but not the picture of the page it ended on', async () => {
+  const { formatSandboxRunBlock, liftSandboxRunBlock } = await import('../../src/app/ui/sandbox/sandbox-run-block.js');
+  const frame = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+  const block = formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: 5000, browser: { end: 'done', frame, steps: [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }] } });
+  assert.ok(liftSandboxRunBlock(block).run.browser.frame, 'the saved message has it');
+  const { run } = liftSandboxRunBlock(textForShare(`${block}Done.`, 'model'));
+  assert.equal(run.browser.steps.length, 1);
+  assert.equal(run.browser.frame, undefined);
+});

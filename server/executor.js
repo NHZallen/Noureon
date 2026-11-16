@@ -138,7 +138,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event.event === 'call' && browserTrace.length < 80) browserTrace.push({ action: String(event.action || '').slice(0, 20), domain: String(event.domain || '').slice(0, 120), label: String(event.label || '').slice(0, 160) });
     if (event.event === 'failed') browserEnded = 'failed';
   };
-  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice() } : null);
+  let browserFrame = '';
+  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
   const record = (status, { downloads = status !== 'running' } = {}) => ({
     status,
     steps: downloads ? downloadSteps() : [],
@@ -793,6 +794,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   } finally {
     await closeConnectors();
   }
+  // The last picture of the browser goes with the record (the tag of the message opens to it).
+  if (browserTrace.length) browserFrame = await browserLoader?.frame?.().catch(() => '') || '';
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;

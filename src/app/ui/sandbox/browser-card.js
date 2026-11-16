@@ -93,7 +93,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const cancelButton = button('bcard-round', t('browserCancel'), () => askCancel(), icon(document, 'cross', 14));
   const buttons = make('span', 'bcard-buttons');
   buttons.append(shrinkButton, cancelButton);
-  front.append(screen, capsule, buttons);
+  // The last picture of the browser, kept with a saved message: it takes the place of the screen when the tag is opened.
+  const still = make('img', 'bcard-still', { alt: '' });
+  still.hidden = true;
+  front.append(still, screen, capsule, buttons);
 
   const backHead = make('div', 'bcard-back-head');
   const backTitle = make('span', '', {});
@@ -397,6 +400,14 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     watch(fn) { watchers.push(fn); fn({ phase, view, focus: Boolean(focus) }); },
     complete,
     cancel,
+    /** The last picture (a data address of a JPEG) is the screen of the card; the card has the shape of the picture. */
+    setStill(url) {
+      if (typeof url !== 'string' || !url) return;
+      still.addEventListener('load', () => { if (still.naturalWidth > 0 && still.naturalHeight > 0) card.style.aspectRatio = `${still.naturalWidth} / ${still.naturalHeight}`; }, { once: true });
+      still.src = url;
+      still.hidden = false;
+      screen.hidden = true;
+    },
     /** Folds the card into its pill or tag (a saved message draws it so). */
     fold() { setView('pill'); },
     /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */
