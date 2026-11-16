@@ -314,6 +314,7 @@ async function uploadFiles(cdp, action, targetId, sessionId) {
   if (!list.length) throw new Error('say which files');
   let total = 0;
   for (const file of list) {
+    // eslint-disable-next-line no-control-regex
     if (typeof file?.name !== 'string' || !file.name || file.name.length > 255 || /[\\/\u0000-\u001f]/.test(file.name)) throw new Error('a file name is not valid');
     if (typeof file.base64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(file.base64)) throw new Error('a file could not be read');
     total += Math.floor(file.base64.length * 0.75);
