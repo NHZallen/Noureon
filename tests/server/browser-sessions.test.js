@@ -147,3 +147,14 @@ test('expired login states are swept about once an hour', async () => {
   await w.sessions.tick();
   assert.equal(w.calls.filter((call) => call[0] === 'sweep').length, 1);
 });
+
+test('a browser closed without a login state coming back is told in the log, and nothing is kept', async () => {
+  const w = world();
+  const lines = [];
+  w.host.stop = async () => null;
+  const sessions = createBrowserSessions({ host: w.host, profiles: w.profiles, log: (event) => lines.push(event), now: () => w.clock.t, sleep: async () => {}, makeId: () => 'browser00000009' });
+  const { sessionId } = await sessions.open(A, {});
+  assert.equal(await sessions.close(sessionId, A), false);
+  assert.deepEqual(lines, ['browser_close_no_login_state']);
+  assert.equal(w.saved.length, 0);
+});

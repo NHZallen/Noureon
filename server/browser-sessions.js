@@ -36,6 +36,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     try {
       await profiles.save(session.userId, await getArchive());
       session.savedAt = now();
+      log('browser_profile_kept', { why });
       return true;
     } catch (error) {
       log('browser_profile_save_failed', { why, code: error?.code || '', status: error?.status || 0 });
@@ -107,6 +108,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
       } catch (error) {
         if (error?.code !== 'not_found') throw error;
       }
+      if (!archive && session.keepLogin) log('browser_close_no_login_state', {});
       return archive ? keep(session, async () => archive, 'close') : false;
     },
     /** One round of upkeep: periodic saves, browsers the host stopped by itself, and (once an hour) the login states nobody used for 14 days. */
