@@ -164,6 +164,9 @@ if [ "$DRY" = 0 ]; then
   SECRET_NEW=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
   ensure BROWSER_HOST_SECRET "$SECRET_NEW"
   ensure BROWSER_ALLOWED_IPS "10.0.1.0/24"
+  # The machine itself (this installer's health check, the acceptance scripts) reaches the service from the bridge address. Only processes on this machine have that address as their
+  # source (the browsers have others in the network, and the firewall lets them reach nothing but the egress proxy), and every request still has to be signed.
+  if ! grep -q "^BROWSER_ALLOWED_IPS=.*${BROWSER_NET_GATEWAY}/32" "$ENV_FILE"; then sed -i "s#^BROWSER_ALLOWED_IPS=\(.*\)#BROWSER_ALLOWED_IPS=\1,${BROWSER_NET_GATEWAY}/32#" "$ENV_FILE"; fi
   ensure BROWSER_HOST_BIND "$BROWSER_NET_GATEWAY"
   ensure BROWSER_HOST_PORT 40010
   ensure BROWSER_MAX_SESSIONS 2
@@ -172,7 +175,7 @@ if [ "$DRY" = 0 ]; then
   chmod 600 "$ENV_FILE"
   echo "settings: the secret for the main server is in $ENV_FILE (BROWSER_HOST_SECRET; it is not printed here)"
 else
-  echo "  [dry-run] add to $ENV_FILE when missing: BROWSER_HOST_SECRET (a new random one), BROWSER_ALLOWED_IPS=10.0.1.0/24, BROWSER_HOST_BIND=$BROWSER_NET_GATEWAY, BROWSER_HOST_PORT=40010, BROWSER_MAX_SESSIONS=2, ..."
+  echo "  [dry-run] add to $ENV_FILE when missing: BROWSER_HOST_SECRET (a new random one), BROWSER_ALLOWED_IPS=10.0.1.0/24 (and this machine's own bridge address, /32), BROWSER_HOST_BIND=$BROWSER_NET_GATEWAY, BROWSER_HOST_PORT=40010, BROWSER_MAX_SESSIONS=2, ..."
 fi
 run install -m 0644 browser-host/noureon-browser-host.service /etc/systemd/system/noureon-browser-host.service
 run systemctl daemon-reload
