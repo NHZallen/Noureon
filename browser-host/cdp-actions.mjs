@@ -2,7 +2,7 @@
 // One DevTools action, run in a throw-away container that joins the browser's network (docker-args.mjs sidecarArgs). Prints ONE line of JSON: {"ok":true,...} or
 // {"ok":false,"error":"..."}; the exit code is 0 only for ok. Needs Node 22 (global WebSocket). The browser does not need --remote-allow-origins: this client sends no Origin.
 //   node cdp-actions.mjs '{"type":"navigate","url":"https://example.com/"}'
-//   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   tabs {op: "list"|"new"|"close", tabId?, url?}
+//   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close", tabId?, url?}
 import { pathToFileURL } from 'node:url';
 
 const MAX_URL = 4096;
@@ -87,6 +87,15 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       const format = action.format === 'jpeg' ? 'jpeg' : 'png';
       const shot = await cdp.send('Page.captureScreenshot', { format, ...(format === 'jpeg' ? { quality: Math.min(95, Math.max(30, Number(action.quality) || 70)) } : {}) }, sessionId, 30_000);
       return { ok: true, tabId: targetId, mime: `image/${format}`, base64: shot.data };
+    }
+    if (action.type === 'text') {
+      const targetId = await pickTab(cdp, action.tabId);
+      const sessionId = await attach(cdp, targetId);
+      const limit = Math.min(20_000, Math.max(100, Math.floor(Number(action.maxChars)) || 8000));
+      const here = await cdp.send('Runtime.evaluate', { expression: 'JSON.stringify({ url: location.href, title: document.title, text: document.body ? document.body.innerText : "" })', returnByValue: true }, sessionId);
+      const page = JSON.parse(here.result?.value || '{}');
+      const text = String(page.text || '');
+      return { ok: true, tabId: targetId, url: page.url, title: page.title, text: text.slice(0, limit), truncated: text.length > limit };
     }
     throw new Error('unknown action');
   } finally { cdp.close(); }

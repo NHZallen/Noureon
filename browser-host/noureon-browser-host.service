@@ -1,0 +1,33 @@
+[Unit]
+Description=Noureon browser host: starts and stops the browser containers for the main server (signed requests only)
+After=docker.service noureon-browser-firewall.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=noureon-browser
+Group=noureon-browser
+SupplementaryGroups=docker
+EnvironmentFile=/etc/noureon-browser/host.env
+Environment=HOME=/var/lib/noureon-browser
+ExecStart=/usr/bin/env node /opt/noureon-browser/service/main.mjs
+Restart=on-failure
+RestartSec=5
+StateDirectory=noureon-browser
+# This account can run docker, which is as much as root on this machine, so the service itself is kept small:
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryMax=512M
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target

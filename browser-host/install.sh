@@ -135,6 +135,54 @@ else
   echo "  [dry-run] docker run -d --name noureon-egress --network host ... node /app/egress-proxy.mjs"
 fi
 
+say "6. The browser host service (what the main server talks to)"
+SERVICE_FILES="auth.mjs cdp-actions.mjs call.mjs check-origin.mjs config.mjs docker-adapter.mjs docker-args.mjs main.mjs server.mjs session-manager.mjs egress-proxy.mjs"
+if [ "$DRY" = 0 ]; then
+  command -v node >/dev/null 2>&1 || fail "Node.js is needed on this machine for the browser host service (version 20 or newer)"
+  [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] || fail "Node.js 20 or newer is needed (this is $(node -v))"
+  id noureon-browser >/dev/null 2>&1 || useradd --system --home-dir /var/lib/noureon-browser --shell /usr/sbin/nologin noureon-browser
+  getent group docker >/dev/null 2>&1 && usermod -aG docker noureon-browser
+else
+  echo "  [dry-run] check Node.js >= 20; create the system user noureon-browser (member of the docker group)"
+fi
+run mkdir -p "$APP/service"
+for f in $SERVICE_FILES; do run install -m 0644 "browser-host/$f" "$APP/service/$f"; done
+run install -m 0644 browser-host/policies.json "$APP/policies.json"
+# The Chromium file of the browser containers: the egress proxy address goes in here.
+if [ "$DRY" = 0 ]; then
+  sed "s#@@PROXY@@#http://$BROWSER_NET_GATEWAY:$EGRESS_PORT#" browser-host/chromium.conf.template > "$APP/chromium.conf"; chmod 0644 "$APP/chromium.conf"
+  # The seccomp profile that lets Chromium's own sandbox start (Docker's default plus five system calls; needs to download Docker's default from GitHub).
+  sh browser-host/make-chromium-seccomp.sh >/dev/null || fail "could not build the seccomp profile (see browser-host/make-chromium-seccomp.sh)"
+  install -m 0644 browser-host/chromium-seccomp.json "$APP/chromium-seccomp.json"
+else
+  echo "  [dry-run] render $APP/chromium.conf from browser-host/chromium.conf.template (proxy http://$BROWSER_NET_GATEWAY:$EGRESS_PORT)"
+  echo "  [dry-run] sh browser-host/make-chromium-seccomp.sh, then install it to $APP/chromium-seccomp.json"
+fi
+# New settings are added to the settings file only when they are not in it yet (an existing file keeps what it has).
+ensure() { grep -q "^$1=." "$ENV_FILE" 2>/dev/null || { grep -q "^$1=" "$ENV_FILE" 2>/dev/null && sed -i "s#^$1=.*#$1=$2#" "$ENV_FILE" || printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }; }
+if [ "$DRY" = 0 ]; then
+  SECRET_NEW=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+  ensure BROWSER_HOST_SECRET "$SECRET_NEW"
+  ensure BROWSER_ALLOWED_IPS "10.0.1.0/24"
+  ensure BROWSER_HOST_BIND "$BROWSER_NET_GATEWAY"
+  ensure BROWSER_HOST_PORT 40010
+  ensure BROWSER_MAX_SESSIONS 2
+  ensure BROWSER_IDLE_MINUTES 60
+  ensure BROWSER_TASK_MAX_MINUTES 120
+  chmod 600 "$ENV_FILE"
+  echo "settings: the secret for the main server is in $ENV_FILE (BROWSER_HOST_SECRET; it is not printed here)"
+else
+  echo "  [dry-run] add to $ENV_FILE when missing: BROWSER_HOST_SECRET (a new random one), BROWSER_ALLOWED_IPS=10.0.1.0/24, BROWSER_HOST_BIND=$BROWSER_NET_GATEWAY, BROWSER_HOST_PORT=40010, BROWSER_MAX_SESSIONS=2, ..."
+fi
+run install -m 0644 browser-host/noureon-browser-host.service /etc/systemd/system/noureon-browser-host.service
+run systemctl daemon-reload
+run systemctl enable noureon-browser-host.service
+run systemctl restart noureon-browser-host.service
+if [ "$DRY" = 0 ]; then
+  sleep 3
+  if ( . "$ENV_FILE"; BROWSER_HOST_BIND="$BROWSER_NET_GATEWAY" node "$APP/service/call.mjs" GET /v1/health ) ; then echo "the browser host answers"; else journalctl -u noureon-browser-host -n 15 --no-pager | sed 's/^/    /'; fail "the browser host service does not answer (see the lines above)"; fi
+fi
+
 say "Done. Next:"
 echo "  1. If the provider has a cloud firewall or security group: open only what is needed (22 from your own address; the UDP range of the live screen when P3 comes)."
 if [ -z "${EGRESS_UPSTREAM_CONTAINER:-}" ] && [ -z "${EGRESS_UPSTREAM_SOCKS:-}" ]; then
