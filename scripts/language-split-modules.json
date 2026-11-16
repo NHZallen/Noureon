@@ -146,6 +146,10 @@
       "table": "default"
     },
     {
+      "path": "src/data/i18n/parts/browser-agent.js",
+      "table": "default"
+    },
+    {
       "path": "src/data/i18n/parts/project-sharing.js",
       "table": "default"
     },

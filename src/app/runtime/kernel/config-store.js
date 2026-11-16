@@ -53,6 +53,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     sandboxNetwork: 'on',
     // The keyboard shortcuts the person turned off or gave other keys: { id: { combo?, enabled? } } (ui/shortcuts/); goes to the cloud with the other settings.
     keyboardShortcuts: {},
+    // Whether the browser agent keeps the login state of its browser between replies (Settings → Browser agent); goes to the cloud with the other settings.
+    browserKeepLogin: true,
     // What the person chose for the protection of the keys on their devices, { on, days }, or null before any choice (security/local-key-policy.js); goes to the cloud with the other settings, and each device follows it.
     localKeyProtection: null,
     // The small model that answers the questions put while a message is sent (decisions/decision-models.js); chosen in Settings → Privacy, goes to the cloud with the other settings.

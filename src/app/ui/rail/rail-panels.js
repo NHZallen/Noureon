@@ -15,7 +15,7 @@ function searchIcon(document) {
 // the first group. The order inside a group is the order of this list.
 export const SETTINGS_GROUPS = Object.freeze([
   { key: 'railGroupPersonal', sections: ['user', 'security', 'personalization', 'accessibility', 'shortcuts', 'memory'] },
-  { key: 'railGroupModels', sections: ['model-management', 'tool-models', 'permissions'] },
+  { key: 'railGroupModels', sections: ['model-management', 'tool-models', 'browser-agent', 'permissions'] },
   { key: 'railGroupData', sections: ['data-management', 'privacy', 'trash', 'about'] }
 ]);
 

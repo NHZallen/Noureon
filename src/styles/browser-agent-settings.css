@@ -1,0 +1,50 @@
+/* important-audit: required: regression override / legacy compatibility - the settings modal forces the colour of everything inside it (`#settings-modal *:not(.toggle-label)`, settings.css, set as important) and of the icons in its buttons, so the quieter texts, the primary button and the icons set their own colour as important too, with a more specific selector. */
+/* Settings → Browser agent (src/app/ui/browser-agent/browser-agent-settings.js, docs/superpowers/specs/2026-11-16-browser-agent-design.md): blocks of rows, each an icon, a name with a small line under it and what goes with it.
+   Colours are the names of tokens.css; two weights (400, 500) and the three sizes of docs/superpowers/specs/2026-10-31-ui-style-rules.md. */
+
+#settings-modal .ba { padding: 0 0 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+#settings-modal .ba .ba-hint { margin: 0; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary) !important; }
+#settings-modal .ba .ba-notice { margin: 0; padding: 0.6rem 0.9rem; border: 1px solid var(--border-color); border-radius: 0.9rem; font-size: 0.8125rem; }
+#settings-modal .ba-sec { display: flex; flex-direction: column; gap: 0.5rem; }
+#settings-modal .ba .ba-sec-title { padding: 0 0.15rem; font-size: 0.8125rem; font-weight: 400; color: var(--text-secondary) !important; }
+#settings-modal .ba-card { border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg); }
+#settings-modal .ba-row { display: flex; align-items: center; gap: 0.75rem; min-width: 0; min-height: 3.5rem; padding: 0.55rem 0.9rem; border-top: 1px solid var(--border-color); }
+#settings-modal .ba-row:first-child { border-top: 0; }
+#settings-modal .ba-mark { flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; background: var(--hover-bg); overflow: hidden; }
+#settings-modal .ba-mark img { width: 1.25rem; height: 1.25rem; object-fit: contain; }
+#settings-modal .ba-mark svg, #settings-modal .ba-mark svg * { color: var(--text-secondary) !important; stroke: var(--text-secondary) !important; }
+#settings-modal .ba-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+#settings-modal .ba .ba-title { font-size: 0.9375rem; font-weight: 500; overflow-wrap: anywhere; }
+#settings-modal .ba .ba-desc { font-size: 0.8125rem; line-height: 1.45; color: var(--text-secondary) !important; }
+#settings-modal .ba .ba-note { margin: 0; padding: 0 0.15rem; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary) !important; }
+#settings-modal .ba-grow { flex: 1 1 0; min-width: 0; }
+#settings-modal .ba .ba-tag { flex: none; padding: 0.05rem 0.55rem; border: 1px solid var(--border-color); border-radius: 9999px; font-size: 0.8125rem; color: var(--text-secondary) !important; }
+#settings-modal .ba .ba-tag.is-on { border-color: var(--state-success); color: var(--state-success) !important; }
+
+#settings-modal .ba .ba-code-text { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9375rem; letter-spacing: 0.06em; }
+#settings-modal .ba .ba-code { flex: 1; min-width: 0; height: 2.25rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.6rem; background: var(--input-field-bg); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9375rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-primary) !important; }
+#settings-modal .ba .ba-code:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 1px; }
+
+#settings-modal .ba .ba-btn { flex: none; height: 2.25rem; padding: 0 0.95rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; font-size: 0.9375rem; font-weight: 400; color: var(--text-primary) !important; cursor: pointer; }
+#settings-modal .ba .ba-btn[hidden] { display: none; }
+#settings-modal .ba .ba-btn.is-primary { border-color: var(--gpt-primary-action-bg); background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text) !important; }
+#settings-modal .ba .ba-btn.is-danger, #settings-modal .ba .ba-btn.is-confirming { color: var(--state-danger) !important; }
+#settings-modal .ba .ba-btn:disabled { opacity: 0.45; cursor: default; }
+@media (hover: hover) { #settings-modal .ba .ba-btn:hover:not(:disabled):not(.is-primary) { background: var(--hover-bg); } }
+
+#settings-modal .ba .ba-switch { flex: none; position: relative; width: 2.75rem; height: 1.5rem; padding: 0; border: 0; border-radius: 9999px; background: var(--border-color); cursor: pointer; transition: background 160ms ease-out; }
+#settings-modal .ba .ba-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: calc(1.5rem - 4px); height: calc(1.5rem - 4px); border-radius: 50%; background: var(--chat-bg); transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+#settings-modal .ba .ba-switch[aria-checked='true'] { background: var(--gpt-primary-action-bg); }
+#settings-modal .ba .ba-switch[aria-checked='true']::after { transform: translateX(1.25rem); }
+
+#settings-modal .ba-more-wrap { position: relative; flex: none; }
+#settings-modal .ba .ba-more { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; cursor: pointer; }
+@media (hover: hover) { #settings-modal .ba .ba-more:hover { background: var(--hover-bg); } }
+#settings-modal .ba .ba-more svg, #settings-modal .ba .ba-more svg * { color: var(--text-primary) !important; stroke: var(--text-primary) !important; fill: var(--text-primary) !important; }
+#settings-modal .ba .ba-menu { position: absolute; right: 0; top: calc(100% + 0.25rem); z-index: 5; min-width: 11rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg); }
+#settings-modal .ba .ba-menu[hidden] { display: none; }
+#settings-modal .ba .ba-menu-item { display: block; width: 100%; padding: 0.55rem 0.7rem; border: 0; border-radius: 0.6rem; background: transparent; text-align: left; font-size: 0.9375rem; font-weight: 400; color: var(--text-primary) !important; cursor: pointer; }
+@media (hover: hover) { #settings-modal .ba .ba-menu-item:hover { background: var(--hover-bg); } }
+#settings-modal .ba .ba-menu-item.is-danger, #settings-modal .ba .ba-menu-item.is-confirming { color: var(--state-danger) !important; }
+
+@media (prefers-reduced-motion: reduce) { #settings-modal .ba .ba-switch, #settings-modal .ba .ba-switch::after { transition: none; } }

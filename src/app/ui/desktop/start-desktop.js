@@ -6,5 +6,6 @@ export function startDesktop({ document, configAccess, saveConfig, i18n, toggleS
   const getLanguage = () => configAccess.getConfig().uiLanguage;
   const warn = (what) => (error) => console.warn(`${what} did not start.`, error);
   import('../rail/start-rail.js').then(({ startRail }) => startRail({ document, getLanguage, i18n, toggleSidebar })).catch(warn('The rail'));
+  import('../browser-agent/start-browser-agent.js').then(({ startBrowserAgent }) => startBrowserAgent({ document, configAccess, saveConfig, getLanguage, i18n })).catch(warn('The browser agent settings'));
   import('../shortcuts/start-shortcuts.js').then(({ startShortcuts }) => startShortcuts({ document, configAccess, saveConfig, getLanguage, i18n })).catch(warn('The keyboard shortcuts'));
 }

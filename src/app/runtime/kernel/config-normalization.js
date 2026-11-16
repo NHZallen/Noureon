@@ -201,6 +201,7 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.sandboxNetwork = normalizedConfig.sandboxNetwork === 'off' ? 'off' : 'on';
   normalizedConfig.keyboardShortcuts = normalizeKeyboardShortcutItems(normalizedConfig.keyboardShortcuts);
+  normalizedConfig.browserKeepLogin = normalizedConfig.browserKeepLogin !== false;
   normalizedConfig.localKeyProtection = normalizeLocalKeyPolicy(normalizedConfig.localKeyProtection);
   normalizedConfig.decisionModel = normalizeDecisionModel(normalizedConfig.decisionModel);
   normalizedConfig.reduceMotion = normalizedConfig.reduceMotion === 'on' ? 'on' : 'system';

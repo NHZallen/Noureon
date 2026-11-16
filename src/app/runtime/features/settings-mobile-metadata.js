@@ -10,6 +10,7 @@ export const SETTINGS_MOBILE_ICON_MAP = Object.freeze({
   'tool-models': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="3"></rect><circle cx="9" cy="9.5" r="1.6"></circle><path d="m4 16 5-4.5 3.5 3L16 11l5 5"></path></svg>',
   accessibility: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10"></path><path d="M18 7h2"></path><circle cx="16" cy="7" r="2"></circle><path d="M4 17h2"></path><path d="M10 17h10"></path><circle cx="8" cy="17" r="2"></circle></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 15H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>',
+  'browser-agent': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a14 14 0 0 1 0 18"></path><path d="M12 3a14 14 0 0 0 0 18"></path></svg>',
   about: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>'
 });
 
@@ -34,7 +35,8 @@ export const getSettingsMobileGroups = (getText) => {
         { section: 'personalization', label: text('personalization', '個人化') },
         { section: 'memory', label: text('memoryManagement', '記憶管理') },
         { section: 'model-management', label: text('modelManagement', '模型管理') },
-        { section: 'tool-models', label: text('toolModels', '可呼叫的模型') }
+        { section: 'tool-models', label: text('toolModels', '可呼叫的模型') },
+        { section: 'browser-agent', label: text('baNav', '瀏覽器代理') }
       ]
     },
     {
