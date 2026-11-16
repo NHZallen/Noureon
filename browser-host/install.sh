@@ -136,7 +136,7 @@ else
 fi
 
 say "6. The browser host service (what the main server talks to)"
-SERVICE_FILES="auth.mjs cdp-actions.mjs call.mjs check-origin.mjs config.mjs docker-adapter.mjs docker-args.mjs main.mjs server.mjs session-manager.mjs egress-proxy.mjs"
+SERVICE_FILES="auth.mjs cdp-actions.mjs call.mjs check-origin.mjs config.mjs docker-adapter.mjs docker-args.mjs main.mjs server.mjs session-manager.mjs egress-proxy.mjs live.mjs live-proxy.mjs neko-api.mjs"
 if [ "$DRY" = 0 ]; then
   command -v node >/dev/null 2>&1 || fail "Node.js is needed on this machine for the browser host service (version 20 or newer); run: sudo sh browser-host/install-node.sh"
   [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] || fail "Node.js 20 or newer is needed (this is $(node -v))"

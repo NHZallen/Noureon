@@ -1,0 +1,31 @@
+# A dynamic file for the Traefik of Coolify (put it in /data/coolify/proxy/dynamic/noureon-live.yml; Traefik reads the folder by itself, no restart).
+# It sends https://<live host>/ to the small door of the live screen (browser-host/live-proxy.mjs), which lets through only the WebSocket path of a browser that is live.
+# Replace LIVE_HOST. The certificate is asked for by Traefik (Let's Encrypt, HTTP-01), so the DNS record of LIVE_HOST must point straight at this machine (no Cloudflare proxy).
+# This is the form that was tried on the real host on 2026-11-17 (design doc 12.2); check the names of the entry point and the resolver against the Traefik of this machine before using it.
+http:
+  routers:
+    noureon-live:
+      rule: "Host(`LIVE_HOST`)"
+      entryPoints:
+        - https
+      service: noureon-live
+      tls:
+        certResolver: letsencrypt
+    noureon-live-http:
+      rule: "Host(`LIVE_HOST`)"
+      entryPoints:
+        - http
+      middlewares:
+        - noureon-live-https
+      service: noureon-live
+  middlewares:
+    noureon-live-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+  services:
+    noureon-live:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://172.29.0.1:40011"
