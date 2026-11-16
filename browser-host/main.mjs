@@ -16,7 +16,7 @@ const verifier = createVerifier({ secrets: config.secrets, allowedIps: config.al
 const server = createServer({ manager, verifier, maxProfileBytes: config.manager.maxProfileBytes, log, tls: config.tls ? { cert: (await import('node:fs')).readFileSync(config.tls.cert), key: (await import('node:fs')).readFileSync(config.tls.key) } : null });
 
 const removed = await manager.recover().catch((error) => { log({ ev: 'recover_failed', why: String(error?.message || error).slice(0, 160) }); return 0; });
-log({ ev: 'starting', leftoversRemoved: removed, maxSessions: config.manager.maxSessions, enabled: config.manager.enabled });
+log({ ev: 'starting', leftoversRemoved: removed, maxSessions: config.manager.maxSessions, enabled: config.manager.enabled, allowedIps: config.allowedIps });
 const timer = setInterval(() => { manager.tick().catch((error) => log({ ev: 'tick_failed', why: String(error?.message || error).slice(0, 160) })); }, 10_000);
 server.listen(config.port, config.bind, () => log({ ev: 'listening', bind: config.bind, port: config.port, tls: Boolean(config.tls) }));
 

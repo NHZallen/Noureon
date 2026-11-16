@@ -55,7 +55,7 @@ export function createServer({ manager, verifier, maxProfileBytes = 150 * 1024 *
     let status = 500; let label = 'unknown';
     try {
       const remote = req.socket.remoteAddress;
-      if (!verifier.addressAllowed(remote)) { status = 403; send(res, 403, { error: 'forbidden' }); req.destroy(); return; }
+      if (!verifier.addressAllowed(remote)) { status = 403; log({ ev: 'refused', label: 'address', status: 403, remote: String(remote).slice(0, 64) }); send(res, 403, { error: 'forbidden' }); req.destroy(); return; }
       const rawUrl = req.url || '/';
       const url = new URL(rawUrl, 'http://browser-host.invalid');
       const route = routes.find((r) => r.method === req.method && r.re.test(url.pathname));
