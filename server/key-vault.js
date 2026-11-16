@@ -14,6 +14,11 @@ const ALGORITHM = 'aes-256-gcm';
 const LEGACY_PREFIX = 'nk1';
 const PREFIX = 'nk2';
 const KEY_CONTEXT = 'noureon/sealed-keys/v2/';
+// Sealed files (a browser's login state, docs/superpowers/specs/2026-11-16-browser-agent-design.md, §8.1): bytes instead of an object, a key of its own for each person AND
+// each purpose (so a sealed file of one purpose is never opened as another), and the person, purpose and file name bound as additional authenticated data.
+const BLOB_MAGIC = Buffer.from('nb1');
+const BLOB_CONTEXT = 'noureon/sealed-blob/v1/';
+const PURPOSE = /^[a-z][a-z-]{2,31}$/;
 
 const decodeKey = (value, name) => {
   const bytes = Buffer.from(String(value || ''), 'base64');
@@ -42,8 +47,43 @@ export function createKeyVault(keys) {
     }
     return key;
   };
+  const blobKeys = new Map();
+  const blobKeyOf = (entry, userId, purpose) => {
+    if (!PURPOSE.test(String(purpose || ''))) throw new Error('A sealed file needs a purpose.');
+    const name = `${entry.version}|${purpose}|${userId}`;
+    let key = blobKeys.get(name);
+    if (!key) {
+      key = Buffer.from(hkdfSync('sha256', entry.key, Buffer.alloc(0), Buffer.from(`${BLOB_CONTEXT}${purpose}/${userId}`, 'utf8'), 32));
+      if (blobKeys.size >= 2000) blobKeys.clear();
+      blobKeys.set(name, key);
+    }
+    return key;
+  };
+  const blobAad = ({ userId, purpose, objectId }) => Buffer.from(`${purpose}:${userId}:${objectId}`, 'utf8');
   return {
     currentVersion: current.version,
+    /** Seals bytes (a file) for one person and purpose; returns { blob (a Buffer), keyVersion }. */
+    sealBlob(bytes, { userId, purpose, objectId }) {
+      const iv = randomBytes(12);
+      const cipher = createCipheriv(ALGORITHM, blobKeyOf(current, userId, purpose), iv);
+      cipher.setAAD(blobAad({ userId, purpose, objectId }));
+      const sealed = Buffer.concat([cipher.update(bytes), cipher.final()]);
+      return { blob: Buffer.concat([BLOB_MAGIC, iv, cipher.getAuthTag(), sealed]), keyVersion: current.version };
+    },
+    /** Opens a sealed file; throws when it was not made for this person, purpose and name, was changed, or its key is gone. */
+    openBlob(blob, keyVersion, { userId, purpose, objectId }) {
+      const entry = usable.find((item) => item.version === Number(keyVersion));
+      const bytes = Buffer.from(blob || []);
+      if (!entry || bytes.length < BLOB_MAGIC.length + 28 || !bytes.subarray(0, BLOB_MAGIC.length).equals(BLOB_MAGIC)) throw new Error('The sealed file cannot be opened.');
+      try {
+        const decipher = createDecipheriv(ALGORITHM, blobKeyOf(entry, userId, purpose), bytes.subarray(3, 15));
+        decipher.setAAD(blobAad({ userId, purpose, objectId }));
+        decipher.setAuthTag(bytes.subarray(15, 31));
+        return Buffer.concat([decipher.update(bytes.subarray(31)), decipher.final()]);
+      } catch {
+        throw new Error('The sealed file cannot be opened.');
+      }
+    },
     /** Seals an object (the secrets of one reply); returns { envelope, keyVersion }. */
     seal(secrets, { userId, messageId }) {
       const iv = randomBytes(12);

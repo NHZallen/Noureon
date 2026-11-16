@@ -422,6 +422,17 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 17. 卡片資料直送 browser-host 的一次性憑證與記憶體清除方式；
 18. 逐網域還原登入狀態（§8.1）的可行性。
 
+### 12.1 P1 實作筆記（2026-11-16，staging）
+
+**瀏覽器主機端**（`browser-host/`，contract v2 已由 Allen 確認）：服務入口 `main.mjs`、簽章通道 `auth.mjs`／`server.mjs`、容器管理 `session-manager.mjs`／`docker-adapter.mjs`／`docker-args.mjs`、CDP 動作 `cdp-actions.mjs`（`navigate`、`screenshot`、`tabs`、`text`；只允許 http/https）、正式 Chromium 設定 `chromium.conf.template`（沙盒開、無 `--bwsi`、無 `--remote-allow-origins`）與 `policies.json`、`check-origin.mjs`（網頁連不到自己的 DevTools）、安裝腳本 `install.sh`（第 6 步）與 `install-node.sh`（官方 Node 22，核對 SHA-256，不動 apt）。驗收腳本 `e2e-test.sh`（開、截圖、沙盒、權限、登入狀態跨兩次保留、兩個上限、無殘留）與 `e2e-load.sh`（兩個沒人看但被驅動的瀏覽器的負載）。**真機驗收尚未跑**（等 Allen 放行正式安裝）。
+
+**主伺服器端**（只寫模組與測試，尚未接進 `main.js`，P2 才接）：
+- `server/key-vault.js`：新增 `sealBlob`／`openBlob`（檔案、位元組；每人且每個用途一把 HKDF 金鑰，使用者、用途、檔名綁在 AAD；格式 `nb1`，與 `nk2` 文字互不相通）。
+- `server/browser-host-client.js`：簽章的控制通道客戶端（與 `browser-host/auth.mjs` 的規格一致，測試直接對真的 browser-host HTTP 層驗證；不 import `browser-host/`，因為伺服器映像只複製 `server/` 與 `src/`）。
+- `server/browser-profile-store.js`：登入狀態的封存與還原（bucket `browser-profiles`、表 `browser_profiles`、`pending_clear`、14 天到期清理；先寫檔案再寫列；讀不開回報 `unreadable`，不猜）。
+- `server/browser-sessions.js`：開瀏覽器（載入、解開、先交給主機再啟動）、每 5 分鐘存、關閉時停瀏覽器後才打包、主機自己停掉的瀏覽器會把保留的登入狀態收回、每小時清過期。每人一個。已知限制：開啟中的清單在記憶體，伺服器重啟後該次執行的登入狀態只剩最後一次定時存檔。
+- migration `20261116100000_browser_profiles.sql`（表、RLS 只讓本人讀事實欄位、私有 bucket，沒有任何給使用者的 storage 政策）：**只套測試專案**；金鑰與權限部分需 Allen 與 Sun 兩人審。
+
 ## 14. 契約與審查
 
 Linear 契約說明（`contract`）：新的事件類型 `browser`（含 `confirm`、`answer`、`takeover`、`login`、`code`、`payment`）、新的工具名稱（§4.3）、新的伺服器路由（取得串流憑證、接管與歸還、畫面比例、密碼庫、登入狀態清除與登出、邀請碼兌換、下載與上傳、一次性卡片憑證）、控制通道（主伺服器到 browser-host，HTTPS＋HMAC）、環境變數（`BROWSER_ALLOWED`、`BROWSER_ENABLED`、`BROWSER_HOSTS`、`BROWSER_MAX_SESSIONS`（預設 2）、`BROWSER_MAX_LIVE_VIEWS`（預設 1）、`BROWSER_TASK_MAX_MINUTES=120`、`BROWSER_IDLE_MINUTES=60`、`browser-host` 自己的設定檔）、新的資料表與函式（§7、§8、§9）、`scripts/server-shared-modules.json` 若有新增共用模組要 Allen 更新。
