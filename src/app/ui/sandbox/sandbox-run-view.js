@@ -94,7 +94,9 @@ function pictureRows(document, run, language) {
 }
 
 function stepRow(document, step, index, language) {
-  const body = [createCodeCard(document, step.code, language, { shell: Boolean(step.command) })];
+  // A file the browser agent downloaded for the person: a step with a file and nothing else (no code, no output), so there is no code card, and the row says "Downloaded".
+  const downloadOnly = !step.code && !step.command && !step.stdout && !step.stderr && !step.error && step.files.length > 0;
+  const body = downloadOnly ? [] : [createCodeCard(document, step.code, language, { shell: Boolean(step.command) })];
 
   const output = [step.stdout, step.stderr].filter(Boolean).join(step.stdout && step.stderr ? '\n' : '');
   if (output) {
@@ -119,7 +121,7 @@ function stepRow(document, step, index, language) {
   const number = index + 1;
   return renderRow(document, {
     kind: 'code',
-    label: step.title ? sandboxText(language, 'ledgerRan', { n: number, title: step.title }) : sandboxText(language, 'ledgerRanUntitled', { n: number }),
+    label: downloadOnly ? sandboxText(language, 'browserDownloaded', { title: step.title }) : step.title ? sandboxText(language, 'ledgerRan', { n: number, title: step.title }) : sandboxText(language, 'ledgerRanUntitled', { n: number }),
     time: formatElapsed(step.elapsedMs || 0),
     failed: Boolean(step.error),
     body

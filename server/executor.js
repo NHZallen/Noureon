@@ -120,9 +120,19 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   const usedTools = [];
   // The searches and pages the model opened by itself, one row each (what the step list showed).
   const usedWeb = [];
-  const record = (status) => ({
+  // The files the browser agent downloaded for the person (server/browser-tools.js keeps them in the person's files): each is a step of the record with its file, so the message shows a file card for it
+  // (the part that holds the file is made below). A record that is only the reply so far (`running`) or a piece cut where the person added a message does not list them.
+  const downloadIds = new Map();
+  const downloaded = () => (browserLoader?.files || []).slice(0, 20).map((file) => {
+    const key = String(file.data?.__astraCloudAsset?.path || file.name);
+    if (!downloadIds.has(key)) downloadIds.set(key, crypto.randomUUID());
+    return { ...file, id: downloadIds.get(key) };
+  });
+  const downloadSteps = () => downloaded().map((file) => ({ title: file.name, code: '', stdout: '', stderr: '', files: [{ name: file.name, size: file.size, id: file.id }], elapsedMs: 0 }));
+  const downloadParts = () => downloaded().map((file) => ({ sandboxFile: { id: file.id, name: file.name, mimeType: file.mimeType || 'application/octet-stream', size: file.size, data: file.data } }));
+  const record = (status, { downloads = status !== 'running' } = {}) => ({
     status,
-    steps: [],
+    steps: downloads ? downloadSteps() : [],
     elapsedMs: now() - startedAt,
     ...(sources.length ? { sources } : {}),
     // (Of the pages in `sources`, this many were found in the messages before it: the row "Searched N sites" counts only its own, the answer's [n] cite them all.)
@@ -137,7 +147,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // (After a cut, only what came after it: the earlier message keeps its own.)
   let pictureBase = 0;
   const pictureSteps = () => (imageLoader?.record || []).slice(pictureBase);
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || usedTools.length || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || usedTools.length || pictureSteps().length || (status !== 'running' && downloaded().length) ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
@@ -158,7 +168,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   if (steer && onSegment) {
     steer.setBatchHandler((items, context) => {
       const steps = Array.isArray(context.steps) ? context.steps.slice(stepBase).map(cloneStep) : null;
-      const snapshot = { rec: { ...record('done'), segment: true }, answer, pictures: [...drawnParts], at: [...drawnAt] };
+      const snapshot = { rec: { ...record('done', { downloads: false }), segment: true }, answer, pictures: [...drawnParts], at: [...drawnAt] };
       if (steps) snapshot.rec.steps = steps;
       const finishing = (async () => {
         if (steps) {
@@ -789,6 +799,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (pictureSteps().length) run.pictures = pictureSteps();
     // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
     if (stepBase > 0) run.steps = run.steps.slice(stepBase);
+    // The files the browser agent downloaded come after the steps of the code.
+    run.steps.push(...downloadSteps());
     run.elapsedMs = now() - startedAt;
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;
@@ -804,7 +816,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
         if (output?.bytes) decks.set(file.id, output.bytes);
       }
-      return { parts: withPictures(finished.text, finished.parts), status: stopped ? 'stopped' : 'done', run, toolCalls, rounds: advanced.rounds, artifacts: { decks } };
+      return { parts: withPictures(finished.text, [...finished.parts, ...downloadParts()]), status: stopped ? 'stopped' : 'done', run, toolCalls, rounds: advanced.rounds, artifacts: { decks } };
     } catch (error) {
       onProblem('finish_failed', error);
       return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run, toolCalls, rounds: advanced.rounds, artifacts: { decks: new Map() } };
@@ -816,10 +828,10 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !usedTools.length && !drawnParts.length && !pictureSteps().length) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !usedTools.length && !drawnParts.length && !pictureSteps().length && !downloaded().length) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }
   const status = signal?.aborted ? 'stopped' : 'done';
-  return { parts: withPictures(messageText(status)), status, run: record(status), toolCalls };
+  return { parts: withPictures(messageText(status), downloadParts()), status, run: record(status), toolCalls };
 }

@@ -323,3 +323,33 @@ test('the browser is not offered when the person is not on the list, when the re
     assert.ok(!names.some((tool) => tool.startsWith('browser_')), name);
   }
 });
+
+test('a file the browser downloaded comes back as a step with its file and a part of the message that holds it, so the message shows a file card', async () => {
+  let round = 0;
+  const kept = [];
+  const files = { save: async ({ userId, bytes, mimeType }) => { kept.push([userId, bytes.length, mimeType]); return { __astraCloudAsset: { path: `${userId}/report`, mimeType } }; } };
+  const browser = browserFor({});
+  browser.sessions.action = async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : action.type === 'download' ? { ok: true, name: 'report.pdf', size: 5, mime: 'application/pdf', base64: Buffer.from('hello').toString('base64') } : { ok: true });
+  const result = await executeReply({
+    spec: specFor({ tools: { webSearch: 'off', advanced: false, browser: true } }),
+    secrets,
+    userId: '123e4567-e89b-12d3-a456-426614174000',
+    browser,
+    files,
+    fetchImpl: async () => {
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })) : round === 2 ? sse(toolCall('call_2', 'browser_download', { url: 'https://shop.example/report.pdf' })) : sse(content('The report is in your files.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(kept, [['123e4567-e89b-12d3-a456-426614174000', 5, 'application/pdf']]);
+  const file = result.parts.find((part) => part.sandboxFile)?.sandboxFile;
+  assert.equal(file.name, 'report.pdf');
+  assert.equal(file.mimeType, 'application/pdf');
+  assert.equal(file.size, 5);
+  assert.ok(file.data.__astraCloudAsset.path.endsWith('/report'));
+  const step = result.run.steps.at(-1);
+  assert.deepEqual(step.files, [{ name: 'report.pdf', size: 5, id: file.id }], 'the step lists the file by the id of the part');
+  assert.match(result.parts[0].text, /The report is in your files\./);
+  assert.match(result.parts[0].text, /report\.pdf/, 'the process line of the message carries the step');
+});
