@@ -1,11 +1,12 @@
-# The share of this machine the browsers may use, so the production services keep running when a page eats the CPU. The browser containers join it
+# The share of this machine the browsers may use, so the production services keep running when a page eats the CPU. There is NO hard CPU quota on purpose: round nine
+# (design doc §3.3) suggests (weakly) that a quota makes the picture stutter in bursts; a low weight lets the other services win when the machine is busy and lets the
+# browser use what it needs when it is not. Memory is still limited. The browser containers join it
 # with  docker run --cgroup-parent=noureon-browser.slice  (P1). Numbers are a start: measure, then change them.
 [Unit]
 Description=Noureon browser containers (limited share of the machine)
 
 [Slice]
 CPUWeight=20
-CPUQuota=250%
 MemoryHigh=3500M
 MemoryMax=4G
 MemorySwapMax=0
