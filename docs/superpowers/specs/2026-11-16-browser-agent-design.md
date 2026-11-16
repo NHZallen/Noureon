@@ -439,7 +439,8 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 **P2 實作筆記（伺服器側，2026-11-16）**：Allen 確認 contract（NOU-205）：`BROWSER_ALLOWED` 沒設＝沒有人能用；暫時用網址參數 `?browser=1` 當開關（`src/app/runtime/server-reply/browser-switch.js`，只存本機，由 Sun 的「＋」開關取代）；P2 沒有確認卡，所以系統提示規定不付款、不刪除、不更改帳號與設定、不送出不可返回的表單，不確定就在對話裡問使用者；**不限制操作次數與截圖張數**（`BROWSER_MAX_ACTIONS` 預設 0＝不限；時間限制仍在：閒置 1 小時、單次 2 小時）；會話 cookie 先不處理。
 - `server/browser-config.js`（環境變數、名單、信箱查詢）、`server/browser-tools.js`（10 個工具、系統提示、步驟事件）、`server/browser-service.js`（接起 client、儲存、工作階段、權限；`main.js` 建一個、關機時關掉所有自己開的瀏覽器）、`run-spec.js` 一個布林欄位 `tools.browser`、`executor.js` 併一個 loader（約 15 行）。五語的步驟文字在 `sandbox-texts.js`（`browserOpen`、`browserAct`、`browserClose`、`browserQueued`、`browserFailed`）。
 - 權限：請求帶 `tools.browser: true`（頁面只在模型看得到圖時才送）、`BROWSER_ENABLED` 沒關、`BROWSER_ALLOWED` 有這個帳號（帳號 ID，或由認證服務查出的信箱，快取 5 分鐘）。三者缺一就沒有這組工具。
-- 已知取捨：每次送出都會把先前回合的截圖再送一次（現有迴圈的做法），不限制張數時長對話的 token 會一直增加，模型供應商的上下文上限到了就會出錯；之後可考慮只保留最近幾張。頁面目前不認識 `browser` 事件，步驟列不會顯示這些列（不會出錯），畫法等 Sun 決定。
+- 已知取捨：每次送出都會把先前回合的截圖再送一次（現有迴圈的做法），不限制張數時長對話的 token 會一直增加，模型供應商的上下文上限到了就會出錯；之後可考慮只保留最近幾張。頁面的畫法見下一條（對話裡的卡片）。
+- **對話裡的卡片（2026-11-17，照 §16 與 Allen 的定版影片）**：`src/app/ui/sandbox/browser-card.js`＋`src/styles/browser-card.css`。`sandbox-ledger.js` 收到 `browser` 事件時（一行接線）建一張卡，放在「處理過程」那一行的正下方、步驟清單之外（和詢問卡同一個位置，所以清單收合時看得到）；不是清單裡的一列。內容：4:3 卡片（畫面區在 P3 前只放網站名稱）、下緣實心膠囊（轉圈／綠勾／紅叉＋目前動作）、點膠囊翻面成「任務進度」清單（同網站的連續動作合成一列）、右下角「縮成藥丸」與「取消」、取消先出確認（「要取消任務嗎？」「繼續執行」「取消任務」紅色）並用 `run.stop()` 停掉這次回覆、結束縮成「✓ 已完成」小標籤、取消後「✕ 已取消」、排隊時只有一顆藥丸（右邊有 ×）。文字是 `sandbox-texts.js` 的 `browserProgress` 等 12 個鍵（五語）。**還沒做：** 即時畫面、游標、專注模式、接管（P3）；登入、驗證碼、付款面板與黃色三角形「需要你」（P4，圖示已預留）；回覆存檔後卡片不會留著（要改存檔格式，先寫 `contract` 說明）。
 - 真機未驗：主伺服器（Coolify 容器）連到 `172.29.0.1:40010` 時，browser-host 看到的來源位址（要在名單 `BROWSER_ALLOWED_IPS` 內）；用 browser-host 日誌 `ev:"refused"` 的 `remote` 判斷。
 
 **主伺服器端**（只寫模組與測試，尚未接進 `main.js`，P2 才接）：
