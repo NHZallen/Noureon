@@ -7,14 +7,16 @@ import { createBrowserProfileStore } from './browser-profile-store.js';
 import { createBrowserSessions } from './browser-sessions.js';
 import { createBrowserLogins } from './browser-logins.js';
 import { createBrowserInvites } from './browser-invites.js';
+import { createBrowserHealth } from './browser-health.js';
 
-export function createBrowserService({ config, db, vault, url, serviceKey, log = () => {}, fetchImpl = fetch }) {
+export function createBrowserService({ config, db, vault, url, serviceKey, log = () => {}, fetchImpl = fetch, mailer = null, alertTo = '' }) {
   if (!config?.enabled) return null;
   const host = createBrowserHostClient({ url: config.hosts[0], secret: config.secret, fetchImpl });
   const profiles = createBrowserProfileStore({ db, vault, url, serviceKey, fetchImpl, log });
   const sessions = createBrowserSessions({ host, profiles, log });
   const logins = createBrowserLogins({ db, vault });
   const invites = createBrowserInvites({ db });
+  const health = createBrowserHealth({ host, mailer, to: alertTo, log });
   const emailOf = createEmailLookup({ url, serviceKey, fetchImpl });
   const mayUse = createBrowserAccess({ config, emailOf, invites });
   const isAdmin = async (userId) => (browserAdmin(config, { userId }) || (config.admins.size > 0 && browserAdmin(config, { userId, email: await emailOf(userId) })));
@@ -28,10 +30,11 @@ export function createBrowserService({ config, db, vault, url, serviceKey, log =
     maxActions: config.maxActions,
     /** Said once at the start, so a host that cannot be reached shows in the log at once and not as replies that cannot open a browser. */
     check: () => host.health().then((state) => log('browser_host_ok', { running: state?.sessions, max: state?.maxSessions })).catch((error) => log('browser_host_failed', { code: error?.code || '', status: error?.status || 0 })),
-    start: () => sessions.start(),
+    start: () => { sessions.start(); health.start(); },
     /** On shutdown: every browser this server opened is closed and its login state kept. */
     async stop() {
       sessions.stop();
+      health.stop();
       await sessions.closeAll();
     }
   };

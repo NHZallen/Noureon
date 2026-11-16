@@ -88,7 +88,7 @@ if (config.runsConfigured) {
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
     connectors = createConnectorService({ db, vault, log, config: { allowed: config.connectorAllowed, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), waitlistTo: config.waitlistTo, preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo-small.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
-    browser = createBrowserService({ config: config.browser, db, vault, url: config.supabaseUrl, serviceKey: config.serviceKey, log });
+    browser = createBrowserService({ config: config.browser, db, vault, url: config.supabaseUrl, serviceKey: config.serviceKey, log, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), alertTo: config.reportTo });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, browser, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }), projectVectors: createProjectVectorSearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
