@@ -67,22 +67,26 @@ secret_first=$(printf '%s' "$BROWSER_HOST_SECRET" | cut -d, -f1)
 { docker inspect "$NAME_A"; docker exec "$NAME_A" sh -c 'cat /proc/1/environ 2>/dev/null | tr "\0" "\n"; env' 2>/dev/null; } | grep -qF "$secret_first" && bad "the host secret is inside the container" || pass "the host secret is nowhere in the container (its settings, its environment)"
 
 echo; echo "== A login state survives a restart of the browser"
-r=$(call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"https://httpbin.org/cookies/set?e2ekey=e2evalue"}')
+# Two kinds of login: a cookie that lasts (Max-Age) and one that ends with the browser (no expiry); a site may use either.
+call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"https://httpbin.org/response-headers?Set-Cookie=e2elong%3De2evalue%3B%20Max-Age%3D86400%3B%20Path%3D%2F"}' >/dev/null
+call POST "/v1/sessions/$A/actions" --json '{"type":"navigate","url":"https://httpbin.org/cookies/set?e2eshort=e2evalue"}' >/dev/null
 t=$(call POST "/v1/sessions/$A/actions" --json '{"type":"text"}')
-if printf '%s' "$t" | grep -q e2evalue; then
-  pass "a cookie was set by a real site"
+if printf '%s' "$t" | grep -q e2elong && printf '%s' "$t" | grep -q e2eshort; then
+  pass "two cookies were set by a real site (one that lasts, one that ends with the browser)"
   sleep 3
-  r=$(call POST "/v1/sessions/$A/save" --out "$OUT/profile.tar.gz"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/profile.tar.gz" ] && pass "the login state was packed ($(wc -c < "$OUT/profile.tar.gz") bytes)" || bad "could not pack the login state: $r"
-  tar tzf "$OUT/profile.tar.gz" 2>/dev/null | grep -qi 'cookies' && pass "the archive holds the cookie database" || bad "no cookie database in the archive"
-  tar tzf "$OUT/profile.tar.gz" 2>/dev/null | grep -qE '(^|/)(Cache|Code Cache|GPUCache)/' && bad "caches are inside the archive" || pass "caches are left out of the archive"
-  r=$(call DELETE "/v1/sessions/$A"); [ "$(status "$r")" = 200 ] && pass "the first browser was closed" || bad "could not close it: $r"
+  r=$(call POST "/v1/sessions/$A/save" --out "$OUT/running.tar.gz"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/running.tar.gz" ] && pass "the login state can be packed while the browser runs ($(wc -c < "$OUT/running.tar.gz") bytes)" || bad "could not pack the login state: $r"
+  tar tzf "$OUT/running.tar.gz" 2>/dev/null | grep -qi 'cookies' && pass "the archive holds the cookie database" || bad "no cookie database in the archive"
+  tar tzf "$OUT/running.tar.gz" 2>/dev/null | grep -qE '(^|/)(Cache|Code Cache|GPUCache)/' && bad "caches are inside the archive" || pass "caches are left out of the archive"
+  # The way the main server closes a browser: the browser stops first (it writes its cookies), then the state is packed.
+  r=$(call DELETE "/v1/sessions/$A?save=1" --out "$OUT/profile.tar.gz"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/profile.tar.gz" ] && pass "the first browser was closed and its login state packed after it stopped ($(wc -c < "$OUT/profile.tar.gz") bytes)" || bad "could not close it with the login state: $r"
   [ -z "$(docker ps -aq --filter "name=$NAME_A")" ] && [ -z "$(docker volume ls -q --filter "name=noureon-profile-$A")" ] && pass "no container and no volume of it is left" || bad "something of the first browser is left"
   r=$(call POST /v1/sessions --json "{\"sessionId\":\"$D\",\"userId\":\"e2e-user-a\",\"screen\":{},\"hasProfile\":true}"); [ "$(field "$(body "$r")" state)" = awaiting_profile ] && pass "a new browser waits for the login state" || bad "unexpected: $r"
   r=$(call PUT "/v1/sessions/$D/profile" --file "$OUT/profile.tar.gz"); [ "$(status "$r")" = 202 ] && pass "the login state was sent" || bad "could not send it: $r"
   wait_ready "$D" && pass "the second browser is ready" || bad "the second browser did not start"
   call POST "/v1/sessions/$D/actions" --json '{"type":"navigate","url":"https://httpbin.org/cookies"}' >/dev/null
   t=$(call POST "/v1/sessions/$D/actions" --json '{"type":"text"}')
-  printf '%s' "$t" | grep -q e2evalue && pass "THE LOGIN STATE SURVIVED: the second browser still has the cookie" || { bad "the cookie did not survive"; printf '%s\n' "$t" | cut -c1-200; }
+  printf '%s' "$t" | grep -q e2elong && pass "THE LOGIN STATE SURVIVED: the second browser still has the cookie that lasts" || { bad "the cookie that lasts did not survive"; printf '%s\n' "$t" | cut -c1-200; }
+  printf '%s' "$t" | grep -q e2eshort && info "a cookie with no expiry also survived" || info "a cookie with no expiry (a login that ends when the browser closes) did NOT survive; that is how Chromium works unless it restores the last session"
   call DELETE "/v1/sessions/$D" >/dev/null
 else
   bad "could not set a cookie through https://httpbin.org (is the egress proxy up? $(printf '%s' "$r" | cut -c1-150)); the survival test is skipped"

@@ -126,7 +126,16 @@ async function isPasswordField(cdp, sessionId, ref) {
   return { objectId: object.objectId, password: answer.result?.value === true };
 }
 
-async function settle(cdp, sessionId) { await wait(400); return describeHere(cdp, sessionId).catch(() => ({})); }
+// After an action: a moment for the page to start doing what was asked, then until it has finished loading (at most 10 s), then where it is.
+async function settle(cdp, sessionId) {
+  await wait(400);
+  for (let i = 0; i < 40; i += 1) {
+    const state = await cdp.send('Runtime.evaluate', { expression: 'document.readyState', returnByValue: true }, sessionId).then((r) => r.result?.value).catch(() => null);
+    if (state === 'complete') break;
+    await wait(250);
+  }
+  return describeHere(cdp, sessionId).catch(() => ({}));
+}
 
 async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'snapshot') {
@@ -222,6 +231,8 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
     if (action.type === 'screenshot') {
       const targetId = await pickTab(cdp, action.tabId);
       const sessionId = await attach(cdp, targetId);
+      // A tab that is not in front draws no frames, and a picture is a frame.
+      await cdp.send('Target.activateTarget', { targetId }).catch(() => {});
       const format = action.format === 'jpeg' ? 'jpeg' : 'png';
       const shot = await cdp.send('Page.captureScreenshot', { format, ...(format === 'jpeg' ? { quality: Math.min(95, Math.max(30, Number(action.quality) || 70)) } : {}) }, sessionId, 30_000);
       return { ok: true, tabId: targetId, mime: `image/${format}`, base64: shot.data };
@@ -253,7 +264,9 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let result;
-  try { result = await runAction(JSON.parse(process.argv[2] || '{}'), process.env.DEVTOOLS || 'http://127.0.0.1:9222'); } catch (error) { result = { ok: false, error: String(error?.message || error).slice(0, 300) }; }
+  // Whatever happens, one line of JSON comes out within 50 s (the host gives up at 60 s and then knows nothing).
+  const watchdog = new Promise((resolve) => { setTimeout(() => resolve({ ok: false, error: 'the action took more than 50 s' }), 50_000).unref?.(); });
+  try { result = await Promise.race([runAction(JSON.parse(process.argv[2] || '{}'), process.env.DEVTOOLS || 'http://127.0.0.1:9222'), watchdog]); } catch (error) { result = { ok: false, error: String(error?.message || error).slice(0, 300) }; }
   process.stdout.write(`${JSON.stringify(result)}\n`);
   process.exit(result.ok ? 0 : 1);
 }

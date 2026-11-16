@@ -67,7 +67,7 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
       const r = await run(sidecarArgs({ sessionId: s.sessionId, scriptPath: paths.cdpScript, action: request }), { timeoutMs: 60_000, maxBytes: 40 * 1024 * 1024 });
       let parsed = null;
       try { parsed = JSON.parse(r.stdout.toString('utf8').trim().split('\n').pop()); } catch { /* not JSON */ }
-      if (!parsed) throw new HostError(502, 'action_failed', 'the browser did not answer');
+      if (!parsed) throw new HostError(502, 'action_failed', `the browser did not answer (${r.code === -2 ? 'no answer in 60 s' : r.code === -1 ? 'the answer was too large' : `exit ${r.code}`}${r.stderr.trim() ? `: ${firstLine(r.stderr)}` : ''})`);
       if (!parsed.ok) throw new HostError(400, 'action_failed', String(parsed.error || 'the action failed').slice(0, 300));
       return parsed;
     },
