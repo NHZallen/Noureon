@@ -5,15 +5,18 @@ import { createBrowserHostClient } from './browser-host-client.js';
 import { createBrowserAccess, createEmailLookup } from './browser-config.js';
 import { createBrowserProfileStore } from './browser-profile-store.js';
 import { createBrowserSessions } from './browser-sessions.js';
+import { createBrowserLogins } from './browser-logins.js';
 
 export function createBrowserService({ config, db, vault, url, serviceKey, log = () => {}, fetchImpl = fetch }) {
   if (!config?.enabled) return null;
   const host = createBrowserHostClient({ url: config.hosts[0], secret: config.secret, fetchImpl });
   const profiles = createBrowserProfileStore({ db, vault, url, serviceKey, fetchImpl, log });
   const sessions = createBrowserSessions({ host, profiles, log });
+  const logins = createBrowserLogins({ db, vault });
   const mayUse = createBrowserAccess({ config, emailOf: createEmailLookup({ url, serviceKey, fetchImpl }) });
   return {
     sessions,
+    logins,
     mayUse,
     maxActions: config.maxActions,
     /** Said once at the start, so a host that cannot be reached shows in the log at once and not as replies that cannot open a browser. */

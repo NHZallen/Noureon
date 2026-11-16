@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { HostError } from './session-manager.mjs';
 import {
-  browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, ipArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
+  browserRunArgs, sidecarArgs, SECRET_ACTIONS, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, ipArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
 } from './docker-args.mjs';
 
 /** Runs `docker <args>`. Resolves { code, stdout: Buffer, stderr: string, truncated }; never rejects. code -1: output too large, -2: timed out, -3: could not run docker. */
@@ -81,7 +81,8 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
       if (!(await tolerant(volumeRemoveArgs(s.sessionId)))) throw new Error('removing the profile volume failed');
     },
     async action(s, request) {
-      const r = await run(sidecarArgs({ sessionId: s.sessionId, scriptPath: paths.cdpScript, action: request }), { timeoutMs: 60_000, maxBytes: 40 * 1024 * 1024 });
+      const secret = SECRET_ACTIONS.includes(request?.type);
+      const r = await run(sidecarArgs({ sessionId: s.sessionId, scriptPath: paths.cdpScript, action: request }), { timeoutMs: 60_000, maxBytes: 40 * 1024 * 1024, ...(secret ? { input: Buffer.from(JSON.stringify(request)) } : {}) });
       let parsed = null;
       try { parsed = JSON.parse(r.stdout.toString('utf8').trim().split('\n').pop()); } catch { /* not JSON */ }
       if (!parsed) throw new HostError(502, 'action_failed', `the browser did not answer (${r.code === -2 ? 'no answer in 60 s' : r.code === -1 ? 'the answer was too large' : `exit ${r.code}`}${r.stderr.trim() ? `: ${firstLine(r.stderr)}` : ''})`);

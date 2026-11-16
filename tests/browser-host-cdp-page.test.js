@@ -1,9 +1,10 @@
 // The page actions of browser-host/cdp-actions.mjs (snapshot, click, type, press, scroll, back) against a real Chromium, when one is installed (CHROMIUM_PATH, or the
 // Playwright one); and the reduction of the accessibility tree, which needs none.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
+import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -105,4 +106,54 @@ test('a real page: look, type, submit, click, scroll, go back; a password is nev
   await assert.rejects(act({ type: 'scroll', direction: 'sideways' }), /direction/);
   await assert.rejects(act({ type: 'type', ref: search.ref, text: 'x'.repeat(2001) }), /2000/);
   assert.equal((await act({ type: 'wait', ms: 50 })).ok, true);
+});
+
+const LOGIN_PAGE = `<!doctype html><title>Sign in</title><form onsubmit="return false"><input id="u" name="email" type="text" aria-label="Email"><input id="p" type="password" aria-label="Password"><button>Go</button></form>
+<input id="hidden-user" type="text" name="username" style="display:none">`;
+const STEP_ONE = `<!doctype html><title>Step one</title><input id="u" name="identifier" type="email" aria-label="Email or phone"><button>Next</button>`;
+
+test('the login fields of a real page are filled only on a site of the login, in two steps when the page has two, and nothing of the values comes back', { skip: chromium() && spawnSync('openssl', ['version']).status === 0 ? false : 'no Chromium or no openssl here' }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-login-'));
+  const keyPath = path.join(dir, 'key.pem'); const certPath = path.join(dir, 'cert.pem');
+  spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certPath, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' });
+  const site = https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }, (req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(req.url === '/step' ? STEP_ONE : LOGIN_PAGE); });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-login-profile-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', '--ignore-certificate-errors', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const origin = `https://127.0.0.1:${site.address().port}`;
+
+  await act({ type: 'navigate', url: `${origin}/` });
+  const mine = [origin];
+  // A page that is not a site of the login: nothing is typed, and the answer does not hold the values.
+  const refused = await act({ type: 'fill-login', origins: ['https://other.example'], username: 'who@example.com', password: 'S3cret-pw-1' }).catch((error) => error);
+  assert.match(String(refused.message), /not a site of that login/);
+  assert.ok(!String(refused.message).includes('S3cret') && !String(refused.message).includes('who@'));
+  await assert.rejects(act({ type: 'fill-login', origins: ['http://insecure.example'], username: 'a' }), /does not say which sites/);
+
+  const done = await act({ type: 'fill-login', origins: mine, username: 'who@example.com', password: 'S3cret-pw-1' });
+  assert.deepEqual(done.filled, ['username', 'password']);
+  assert.ok(!JSON.stringify(done).includes('S3cret') && !JSON.stringify(done).includes('who@example'));
+  const look = await act({ type: 'snapshot' });
+  assert.equal(look.elements.find((e) => e.name === 'Email').value, 'who@example.com', 'the user name is an ordinary field');
+  assert.ok(!JSON.stringify(look).includes('S3cret'), 'the password is nowhere in what a model gets');
+  const typed = await act({ type: 'tabs', op: 'list' });
+  assert.equal(typed.ok, true);
+
+  // The first step of a two-step login has no password field: the user name only.
+  await act({ type: 'navigate', url: `${origin}/step` });
+  const first = await act({ type: 'fill-login', origins: mine, username: 'who@example.com', password: 'S3cret-pw-1' });
+  assert.deepEqual(first.filled, ['username']);
+  await act({ type: 'navigate', url: 'about:blank' }).catch(() => {});
 });

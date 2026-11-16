@@ -421,7 +421,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     try {
       if (await browser.mayUse(userId)) {
         browserLoader = createBrowserLoader({
-          sessions: browser.sessions, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions,
+          sessions: browser.sessions, logins: browser.logins, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions,
           emit: (event) => emitEvent(event)
         });
       }

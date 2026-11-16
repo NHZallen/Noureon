@@ -5,7 +5,8 @@
 //   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close", tabId?, url?}
 //   snapshot {tabId?, maxChars?}  the page as a list of things to act on, each with a number (`ref`) that stays good while the page stays the same document
 //   click {ref, tabId?}   type {ref, text, submit?, tabId?}   press {key, tabId?}   scroll {direction: "up"|"down"|"left"|"right"|"top"|"bottom", tabId?}   back {tabId?}   wait {ms}
-//   A password field is never read and never typed into here (logins go through the password vault, design doc §7).
+//   fill-login {username?, password?, origins: ["https://…"], tabId?}  (body arrives on standard input: `--stdin`)  fills the visible login fields of the page, only when the page is of one of `origins`; says which
+//   fields it filled, never their values. A password field is never read and never typed into by the other actions (logins go through the password vault, design doc §7).
 import { pathToFileURL } from 'node:url';
 
 const MAX_URL = 4096;
@@ -137,6 +138,50 @@ async function settle(cdp, sessionId) {
   return describeHere(cdp, sessionId).catch(() => ({}));
 }
 
+
+// ---- The password vault: the login fields of the page, filled with what the server handed over (design doc §7). Nothing that is typed here is ever given back. ----
+const FIELD_FINDER = `(() => {
+  const visible = (el) => { const box = el.getBoundingClientRect(); const style = getComputedStyle(el); return box.width > 4 && box.height > 4 && style.visibility !== 'hidden' && style.display !== 'none' && !el.disabled && !el.readOnly; };
+  const inputs = [...document.querySelectorAll('input')].filter(visible);
+  const password = inputs.find((el) => el.type === 'password') || null;
+  const textual = (el) => ['text', 'email', 'tel', 'search', ''].includes((el.getAttribute('type') || '').toLowerCase());
+  const hinted = (el) => /user|email|login|account|identifier|phone|mail/i.test([el.name, el.id, el.autocomplete, el.getAttribute('aria-label'), el.placeholder].join(' '));
+  let user = null;
+  const candidates = inputs.filter(textual);
+  if (password) {
+    const before = candidates.filter((el) => el.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING);
+    user = before.filter(hinted).at(-1) || before.at(-1) || null;
+  } else {
+    user = candidates.find((el) => /username|email/.test(el.autocomplete)) || candidates.find(hinted) || (candidates.length === 1 ? candidates[0] : null);
+  }
+  return { user, password, origin: location.origin };
+})()`;
+
+async function fillLogin(cdp, action, targetId, sessionId) {
+  const allowed = Array.isArray(action.origins) ? action.origins.filter((o) => typeof o === 'string' && /^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(o)) : [];
+  if (!allowed.length) throw new Error('the login does not say which sites it is for');
+  const username = typeof action.username === 'string' && action.username.length <= 1024 ? action.username : '';
+  const password = typeof action.password === 'string' && action.password.length <= 4096 ? action.password : '';
+  if (!username && !password) throw new Error('there is nothing to fill');
+  const found = await cdp.send('Runtime.evaluate', { expression: FIELD_FINDER, returnByValue: false }, sessionId);
+  if (found.exceptionDetails) throw new Error('the page could not be looked at');
+  const props = await cdp.send('Runtime.getProperties', { objectId: found.result.objectId, ownProperties: true }, sessionId);
+  const of = (name) => props.result.find((p) => p.name === name)?.value;
+  const origin = String(of('origin')?.value || '');
+  // The page must be a site of this login at the moment of filling (the server looked before, a page can move after that).
+  if (!allowed.includes(origin)) throw new Error('this page is not a site of that login; nothing was filled');
+  const filled = [];
+  for (const [kind, text, element] of [['username', username, of('user')], ['password', password, of('password')]]) {
+    if (!text || !element?.objectId) continue;
+    const focused = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
+    if (focused.result?.value !== true) continue;
+    await cdp.send('Input.insertText', { text }, sessionId);
+    filled.push(kind);
+  }
+  if (!filled.length) throw new Error('no login field can be seen on this page');
+  return { ok: true, tabId: targetId, origin, filled };
+}
+
 async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'snapshot') {
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
@@ -155,6 +200,7 @@ async function pageAction(cdp, action, targetId, sessionId) {
     const text = String(page.text || '').replace(/\n{3,}/g, '\n\n');
     return { ok: true, tabId: targetId, url: page.url, title: page.title, scroll: { y: page.scrollY, height: page.height, view: page.view }, elements: elements.slice(0, MAX_ELEMENTS), elementsCut: elements.length > MAX_ELEMENTS, text: text.slice(0, limit), truncated: text.length > limit };
   }
+  if (action.type === 'fill-login') return fillLogin(cdp, action, targetId, sessionId);
   if (action.type === 'click') {
     const ref = checkRef(action.ref);
     const { x, y } = await centerOf(cdp, sessionId, ref);
@@ -250,7 +296,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       await wait(Math.min(10_000, Math.max(0, Math.floor(Number(action.ms)) || 1000)));
       return { ok: true };
     }
-    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back'].includes(action.type)) {
+    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login'].includes(action.type)) {
       const targetId = await pickTab(cdp, action.tabId);
       const sessionId = await attach(cdp, targetId);
       await cdp.send('Page.enable', {}, sessionId);
@@ -266,7 +312,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   let result;
   // Whatever happens, one line of JSON comes out within 50 s (the host gives up at 60 s and then knows nothing).
   const watchdog = new Promise((resolve) => { setTimeout(() => resolve({ ok: false, error: 'the action took more than 50 s' }), 50_000).unref?.(); });
-  try { result = await Promise.race([runAction(JSON.parse(process.argv[2] || '{}'), process.env.DEVTOOLS || 'http://127.0.0.1:9222'), watchdog]); } catch (error) { result = { ok: false, error: String(error?.message || error).slice(0, 300) }; }
+  try {
+    // A body with a secret in it (`--stdin`) is never an argument and never quoted in an error: a body that cannot be read is told as "unreadable", nothing more.
+    let request;
+    if (process.argv[2] === '--stdin') {
+      const chunks = [];
+      for await (const chunk of process.stdin) chunks.push(chunk);
+      try { request = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('the action could not be read'); }
+    } else request = JSON.parse(process.argv[2] || '{}');
+    result = await Promise.race([runAction(request, process.env.DEVTOOLS || 'http://127.0.0.1:9222'), watchdog]);
+  } catch (error) { result = { ok: false, error: String(error?.message || error).slice(0, 300) }; }
   // The answer of a screenshot is large; leaving at once cut it off when stdout was a pipe (seen on the real machine: exit 0 and an answer that was not JSON).
   process.exitCode = result.ok ? 0 : 1;
   process.stdout.write(`${JSON.stringify(result)}\n`, () => process.exit());
