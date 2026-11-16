@@ -398,11 +398,14 @@ test('the last picture the model saw is kept as a small JPEG for the tag of the 
   assert.ok(frame.length < 60_000, `small: ${frame.length}`);
 });
 
-test('a page that asks for a card is not kept as the last picture', async () => {
+test('a page that asks for a card is kept too (the picture the model saw), but no new look is taken of it when the browser is closed', async () => {
   const base64 = await realJpeg();
   const cardPage = { ...PAGE, elements: [{ ref: 1, role: 'textbox', name: 'Card number' }] };
   const t = setup({ actions: { screenshot: () => ({ ok: true, mime: 'image/jpeg', base64 }), snapshot: () => cardPage } });
   await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
   await t.loader.run(call('browser_snapshot'));
-  assert.equal(await t.loader.frame(), '');
+  const before = t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length;
+  await t.loader.run(call('browser_close'));
+  assert.equal(t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length, before, 'what the person typed may show now');
+  assert.match(await t.loader.frame(), /^data:image\/jpeg;base64,/);
 });

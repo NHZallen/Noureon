@@ -160,8 +160,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       try {
         const shot = await act(sessionId, { type: 'screenshot', format: 'jpeg', quality });
         if (typeof shot?.base64 === 'string' && shot.base64.length <= MAX_RESULT_IMAGE_CHARS) {
-          // The last picture the model saw is kept for the tag of the message (not while the page asks for a card: nothing of such a page is kept).
-          if (!takesCard) lastShot = { mime: shot.mime || 'image/jpeg', base64: shot.base64 };
+          // The last picture the model saw is kept for the tag of the message (a page that asks for a card too: the model is given the same picture).
+          lastShot = { mime: shot.mime || 'image/jpeg', base64: shot.base64 };
           return { label: 'The page now', mimeType: shot.mime || 'image/jpeg', data: shot.base64 };
         }
       } catch {
@@ -179,7 +179,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       if (call.name === 'browser_close') {
         const sessionId = current();
         if (!sessionId) return 'No browser is open.';
-        // The last look, before it is closed.
+        // The last look, before it is closed (not on a page that asks for a card: what the person typed there may show; the picture the model saw last stays).
         if (!takesCard) await picture(sessionId);
         const kept = await sessions.close(sessionId, userId);
         actions += 1;

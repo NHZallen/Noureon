@@ -35,10 +35,8 @@ export function textForShare(text, role) {
   const { run, text: rest } = liftSandboxRunBlock(text);
   if (!run) return text;
   const tools = (run.tools || []).filter((tool) => tool.kind !== 'memory');
-  const { tools: ignored, browser, ...others } = run;
-  // What the browser did is shared, the picture of the page it ended on is not (it may show what the person was logged in to).
-  const { frame: ignoredFrame, ...browserWork } = browser || {};
-  return `${formatSandboxRunBlock({ ...others, ...(tools.length ? { tools } : {}), ...(browser ? { browser: browserWork } : {}) })}${rest}`;
+  const { tools: ignored, ...others } = run;
+  return `${formatSandboxRunBlock({ ...others, ...(tools.length ? { tools } : {}) })}${rest}`;
 }
 
 export function createShares({ db, store, log = () => {}, now = Date.now, limits = SHARE_LIMITS, setRepeat = setInterval, clearRepeat = clearInterval, reportMail = null } = {}) {
