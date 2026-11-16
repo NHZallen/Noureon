@@ -1,0 +1,32 @@
+# For the PRODUCTION machine (Contabo, same host as Coolify and the others). Read this before using it.
+#
+# The plain experiment uses fixed passwords and the default Docker network: a browser anyone can drive, that can reach this machine's own services through the
+# Docker gateway (Coolify on 8000, for example). That is fine on a throw-away VPS and NOT fine here. This variant therefore:
+#   * runs on the isolated network made by browser-host/install.sh ("noureon-browser", 172.29.0.0/24, default-deny firewall), so the only way out is the egress proxy;
+#   * sends the browser's traffic to that proxy (chromium-proxy.conf);
+#   * takes the passwords and the public address from the environment and REFUSES to start without them (no fixed passwords);
+#   * publishes the page on 18080 (Traefik owns 8080 here).
+# Needs: browser-host/install.sh has been run (network, firewall, egress proxy), Docker Compose v2.24+ (for !override).
+#
+#   export PUBLIC_IP=<public address of this machine>
+#   export NEKO_USER_PW=$(openssl rand -hex 12) NEKO_ADMIN_PW=$(openssl rand -hex 12)
+#   docker compose -f docker-compose.yml -f variants/h264-43.yml -f variants/prod-host.yml [-f variants/runsc.yml] up -d
+#   ...measure...
+#   docker compose -f docker-compose.yml -f variants/h264-43.yml -f variants/prod-host.yml [-f variants/runsc.yml] down      # always, when done
+# Keep it up only while measuring (minutes, not hours). Open the page only from your own computer.
+services:
+  neko:
+    ports: !override
+      - "18080:8080"
+      - "52000-52100:52000-52100/udp"
+    volumes: !override
+      - ./chromium-proxy.conf:/etc/neko/supervisord/chromium.conf:ro
+      - ./policies.json:/etc/chromium/policies/managed/policies.json:ro
+    environment:
+      NEKO_WEBRTC_NAT1TO1: ${PUBLIC_IP:?set PUBLIC_IP to the public address of this machine}
+      NEKO_MEMBER_MULTIUSER_USER_PASSWORD: ${NEKO_USER_PW:?set NEKO_USER_PW (openssl rand -hex 12)}
+      NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD: ${NEKO_ADMIN_PW:?set NEKO_ADMIN_PW (openssl rand -hex 12)}
+networks:
+  default:
+    name: noureon-browser
+    external: true

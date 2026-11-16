@@ -1,0 +1,5 @@
+# Runs the neko container inside gVisor (runtime "runsc", installed by browser-host/install-gvisor.sh). Put it LAST in the list of -f files.
+# Compare the CPU of the same scene (./measure.sh 60) with and without this file: that is the price of the extra isolation.
+services:
+  neko:
+    runtime: runsc

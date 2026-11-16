@@ -9,7 +9,7 @@
 #   4. plain Docker with Chromium --no-sandbox        (control: it must work, otherwise the test itself is broken)
 #   5. gVisor (--runtime=runsc), Chromium's own sandbox on   (only if browser-host/install-gvisor.sh was run)
 #   6. gVisor, Chromium with --no-sandbox              (inside gVisor, gVisor is the sandbox; this is the expected production setting if 5 fails)
-# A line "SANDBOX OK" means Chromium started with its sandbox; "FAIL" shows the first lines of the error. Paste the whole output.
+# A line "SANDBOX OK" means Chromium STARTED with that setup (the label says whether its sandbox was on); "FAIL" shows the first lines of the error. Paste the whole output.
 # Usage: sudo sh browser-host/probe-chromium-sandbox.sh [image]
 set -u
 IMAGE="${1:-ghcr.io/m1k1o/neko/chromium:latest}"
@@ -42,25 +42,26 @@ CFLAGS=""   # extra Chromium flags for the next try
 try() { # label, docker options...
   label=$1; shift
   N=$((N + 1)); name="noureon-probe-$$-$N"; out="$WORK/out.$N"; t0=$(date +%s)
-  # Output goes to a file (never through a pipe that closes early: a closed pipe killed the docker client and left the container running the first time).
+  # "DevTools listening on ws://..." is printed once the browser process is up, so it tells whether Chromium STARTED with this setup, without waiting for a page
+  # to finish (the neko image's headless --dump-dom never finished, even in plain Docker; that made the first two probes useless). Output goes to a file, not to
+  # a pipe that closes early (a closed pipe killed the docker client and left the container running). The container is stopped after 30 s either way.
   # shellcheck disable=SC2086
-  timeout 120 docker run --name "$name" --user 1000:1000 --cap-drop=ALL --security-opt no-new-privileges --shm-size=1g "$@" --entrypoint "$BIN" "$IMAGE" \
-      --headless=new --disable-gpu --disable-dev-shm-usage --no-first-run $CFLAGS --dump-dom about:blank >"$out" 2>&1
+  timeout 30 docker run --name "$name" -e DISPLAY= --user 1000:1000 --cap-drop=ALL --security-opt no-new-privileges --shm-size=1g "$@" --entrypoint "$BIN" "$IMAGE" \
+      --headless=new --disable-gpu --disable-dev-shm-usage --no-first-run --remote-debugging-port=0 $CFLAGS about:blank >"$out" 2>&1
   rc=$?
   docker rm -f "$name" >/dev/null 2>&1 || true
   secs=$(( $(date +%s) - t0 ))
-  if grep -q '<html' "$out"; then echo "SANDBOX OK  $label  (${secs}s)"
+  if grep -q 'DevTools listening' "$out"; then echo "SANDBOX OK  $label  (started)"
   else
-    [ "$rc" = 124 ] && why="timed out after 120 s" || why="exit code $rc"
+    [ "$rc" = 124 ] && why="no start signal within 30 s" || why="exit code $rc"
     echo "FAIL        $label  ($why, ${secs}s)"
-    # the first lines that are not the usual harmless noise
-    grep -v 'inotify\|dbus\|cpufreq\|crashpad' "$out" | head -5 | sed 's/^/              /'
+    grep -v 'inotify\|dbus\|cpufreq\|crashpad\|NETLINK' "$out" | head -5 | sed 's/^/              /'
   fi
 }
 try "1. default seccomp + default AppArmor"
 [ -f "$HERE/chromium-seccomp.json" ] && try "2. user-namespace seccomp profile" --security-opt "seccomp=$HERE/chromium-seccomp.json" || echo "SKIP        2. (browser-host/chromium-seccomp.json is not there yet)"
 try "3. default seccomp, AppArmor off (diagnosis only)" --security-opt apparmor=unconfined
-CFLAGS="--no-sandbox"; try "4. control: Chromium --no-sandbox in plain Docker (diagnosis only; it must work, otherwise the test itself is broken)"
+CFLAGS="--no-sandbox"; try "4. control: Chromium --no-sandbox in plain Docker (it must start, otherwise the test itself is broken; this is what the stock neko file does)"
 CFLAGS=""
 if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
   try "5. gVisor, Chromium sandbox on" --runtime=runsc
