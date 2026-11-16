@@ -79,10 +79,17 @@ if printf '%s' "$t" | grep -q e2elong && printf '%s' "$t" | grep -q e2eshort; th
   tar tzf "$OUT/running.tar.gz" 2>/dev/null | grep -qE '(^|/)(Cache|Code Cache|GPUCache)/' && bad "caches are inside the archive" || pass "caches are left out of the archive"
   # The way the main server closes a browser: the browser stops first (it writes its cookies), then the state is packed.
   r=$(call DELETE "/v1/sessions/$A?save=1" --out "$OUT/profile.tar.gz"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/profile.tar.gz" ] && pass "the first browser was closed and its login state packed after it stopped ($(wc -c < "$OUT/profile.tar.gz") bytes)" || bad "could not close it with the login state: $r"
+  # Where is the cookie: in the archive that was packed after the browser stopped? (the names in the cookie database are plain text)
+  X="$OUT/unpacked"; mkdir -p "$X"; tar xzf "$OUT/profile.tar.gz" -C "$X" 2>/dev/null
+  COOKIE_FILES=$(find "$X" -name 'Cookies' -type f 2>/dev/null)
+  info "cookie databases in the archive: $(printf '%s' "$COOKIE_FILES" | sed "s#$X/##g" | tr '\n' ' ')"
+  for f in $COOKIE_FILES; do info "  $(printf '%s' "$f" | sed "s#$X/##"): $(wc -c < "$f") bytes; has e2elong: $(grep -a -c e2elong "$f"); has e2eshort: $(grep -a -c e2eshort "$f"); journal beside it: $([ -e "$f-journal" ] && echo yes || echo no)"; done
   [ -z "$(docker ps -aq --filter "name=$NAME_A")" ] && [ -z "$(docker volume ls -q --filter "name=noureon-profile-$A")" ] && pass "no container and no volume of it is left" || bad "something of the first browser is left"
   r=$(call POST /v1/sessions --json "{\"sessionId\":\"$D\",\"userId\":\"e2e-user-a\",\"screen\":{},\"hasProfile\":true}"); [ "$(field "$(body "$r")" state)" = awaiting_profile ] && pass "a new browser waits for the login state" || bad "unexpected: $r"
   r=$(call PUT "/v1/sessions/$D/profile" --file "$OUT/profile.tar.gz"); [ "$(status "$r")" = 202 ] && pass "the login state was sent" || bad "could not send it: $r"
   wait_ready "$D" && pass "the second browser is ready" || bad "the second browser did not start"
+  # And in the second browser's own folder, as the browser found it:
+  for f in $(docker exec "noureon-browser-$D" find /home/neko/.config/chromium -name Cookies -type f 2>/dev/null); do info "  in the second browser: $f: $(docker exec "noureon-browser-$D" sh -c "wc -c < '$f'; grep -a -c e2elong '$f'" 2>&1 | tr '\n' ' ')(bytes, then lines with e2elong)"; done
   call POST "/v1/sessions/$D/actions" --json '{"type":"navigate","url":"https://httpbin.org/cookies"}' >/dev/null
   t=$(call POST "/v1/sessions/$D/actions" --json '{"type":"text"}')
   printf '%s' "$t" | grep -q e2elong && pass "THE LOGIN STATE SURVIVED: the second browser still has the cookie that lasts" || { bad "the cookie that lasts did not survive"; printf '%s\n' "$t" | cut -c1-200; }
