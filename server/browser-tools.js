@@ -116,6 +116,7 @@ export function createBrowserLoader({ sessions, userId, conversationId, language
     return { sessionId: opened.sessionId };
   }
 
+  let announcedLive = null;
   const current = () => {
     const here = sessions.current(userId);
     return here && (!here.conversationId || here.conversationId === conversationId) ? here.sessionId : null;
@@ -154,6 +155,8 @@ export function createBrowserLoader({ sessions, userId, conversationId, language
         sessionId = current();
         if (!sessionId) return sessions.current(userId) ? 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' : 'No browser is open. Call browser_open with an address first.';
       }
+      // Once for each browser: the page may ask for the live screen of it (the viewer comes from the server's own routes; nothing of the host is in this event).
+      if (announcedLive !== sessionId) { announcedLive = sessionId; emit({ type: 'browser', event: 'live', sessionId }); }
       actions += 1;
       onUsed?.({ action: ACTION_OF[call.name] });
       const request = {

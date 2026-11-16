@@ -27,7 +27,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null, onBrowserCancel = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null, onBrowserCancel = null, onBrowserLive = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -94,6 +94,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
   let browserCard = null;
   const browserEvent = (event) => {
     browserCard = (browserCard || import('./browser-card.js').then(({ createBrowserCard }) => createBrowserCard({ document, host: askCardHost(), language, onCancel: onBrowserCancel })));
+    // The live screen is not a step: the page connects to it (what the connector does is up to the owner of the reply).
+    if (event.event === 'live') { browserCard.then((card) => onBrowserLive?.(card, event.sessionId)).catch(() => {}); return; }
     browserCard.then((card) => card.handle(event)).catch(() => {});
   };
   // The picture the text model draws (generate_image): a row that runs while the picture is made, and the card that asks first when the person has not allowed it for good.

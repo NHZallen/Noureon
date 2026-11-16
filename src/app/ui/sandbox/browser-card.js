@@ -55,6 +55,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let ratio = DEFAULT_RATIO;
   let control = 'model';
   let zoomed = false;
+  const watchers = [];
+  // Who looks at the picture changes what it costs: the live connection is made only while the card shows it (or the focus mode is open).
+  const notify = () => { const now = { phase, view, focus: Boolean(focus) }; watchers.forEach((fn) => fn(now)); };
   // A computer (1024 px and more) has the side panel, a phone the page of its own.
   const wide = () => (isWide ? isWide() : Boolean(document.defaultView?.matchMedia?.('(min-width: 1024px)')?.matches));
   const dock = createPanelDock({ document, storage });
@@ -137,6 +140,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
 
   const render = () => {
+    renderNow();
+    notify();
+  };
+  const renderNow = () => {
     const status = statusOf();
     const label = labelNow();
     root.dataset.phase = phase;
@@ -289,6 +296,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     focus = null;
     zoomed = false;
     dock.close();
+    notify();
   };
   const focusController = () => {
     const own = {
@@ -309,6 +317,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (panel) dock.open({ zoomed });
     focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' }, controller: focusController(), readClipboard: live.readClipboard || null });
     if (panel) dock.mountHandle(focus.element, sandboxText(language, 'browserResize'));
+    notify();
   };
   const setRatio = (key) => {
     ratio = key;
@@ -337,6 +346,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   render();
   return {
     handle,
+    /** `fn({ phase, view, focus })` after every change of what the card shows; also once at once. */
+    watch(fn) { watchers.push(fn); fn({ phase, view, focus: Boolean(focus) }); },
     complete,
     cancel,
     /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */

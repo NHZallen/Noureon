@@ -428,6 +428,14 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 **要記的坑**：neko 容器的 `--memory 2g`、`--cap-drop=ALL` 那組限制照舊，測過 neko 正常；容器內 `NEKO_DESKTOP_SCREEN=1024x768@20`。
 
+### 12.3 P3b／P3c 實作筆記（2026-11-17，staging；全部用假的 neko 與假的 WebSocket 測過，**還沒在真機上串過**）
+
+- **主機（`browser-host/`）**：`neko-api.mjs`（成員、控制權、畫面大小）、`live.mjs`（每個瀏覽器一個連接埠、臨時觀看者、`control`、`setRatio`、`tick` 清掉沒來或走掉的觀看者）、`live-proxy.mjs`（只放行 `/s/<32 hex>/api/ws` 的 WebSocket 升級，去掉 Origin／Cookie／X-Forwarded-*，其餘一律 404）、`BROWSER_LIVE_*` 設定（沒設公開 IP 就整個關閉）。主機路由：`POST /v1/sessions/:id/viewers`、`DELETE …/viewers/:viewerId`、`POST …/control`、`POST …/screen`。`stop` 一定先 `live.release`（測試抓到過連接埠漏掉的錯）。
+- **主伺服器**：`server/browser-live-routes.js`（`/v1/browser/:id/viewer|control|screen`；只有擁有者、且有權使用瀏覽器代理的人；主機的錯誤翻成一般錯誤，不洩漏主機位址或密碼）。事件新增 `{type:'browser', event:'live', sessionId}`，每個瀏覽器只發一次，不是步驟、不進步驟列。
+- **頁面**：`neko-source.js`（信令、同一個 MediaStream 給所有 `<video>`、輸入換算：座標＝`floor(u·W)`；滾輪 DOM 像素→缺口，向下為負；可印字元用 `control/paste`，具名鍵與快捷鍵用 keysym）、`live-connect.js`（卡片看得到才連線：預覽卡 `lq`、專注模式 `hq`；藥丸、翻到背面、任務結束就斷線並刪觀看者；失敗最多重試三次）。卡片新增 `watch(fn)`。視圖放手時不會結束串流（交給視圖的是不會 `destroy` 的外殼）。
+- **要在真機驗的**：lq 的 `videoscale` 只指定寬度（16:9／直式不變形）；從外面連到發佈的 UDP／TCP 連接埠；同一個 MediaStream 設給兩個 `<video>`；水平捲動 `delta_x` 的正負號（目前假設與垂直相同的反向，沒有證據）；`wss://` 的 CSP（`vercel.json` 已加 `live.noureon.com`、`live-staging.noureon.com`）。
+- **還沒做**：分頁操作（新增、切換、關閉、網址列）與截圖給模型要新的主機動作，歸 P4；Traefik 動態設定檔、Contabo 防火牆、DNS 要 Allen 同意；Linear `contract` 筆記（新事件 `live`）等 Allen 確認。
+
 ## 13. 建置時要驗證的事（沒有證據，不要當成已知）
 
 1. neko 怎麼給**單一工作階段、一次性**的存取憑證，以及怎麼嵌進我們的頁面（iframe 或自己的前端）；

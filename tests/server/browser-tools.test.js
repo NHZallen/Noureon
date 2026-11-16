@@ -140,3 +140,12 @@ test('a stopped reply does nothing', async () => {
   assert.equal(await loader.run(call('browser_open', { url: 'https://a.example/' })), 'The reply was stopped.');
   assert.equal(t.calls.length, 0);
 });
+
+test('the page is told once for each browser that its live screen can be looked at, with nothing but the session name', async () => {
+  const t = setup();
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  await t.loader.run(call('browser_snapshot'));
+  await t.loader.run(call('browser_click', { ref: 3 }));
+  const live = t.events.filter((event) => event.event === 'live');
+  assert.deepEqual(live, [{ type: 'browser', event: 'live', sessionId: 'b00000001' }]);
+});

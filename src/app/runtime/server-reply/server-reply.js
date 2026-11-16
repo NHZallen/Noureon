@@ -402,6 +402,8 @@ export function createServerReply({
     kind,
     vision,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
+    // The signed-in request of the page to the server's own routes (the live screen of the browser agent uses it): { ok, status, data }.
+    api: (method, path, body) => request(method, path, { body: body === undefined ? undefined : JSON.stringify(body), timeoutMs: 20_000 }),
     // A message the person adds while the reply is made (features/reply-steering.js): kept until the reply's next tool answer, where the reply is cut (the message is written after what was
     // made so far, and the rest goes into a new message). `id` is the id the message will have. Not ok when this reply cannot take it.
     steer: (text, id) => request('POST', `/v1/runs/${runId}/steer`, { body: JSON.stringify({ instruction: text, id }) }),
