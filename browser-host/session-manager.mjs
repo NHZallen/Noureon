@@ -13,7 +13,7 @@ export class HostError extends Error {
 const LIVE = new Set(['awaiting_profile', 'starting', 'ready', 'stopping']); // these hold a place on the machine
 const randomHex = (bytes) => crypto.randomBytes(bytes).toString('hex');
 
-export function createSessionManager({ adapter, config = {}, now = Date.now, log = () => {}, makeSecret = () => randomHex(12) }) {
+export function createSessionManager({ adapter, live = null, config = {}, now = Date.now, log = () => {}, makeSecret = () => randomHex(12) }) {
   const cfg = {
     enabled: true, maxSessions: 2, maxQueue: 10, idleMs: 3_600_000, taskMaxMs: 7_200_000, startTimeoutMs: 90_000, profileWaitMs: 60_000,
     collectMs: 600_000, forgetMs: 3_600_000, maxProfileBytes: 150 * 1024 * 1024, ...config
@@ -21,7 +21,7 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
   const sessions = new Map();
   const queue = []; // session ids, oldest first
 
-  const live = () => [...sessions.values()].filter((s) => LIVE.has(s.state));
+  const running = () => [...sessions.values()].filter((s) => LIVE.has(s.state));
   const need = (id) => { const s = sessions.get(id); if (!s) throw new HostError(404, 'not_found', 'no such session'); return s; };
   const view = (s) => ({
     sessionId: s.sessionId, state: s.state, position: s.state === 'queued' ? queue.indexOf(s.sessionId) + 1 : undefined,
@@ -33,13 +33,14 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
 
   async function quietly(promise, what, s) { try { await promise; } catch (error) { log({ ev: 'cleanup_failed', what, sessionId: s.sessionId, why: String(error?.message || error).slice(0, 120) }); } }
   async function cleanup(s, { keepVolume = false } = {}) {
+    live?.release(s);
     await quietly(adapter.stopContainer(s), 'stop', s);
     await quietly(adapter.removeContainer(s), 'remove', s);
     if (!keepVolume) await quietly(adapter.removeVolume(s), 'volume', s);
   }
 
   function promote() {
-    while (queue.length && live().length < cfg.maxSessions) {
+    while (queue.length && running().length < cfg.maxSessions) {
       const s = sessions.get(queue.shift());
       if (s && s.state === 'queued') begin(s);
     }
@@ -60,9 +61,11 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
       await adapter.createVolume(s);
       if (s.profile) { const archive = s.profile; s.profile = null; await adapter.loadProfile(s, archive); }
       if (s.state !== 'starting') throw new Error('stopped while starting');
+      live?.allocate(s); // a port for the live screen (none free: the browser does not start)
       await adapter.startContainer(s);
       await adapter.waitReady(s, cfg.startTimeoutMs);
       if (s.state !== 'starting') throw new Error('stopped while starting');
+      await live?.ready(s);
       s.state = 'ready'; s.startedAt = now(); s.lastActionAt = s.startedAt;
       log({ ev: 'ready', sessionId: s.sessionId });
     } catch (error) {
@@ -89,7 +92,7 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
       sessionId, userId, screen: size, hasProfile: Boolean(hasProfile), state: 'queued', createdAt: now(), startedAt: undefined, lastActionAt: undefined,
       userPassword: makeSecret(), adminPassword: makeSecret(), profile: null, volumeKept: false
     };
-    if (live().length >= cfg.maxSessions) {
+    if (running().length >= cfg.maxSessions) {
       if (queue.length >= cfg.maxQueue) throw new HostError(429, 'queue_full', 'too many waiting');
       sessions.set(sessionId, s); queue.push(sessionId);
       return view(s);
@@ -134,6 +137,7 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
     if (s.state === 'stopping') throw new HostError(409, 'stopping', 'already stopping');
     const wasReady = s.state === 'ready';
     s.state = 'stopping'; s.stoppedReason = reason; s.profile = null;
+    live?.release(s);                                          // the viewers and the port go first; nobody can connect to a browser that is closing
     await quietly(adapter.stopContainer(s), 'stop', s);        // a clean stop first: Chromium closes its files before they are packed
     await quietly(adapter.removeContainer(s), 'remove', s);
     let profile = null;
@@ -159,6 +163,7 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
   /** Called every few seconds. */
   async function tick() {
     const at = now();
+    if (live) await live.tick([...sessions.values()].filter((s) => s.state === 'ready'));
     for (const s of [...sessions.values()]) {
       if (s.state === 'ready') {
         if (at - s.startedAt >= cfg.taskMaxMs) await stop(s.sessionId, { reason: 'task_max', keepVolume: true });
@@ -185,8 +190,15 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
     return containers.length + volumes.length;
   }
 
-  async function shutdown() { for (const s of live()) await stop(s.sessionId, { reason: 'shutdown' }).catch(() => {}); }
+  async function shutdown() { for (const s of running()) await stop(s.sessionId, { reason: 'shutdown' }).catch(() => {}); }
 
-  const summary = () => ({ sessions: live().length, queued: queue.length, maxSessions: cfg.maxSessions });
-  return { create, putProfile, get, action, save, stop, collectProfile, tick, recover, shutdown, summary, config: cfg };
+  const summary = () => ({ sessions: running().length, queued: queue.length, maxSessions: cfg.maxSessions });
+  /** The session itself (for the live screen); only when it is ready. */
+  function ready(sessionId) {
+    const s = need(sessionId);
+    if (s.state !== 'ready') throw new HostError(409, 'not_ready', `the browser is ${s.state}`);
+    return s;
+  }
+
+  return { create, putProfile, get, action, save, stop, collectProfile, tick, recover, shutdown, summary, ready, config: cfg };
 }

@@ -13,6 +13,7 @@ import { ProjectReadError } from './project-reader.js';
 import { InviteError } from './project-invites.js';
 import { SecurityNoticeError } from './security-notices.js';
 import { deviceName } from '../src/app/runtime/security/device-name.js';
+import { createBrowserLiveRoutes } from './browser-live-routes.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -89,7 +90,7 @@ export function clientAddress(request) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null, projectInvites = null, securityNotices = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null, projectReader = null, projectInvites = null, securityNotices = null, browser = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -99,6 +100,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
   const shareLimiter = createRateLimiter({ limit: 20, windowMs: 60_000, now });
   const projectLimiter = createRateLimiter({ limit: 120, windowMs: 60_000, now });
   const startedAt = now();
+  const browserLive = createBrowserLiveRoutes({ browser, limiter: createRateLimiter({ limit: 120, windowMs: 60_000, now }) });
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
     ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', 'Access-Control-Max-Age': '600' }
@@ -135,6 +137,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 204;
         return;
       }
+      if (await browserLive(request, { url, authenticate, readJson, send: (code, body) => { status = code; send(response, code, body, origin); }, fail: (code, message, extra) => { throw new RequestError(code, message, extra); } })) return;
       if (route === 'GET /healthz') {
         send(response, 200, { ok: true, protocol: PROTOCOL_VERSION, build: config.build, runs: Boolean(runs), sandbox: runs?.sandboxState?.() || 'off', uptimeSeconds: Math.round((now() - startedAt) / 1000) }, origin);
         status = 200;

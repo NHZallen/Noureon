@@ -54,6 +54,7 @@ export function createBrowserHostClient({ url, secret, fetchImpl = fetch, timeou
     return isJson ? { json: parsed } : { bytes: data };
   }
 
+  const checkViewer = (id) => { if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(id || ''))) throw new BrowserHostError('That viewer name is not valid.', { status: 400, code: 'bad_viewer_id' }); return String(id); };
   const sessionPath = (id) => `/v1/sessions/${checkId(id)}`;
   return {
     async health() { return (await request('GET', '/v1/health', { wait: 8_000 })).json; },
@@ -66,6 +67,11 @@ export function createBrowserHostClient({ url, secret, fetchImpl = fetch, timeou
     async action(id, action, { wait = 60_000 } = {}) { return (await request('POST', `${sessionPath(id)}/actions`, { json: action, wait })).json; },
     /** The login state now (a tar.gz Buffer); the browser goes on. */
     async save(id) { return (await request('POST', `${sessionPath(id)}/save`, { wait: 120_000 })).bytes; },
+    // The live screen (only when the host has it switched on): a temporary viewer (the page gets { viewerId, token, host, wsPath, ratioSizes }), who may point and type now, the size of the screen.
+    async createViewer(id) { return (await request('POST', `${sessionPath(id)}/viewers`, { json: {}, wait: 15_000 })).json; },
+    async closeViewer(id, viewerId) { return (await request('DELETE', `${sessionPath(id)}/viewers/${checkViewer(viewerId)}`, { wait: 15_000 })).json; },
+    async control(id, { mode, viewerId }) { return (await request('POST', `${sessionPath(id)}/control`, { json: { mode, ...(viewerId ? { viewerId: checkViewer(viewerId) } : {}) }, wait: 15_000 })).json; },
+    async setScreen(id, ratio) { return (await request('POST', `${sessionPath(id)}/screen`, { json: { ratio }, wait: 20_000 })).json; },
     /** The login state kept after the host stopped a browser by itself (idle, time limit): a Buffer, or throws `not_found` when it is gone. */
     async collect(id) { return (await request('GET', `${sessionPath(id)}/profile`, { wait: 120_000 })).bytes; },
     /** Stops a browser; with `save` the host packs the login state after the browser has closed and returns it (a Buffer), else null. */

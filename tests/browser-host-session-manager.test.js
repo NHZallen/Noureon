@@ -176,3 +176,22 @@ test('on start-up, leftovers of an earlier run are removed; shutdown stops every
   await t.m.shutdown();
   assert.equal(t.m.get(id(1)).state, 'stopped'); assert.equal(t.m.get(id(2)).state, 'stopped');
 });
+
+test('the live screen: a port before the container starts, ready after it is up, released when it goes, and a failing port stops the start', async () => {
+  const events = [];
+  const live = { allocate: (s) => events.push(['allocate', s.sessionId]), ready: async (s) => events.push(['ready', s.sessionId]), release: (s) => events.push(['release', s.sessionId]), tick: async (list) => events.push(['tick', list.length]) };
+  const adapter = {
+    createVolume: async () => {}, loadProfile: async () => {}, startContainer: async () => events.push(['start']), waitReady: async () => events.push(['wait']), exportProfile: async () => Buffer.from('x'),
+    stopContainer: async () => {}, removeContainer: async () => {}, removeVolume: async () => {}, action: async () => ({ ok: true }), listOrphans: async () => ({ containers: [], volumes: [] })
+  };
+  const m = createSessionManager({ adapter, live, config: {}, makeSecret: () => 'secret000000000000000000' });
+  make(m, 1);
+  await settle(); await settle();
+  assert.deepEqual(events.map((e) => e[0]), ['allocate', 'start', 'wait', 'ready']);
+  assert.equal(m.ready(id(1)).sessionId, id(1));
+  await m.tick();
+  assert.deepEqual(events.at(-1), ['tick', 1]);
+  await m.stop(id(1), { reason: 'requested' });
+  assert.equal(events.at(-1)[0], 'release');
+  assert.throws(() => m.ready(id(1)), (e) => e instanceof HostError);
+});

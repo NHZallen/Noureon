@@ -158,3 +158,23 @@ test('a browser closed without a login state coming back is told in the log, and
   assert.deepEqual(lines, ['browser_close_no_login_state']);
   assert.equal(w.saved.length, 0);
 });
+
+test('the live screen calls reach the host only for the owner of the browser', async () => {
+  const w = world();
+  const seen = [];
+  w.host.createViewer = async (id) => { seen.push(['viewer', id]); return { viewerId: 'v-1' }; };
+  w.host.closeViewer = async (id, viewer) => { seen.push(['close', id, viewer]); return { ok: true }; };
+  w.host.control = async (id, request) => { seen.push(['control', id, request]); return { control: request.mode }; };
+  w.host.setScreen = async (id, ratio) => { seen.push(['screen', id, ratio]); return { ratio }; };
+  const { sessionId } = await w.sessions.open(A, {});
+  assert.equal((await w.sessions.viewer(sessionId, A)).viewerId, 'v-1');
+  await w.sessions.closeViewer(sessionId, A, 'v-1');
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v-1' });
+  await w.sessions.screen(sessionId, A, '16:9');
+  assert.deepEqual(seen.map((s) => s[0]), ['viewer', 'close', 'control', 'screen']);
+  seen.length = 0;
+  for (const call of [() => w.sessions.viewer(sessionId, B), () => w.sessions.closeViewer(sessionId, B, 'v-1'), () => w.sessions.control(sessionId, B, { mode: 'model' }), () => w.sessions.screen(sessionId, B, '4:3')]) {
+    await assert.rejects(call, (error) => error instanceof BrowserSessionError && error.code === 'not_found');
+  }
+  assert.deepEqual(seen, []);
+});

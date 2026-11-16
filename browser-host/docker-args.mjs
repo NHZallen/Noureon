@@ -24,6 +24,26 @@ export function checkScreen(screen = {}) {
   if (!Number.isInteger(w) || !Number.isInteger(h) || w < 320 || h < 320 || w > 1920 || h > 1920) throw new Error('bad screen size');
   return { w, h };
 }
+// The live screen (design section 6, 12.2). Two H.264 pipelines the viewer chooses between, and only the one somebody watches is run (neko destroys the
+// others): `hq` for the focus mode (the size of the screen, 20 fps, 4 Mbps) and `lq` for the preview card (about 640 wide, 15 fps, 1.2 Mbps). `lq` gives only its
+// width and lets the height follow (a fixed 640x480 would stretch a 16:9 or an upright screen); that is still to be checked on the real host.
+export const LIVE_PIPELINES = Object.freeze({
+  hq: { fps: '20', gst_prefix: '! video/x-raw,format=I420', gst_encoder: 'x264enc', gst_params: { threads: '2', bitrate: '4000', 'key-int-max': '20', 'byte-stream': 'true', tune: 'zerolatency', 'speed-preset': 'veryfast' }, gst_suffix: '! video/x-h264,stream-format=byte-stream' },
+  lq: { fps: '15', gst_prefix: '! videoscale ! video/x-raw,width=640,format=I420', gst_encoder: 'x264enc', gst_params: { threads: '2', bitrate: '1200', 'key-int-max': '15', 'byte-stream': 'true', tune: 'zerolatency', 'speed-preset': 'ultrafast' }, gst_suffix: '! video/x-h264,stream-format=byte-stream' }
+});
+const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
+/** What the live screen needs of one browser: `apiToken` (random, kept on this machine only), `udpPort` (one port for UDP and TCP, one per browser), `publicIp`, `bindIp` (where the port is published). */
+export function checkLive(live) {
+  if (!live || typeof live !== 'object') throw new Error('bad live settings');
+  const { apiToken, udpPort, publicIp } = live;
+  const bindIp = live.bindIp ?? publicIp;
+  if (typeof apiToken !== 'string' || !/^[0-9a-f]{32,64}$/.test(apiToken)) throw new Error('bad live api token');
+  if (!Number.isInteger(udpPort) || udpPort < 1024 || udpPort > 65535) throw new Error('bad live port');
+  if (typeof publicIp !== 'string' || !IPV4.test(publicIp)) throw new Error('bad live public ip');
+  if (typeof bindIp !== 'string' || !IPV4.test(bindIp)) throw new Error('bad live bind ip');
+  return { apiToken, udpPort, publicIp, bindIp };
+}
+
 const checkText = (value, what) => { if (typeof value !== 'string' || !value || !SAFE_TEXT.test(value)) throw new Error(`bad ${what}`); return value; };
 
 export const containerName = (sessionId) => `noureon-browser-${checkSessionId(sessionId)}`;
@@ -64,10 +84,13 @@ export function profileSaveArgs({ sessionId }) {
 
 /**
  * options: sessionId, screen {w,h}, userPassword, adminPassword (random, per session), confPath, policiesPath, seccompPath (absolute, on this machine),
- * network, image, memory, shmSize, pidsLimit, cgroupParent (optional)
+ * network, image, memory, shmSize, pidsLimit, cgroupParent (optional), live (optional: see checkLive; without it nothing is published and the members are the two passwords)
  */
 export function browserRunArgs(options) {
-  const { sessionId, confPath, policiesPath, seccompPath, userPassword, adminPassword } = options;
+  const { sessionId, confPath, policiesPath, seccompPath } = options;
+  const live = options.live ? checkLive(options.live) : null;
+  const userPassword = live ? null : options.userPassword;
+  const adminPassword = live ? null : options.adminPassword;
   const screen = checkScreen(options.screen);
   const network = checkText(options.network ?? 'noureon-browser', 'network');
   const image = checkText(options.image ?? IMAGE, 'image');
@@ -77,8 +100,10 @@ export function browserRunArgs(options) {
   for (const [what, value] of [['conf path', confPath], ['policies path', policiesPath], ['seccomp path', seccompPath]]) {
     if (typeof value !== 'string' || !value.startsWith('/') || /[\s,:=]/.test(value)) throw new Error(`bad ${what}`);
   }
-  for (const [what, value] of [['user password', userPassword], ['admin password', adminPassword]]) {
-    if (typeof value !== 'string' || !/^[0-9a-f]{24,64}$/.test(value)) throw new Error(`bad ${what}`);
+  if (!live) {
+    for (const [what, value] of [['user password', userPassword], ['admin password', adminPassword]]) {
+      if (typeof value !== 'string' || !/^[0-9a-f]{24,64}$/.test(value)) throw new Error(`bad ${what}`);
+    }
   }
   const args = ['run', '-d', '--name', containerName(sessionId), '--network', network, '--restart', 'no',
     '--label', 'noureon.browser=1', '--label', `noureon.session=${sessionId}`,
@@ -88,8 +113,22 @@ export function browserRunArgs(options) {
   if (options.cgroupParent) args.push('--cgroup-parent', checkText(options.cgroupParent, 'cgroup parent'));
   args.push('--mount', `type=volume,src=${volumeName(sessionId)},dst=${PROFILE_MOUNT}`,
     '-v', `${confPath}:/etc/neko/supervisord/chromium.conf:ro`, '-v', `${policiesPath}:/etc/chromium/policies/managed/policies.json:ro`,
-    '-e', `NEKO_DESKTOP_SCREEN=${screen.w}x${screen.h}@20`, '-e', `NEKO_MEMBER_MULTIUSER_USER_PASSWORD=${userPassword}`, '-e', `NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD=${adminPassword}`,
-    image);
+    '-e', `NEKO_DESKTOP_SCREEN=${screen.w}x${screen.h}@20`);
+  if (live) {
+    // Members are made and removed from this machine with the api token (one for each person who looks, gone when they leave); nobody can control until they are given it.
+    // One port (UDP and TCP) for all of this browser's WebRTC, shown to the viewer as the public address; no third-party STUN (the browser cannot reach one, and the
+    // viewer's address is not told to anyone else).
+    args.push('-p', `${live.bindIp}:${live.udpPort}:${live.udpPort}/udp`, '-p', `${live.bindIp}:${live.udpPort}:${live.udpPort}/tcp`);
+    for (const [name, value] of [
+      ['NEKO_MEMBER_PROVIDER', 'file'], ['NEKO_MEMBER_FILE_PATH', '/tmp/neko-members.json'], ['NEKO_SESSION_API_TOKEN', live.apiToken], ['NEKO_SESSION_LOCKED_CONTROLS', 'true'],
+      ['NEKO_WEBRTC_UDPMUX', String(live.udpPort)], ['NEKO_WEBRTC_TCPMUX', String(live.udpPort)], ['NEKO_WEBRTC_NAT1TO1', live.publicIp],
+      ['NEKO_WEBRTC_ICESERVERS_BACKEND', '[]'], ['NEKO_WEBRTC_ICESERVERS_FRONTEND', '[]'],
+      ['NEKO_CAPTURE_VIDEO_CODEC', 'h264'], ['NEKO_CAPTURE_VIDEO_IDS', 'hq lq'], ['NEKO_CAPTURE_VIDEO_PIPELINES', JSON.stringify(LIVE_PIPELINES)]
+    ]) args.push('-e', `${name}=${value}`);
+  } else {
+    args.push('-e', `NEKO_MEMBER_MULTIUSER_USER_PASSWORD=${userPassword}`, '-e', `NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD=${adminPassword}`);
+  }
+  args.push(image);
   return args;
 }
 
@@ -102,6 +141,8 @@ export function sidecarArgs({ sessionId, scriptPath, action }) {
     '--user', '65534:65534', '--memory', '256m', '--pids-limit', '64', '-v', `${scriptPath}:/app/cdp-actions.mjs:ro`, SIDECAR_IMAGE, 'node', '/app/cdp-actions.mjs', json];
 }
 
+/** The address of the browser container on the isolated network (what the live screen and its proxy talk to). */
+export const ipArgs = (sessionId) => ['inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', containerName(sessionId)];
 export const stopArgs = (sessionId) => ['stop', '-t', '10', containerName(sessionId)];
 export const removeArgs = (sessionId) => ['rm', '-f', containerName(sessionId)];
 export const volumeRemoveArgs = (sessionId) => ['volume', 'rm', '-f', volumeName(sessionId)];

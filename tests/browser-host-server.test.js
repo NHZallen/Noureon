@@ -9,7 +9,7 @@ import { createSessionManager } from '../browser-host/session-manager.mjs';
 const SECRET = 'k'.repeat(40);
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-async function start({ allowed = ['127.0.0.1'], config = {} } = {}) {
+async function start({ allowed = ['127.0.0.1'], config = {}, live = null } = {}) {
   const calls = [];
   const adapter = {
     createVolume: async () => calls.push('createVolume'), loadProfile: async (s, b) => calls.push(`loadProfile:${b.toString()}`), startContainer: async () => calls.push('startContainer'),
@@ -19,7 +19,7 @@ async function start({ allowed = ['127.0.0.1'], config = {} } = {}) {
   };
   const manager = createSessionManager({ adapter, config: { maxSessions: 2, ...config } });
   const logs = [];
-  const server = createServer({ manager, verifier: createVerifier({ secrets: [SECRET], allowedIps: allowed }), maxProfileBytes: 1024 * 1024, log: (e) => logs.push(e), load: () => 0.5 });
+  const server = createServer({ manager, live, verifier: createVerifier({ secrets: [SECRET], allowedIps: allowed }), maxProfileBytes: 1024 * 1024, log: (e) => logs.push(e), load: () => 0.5 });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
   const call = (method, path, { body, headers, sign = true, raw } = {}) => new Promise((resolve, reject) => {
@@ -136,5 +136,30 @@ test('an unexpected failure is a plain 500 that does not leak its message', asyn
     const r = await t.call('GET', `/v1/sessions/${SID}`);
     assert.equal(r.status, 500); assert.deepEqual(r.json, { error: 'internal' });
     assert.ok(!r.data.toString().includes('hunter2'));
+  } finally { await t.close(); }
+});
+
+test('the live routes: viewers, control, screen; missing without live, 409 before the browser is ready', async () => {
+  const none = await start();
+  try { assert.equal((await none.call('POST', `/v1/sessions/${SID}/viewers`)).status, 404); } finally { await none.close(); }
+  const log = [];
+  const live = {
+    createViewer: async (s) => { log.push(['viewer', s.sessionId]); return { viewerId: 'v-1', token: 't', host: 'live.example.com', wsPath: '/s/x/api/ws' }; },
+    closeViewer: async (s, id) => { log.push(['close', s.sessionId, id]); },
+    control: async (s, a) => { log.push(['control', a]); return { control: a.mode }; },
+    setRatio: async (s, ratio) => { log.push(['ratio', ratio]); return { ratio, width: 1280, height: 720 }; }
+  };
+  const t = await start({ live });
+  try {
+    assert.equal((await t.call('POST', `/v1/sessions/${SID}/viewers`)).status, 404);
+    await t.call('POST', '/v1/sessions', { body: { sessionId: SID, userId: 'user-1', screen: { w: 1024, h: 768 } } });
+    await settle();
+    const v = await t.call('POST', `/v1/sessions/${SID}/viewers`);
+    assert.equal(v.status, 200); assert.equal(v.json.viewerId, 'v-1');
+    assert.equal((await t.call('POST', `/v1/sessions/${SID}/control`, { body: { mode: 'user', viewerId: 'v-1' } })).json.control, 'user');
+    assert.equal((await t.call('POST', `/v1/sessions/${SID}/screen`, { body: { ratio: '16:9' } })).json.width, 1280);
+    assert.equal((await t.call('DELETE', `/v1/sessions/${SID}/viewers/v-1`)).status, 200);
+    assert.deepEqual(log.map((e) => e[0]), ['viewer', 'control', 'ratio', 'close']);
+    assert.equal((await t.call('POST', `/v1/sessions/${SID}/viewers`, { sign: false })).status, 401);
   } finally { await t.close(); }
 });

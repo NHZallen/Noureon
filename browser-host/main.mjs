@@ -6,13 +6,16 @@ import { createVerifier } from './auth.mjs';
 import { createDockerAdapter } from './docker-adapter.mjs';
 import { createSessionManager } from './session-manager.mjs';
 import { createServer } from './server.mjs';
+import { createLive } from './live.mjs';
+import { createLiveProxy } from './live-proxy.mjs';
 
 const log = (entry) => console.log(JSON.stringify({ t: new Date().toISOString(), ...entry }));
 let config;
 try { config = loadConfig(process.env); } catch (error) { console.error(`browser-host cannot start: ${error.message}`); process.exit(78); }
 
 const adapter = createDockerAdapter({ paths: config.paths, options: config.docker });
-const manager = createSessionManager({ adapter, config: config.manager, log });
+const live = config.live ? createLive({ config: config.live, containerIp: (s) => adapter.containerIp(s), log }) : null;
+const manager = createSessionManager({ adapter, live, config: config.manager, log });
 // A program on this machine (the installer's health check, the acceptance scripts) shows as its source whichever address of the machine the kernel picks: the bridge address while
 // the bridge is up, the public address while no browser is running and the bridge has no carrier (seen on the real machine, 2026-11-16). So the machine's own addresses count as "this machine".
 // Nobody outside can have one of them as a source (the kernel drops such packets), the service listens on the private bridge only, and every request still has to be signed.
@@ -21,18 +24,20 @@ const isLocalAddress = (ip) => {
   try { return Object.values(os.networkInterfaces()).flat().some((entry) => entry && entry.family === 'IPv4' && entry.address === ip); } catch (error) { log({ ev: 'interfaces_unreadable', why: String(error?.message || error).slice(0, 120) }); return false; }
 };
 const verifier = createVerifier({ secrets: config.secrets, allowedIps: config.allowedIps, isLocalAddress });
-const server = createServer({ manager, verifier, maxProfileBytes: config.manager.maxProfileBytes, log, tls: config.tls ? { cert: (await import('node:fs')).readFileSync(config.tls.cert), key: (await import('node:fs')).readFileSync(config.tls.key) } : null });
+const server = createServer({ manager, verifier, live, maxProfileBytes: config.manager.maxProfileBytes, log, tls: config.tls ? { cert: (await import('node:fs')).readFileSync(config.tls.cert), key: (await import('node:fs')).readFileSync(config.tls.key) } : null });
 
 const removed = await manager.recover().catch((error) => { log({ ev: 'recover_failed', why: String(error?.message || error).slice(0, 160) }); return 0; });
 log({ ev: 'starting', leftoversRemoved: removed, maxSessions: config.manager.maxSessions, enabled: config.manager.enabled, allowedIps: config.allowedIps });
 const timer = setInterval(() => { manager.tick().catch((error) => log({ ev: 'tick_failed', why: String(error?.message || error).slice(0, 160) })); }, 10_000);
 server.listen(config.port, config.bind, () => log({ ev: 'listening', bind: config.bind, port: config.port, tls: Boolean(config.tls) }));
+const liveProxy = live ? createLiveProxy({ live, log, idleMs: 0 }) : null;
+liveProxy?.listen(config.live.proxyPort, config.live.proxyBind, () => log({ ev: 'live_listening', bind: config.live.proxyBind, port: config.live.proxyPort, host: config.live.host }));
 
 let stopping = false;
 const shutdown = async (signal) => {
   if (stopping) return; stopping = true;
   log({ ev: 'shutting_down', signal });
-  clearInterval(timer); server.close();
+  clearInterval(timer); server.close(); liveProxy?.close();
   await manager.shutdown().catch(() => {});
   process.exit(0);
 };

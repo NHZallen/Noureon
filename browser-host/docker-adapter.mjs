@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { HostError } from './session-manager.mjs';
 import {
-  browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
+  browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, ipArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
 } from './docker-args.mjs';
 
 /** Runs `docker <args>`. Resolves { code, stdout: Buffer, stderr: string, truncated }; never rejects. code -1: output too large, -2: timed out, -3: could not run docker. */
@@ -43,6 +43,7 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
     async startContainer(s) {
       must(await run(browserRunArgs({
         sessionId: s.sessionId, screen: s.screen, userPassword: s.userPassword, adminPassword: s.adminPassword,
+        live: s.live ? { apiToken: s.live.apiToken, udpPort: s.live.udpPort, publicIp: s.live.publicIp, bindIp: s.live.bindIp } : undefined,
         confPath: paths.conf, policiesPath: paths.policies, seccompPath: paths.seccomp,
         network: options.network, image: options.image, memory: options.memory, shmSize: options.shmSize, pidsLimit: options.pidsLimit, cgroupParent: options.cgroupParent
       }), { timeoutMs: 60_000 }), 'starting the browser');
@@ -57,6 +58,13 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
         if (now() >= deadline) throw new Error('the browser did not become ready in time');
         await sleep(1000);
       }
+    },
+    /** The container's address on the isolated network. */
+    async containerIp(s) {
+      const r = must(await run(ipArgs(s.sessionId), { timeoutMs: 10_000 }), 'finding the browser address');
+      const ip = r.stdout.toString('utf8').trim();
+      if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) throw new Error('the browser has no address');
+      return ip;
     },
     async exportProfile(s) {
       const r = await run(profileSaveArgs({ sessionId: s.sessionId }), { timeoutMs: 120_000, maxBytes: options.maxProfileBytes ?? 150 * 1024 * 1024 });

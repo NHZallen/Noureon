@@ -3,6 +3,8 @@
 //   GET    /v1/health                     POST /v1/sessions                 GET    /v1/sessions/:id
 //   PUT    /v1/sessions/:id/profile       GET  /v1/sessions/:id/profile     POST   /v1/sessions/:id/actions
 //   POST   /v1/sessions/:id/save          DELETE /v1/sessions/:id[?save=1]
+//   live screen (only when BROWSER_LIVE_* is set): POST /v1/sessions/:id/viewers   DELETE /v1/sessions/:id/viewers/:viewerId
+//                                                   POST /v1/sessions/:id/control {mode, viewerId}   POST /v1/sessions/:id/screen {ratio}
 import http from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
@@ -23,7 +25,18 @@ function readBody(req, limit) {
 }
 const json = (body) => { try { return body.length ? JSON.parse(body.toString('utf8')) : {}; } catch { throw new HostError(400, 'bad_request', 'the body is not JSON'); } };
 
-export function createServer({ manager, verifier, maxProfileBytes = 150 * 1024 * 1024, log = () => {}, tls = null, load = () => os.loadavg()[0] }) {
+const VIEWER = '([A-Za-z0-9_-]{1,64})';
+function liveRoutes(manager, live) {
+  const session = (id) => manager.ready(id);
+  return [
+    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/viewers$`), run: async ({ match }) => ({ status: 200, body: await live.createViewer(session(match[1])) }) },
+    { method: 'DELETE', re: new RegExp(`^/v1/sessions/${ID}/viewers/${VIEWER}$`), run: async ({ match }) => { await live.closeViewer(session(match[1]), match[2]); return { status: 200, body: { ok: true } }; } },
+    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/control$`), run: async ({ match, body }) => { const b = json(body); return { status: 200, body: await live.control(session(match[1]), { mode: b.mode, viewerId: typeof b.viewerId === 'string' ? b.viewerId : undefined }) }; } },
+    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/screen$`), run: async ({ match, body }) => ({ status: 200, body: await live.setRatio(session(match[1]), json(body).ratio) }) }
+  ];
+}
+
+export function createServer({ manager, verifier, live = null, maxProfileBytes = 150 * 1024 * 1024, log = () => {}, tls = null, load = () => os.loadavg()[0] }) {
   const routes = [
     { method: 'GET', re: /^\/v1\/health$/, run: async () => ({ status: 200, body: { ok: true, ...manager.summary(), load1: Number(load().toFixed(2)) } }) },
     { method: 'POST', re: /^\/v1\/sessions$/, run: async ({ body }) => ({ status: 202, body: manager.create(json(body)) }) },
@@ -31,6 +44,7 @@ export function createServer({ manager, verifier, maxProfileBytes = 150 * 1024 *
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}/profile$`), run: async ({ match }) => ({ status: 200, binary: await manager.collectProfile(match[1]) }) },
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}$`), run: async ({ match }) => ({ status: 200, body: manager.get(match[1]) }) },
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/actions$`), run: async ({ match, body }) => ({ status: 200, body: await manager.action(match[1], json(body)) }) },
+    ...(live ? liveRoutes(manager, live) : []),
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/save$`), run: async ({ match }) => ({ status: 200, binary: await manager.save(match[1]) }) },
     {
       method: 'DELETE', re: new RegExp(`^/v1/sessions/${ID}$`),

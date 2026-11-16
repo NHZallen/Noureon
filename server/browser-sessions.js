@@ -93,6 +93,11 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     async action(id, userId, action, options) {
       return host.action(own(id, userId).id, action, options);
     },
+    // The live screen. Only the person the browser belongs to may look at it, point and type in it, and change its size; the host never sees who is asking.
+    async viewer(id, userId) { return host.createViewer(own(id, userId).id); },
+    async closeViewer(id, userId, viewerId) { return host.closeViewer(own(id, userId).id, viewerId); },
+    async control(id, userId, request) { return host.control(own(id, userId).id, request); },
+    async screen(id, userId, ratio) { return host.setScreen(own(id, userId).id, ratio); },
     /** Keeps the login state now (the browser goes on). Resolves whether it was kept. */
     async saveNow(id, userId) {
       const session = own(id, userId);

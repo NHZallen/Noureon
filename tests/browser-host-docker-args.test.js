@@ -1,7 +1,7 @@
 // The docker command lines of browser-host (browser-host/docker-args.mjs): every safety flag is pinned, and nothing from outside can add a flag.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { holderRunArgs, browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
+import { LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
 
 const GOOD = {
   sessionId: 'sess-12345678', screen: { w: 1024, h: 768 }, userPassword: 'a'.repeat(24), adminPassword: 'b'.repeat(24),
@@ -105,4 +105,45 @@ test('the container that keeps the profile volume mounted has no network, no cap
   for (const bad of ['--privileged', '--pid', '--net=host']) assert.ok(!args.includes(bad), bad);
   assert.ok(!text.includes('docker.sock'));
   assert.throws(() => holderRunArgs({ sessionId: '--privileged' }));
+});
+
+const LIVE = { apiToken: 'c'.repeat(32), udpPort: 52000, publicIp: '84.247.153.81' };
+
+test('with the live screen: the members are made through an api token (no passwords), controls are locked, one UDP and TCP port is published for this browser only, no third-party STUN, two H.264 pipelines', () => {
+  const args = browserRunArgs({ ...GOOD, live: LIVE });
+  const env = Object.fromEntries(args.map((a, i) => (args[i - 1] === '-e' ? [a.split('=')[0], a.slice(a.indexOf('=') + 1)] : null)).filter(Boolean));
+  assert.equal(env.NEKO_MEMBER_PROVIDER, 'file');
+  assert.equal(env.NEKO_SESSION_API_TOKEN, LIVE.apiToken);
+  assert.equal(env.NEKO_SESSION_LOCKED_CONTROLS, 'true');
+  assert.equal(env.NEKO_WEBRTC_UDPMUX, '52000');
+  assert.equal(env.NEKO_WEBRTC_TCPMUX, '52000');
+  assert.equal(env.NEKO_WEBRTC_NAT1TO1, '84.247.153.81');
+  assert.equal(env.NEKO_WEBRTC_ICESERVERS_BACKEND, '[]');
+  assert.equal(env.NEKO_WEBRTC_ICESERVERS_FRONTEND, '[]');
+  assert.equal(env.NEKO_CAPTURE_VIDEO_CODEC, 'h264');
+  assert.equal(env.NEKO_CAPTURE_VIDEO_IDS, 'hq lq', 'separated by a space: a comma makes one pipeline named "hq,lq"');
+  assert.deepEqual(JSON.parse(env.NEKO_CAPTURE_VIDEO_PIPELINES), LIVE_PIPELINES);
+  assert.ok(!Object.keys(env).some((name) => name.startsWith('NEKO_MEMBER_MULTIUSER')), 'no password that anybody could be given');
+  assert.deepEqual(args.filter((a, i) => args[i - 1] === '-p'), ['84.247.153.81:52000:52000/udp', '84.247.153.81:52000:52000/tcp'], 'exactly these two, on the public address');
+  assert.ok(args.includes('--cap-drop=ALL') && pairs(args).includes('--network noureon-browser'), 'the same limits as without it');
+  assert.ok(!args.includes('--privileged'));
+  assert.equal(args.at(-1), 'ghcr.io/m1k1o/neko/chromium:latest');
+});
+
+test('without the live screen nothing is published and the passwords are set, as before', () => {
+  const args = browserRunArgs(GOOD);
+  assert.ok(!args.includes('-p'));
+  assert.ok(args.some((a) => a.startsWith('NEKO_MEMBER_MULTIUSER_USER_PASSWORD=')));
+  assert.ok(!args.some((a) => a.startsWith('NEKO_SESSION_API_TOKEN=')));
+});
+
+test('the live settings are checked: a token that is not hex, a port outside the range, an address that is not an IPv4 one are refused', () => {
+  assert.throws(() => checkLive({ ...LIVE, apiToken: 'short' }), /token/);
+  assert.throws(() => checkLive({ ...LIVE, apiToken: `${'c'.repeat(31)};` }), /token/);
+  assert.throws(() => checkLive({ ...LIVE, udpPort: 80 }), /port/);
+  assert.throws(() => checkLive({ ...LIVE, udpPort: 52000.5 }), /port/);
+  assert.throws(() => checkLive({ ...LIVE, publicIp: '84.247.153.81; rm' }), /public ip/);
+  assert.throws(() => checkLive({ ...LIVE, bindIp: '999.1.1.1' }), /bind ip/);
+  assert.throws(() => browserRunArgs({ ...GOOD, live: { ...LIVE, apiToken: 'x' } }), /token/);
+  assert.deepEqual(checkLive(LIVE), { ...LIVE, bindIp: '84.247.153.81' });
 });

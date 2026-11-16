@@ -25,7 +25,24 @@ export function loadConfig(env = process.env) {
   if (!tls && !['127.0.0.1', '::1'].includes(bind) && !/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(bind)) {
     throw new Error('without TLS the service may only listen on a loopback or private address (BROWSER_HOST_BIND); set BROWSER_HOST_TLS_CERT and BROWSER_HOST_TLS_KEY to listen elsewhere');
   }
+  // The live screen is off unless a public address is given. The viewers connect to https://<BROWSER_LIVE_HOST>/s/<random>/api/ws (the reverse proxy forwards that to the small door of live-proxy.mjs
+  // on BROWSER_LIVE_PROXY_BIND:BROWSER_LIVE_PROXY_PORT), and WebRTC goes straight to BROWSER_LIVE_PUBLIC_IP on a port from BROWSER_LIVE_PORT_BASE (one per browser).
+  let live = null;
+  if (env.BROWSER_LIVE_PUBLIC_IP) {
+    const ip4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const check = (name, value) => { const m = ip4.exec(value || ''); if (!m || m.slice(1).some((n) => Number(n) > 255)) throw new Error(`${name} must be an IPv4 address`); return value; };
+    const host = (env.BROWSER_LIVE_HOST || '').trim().toLowerCase();
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(host)) throw new Error('BROWSER_LIVE_HOST must be the host name viewers use (for example live.noureon.com)');
+    const slots = int(env, 'BROWSER_LIVE_SLOTS', 8, { min: 1, max: 64 });
+    const portBase = int(env, 'BROWSER_LIVE_PORT_BASE', 52000, { min: 1024, max: 65535 - slots });
+    live = {
+      publicIp: check('BROWSER_LIVE_PUBLIC_IP', env.BROWSER_LIVE_PUBLIC_IP), bindIp: env.BROWSER_LIVE_BIND_IP ? check('BROWSER_LIVE_BIND_IP', env.BROWSER_LIVE_BIND_IP) : undefined,
+      host, slots, portBase, maxViewers: int(env, 'BROWSER_LIVE_MAX_VIEWERS', 3, { min: 1, max: 10 }),
+      proxyBind: env.BROWSER_LIVE_PROXY_BIND || '172.29.0.1', proxyPort: int(env, 'BROWSER_LIVE_PROXY_PORT', 40011, { min: 1024, max: 65535 })
+    };
+  }
   return {
+    live,
     secrets, allowedIps, bind, port: int(env, 'BROWSER_HOST_PORT', 40010, { min: 1024, max: 65535 }), tls,
     manager: {
       enabled: env.BROWSER_ENABLED !== 'false',

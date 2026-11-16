@@ -102,7 +102,7 @@ if (config.runsConfigured) {
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares, projectReader, projectInvites, securityNotices }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares, projectReader, projectInvites, securityNotices, browser }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;
