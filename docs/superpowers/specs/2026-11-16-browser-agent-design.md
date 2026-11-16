@@ -68,9 +68,11 @@
 ### 2.6 主機
 
 - 瀏覽器放在**原本的 Contabo VPS**（和正式站同一台，vmi3631014，亞洲，6 vCPU／12 GB，可用約 7.3 GB）。【定，Allen 2026-11-17，推翻先前「另一台 AWS 俄勒岡 4 vCPU／8 GB」的決定】
-- 因為同機，隔離改靠多層：**gVisor（runsc）當瀏覽器容器的 runtime**、專用網段加預設拒絕的防火牆、唯一出口是檢查過的出口代理、cgroup 資源上限（`noureon-browser.slice`）。Allen 2026-11-17 決定「gVisor 要做」。
+- **隔離方式【定，Allen 2026-11-16，第九輪之後】：不租專用主機；不用 gVisor；靠 Chromium 自己的沙盒**，加上專用網段與預設拒絕的防火牆、唯一出口是檢查過的出口代理、非 root、`--cap-drop=ALL`、`no-new-privileges`、不掛主機目錄、資源上限（`noureon-browser.slice`，只有權重與記憶體上限，沒有 CPU 硬配額）。原因：第七到九輪證明 gVisor 讓手感明顯變差、CPU 多 40–50%、主機壓力大（§3.1–§3.3）。gVisor 已裝在主機上但**不使用**（要不要移除另議）。
+- **要讓 Chromium 自己的沙盒在普通 Docker 下起得來**，需要讓容器能建立使用者命名空間：先換 seccomp 規則（`make-chromium-seccomp.sh`，Docker 預設規則加五個系統呼叫，不動主機），不夠才加只給瀏覽器容器用的 AppArmor 設定（動主機，要先經 Allen 同意）。**不放寬主機層級的 `apparmor_restrict_unprivileged_userns`。**
+- **接受的殘餘風險（Allen 已決定，Sun 審 §10 時要看）：** 同機＋無 gVisor，所以 Chromium 沙盒被繞過後再加一個核心漏洞，就會碰到正式主機；容器內能建立使用者命名空間也多暴露一些核心功能。緩解：上述容器加固、每人一個容器、任務有時限、主機上沒有放瀏覽器用的密鑰、防火牆與出口代理。**容量：全站同時只 1 個被看的瀏覽器**（一個被看的工作階段吃 2–3 核）；使用者變多就要重新考慮專用主機。
 - 對外網路經**現有的 `warp` 容器**（當 SOCKS5 上游）；只有瀏覽器網頁流量走它。【Allen 2026-11-17：現有 `warp` 容器的用途不必追，只要不被我們改動】
-- 後備方案：若 gVisor 下 Chromium 的 CPU 負擔過大、或同機干擾正式服務（§13），改租一台小的 Contabo VPS 專放瀏覽器；`browser-host/` 的設計本來就是好遷移的（§4.2），搬過去只要重跑 `install.sh`。
+- 後備方案：容量不夠、或同機干擾正式服務時，改租一台專用 VPS 放瀏覽器；`browser-host/` 的設計本來就好遷移（§4.2），搬過去只要重跑 `install.sh`。
 - 因為可能隨時搬到別的 VPS，**一切都要做成好遷移**（§4.2、§11）。【定】
 
 ## 3. 實驗結果（Hark 在 Contabo VPS：6 核、12 GB，其他服務照跑；**不是新主機，新主機要重量**；原始報告在 NOU-202 的留言與 Allen 手上）
@@ -207,7 +209,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 **控制通道**：主伺服器 → browser-host 用 HTTPS，請求帶 HMAC 簽章（時間戳與請求內容），主機只收主伺服器的公開 IP；不使用 docker0 共享密鑰那種只適用於同機的做法。
 
-**容量**：同機要和正式服務共用 CPU 與記憶體。**一開始 `BROWSER_MAX_SESSIONS=1`**，量過再決定要不要到 2。資源上限寫在 `browser-host/noureon-browser.slice`（CPU 最多 2.5 核、記憶體 4 GB、不用 swap、CPU 權重低於正式服務），瀏覽器容器用 `--cgroup-parent=noureon-browser.slice` 加入。實驗數字（一個被看的工作階段 1.2–2 核）要在**這台機器、gVisor 之下**重量（§13）。預設每人 1 個。
+**容量**：同機要和正式服務共用 CPU 與記憶體。**一開始 `BROWSER_MAX_SESSIONS=1`**，量過再決定要不要到 2。資源上限寫在 `browser-host/noureon-browser.slice`（CPU 權重低於正式服務、**沒有 CPU 硬配額**、記憶體 4 GB、不用 swap），瀏覽器容器用 `--cgroup-parent=noureon-browser.slice` 加入。實測（§3.2、§3.3）：一個被看的工作階段吃 2–3 核（高峰 3.4–3.9 核），沒人看約 0.05 核；所以**全站同時只開 1 個被看的**。預設每人 1 個。
 
 ### 4.3 模型的工具（伺服器端的工具載入器，仿 `server/mcp/tool-loader.js`）
 
@@ -315,7 +317,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 | # | 威脅 | 對策 | 狀態 |
 |---|---|---|---|
-| 1 | 瀏覽器被網頁漏洞攻破，逃出容器，碰到主機。原設計在**正式站同一台機器**且 `--no-sandbox`，是最危險的組合 | **同機（§2.6），所以隔離要多層**：容器跑在 **gVisor（`--runtime=runsc`）**，網頁漏洞逃出 Chromium 後碰到的是 gVisor 的使用者空間核心，不是主機的 Linux 核心；gVisor 內 Chromium 可用 `--no-sandbox`（gVisor 就是沙盒），不在 gVisor 時**不用 `--no-sandbox`**（需要使用者命名空間與 seccomp 設定，`probe-chromium-sandbox.sh` 驗證）；非 root、`--cap-drop=ALL`、`no-new-privileges`、唯讀根檔案系統、不掛主機目錄；**主機上不放任何密鑰**（只有控制通道的簽章密鑰與短期憑證）；Chromium 與 neko 映像定期更新 | **必做** |
+| 1 | 瀏覽器被網頁漏洞攻破，逃出容器，碰到主機。同機部署（§2.6），Chromium 的沙盒是主要的一道牆 | **Chromium 不用 `--no-sandbox`，開自己的沙盒**（`probe-chromium-sandbox.sh` 與 `chrome://sandbox` 驗證）；為此容器要能建立使用者命名空間：用 `make-chromium-seccomp.sh` 產生的 seccomp 規則（Docker 預設加 `clone`、`clone3`、`unshare`、`setns`、`chroot`），不夠才加只給瀏覽器容器用的 AppArmor 設定（動主機，先經 Allen 同意）；**不放寬主機層級的 `apparmor_restrict_unprivileged_userns`**；非 root、`--cap-drop=ALL`、`no-new-privileges`、唯讀根檔案系統（能做的範圍內）、不掛主機目錄、每人一個容器、任務有時限；**主機上不放任何密鑰**（只有控制通道的簽章密鑰與短期憑證）；Chromium 與 neko 映像定期更新。**不用 gVisor（第七到九輪：手感與 CPU 代價太大，§3.3）。殘餘風險：Chromium 沙盒被繞過再加核心漏洞會碰到正式主機，已由 Allen 接受（§2.6）** | **必做** |
 | 2 | 登入狀態（cookie）被一次攻破全部拿走，並可繞過兩步驟驗證 | 資料用每人金鑰加密；14 天到期；可逐網站登出；§8.1 的逐網域還原（建議）；Chromium 站點隔離維持預設開 | 第一版部分做 |
 | 3 | **信用卡資料經過我們的系統**，可能落入 PCI DSS 範圍 | 卡片資料從使用者的瀏覽器**直送 browser-host**（一次性憑證、TLS）、只在記憶體內、填完立刻清除、**不寫日誌、不存、不進主伺服器**；確認卡只顯示末四碼。**合規要不要找人確認，Allen 決定**（我不是合規專家） | **必做**＋待確認 |
 | 4 | 濫用：把瀏覽器當匿名跳板（掃描、刷網站、垃圾訊息）、耗盡資源 | 邀請制＋邀請樹可收回；使用規範；單次任務 2 小時、操作次數上限；每人 1 個；每網域頻率限制；只記網域與時間；一鍵停止；出口 IP 與正式站分開（獨立 VPS）| **必做** |
@@ -363,7 +365,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 ## 11. 容量與主機
 
-- 主機：原本的 Contabo VPS（6 vCPU／12 GB，可用約 7.3 GB，Allen 2026-11-17）。開頭全站同時 1 個、每人 1 個；用實驗腳本在 gVisor 下重量後，再決定是否到 2 個，或改租專用的小 VPS。
+- 主機：原本的 Contabo VPS（6 vCPU／12 GB，可用約 7.3 GB，Allen 2026-11-17）。**全站同時只開 1 個被看的、每人 1 個**（第七到九輪實測）；要到 2 個或使用者變多，先重新評估是否改租專用 VPS。
 - 瀏覽器容器要有 CPU 與記憶體上限；只在有人看的時候串流。
 - **搬家**：§4.2 的規則；搬到別的主機只需要裝好、改 DNS、在 `BROWSER_HOSTS` 加上新主機、等舊的任務跑完（最多 2 小時）、關掉舊的。
 - 成本：不另加主機費；對外流量要看 Contabo 方案額度（§6）。
@@ -374,7 +376,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 | 期 | 內容 | 驗收 |
 |---|---|---|
-| P0 | **同機基礎建設與安全**（先做 Contabo 快照）：`inspect-host.sh`、`install-gvisor.sh`（reload，不重啟 Docker）、`probe-chromium-sandbox.sh`、`install.sh`（專用網段、防火牆鏈、出口代理、資源 slice）、WARP 當出口代理上游、`smoke-test.sh`、實驗 neko（18080）在 gVisor 下的 CPU 與延遲實測 | §10.6 的 1、2、7 通過；現有容器沒有被動到；CPU 與延遲數字寫回本文件 §3 |
+| P0 | **同機基礎建設與安全**（先做 Contabo 快照）：`inspect-host.sh`、`install.sh`（專用網段、防火牆鏈、出口代理、資源 slice）、WARP 當出口代理上游、`smoke-test.sh`（25/25，已完成）；實驗（第七到九輪，已完成，§3）；**剩下：普通 Docker 下用 `make-chromium-seccomp.sh` 的規則讓 Chromium 沙盒起得來**（`probe-chromium-sandbox.sh` 變體 2） | §10.6 的 1、2、7 通過；現有容器沒有被動到；數字已寫回 §3 |
 | P1 | `browser-host/`：映像、政策、啟動旗標（開沙盒）、容器開關、同時數量與排隊、瀏覽器資料解封與封存、CDP 控制器、閒置與 2 小時回收、控制通道簽章、`smoke-test.sh`。沒有畫面、沒有模型 | 用 `curl` 開瀏覽器、開頁面、拿截圖、關掉；登入狀態能跨兩次開關保留；擋內網的規則有效 |
 | P2 | 模型的瀏覽器工具、`BROWSER_ALLOWED`、`BROWSER_ENABLED`、事件與步驟、操作與時間上限、「＋」開關與自然語言開啟、只支援看得到圖的模型；測試用假的 browser-host | Allen 在 staging 請模型開網頁、搜尋、讀內容 |
 | P3 | 即時畫面：`live` 網域、一次性憑證、預覽卡、藥丸、專注模式、兩檔畫質、畫面比例切換、游標、接管與歸還、閒置 10 分鐘、手機直式 | Allen 用 iPhone（Wi-Fi 與行動網路）看、接管、歸還；打字能用；延遲可接受 |
@@ -390,11 +392,11 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 2. 同時定義低、高兩條 H.264 管線時，用戶端怎麼選、沒人選的那條是不是真的不編碼；
 3. 信令經 browser-host 自己的反向代理（不經 Cloudflare 代理）的實際設定，HTTPS 與 WebSocket 是否正常；
 4. iPhone 打字、點擊、接管的實際操作（直向）；
-5. 同時多個真觀看者、加入瞬間的 CPU 尖峰在 `--cpus` 限制下的行為；**gVisor 下 CDP 控制怎麼連**（`--network container:` 不行，§3.1）；
-6. 重網頁（影片、複雜網站）的 CPU 與記憶體；**在這台 Contabo、gVisor 之下，一個被看的瀏覽器與正式服務同時的承載量（正式服務有沒有變慢）**；
+5. 同時多個真觀看者、加入瞬間的 CPU 尖峰在 `--cpus` 限制下的行為；（gVisor 下 `--network container:` 連不到 DevTools，§3.1；**不用 gVisor 後不再是問題**，`--network container:` 在普通 Docker 下可用）；
+6. 重網頁（影片、複雜網站）的 CPU 與記憶體；一個被看的瀏覽器與正式服務同時的承載量已量（§3.2、§3.3：正式服務沒有異常，`st` 0），重網頁還沒量；
 7. 瀏覽器資料排除快取後，登入狀態是否真的能跨次保留（Chromium 的 cookie 加密與 `--user-data-dir` 搬移）；
 8. `Page.setInterceptFileChooserDialog` 與下載行為在這個版本是否如預期；
-9. **【已量，第七輪，§3.1】** 普通 Docker 下 Chromium 自己的沙盒起不來（主機擋使用者命名空間）；**gVisor 下起得來**，gVisor 下 neko、WebRTC、Chromium 都正常；`systemctl reload docker` 後 11 個既有容器完全沒動。**還沒答的：gVisor 的 CPU 代價**（第八輪）；
+9. **【已量，§3.1–§3.3】** 普通 Docker 下 Chromium 自己的沙盒起不來（Docker 預設 seccomp 擋建立使用者命名空間，且主機有 AppArmor 限制）；gVisor 下起得來但手感與 CPU 代價太大，**決定不用 gVisor**（§2.6）。**待驗證：** 用 `make-chromium-seccomp.sh` 的規則（只換 seccomp，不動主機）後，普通 Docker 下沙盒是否起得來；不夠時的 AppArmor 做法。
 10. 擋 UDP 的網路（公司、飯店）怎麼辦：先讓使用者看到明確提示，TURN 之後再說；
 11. **WARP 的 proxy 模式**：Chromium 經它上網、同時 WebRTC 串流不受影響；WARP 條款；
 12. **台灣到 Contabo 的延遲**對接管打字的影響：**已量一次（§3.2），中位數 106 ms、最慢 288 ms**；其他機房與不同時段還沒量（Windows 版腳本 `browser-host/measure-latency.ps1`）；

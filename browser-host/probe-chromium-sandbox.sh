@@ -59,7 +59,7 @@ try() { # label, docker options...
   fi
 }
 try "1. default seccomp + default AppArmor"
-[ -f "$HERE/chromium-seccomp.json" ] && try "2. user-namespace seccomp profile" --security-opt "seccomp=$HERE/chromium-seccomp.json" || echo "SKIP        2. (browser-host/chromium-seccomp.json is not there yet)"
+[ -f "$HERE/chromium-seccomp.json" ] && try "2. Docker default + user-namespace calls allowed (chromium-seccomp.json), default AppArmor" --security-opt "seccomp=$HERE/chromium-seccomp.json" || echo "SKIP        2. (browser-host/chromium-seccomp.json is not there yet: run  sh browser-host/make-chromium-seccomp.sh  first)"
 try "3. default seccomp, AppArmor off (diagnosis only)" --security-opt apparmor=unconfined
 CFLAGS="--no-sandbox"; try "4. control: Chromium --no-sandbox in plain Docker (it must start, otherwise the test itself is broken; this is what the stock neko file does)"
 CFLAGS=""
