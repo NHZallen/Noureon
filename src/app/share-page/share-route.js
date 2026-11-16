@@ -15,13 +15,9 @@ export const shareCodeOf = (pathname) => {
   return CODE.test(code) ? code : '';
 };
 
-/** noureon.com/admin/shares: where the owner of the service reviews the reports. */
-export const ADMIN_SHARES_ROUTE = '/admin/shares';
-export const isAdminSharesRoute = (pathname) => String(pathname || '').replace(/\/+$/, '') === ADMIN_SHARES_ROUTE;
+/** noureon.com/admin: the one page where the owner of the service looks after the service (the reports of shared conversations, the browser agent). */
+export const ADMIN_ROUTE = '/admin';
+export const isAdminRoute = (pathname) => String(pathname || '').replace(/\/+$/, '') === ADMIN_ROUTE;
 
 /** `?review=1` on the address of a share: the owner of the service reads it whatever its status. */
 export const isReviewRequest = (search) => new URLSearchParams(String(search || '')).get('review') === '1';
-
-/** noureon.com/admin/browser: where the owner of the service stops every browser of the browser agent and makes invite codes. */
-export const ADMIN_BROWSER_ROUTE = '/admin/browser';
-export const isAdminBrowserRoute = (pathname) => String(pathname || '').replace(/\/+$/, '') === ADMIN_BROWSER_ROUTE;

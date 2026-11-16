@@ -2,32 +2,35 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { isAdminSharesRoute, isReviewRequest } from '../src/app/share-page/share-route.js';
+import { isAdminRoute, isReviewRequest } from '../src/app/share-page/share-route.js';
 import { SHARE_ADMIN_TEXTS } from '../src/app/share-page/share-admin-texts.js';
-import { initializeShareAdminPage } from '../src/app/share-page/share-admin-page.js';
+import { initializeAdminPage } from '../src/app/admin-page/admin-page.js';
 import { createShareState } from '../src/app/runtime/share/share-state.js';
 import { createShareClient } from '../src/app/runtime/share/share-client.js';
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 const REPORTED = { share_id: 's1', code: 'A'.repeat(32), title: 'Strawberry <cake>', mode: 'continue', status: 'suspended', owner_id: 'u1', owner_email: 'ada@example.test', readers: 3, total_reports: 4, reasons: ['it is rude', '<b>x</b>'] };
 
+// The browser agent part is tested in browser-admin.test.js: here the server never names the account as one of the people in charge of it.
+const NOT_BROWSER_ADMIN = { getAccess: async () => ({ ok: true, allowed: true, admin: false }) };
 const NOT_FOUND = '<!doctype html><html><head><title>404: NOT_FOUND</title></head><body><h1>404: NOT_FOUND</h1></body></html>';
 const open = async ({ session = { user: {} }, admin = true, rows = [REPORTED], calls = [], errors = {}, asked = [] } = {}) => {
-  const window = new Window({ url: 'https://noureon.test/admin/shares' });
+  const window = new Window({ url: 'https://noureon.test/admin' });
   window.document.body.innerHTML = '<div id="app"></div>';
   const supabase = {
     auth: { getSession: async () => ({ data: { session } }) },
     rpc: async (name, args) => { calls.push([name, args]); if (name === 'is_service_admin') return { data: admin, error: null }; if (name === 'admin_list_share_reports') return { data: rows, error: null }; if (errors[name]) return { data: null, error: new Error(errors[name]) }; return { data: true, error: null }; }
   };
   const fetchImpl = async (path) => { asked.push(path); return { status: 404, text: async () => NOT_FOUND }; };
-  const result = await initializeShareAdminPage({ window, document: window.document, supabase, fetchImpl });
+  const result = await initializeAdminPage({ window, document: window.document, supabase, fetchImpl, serverClient: NOT_BROWSER_ADMIN });
   return { window, result, calls };
 };
 
 test('the routes of the review page and of the review of one share', () => {
-  assert.equal(isAdminSharesRoute('/admin/shares'), true);
-  assert.equal(isAdminSharesRoute('/admin/shares/'), true);
-  assert.equal(isAdminSharesRoute('/admin'), false);
+  assert.equal(isAdminRoute('/admin'), true);
+  assert.equal(isAdminRoute('/admin/'), true);
+  assert.equal(isAdminRoute('/admin/shares'), false, 'the old address is gone');
+  assert.equal(isAdminRoute('/administrator'), false);
   assert.equal(isReviewRequest('?review=1'), true);
   assert.equal(isReviewRequest('?review=0'), false);
   assert.equal(isReviewRequest(''), false);
@@ -58,10 +61,10 @@ test('someone who is not signed in, or not named by the owner, gets the 404 an a
 });
 
 test('when the real 404 cannot be read, the page is a bare 404 and still not a page of Noureon', async () => {
-  const window = new Window({ url: 'https://noureon.test/admin/shares' });
+  const window = new Window({ url: 'https://noureon.test/admin' });
   window.document.body.innerHTML = '<div id="app"></div>';
   try {
-    const result = await initializeShareAdminPage({ window, document: window.document, supabase: { auth: { getSession: async () => ({ data: { session: null } }) } }, fetchImpl: async () => { throw new Error('offline'); } });
+    const result = await initializeAdminPage({ window, document: window.document, serverClient: NOT_BROWSER_ADMIN, supabase: { auth: { getSession: async () => ({ data: { session: null } }) } }, fetchImpl: async () => { throw new Error('offline'); } });
     assert.equal(result.admin, false);
     assert.equal(window.document.body.textContent, '404: NOT_FOUND');
     assert.equal(window.document.title, '404: NOT_FOUND');

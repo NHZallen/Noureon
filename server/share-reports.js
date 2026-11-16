@@ -17,7 +17,7 @@ export function reportMailFor(row, { appUrl }) {
   const counts = `這次新增 ${Number(row.new_reports) || 0} 筆，共 ${readers} 位不同讀者`;
   const reasons = (Array.isArray(row.reasons) ? row.reasons : []).map((reason) => oneLine(reason, 500)).filter(Boolean).slice(0, 10);
   const review = gone ? '' : `${appUrl}/s/${row.code}?review=1`;
-  const admin = gone ? '' : `${appUrl}/admin/shares`;
+  const admin = gone ? '' : `${appUrl}/admin`;
   const lines = ['有人檢舉了一個分享。', '', `對話名稱：${title}`, `權限：${mode}`, `狀態：${state}`, `${counts}。`];
   if (reasons.length) lines.push('', '讀者寫的原因：', ...reasons.map((reason) => `- ${reason}`));
   if (!gone) lines.push('', `看內容：${review}`, `處理：${admin}`);

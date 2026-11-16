@@ -1,15 +1,6 @@
-// noureon.com/admin/shares: where the owner of the service reviews the reports of shared conversations (docs/superpowers/specs/2026-10-31-conversation-share-design.md, §11). Only an account the owner
-// added to `service_admins` gets anything: for everyone else (signed out included) the page is the platform's own 404, as it is for an address that is not there. Every call is checked again by the database.
+// The reports part of noureon.com/admin (admin-page/admin-page.js): where the owner of the service reviews the reports of shared conversations (docs/superpowers/specs/2026-10-31-conversation-share-design.md, §11).
+// Whether the account may see it is decided by the page around it (`service_admins`); every call below is checked again by the database.
 
-import { getSupabaseClient } from '../auth/supabase-client.js';
-import { ensureLanguage } from '../i18n/language-packs.js';
-import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from '../runtime/features/login-language.js';
-import { applyRememberedAccent } from '../../utils/accent-mirror.js';
-import { showPlatformNotFound } from './not-found-page.js';
-import { markPageAsPrivate } from './private-page.js';
-import { shareAdminText } from './share-admin-texts.js';
-
-const supported = (value) => (['zh-TW', 'en', 'fr', 'ru', 'es'].includes(value) ? value : '');
 const el = (document, tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -17,38 +8,8 @@ const el = (document, tag, className, text) => {
   return node;
 };
 
-export async function initializeShareAdminPage({ window, document, supabase = getSupabaseClient(), fetchImpl } = {}) {
-  // Nothing of this page is built until the account is known to be the owner's: anyone else (signed out included) gets what an address that is not there gets, so the page cannot be found by asking.
-  const hide = async () => { await showPlatformNotFound({ window, document, fetchImpl }); return { handled: true, admin: false }; };
-  if (!supabase) return hide();
-  let session = null;
-  try { session = (await supabase.auth.getSession())?.data?.session || null; } catch { /* treated as signed out */ }
-  if (!session) return hide();
-  let admin = false;
-  try { admin = (await supabase.rpc('is_service_admin'))?.data === true; } catch { admin = false; }
-  if (!admin) return hide();
-
-  markPageAsPrivate(document);
-  applyRememberedAccent(document.documentElement, window.localStorage);
-  const language = supported(readLoginLanguage()) || supported(readLastUiLanguage()) || supported(detectSystemLanguage()) || 'zh-TW';
-  await ensureLanguage(language).catch(() => {});
-  const text = (key, values) => shareAdminText(language, key, values);
-  document.documentElement.lang = language;
-  document.title = `${text('title')} · Noureon`;
-  document.documentElement.classList.add('share-page');
-  const app = document.getElementById('app');
-  app.replaceChildren();
-  const root = el(document, 'div', 'sp-root');
-  const header = el(document, 'header', 'sp-header');
-  const brand = el(document, 'a', 'sp-brand');
-  brand.href = '/';
-  const mark = el(document, 'img', 'sp-mark');
-  mark.src = '/icon-192.png'; mark.width = 28; mark.height = 28; mark.alt = '';
-  brand.append(mark, el(document, 'span', 'sp-name', 'Noureon'));
-  header.appendChild(brand);
-  const main = el(document, 'main', 'sp-main');
-  root.append(header, main);
-  app.appendChild(root);
+/** Draws the reported shares into `main`, with the words of `text(key, values)`; resolves when the first list is drawn. */
+export async function drawShareReports({ document, supabase, text, main }) {
   const say = (message) => { main.replaceChildren(el(document, 'p', 'sp-loading', message)); };
 
   const STATUS = { active: 'statusActive', suspended: 'statusSuspended', conversation_deleted: 'statusDeleted', removed: 'statusRemoved' };
@@ -104,5 +65,4 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
     }
   }
   await draw();
-  return { handled: true, admin: true };
 }

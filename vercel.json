@@ -240,11 +240,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/admin/shares",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin/browser",
+      "source": "/admin",
       "destination": "/index.html"
     },
     {

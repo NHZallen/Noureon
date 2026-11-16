@@ -24,6 +24,8 @@ html.share-page, html.share-page body { height: 100%; overflow: hidden; }
 .sp-btn.is-primary { background: var(--button-primary-bg); color: var(--button-primary-text); }
 @media (hover: hover) { .sp-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); } }
 .sp-btn:disabled { opacity: 0.55; }
+.sp-btn[aria-selected='true'] { background: var(--button-primary-bg); color: var(--button-primary-text); }
+.sp-admin-body { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
 .sp-footer { flex: none; max-width: 48rem; width: 100%; margin: 0 auto; padding: 1rem 1.25rem 2rem; box-sizing: border-box; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border-color); }
 .sp-disclaimer { margin: 0; }
 .sp-link { padding: 0; background: none; color: var(--text-secondary); font-size: inherit; text-decoration: underline; cursor: pointer; }

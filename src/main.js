@@ -23,7 +23,7 @@ import { resolveStartupIdentity } from './app/auth/startup-identity.js';
 import { ensureLanguage, setStartupLanguage } from './app/i18n/language-packs.js';
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './app/runtime/features/login-language.js';
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
-import { isAdminBrowserRoute, isAdminSharesRoute, isShareRoute } from './app/share-page/share-route.js';
+import { isAdminRoute, isShareRoute } from './app/share-page/share-route.js';
 import { isChatLinkRoute, isJoinRoute, rememberChatLink, rememberJoinCode } from './app/runtime/project-sharing/join-route.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
@@ -77,19 +77,11 @@ async function bootstrap() {
     return;
   }
 
-  // Where the owner of the service reviews the reports of shared conversations (only an account named in the database gets anything).
-  if (isAdminSharesRoute(window.location.pathname)) {
+  // Where the owner of the service looks after the service (the reports of shared conversations, the browser agent); only an account that is allowed to gets anything.
+  if (isAdminRoute(window.location.pathname)) {
     await import('./app/share-page/share-page-styles.js');
-    const { initializeShareAdminPage } = await import('./app/share-page/share-admin-page.js');
-    await initializeShareAdminPage({ window, document });
-    return;
-  }
-
-  // Where the owner of the service looks after the browser agent (only an account the server names gets anything).
-  if (isAdminBrowserRoute(window.location.pathname)) {
-    await import('./app/share-page/share-page-styles.js');
-    const { initializeBrowserAdminPage } = await import('./app/browser-admin/browser-admin-page.js');
-    await initializeBrowserAdminPage({ window, document });
+    const { initializeAdminPage } = await import('./app/admin-page/admin-page.js');
+    await initializeAdminPage({ window, document });
     return;
   }
 

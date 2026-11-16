@@ -105,7 +105,7 @@
 - 檢舉寫進 `share_reports`（原因最多 500 字、讀者網路位址的單向指紋 `reporter_hash`，只用來算有幾位不同的讀者）。
 - **自動暫停**：同一個分享有 3 位不同讀者檢舉 → `status = 'suspended'`：連結立刻失效，快照與檔案保留供審查（掃除器不刪）；分享者在「已分享內容」看到「已暫停」，只能撤銷。同一位讀者重複檢舉只算一次。
 - **寄信**：伺服器掃除器每 2 分鐘取出還沒通知的檢舉（`server_take_share_reports_to_mail`，每筆只取一次），每個分享一封純文字信寄到環境變數 `REPORT_TO`（沒設就用 `WAITLIST_TO`），用既有的 Resend（`RESEND_API_KEY`）。寄失敗的檢舉放回佇列（`server_requeue_share_reports`）。
-- **管理頁**：`noureon.com/admin/shares`（`src/app/share-page/share-admin-page.js`）。只有寫在 `service_admins` 的帳號看得到內容，其他人（含沒登入）只看到「找不到頁面」；每個動作資料庫再檢查一次。可以：看內容（`/s/<代號>?review=1`，用 `admin_get_shared_conversation` 讀任何狀態的快照）、暫停、恢復（恢復後檢舉歸零）、清除檢舉、刪除（要按兩次）。
+- **管理頁**：`noureon.com/admin`（2026-11-17 起是合併的後台，「檢舉審核」是其中一個分頁，`src/app/share-page/share-admin-page.js` 的 `drawShareReports`；原本的 `/admin/shares` 已刪除，檢舉通知信的連結也改成 `/admin`）。只有寫在 `service_admins` 的帳號看得到內容，其他人（含沒登入）只看到「找不到頁面」；每個動作資料庫再檢查一次。可以：看內容（`/s/<代號>?review=1`，用 `admin_get_shared_conversation` 讀任何狀態的快照）、暫停、恢復（恢復後檢舉歸零）、清除檢舉、刪除（要按兩次）。
 - **第一次要做**：migration `20261031050000_add_share_report_review.sql` 套用後，把管理員帳號加進去：
   `insert into public.service_admins (user_id) select id from auth.users where email = '<帳號的 email>';`
   伺服器環境要有 `RESEND_API_KEY`、`MAIL_FROM`（已有就不用動），要寄到別的信箱再設 `REPORT_TO`。
