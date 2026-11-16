@@ -58,6 +58,10 @@ test('a login answer carries a password to the reply and never into an event; a 
   t2.asker.answer('ask-000001', { code: '123456' });
   assert.deepEqual(await code, { method: 'code', code: '123456' });
   assert.ok(!JSON.stringify(t2.events).includes('123456'));
+  const t3 = setup();
+  const again = t3.asker.ask('code', { domain: 'github.com', digits: 6 });
+  t3.asker.answer('ask-000001', { method: 'resend' });
+  assert.deepEqual(await again, { method: 'resend' }, 'a person can ask for the code to be sent again');
   await assert.rejects(setup().asker.ask('nonsense'), /not a question/);
 });
 

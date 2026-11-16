@@ -262,6 +262,9 @@ test('browser_request_code: the code is typed into the page and the model never 
   assert.deepEqual(w.sent[0][1], { type: 'fill-code', origins: ['https://github.com'], code: '123456' });
   assert.ok(!answer.includes('123456') && !JSON.stringify(w.t.events).includes('123456'));
   assert.match(await w.t.loader.run(call('browser_request_code')), /another way/);
+  const again = loginWorld({ answers: [{ method: 'resend' }] });
+  assert.match(await again.t.loader.run(call('browser_request_code')), /did not get the code.*again/);
+  assert.equal(again.sent.length, 0, 'nothing is typed when the person asks for the code again');
 });
 
 test('browser_request_handover: the model waits for the person, and hears whether they did their part', async () => {

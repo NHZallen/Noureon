@@ -3,7 +3,7 @@
 // same module: the answers here can hold a secret (a password, a code), which is kept out of every event and log.
 //   kind 'confirm'  { action: 'payment' | 'delete' | 'change' | 'irreversible', domain, summary }     answer { decision: 'confirm' | 'cancel' }
 //   kind 'login'    { domain, methods: [...] }                                                           answer { method, username?, password?, save? }
-//   kind 'code'     { domain, digits }                                                                   answer { code } | { method: 'other' }
+//   kind 'code'     { domain, digits }                                                                   answer { code } | { method: 'other' } | { method: 'resend' }
 //   kind 'payment'  { domain, methods: ['card', 'applepay', 'other'] }                                  answer { method }
 //   kind 'card'     { domain, host, path, ticket }  the card goes from the page to the browser host, not here   answer { done: true, filled, missing } | { cancel: true }
 //   kind 'takeover' { domain, reason }                                                                   answer { decision: 'done' | 'cancel' }  (the person works the browser themselves, then gives it back)
@@ -54,6 +54,7 @@ const KINDS = {
     info: (info) => ({ domain: text(info.domain, 100), digits: [4, 6, 8].includes(info.digits) ? info.digits : 6 }),
     check: (answer) => {
       if (answer?.method === 'other') return { result: { method: 'other' }, shown: 'other' };
+      if (answer?.method === 'resend') return { result: { method: 'resend' }, shown: 'resend' };
       return typeof answer?.code === 'string' && /^[0-9]{4,8}$/.test(answer.code) ? { result: { method: 'code', code: answer.code }, shown: 'code' } : null;
     }
   }

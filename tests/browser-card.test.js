@@ -390,8 +390,27 @@ test('the code panel: cells fill from the keypad, the code goes out only when wh
   assert.deepEqual(answers, [{ code: '123456' }]);
   const w2 = make({ onAnswer: (id, payload) => answers.push(payload) });
   w2.card.handle({ type: 'browser', event: 'ask', id: 'ask-2', kind: 'code', digits: 4 });
-  w2.card.element.querySelector('.bpanel-link').click();
+  [...w2.card.element.querySelectorAll('.bpanel-link')].find((b) => b.textContent === 'Use another way').click();
   assert.deepEqual(answers.at(-1), { method: 'other' });
+});
+
+test('the code panel: asking for the code again is possible only after a short wait, which counts down', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push(payload) });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'code', domain: 'github.com', digits: 6 });
+  const resend = [...w.card.element.querySelectorAll('.bpanel-link')].find((b) => /30 s/.test(b.textContent));
+  assert.ok(resend, 'the wait is shown');
+  assert.equal(resend.disabled, true);
+  resend.click();
+  assert.deepEqual(answers, [], 'not before the wait is over');
+  t.mock.timers.tick(10_000);
+  assert.match(resend.textContent, /20 s/);
+  t.mock.timers.tick(20_000);
+  assert.equal(resend.disabled, false);
+  assert.equal(resend.textContent, 'Did not get it? Ask the AI to send it again');
+  resend.click(); resend.click();
+  assert.deepEqual(answers, [{ method: 'resend' }]);
 });
 
 test('the hand-over panel: the card stays, the person can take over, and giving the browser back answers it', () => {

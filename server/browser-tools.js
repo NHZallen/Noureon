@@ -201,6 +201,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
           const digits = [4, 6, 8].includes(args.digits) ? args.digits : 6;
           const result = await ask('code', { domain: lastDomain, digits });
           if (stopped(result)) return stopped(result);
+          if (result.method === 'resend') return 'The user did not get the code. Click the button of the page that sends it again (it may say resend, or send a new code), look at the page, then call browser_request_code again.';
           if (result.method !== 'code') return 'The user chose another way than typing a code. Ask them in the conversation what they want, or call browser_request_handover if they should do it themselves.';
           if (!origin) return 'This page cannot take a code.';
           await act(sessionNow, { type: 'fill-code', origins: [origin], code: result.code });

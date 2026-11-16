@@ -99,6 +99,8 @@ function loginPanel({ document, language, info, answer }) {
   return { element: root, focus: () => list.querySelector('button')?.focus?.(), destroy: () => { pass.input.value = ''; root.remove(); } };
 }
 
+const RESEND_AFTER_S = 30;
+
 // A code: one cell for each digit and a keypad (a typed digit also goes in); a way out for "I cannot get it".
 function codePanel({ document, language, info, answer }) {
   const t = (key, values) => sandboxText(language, key, values);
@@ -127,16 +129,27 @@ function codePanel({ document, language, info, answer }) {
   }
   const other = make(document, 'button', 'bpanel-link', t('browserCodeOther'));
   other.type = 'button';
+  // A code that does not come: after a short wait the person can ask the AI to have the page send it again (the wait is the one most sites keep between two messages).
+  const resend = make(document, 'button', 'bpanel-link', t('browserCodeResendIn', { n: RESEND_AFTER_S }));
+  resend.type = 'button';
+  resend.disabled = true;
+  let left = RESEND_AFTER_S;
+  const timer = setInterval(() => {
+    left -= 1;
+    if (left <= 0) { clearInterval(timer); resend.disabled = false; resend.textContent = t('browserCodeResend'); } else resend.textContent = t('browserCodeResendIn', { n: left });
+  }, 1000);
+  timer.unref?.();
   const note = make(document, 'div', 'bpanel-hint', t('browserLoginNote'));
   let sent = false;
-  const finish = (payload) => { if (sent) return; sent = true; value = ''; root.classList.add('is-sent'); root.querySelectorAll('button').forEach((el) => { el.disabled = true; }); answer(payload); };
+  const finish = (payload) => { if (sent) return; sent = true; clearInterval(timer); value = ''; root.classList.add('is-sent'); root.querySelectorAll('button').forEach((el) => { el.disabled = true; }); answer(payload); };
   send.addEventListener('click', () => { if (value.length === digits) finish({ code: value }); });
   other.addEventListener('click', () => finish({ method: 'other' }));
+  resend.addEventListener('click', () => { if (!resend.disabled) finish({ method: 'resend' }); });
   root.addEventListener('keydown', (event) => { if (/^[0-9]$/.test(event.key)) push(event.key); else if (event.key === 'Backspace') pop(); else if (event.key === 'Enter' && value.length === digits) finish({ code: value }); });
   root.tabIndex = -1;
   draw();
-  root.append(title, site, cells, pad, send, other, note);
-  return { element: root, focus: () => root.focus?.(), destroy: () => { value = ''; root.remove(); } };
+  root.append(title, site, cells, pad, send, resend, other, note);
+  return { element: root, focus: () => root.focus?.(), destroy: () => { clearInterval(timer); value = ''; root.remove(); } };
 }
 
 // The person works the page themselves (a login only they can do): the card stays, with this under it.
