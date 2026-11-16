@@ -1,0 +1,52 @@
+/* The focus mode of the browser agent on a phone (browser-live/focus-mode.js; design section 16). Colours are the names of tokens.css only. */
+
+.bf { position: fixed; inset: 0; z-index: 1300; display: flex; flex-direction: column; background: var(--chat-bg); color: var(--text-primary); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.bf [hidden] { display: none; }
+.bf svg { color: inherit; }
+
+.bf-top { flex: none; height: 2.75rem; display: flex; align-items: center; justify-content: space-between; padding: 0 calc(var(--page-gutter, 1rem) - 0.5rem); }
+.bf-icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-primary); cursor: pointer; }
+.bf-domain { display: flex; align-items: center; gap: 0.45rem; min-width: 0; font-size: 0.9375rem; font-weight: 500; }
+.bf-site { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bf-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--text-primary); }
+.bf-dot.is-user { background: transparent; border: 1.6px solid var(--text-primary); box-sizing: border-box; }
+
+.bf-tabs { flex: none; display: flex; align-items: center; gap: 0.375rem; padding: 0.25rem var(--page-gutter, 1rem); overflow-x: auto; scrollbar-width: none; }
+.bf-tabs::-webkit-scrollbar { display: none; }
+.bf-tab { flex: none; display: flex; align-items: center; max-width: 11rem; height: 2rem; padding-left: 0.7rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--gpt-subtle); font-size: 0.8125rem; }
+.bf-tab.is-active { background: var(--chat-bg); border-color: var(--text-tertiary); }
+.bf-tab-label { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.bf-tab-close, .bf-tab-new { display: grid; place-items: center; flex: none; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 0.5rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.bf-tab-new { width: 2rem; height: 2rem; }
+
+.bf-screen { position: relative; flex: none; margin: 0.25rem var(--page-gutter, 1rem) 0; border-radius: 0.9rem; overflow: hidden; border: 1px solid var(--border-color); }
+.bf-expand { position: absolute; right: 0.625rem; bottom: 0.625rem; z-index: 3; display: inline-flex; align-items: center; gap: 0.3rem; height: 1.9rem; padding: 0 0.7rem; border: 1px solid var(--media-control-bg); border-radius: 999px; background: var(--media-bg); color: var(--on-color); font: inherit; font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+
+.bf-status { flex: none; padding: 0.75rem calc(var(--page-gutter, 1rem) + 0.25rem) 0; font-size: 0.8125rem; color: var(--text-secondary); }
+.bf-pad { position: relative; flex: 1; min-height: 0; margin: 0.75rem var(--page-gutter, 1rem) 0; border-radius: 1.4rem; background: var(--gpt-subtle); display: grid; place-items: center; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; background-image: radial-gradient(color-mix(in srgb, var(--text-primary) 14%, transparent) 1px, transparent 1.2px); background-size: 16px 16px; }
+.bf-pad-hint { padding: 0 1rem; color: var(--text-secondary); font-size: 0.8125rem; text-align: center; line-height: 1.55; }
+.bf-tools { flex: none; display: flex; gap: 0.5rem; padding: 0.6rem var(--page-gutter, 1rem) 0.25rem; }
+.bf-tool { flex: 1; height: 2.75rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+.bf-tool.is-on { background: var(--gpt-subtle); }
+
+.bf-kb { flex: none; padding: 0.5rem var(--page-gutter, 1rem) 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.bf-kb-keys { display: flex; gap: 0.35rem; }
+.bf-key { flex: 1; height: 2.1rem; padding: 0; border: 1px solid var(--border-color); border-radius: 0.5rem; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+.bf-kb-type { display: flex; gap: 0.5rem; align-items: flex-end; }
+.bf-kb-field { flex: 1; min-width: 0; padding: 0.55rem 0.7rem; border: 1px solid var(--border-color); border-radius: 0.8rem; background: var(--chat-bg); color: var(--text-primary); font: inherit; font-size: 1rem; resize: none; }
+.bf-kb-send { height: 2.5rem; padding: 0 1rem; border: 0; border-radius: 999px; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
+
+.bf-actions { flex: none; display: flex; gap: 0.625rem; margin-top: auto; padding: 0.75rem var(--page-gutter, 1rem) 1rem; }
+.bf-act { flex: 1; height: 2.75rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.9375rem; font-weight: 500; cursor: pointer; }
+.bf-act.is-primary { background: var(--gpt-primary-action-bg); border-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+
+.bf-menu { position: absolute; right: 0.625rem; top: calc(env(safe-area-inset-top, 0px) + 2.9rem); z-index: 5; width: 15rem; padding: 0.375rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg); box-shadow: var(--shadow-lg); }
+.bf-menu-item { display: flex; align-items: center; gap: 0.7rem; width: 100%; min-height: 2.5rem; padding: 0 0.6rem; border: 0; border-radius: 0.7rem; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.9375rem; font-weight: 400; text-align: left; cursor: pointer; }
+.bf-menu-gap { display: inline-block; width: 17px; flex: none; }
+.bf-menu-group { margin: 0.25rem 0.6rem 0; padding-top: 0.5rem; border-top: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.8125rem; }
+
+@media (hover: hover) {
+    .bf-icon:hover, .bf-tab-close:hover, .bf-tab-new:hover, .bf-menu-item:hover, .bf-tool:hover, .bf-key:hover { background: var(--hover-bg); }
+}
+.bf-icon:active, .bf-act:active, .bf-tool:active, .bf-key:active { transform: scale(0.97); }
+.bf-kb-field:focus-visible { outline: none; border-color: var(--text-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 8%, transparent); }

@@ -5,6 +5,7 @@ import '../styles/file-visual.css';
 import '../styles/sandbox-run.css';
 import '../styles/ledger.css';
 import '../styles/browser-card.css';
+import '../styles/browser-focus.css';
 import '../styles/image-tool.css';
 import '../styles/citations.css';
 import '../styles/scrollbars.css';

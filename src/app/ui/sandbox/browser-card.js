@@ -4,6 +4,9 @@
 // Until the live screen exists (phase 3) the screen is a quiet place holding the name of the site. The words say only the site, never what was clicked.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { createFocusMode } from '../browser-live/focus-mode.js';
+import { createLiveView } from '../browser-live/live-view.js';
+import { cssRatio, DEFAULT_RATIO } from '../browser-live/ratios.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const ICONS = {
@@ -44,6 +47,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let queuedLabel = '';
   let domain = '';
   let dialog = null;
+  // The live picture (phase 3): the source of it, what the person's buttons ask of the browser, and what is known of it (tabs, who has it, the ratio).
+  let live = null;
+  let liveView = null;
+  let focus = null;
+  let ratio = DEFAULT_RATIO;
+  let control = 'model';
 
   const make = (tag, className, attrs = {}) => {
     const node = document.createElement(tag);
@@ -91,7 +100,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const pillCross = make('span', 'bcard-pill-cross', { role: 'button', tabindex: '0' });
   pillCross.append(icon(document, 'cross', 14));
   pill.append(pillLead, pillText, pillCross);
-  pill.addEventListener('click', () => { if (phase !== 'queued') setView('front'); });
+  pill.addEventListener('click', () => {
+    if (phase === 'queued') return;
+    // With a live picture the pill takes to the focus mode; without one (nothing to look at yet) it opens the card.
+    if (live) openFocus();
+    else setView('front');
+  });
   const pillCrossAction = (event) => {
     event.stopPropagation();
     askCancel();
@@ -151,6 +165,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     }));
     // The last step is in view as the list grows.
     list.scrollTop = list.scrollHeight;
+    focus?.update({ domain, ratio, control, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' });
   };
 
   const setView = (next) => {
@@ -201,6 +216,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     steps.forEach((step) => { if (step.state === 'run') step.state = 'fail'; });
     phase = 'cancelled';
     view = 'pill';
+    closeFocus();
     render();
     try {
       onCancel?.();
@@ -262,16 +278,84 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     over('done');
   };
 
+  // What the person's buttons in the focus mode ask: the card answers what is its own, the rest goes to the owner of the live picture.
+  const closeFocus = () => {
+    focus?.destroy();
+    focus = null;
+  };
+  const focusController = () => ({
+    ...(live?.controller || {}),
+    onClose: () => { closeFocus(); setView('pill'); },
+    onExpand: () => { closeFocus(); setView('front'); },
+    onStop: () => askCancel(),
+    onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
+    onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); },
+    onRatio: (key) => { setRatio(key); live?.controller?.onRatio?.(key); }
+  });
+  const openFocus = () => {
+    if (!live || focus) return;
+    focus = createFocusMode({ document, language, source: live.source, state: { domain, tabs: live.tabs || [], ratio, control, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' }, controller: focusController(), readClipboard: live.readClipboard || null });
+  };
+  const setRatio = (key) => {
+    ratio = key;
+    card.style.aspectRatio = live ? cssRatio(ratio) : '';
+    liveView?.setRatio(ratio);
+    render();
+  };
+  const mountLive = () => {
+    liveView?.destroy();
+    liveView = null;
+    if (!live) {
+      screen.hidden = false;
+      card.style.aspectRatio = '';
+      return;
+    }
+    // The screen of the card is the live picture; the place holder is not needed.
+    screen.hidden = true;
+    liveView = createLiveView({ document, host: front, ratio, source: live.source });
+    liveView.element.classList.add('bcard-live');
+    liveView.element.style.aspectRatio = '';
+    liveView.element.addEventListener('click', () => { if (view === 'front') openFocus(); });
+    front.prepend(liveView.element);
+    card.style.aspectRatio = cssRatio(ratio);
+  };
+
   render();
   return {
     handle,
     complete,
     cancel,
+    /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */
+    setLive(next) {
+      live = next || null;
+      if (live?.ratio) ratio = live.ratio;
+      if (!live) closeFocus();
+      mountLive();
+      render();
+    },
+    /** The tabs or who has the browser changed (the parts that are given). */
+    liveState(next = {}) {
+      if (live && next.tabs) live.tabs = next.tabs;
+      if (next.control) control = next.control;
+      focus?.update({ ...(next.tabs ? { tabs: next.tabs } : {}), control });
+      render();
+    },
+    /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */
+    moveCursor(x, y, who) {
+      liveView?.moveCursor(x, y, who);
+      focus?.view.moveCursor(x, y, who);
+    },
+    openFocus,
+    closeFocus,
     get element() { return root; },
+    get focus() { return focus; },
+    get ratio() { return ratio; },
     get phase() { return phase; },
     get view() { return view; },
     remove() {
       closeDialog();
+      closeFocus();
+      liveView?.destroy();
       root.remove();
     }
   };

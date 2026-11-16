@@ -151,3 +151,84 @@ test('the process list draws the card under its line and gives it the cancel of 
     window.happyDOM.abort();
   }
 });
+
+const fakeLive = () => {
+  const calls = [];
+  const source = { mount(el) { el.append(el.ownerDocument.createElement('div')); }, mountLens(el) { el.append(el.ownerDocument.createElement('div')); }, destroy() {}, input: { pointer() {}, wheel() {}, key() {}, text() {} } };
+  const controller = new Proxy({}, { get: (_, name) => (...args) => calls.push([name, ...args]) });
+  return { calls, live: { source, controller, tabs: [{ id: 't1', title: 'Acme', active: true }] } };
+};
+
+test('with a live picture the screen of the card is the picture and the circle; the placeholder goes', () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    assert.equal(q('.bcard-screen').hidden, false);
+    const { live } = fakeLive();
+    card.setLive(live);
+    assert.equal(q('.bcard-screen').hidden, true);
+    assert.ok(q('.bcard-front .bcard-live .bl-picture'));
+    assert.equal(q('.bcard-card').style.aspectRatio, '1024 / 768');
+    card.moveCursor(0.4, 0.6, 'model');
+    assert.equal(q('.bl-lens').style.left, '40%');
+    card.setLive(null);
+    assert.equal(q('.bcard-screen').hidden, false);
+    assert.equal(q('.bcard-live'), null);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('with a live picture a press on the pill, or on the picture, opens the focus mode; its cross goes back to the pill and "Expand" to the card', () => {
+  const { window, card, q, document } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive(fakeLive().live);
+    q('.bl-view').click();
+    assert.ok(document.querySelector('.bf'), 'a press on the picture');
+    document.querySelector('.bf-top .bf-icon:first-child').click();
+    assert.equal(document.querySelector('.bf'), null);
+    assert.equal(card.view, 'pill');
+    q('.bcard-pill').click();
+    assert.ok(document.querySelector('.bf'), 'a press on the pill');
+    document.querySelector('.bf-expand').click();
+    assert.equal(document.querySelector('.bf'), null);
+    assert.equal(card.view, 'front');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('in the focus mode: Stop asks the same question as the cross of the card; the ratio chosen there is the ratio of the card and stays; taking over is told to the owner', () => {
+  let cancelled = 0;
+  const { window, card, q, document } = make({ onCancel: () => { cancelled += 1; } });
+  try {
+    const { live, calls } = fakeLive();
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive(live);
+    card.openFocus();
+    document.querySelector('.bf-act:not(.is-primary)').click();
+    assert.equal(document.querySelector('.bcard-dialog-text').textContent, 'Cancel the task?');
+    document.querySelector('.bcard-dialog-button:not(.is-danger)').click();
+    document.querySelector('.bf-top .bf-icon:last-child').click();
+    [...document.querySelectorAll('.bf-menu-ratio')].find((node) => node.getAttribute('aria-label') === 'Upright').click();
+    assert.equal(card.ratio, 'portrait');
+    assert.equal(q('.bcard-card').style.aspectRatio, '768 / 1024');
+    assert.deepEqual(calls.at(-1), ['onRatio', 'portrait']);
+    document.querySelector('.bf-act.is-primary').click();
+    assert.deepEqual(calls.at(-1), ['onTakeOver']);
+    assert.equal(document.querySelector('.bf').dataset.control, 'user');
+    document.querySelector('.bf-actions .is-primary:not([hidden])').click();
+    assert.deepEqual(calls.at(-1), ['onGiveBack']);
+    card.closeFocus();
+    card.setLive({ ...live, ratio: undefined });
+    assert.equal(card.ratio, 'portrait', 'the ratio does not go back by itself');
+    card.openFocus();
+    document.querySelector('.bf-act:not(.is-primary)').click();
+    document.querySelector('.bcard-dialog-button.is-danger').click();
+    assert.equal(cancelled, 1);
+    assert.equal(document.querySelector('.bf'), null, 'cancelling closes the focus mode');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
