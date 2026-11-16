@@ -45,21 +45,38 @@ run chmod 700 "$CONF"
 if [ ! -f "$ENV_FILE" ]; then
   run cp browser-host/host.env.example "$ENV_FILE"
   run chmod 600 "$ENV_FILE"
-  echo "created $ENV_FILE from the example"
+  if [ "$DRY" = 1 ]; then echo "would create $ENV_FILE from the example"; else echo "created $ENV_FILE from the example"; fi
 else
   echo "kept the existing $ENV_FILE"
 fi
+# The public address of this machine: the egress proxy refuses it (a browser must not reach this machine's own services through its public address).
+detect_public_ip() {
+  # 1. AWS: the metadata service (version 2) knows it.
+  token=$(curl -fsS -m 3 -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' 2>/dev/null || true)
+  if [ -n "$token" ]; then
+    curl -fsS -m 3 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null && return 0
+  fi
+  # 2. The address this machine uses to reach the internet (read from the local routing table: nothing is sent anywhere). It is the public address
+  #    only when the machine holds it directly (Contabo does); behind NAT it is a private address, which is refused below.
+  ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}'
+}
+is_private_v4() { case "$1" in 10.*|127.*|169.254.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*|100.6[4-9].*|100.[7-9][0-9].*|100.1[01][0-9].*|100.12[0-7].*|"") return 0 ;; esac; return 1; }
 if [ "$DRY" = 0 ]; then
   . "$ENV_FILE"
-  if [ -z "${PUBLIC_IP:-}" ]; then
-    # AWS: the metadata service (version 2) knows the public address. Other providers: set PUBLIC_IP by hand.
-    token=$(curl -fsS -m 3 -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' 2>/dev/null || true)
-    if [ -n "$token" ]; then
-      PUBLIC_IP=$(curl -fsS -m 3 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)
+fi
+if [ "$DRY" = 1 ] && [ -f "$ENV_FILE" ]; then . "$ENV_FILE"; fi
+if [ -z "${PUBLIC_IP:-}" ]; then
+  found=$(detect_public_ip || true)
+  if is_private_v4 "$found"; then
+    if [ "$DRY" = 1 ]; then echo "PUBLIC_IP: could not be found by itself (a real run would stop here and ask for it in $ENV_FILE)"
+    else fail "could not find the public IP by itself (the machine answers with '${found:-nothing}', not a public address). Put it in $ENV_FILE (PUBLIC_IP=...) and run this again."; fi
+  else
+    PUBLIC_IP=$found
+    if [ "$DRY" = 1 ]; then echo "PUBLIC_IP would be $PUBLIC_IP (found by itself; check that it is this machine's public address)"
+    else
+      sed -i "s/^PUBLIC_IP=.*/PUBLIC_IP=$PUBLIC_IP/" "$ENV_FILE"
+      echo "PUBLIC_IP=$PUBLIC_IP (written into $ENV_FILE; check that it is this machine's public address)"
     fi
-    [ -n "$PUBLIC_IP" ] || fail "could not find the public IP by itself. Put it in $ENV_FILE (PUBLIC_IP=...) and run this again."
-    sed -i "s/^PUBLIC_IP=.*/PUBLIC_IP=$PUBLIC_IP/" "$ENV_FILE"
-    echo "PUBLIC_IP=$PUBLIC_IP (written into $ENV_FILE)"
   fi
 fi
 
@@ -119,9 +136,10 @@ else
 fi
 
 say "Done. Next:"
-cat <<NEXT
-  1. Cloud firewall or security group of the provider (if there is one): open only what is needed (22 from your own address; the UDP range of the live screen when P3 comes). On the production Contabo machine the existing ports stay as they are.
-     Instance: IMDSv2 required, hop limit 1, NO IAM role.
-  2. Cloudflare WARP, proxy mode only:   sudo sh $APP/warp-proxy.sh --yes      (read the text it prints first)
-  3. Check everything:                    sudo sh $APP/smoke-test.sh
-NEXT
+echo "  1. If the provider has a cloud firewall or security group: open only what is needed (22 from your own address; the UDP range of the live screen when P3 comes)."
+if [ -z "${EGRESS_UPSTREAM_CONTAINER:-}" ] && [ -z "${EGRESS_UPSTREAM_SOCKS:-}" ]; then
+  echo "  2. Cloudflare WARP, proxy mode only:   sudo sh $APP/warp-proxy.sh --yes      (read the text it prints first)   [skip it if you want the browsers to go out directly]"
+else
+  echo "  2. (the way out is already set: ${EGRESS_UPSTREAM_CONTAINER:+container $EGRESS_UPSTREAM_CONTAINER}${EGRESS_UPSTREAM_SOCKS:+ $EGRESS_UPSTREAM_SOCKS}; warp-proxy.sh is not needed)"
+fi
+echo "  3. Check everything:                    sudo sh $APP/smoke-test.sh"
