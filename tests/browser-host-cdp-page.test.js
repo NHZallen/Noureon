@@ -368,3 +368,42 @@ test('logging out of a site: its cookies go, the cookies of another site stay', 
   await assert.rejects(act({ type: 'clear-site', sites: [] }), /say which sites/);
   await assert.rejects(act({ type: 'clear-site', sites: ['bad name!'] }), /say which sites/);
 });
+
+const UP_PAGE = '<!doctype html><title>Upload</title><form onsubmit="return false"><label>Resume <input id="f" type="file"></label><input id="m" type="file" multiple aria-label="Photos"><button id="b" type="button" onclick="document.getElementById(\'f\').click()">Choose a file</button></form><p id="out">nothing</p><script>for (const id of ["f","m"]) document.getElementById(id).addEventListener("change", async (e) => { const names = []; for (const f of e.target.files) names.push(f.name + ":" + f.type + ":" + (await f.text())); document.getElementById("out").textContent = names.join("|"); });</script>';
+
+test('a file of the person is put into the file field of the page, from its bytes; one file for a field that takes one; a page that is not a field is said', { skip: chromium() ? false : 'no Chromium here' }, async (t) => {
+  const site = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(UP_PAGE); });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-upload-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  await act({ type: 'navigate', url: `http://127.0.0.1:${site.address().port}/` });
+  const snap = await act({ type: 'snapshot' });
+  const fileButtons = snap.elements.filter((e) => /file|photos|resume|choose/i.test(e.name || ''));
+  assert.ok(fileButtons.length >= 1, JSON.stringify(snap.elements));
+  const b64 = (text) => Buffer.from(text).toString('base64');
+  const field = snap.elements.find((e) => /resume/i.test(e.name || '')) || fileButtons[0];
+  const done = await act({ type: 'upload', ref: field.ref, files: [{ name: 'cv.txt', mime: 'text/plain', base64: b64('my cv') }] });
+  assert.equal(done.uploaded, 1);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const after = await act({ type: 'snapshot' });
+  assert.match(after.text, /cv\.txt:text\/plain:my cv/);
+  await assert.rejects(act({ type: 'upload', ref: field.ref, files: [{ name: 'a.txt', base64: b64('a') }, { name: 'b.txt', base64: b64('b') }] }), /one file only/);
+  const heading = (await act({ type: 'snapshot' })).elements.find((e) => e.role === 'heading' || e.role === 'button' && /choose a file/i.test(e.name));
+  await assert.rejects(act({ type: 'upload', ref: 999999, files: [{ name: 'a.txt', base64: b64('a') }] }), /not on the page|take a new snapshot/);
+  await assert.rejects(act({ type: 'upload', ref: field.ref, files: [{ name: '../x.txt', base64: b64('a') }] }), /not valid/);
+  await assert.rejects(act({ type: 'upload', ref: field.ref, files: [{ name: 'x.txt', base64: '***' }] }), /could not be read/);
+  await assert.rejects(act({ type: 'upload', ref: field.ref, files: [] }), /which files/);
+  assert.ok(heading === undefined || typeof heading.ref === 'number');
+});

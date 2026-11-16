@@ -435,7 +435,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         const browserAsker = createBrowserAsk({ emit: (event) => emitEvent(event), signal, now, onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); } });
         if (browserControl) browserControl.answer = browserAsker.answer;
         browserLoader = createBrowserLoader({
-          sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, files, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions, keepLogin: spec.tools.browserKeepLogin !== false,
+          sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, files, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions, keepLogin: spec.tools.browserKeepLogin !== false, inputFiles: () => collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
           emit: (event) => emitEvent(event)
         });
       }

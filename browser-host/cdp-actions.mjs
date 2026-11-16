@@ -9,6 +9,7 @@
 //   download {ref? | url?, maxBytes?, tabId?}  does what makes the page send a file (a click on the thing, or the address) and takes the file itself out of the browser: { name, mime, size, base64 }; the file is not kept in the browser
 //   fill-card {card: {number, expMonth, expYear, expYear4, cvc, name, line1?, …}, origins: ["https://…"], tabId?}  (also on standard input)  types the card into the fields of the page it can find; says which fields it filled and which it did not find, never a value
 //   fill-code {code, origins: ["https://…"], tabId?}  (also on standard input)  types a one-time code into the code field of the page (one box, or one box for each digit); says only how many boxes it filled
+//   upload {ref, files: [{name, mime, base64}]}  (body arrives on standard input: `--stdin`)  puts the files into the file field of the page (the element given, or the field it belongs to); at most 5 files and 8 MB together
 //   fill-login {username?, password?, origins: ["https://…"], tabId?}  (body arrives on standard input: `--stdin`)  fills the visible login fields of the page, only when the page is of one of `origins`; says which
 //   fields it filled, never their values. A password field is never read and never typed into by the other actions (logins go through the password vault, design doc §7).
 import { pathToFileURL } from 'node:url';
@@ -304,6 +305,47 @@ export function downloadName(headers, url) {
   return name || 'download';
 }
 
+// ---- Putting the person's file into the file field of the page: the file is built in the page from its bytes (no file lives on the machine of the browser), then the field is told it changed ----
+const MAX_UPLOAD_FILES = 5;
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+async function uploadFiles(cdp, action, targetId, sessionId) {
+  const ref = checkRef(action.ref);
+  const list = Array.isArray(action.files) ? action.files.slice(0, MAX_UPLOAD_FILES) : [];
+  if (!list.length) throw new Error('say which files');
+  let total = 0;
+  for (const file of list) {
+    if (typeof file?.name !== 'string' || !file.name || file.name.length > 255 || /[\\/\u0000-\u001f]/.test(file.name)) throw new Error('a file name is not valid');
+    if (typeof file.base64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(file.base64)) throw new Error('a file could not be read');
+    total += Math.floor(file.base64.length * 0.75);
+  }
+  if (total > MAX_UPLOAD_BYTES) throw new Error('the files are larger than the page may be given at once');
+  const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: ref }, sessionId).catch(() => { throw new Error('that element is not on the page any more: take a new snapshot'); });
+  const declaration = `function (files) {
+    var input = this;
+    if (!(input instanceof HTMLInputElement && input.type === "file")) {
+      input = (this.control && this.control.type === "file" ? this.control : null) || (this.querySelector && this.querySelector('input[type="file"]')) || (this.closest && this.closest('label') && this.closest('label').control) || null;
+    }
+    if (!(input instanceof HTMLInputElement) || input.type !== "file") return "no_file_field";
+    if (files.length > 1 && !input.multiple) return "single_file_only";
+    var transfer = new DataTransfer();
+    for (var i = 0; i < files.length; i++) {
+      var raw = atob(files[i].base64), bytes = new Uint8Array(raw.length);
+      for (var j = 0; j < raw.length; j++) bytes[j] = raw.charCodeAt(j);
+      transfer.items.add(new File([bytes], files[i].name, { type: files[i].mime || "application/octet-stream" }));
+    }
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return "ok:" + input.files.length;
+  }`;
+  const answer = await cdp.send('Runtime.callFunctionOn', { objectId: object.objectId, functionDeclaration: declaration, arguments: [{ value: list.map((file) => ({ name: file.name, mime: typeof file.mime === 'string' ? file.mime.slice(0, 100) : '', base64: file.base64 })) }], returnByValue: true }, sessionId, 45_000);
+  const result = String(answer.result?.value || '');
+  if (result === 'no_file_field') throw new Error('that element is not a file field: look for the button or field that takes a file');
+  if (result === 'single_file_only') throw new Error('that field takes one file only');
+  if (!result.startsWith('ok:')) throw new Error('the page did not take the file');
+  return { ok: true, tabId: targetId, uploaded: Number(result.slice(3)), ...(await settle(cdp, sessionId)) };
+}
+
 async function downloadFile(cdp, action, targetId, sessionId) {
   const limit = Math.min(MAX_DOWNLOAD, Math.max(1024, Math.floor(Number(action.maxBytes)) || MAX_DOWNLOAD));
   if (!action.ref && !action.url) throw new Error('say what to click (ref) or which address (url)');
@@ -371,6 +413,7 @@ async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'fill-code') return fillCode(cdp, action, targetId, sessionId);
   if (action.type === 'fill-card') return fillCard(cdp, action, targetId, sessionId);
   if (action.type === 'download') return downloadFile(cdp, action, targetId, sessionId);
+  if (action.type === 'upload') return uploadFiles(cdp, action, targetId, sessionId);
   if (action.type === 'click') {
     const ref = checkRef(action.ref);
     const { x, y } = await centerOf(cdp, sessionId, ref);
@@ -513,7 +556,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       await wait(Math.min(10_000, Math.max(0, Math.floor(Number(action.ms)) || 1000)));
       return { ok: true };
     }
-    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code', 'fill-card', 'download'].includes(action.type)) {
+    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code', 'fill-card', 'download', 'upload'].includes(action.type)) {
       const targetId = await pickTab(cdp, action.tabId);
       const sessionId = await attach(cdp, targetId);
       await cdp.send('Page.enable', {}, sessionId);

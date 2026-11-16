@@ -44,7 +44,7 @@ export function createServer({ manager, verifier, live = null, maxProfileBytes =
     { method: 'PUT', re: new RegExp(`^/v1/sessions/${ID}/profile$`), big: true, run: async ({ match, body }) => ({ status: 202, body: manager.putProfile(match[1], body) }) },
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}/profile$`), run: async ({ match }) => ({ status: 200, binary: await manager.collectProfile(match[1]) }) },
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}$`), run: async ({ match }) => ({ status: 200, body: manager.get(match[1]) }) },
-    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/actions$`), run: async ({ match, body }) => ({ status: 200, body: await manager.action(match[1], json(body)) }) },
+    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/actions$`), limit: 13 * 1024 * 1024, run: async ({ match, body }) => ({ status: 200, body: await manager.action(match[1], json(body)) }) },
     ...(live ? liveRoutes(manager, live) : []),
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/save$`), run: async ({ match }) => ({ status: 200, binary: await manager.save(match[1]) }) },
     {
@@ -75,7 +75,7 @@ export function createServer({ manager, verifier, live = null, maxProfileBytes =
       const url = new URL(rawUrl, 'http://browser-host.invalid');
       const route = routes.find((r) => r.method === req.method && r.re.test(url.pathname));
       label = `${req.method} ${url.pathname.replace(/\/sessions\/[^/]+/, '/sessions/:id')}`;
-      const body = await readBody(req, route?.big ? maxProfileBytes + 1024 : SMALL_BODY);
+      const body = await readBody(req, route?.big ? maxProfileBytes + 1024 : route?.limit || SMALL_BODY);
       const verdict = verifier.verify({ method: req.method, pathWithQuery: rawUrl, headers: req.headers, body, remoteAddress: remote });
       if (!verdict.ok) { status = verdict.status; log({ ev: 'refused', label, status, why: verdict.reason }); send(res, status, { error: status === 429 ? 'busy' : 'unauthorized' }); return; }
       if (!route) { status = routes.some((r) => r.re.test(url.pathname)) ? 405 : 404; send(res, status, { error: status === 405 ? 'method_not_allowed' : 'not_found' }); return; }

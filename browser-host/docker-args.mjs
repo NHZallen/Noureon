@@ -135,13 +135,16 @@ export function browserRunArgs(options) {
 /** The actions that carry a secret (a password, a card): their body goes in through standard input, never as an argument (an argument is in the process list of the machine). */
 export const SECRET_ACTIONS = Object.freeze(['fill-login', 'fill-code', 'fill-card']);
 const MAX_STDIN_ACTION = 32 * 1024;
+/** The actions whose body goes in through standard input: the ones with a secret, and the one that carries a file (too large for an argument). */
+export const STDIN_ACTIONS = Object.freeze([...SECRET_ACTIONS, 'upload']);
+export const MAX_UPLOAD_ACTION = 12 * 1024 * 1024;
 
 /** One DevTools action, run in a throw-away container that joins the browser's network (the DevTools port is never published). */
 export function sidecarArgs({ sessionId, scriptPath, action }) {
   if (typeof scriptPath !== 'string' || !scriptPath.startsWith('/') || /[\s,:=]/.test(scriptPath)) throw new Error('bad script path');
   const json = JSON.stringify(action ?? {});
-  const viaStdin = SECRET_ACTIONS.includes(action?.type);
-  if (json.length > (viaStdin ? MAX_STDIN_ACTION : 8192)) throw new Error('action too large');
+  const viaStdin = STDIN_ACTIONS.includes(action?.type);
+  if (json.length > (action?.type === 'upload' ? MAX_UPLOAD_ACTION : viaStdin ? MAX_STDIN_ACTION : 8192)) throw new Error('action too large');
   return ['run', '--rm', ...(viaStdin ? ['-i'] : []), '--network', `container:${containerName(sessionId)}`, '--cap-drop=ALL', '--security-opt', 'no-new-privileges', '--read-only',
     '--user', '65534:65534', '--memory', '256m', '--pids-limit', '64', '-v', `${scriptPath}:/app/cdp-actions.mjs:ro`, SIDECAR_IMAGE, 'node', '/app/cdp-actions.mjs', viaStdin ? '--stdin' : json];
 }
