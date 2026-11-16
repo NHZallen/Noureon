@@ -10,7 +10,7 @@ const call = (action, domain, label) => ({ type: 'browser', event: 'call', actio
 const make = (options = {}) => {
   const window = new Window();
   const { document } = window;
-  const card = createBrowserCard({ document, host: document.body, language: 'en', ...options });
+  const card = createBrowserCard({ document, host: document.body, language: 'en', isWide: () => false, ...options });
   const q = (selector) => document.body.querySelector(selector);
   const steps = () => [...document.body.querySelectorAll('.bcard-step')];
   return { window, document, card, q, steps };
@@ -228,6 +228,71 @@ test('in the focus mode: Stop asks the same question as the cross of the card; t
     document.querySelector('.bcard-dialog-button.is-danger').click();
     assert.equal(cancelled, 1);
     assert.equal(document.querySelector('.bf'), null, 'cancelling closes the focus mode');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('on a computer the pill opens the side panel that takes its room from the chat; Enlarge makes it big, the edge sets the width, and the cross gives the room back', () => {
+  const { window, document, card } = make({ isWide: () => true });
+  try {
+    const { live, calls } = fakeLive();
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive({ ...live, url: 'https://acme.com/bill' });
+    card.openFocus();
+    const root = document.documentElement;
+    assert.equal(root.getAttribute('data-browser-panel'), 'panel');
+    assert.equal(root.style.getPropertyValue('--browser-panel-w'), '416px');
+    assert.ok(document.querySelector('.bf.is-panel'));
+    assert.ok(document.querySelector('.bf-resize'));
+    assert.equal(document.querySelector('.bf-pad'), null, 'no trackpad on a computer: the person points at the screen');
+    document.querySelector('.bf-head .bf-icon').click();
+    assert.equal(root.getAttribute('data-browser-panel'), 'zoom');
+    assert.match(root.style.getPropertyValue('--browser-panel-w'), /^calc\(100vw/);
+    assert.equal(card.zoomed, true);
+    assert.deepEqual(calls.at(-1), ['onZoom', true], 'the owner of the picture is told too');
+    document.querySelector('.bf-expand').click();
+    assert.equal(card.zoomed, false);
+    assert.equal(root.getAttribute('data-browser-panel'), 'panel');
+    document.querySelector('.bf-head > .bf-icon:last-child').click();
+    assert.equal(root.getAttribute('data-browser-panel'), null);
+    assert.equal(document.querySelector('.bf'), null);
+    assert.equal(card.view, 'pill');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('on a computer the person who has the browser points at the screen itself: the mouse, the wheel, the keys and the address row', () => {
+  const { window, document, card } = make({ isWide: () => true });
+  try {
+    const { live, calls } = fakeLive();
+    const log = [];
+    live.source.input = { pointer: (...a) => log.push(['pointer', ...a]), wheel: (...a) => log.push(['wheel', ...a]), key: (...a) => log.push(['key', ...a]), text: (...a) => log.push(['text', ...a]) };
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive({ ...live, url: 'https://acme.com/bill' });
+    card.openFocus();
+    const screen = document.querySelector('.bf .bl-view');
+    screen.dispatchEvent(new window.MouseEvent('pointermove', { clientX: 5, clientY: 5 }));
+    assert.deepEqual(log, [], 'while the model has it, the mouse does nothing');
+    assert.equal(document.querySelector('.bf-url').hidden, true);
+    document.querySelector('.bf-act.is-primary').click();
+    assert.equal(document.querySelector('.bf-url').hidden, false);
+    assert.equal(document.querySelector('.bf-url-field').value, 'https://acme.com/bill');
+    screen.dispatchEvent(new window.MouseEvent('pointerdown', { clientX: 0, clientY: 0 }));
+    const wheel = new window.Event('wheel');
+    Object.assign(wheel, { deltaX: 0, deltaY: 120, clientX: 0, clientY: 0 });
+    screen.dispatchEvent(wheel);
+    const key = new window.Event('keydown');
+    Object.assign(key, { key: 'a', ctrlKey: false, metaKey: false });
+    screen.dispatchEvent(key);
+    assert.deepEqual(log.map((entry) => entry[0]), ['pointer', 'wheel', 'key']);
+    const field = document.querySelector('.bf-url-field');
+    field.value = 'https://example.com';
+    const enter = new window.Event('keydown');
+    Object.assign(enter, { key: 'Enter' });
+    field.dispatchEvent(enter);
+    assert.deepEqual(calls.at(-1), ['onNavigate', 'https://example.com']);
   } finally {
     window.happyDOM.abort();
   }

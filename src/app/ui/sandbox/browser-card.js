@@ -6,6 +6,7 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createFocusMode } from '../browser-live/focus-mode.js';
 import { createLiveView } from '../browser-live/live-view.js';
+import { createPanelDock } from '../browser-live/panel-dock.js';
 import { cssRatio, DEFAULT_RATIO } from '../browser-live/ratios.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -38,7 +39,7 @@ const icon = (document, name, size = 16, width = 2) => {
  * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person cancelled the task (the reply is stopped).
  * `handle(event)` takes the `browser` events of the server; `complete()` says the reply is over.
  */
-export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null }) {
+export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, isWide = null, storage = null }) {
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
   const steps = [];
@@ -53,6 +54,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let focus = null;
   let ratio = DEFAULT_RATIO;
   let control = 'model';
+  let zoomed = false;
+  // A computer (1024 px and more) has the side panel, a phone the page of its own.
+  const wide = () => (isWide ? isWide() : Boolean(document.defaultView?.matchMedia?.('(min-width: 1024px)')?.matches));
+  const dock = createPanelDock({ document, storage });
 
   const make = (tag, className, attrs = {}) => {
     const node = document.createElement(tag);
@@ -165,7 +170,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     }));
     // The last step is in view as the list grows.
     list.scrollTop = list.scrollHeight;
-    focus?.update({ domain, ratio, control, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' });
+    focus?.update({ domain, ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' });
   };
 
   const setView = (next) => {
@@ -282,19 +287,28 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const closeFocus = () => {
     focus?.destroy();
     focus = null;
+    zoomed = false;
+    dock.close();
   };
-  const focusController = () => ({
-    ...(live?.controller || {}),
-    onClose: () => { closeFocus(); setView('pill'); },
-    onExpand: () => { closeFocus(); setView('front'); },
-    onStop: () => askCancel(),
-    onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
-    onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); },
-    onRatio: (key) => { setRatio(key); live?.controller?.onRatio?.(key); }
-  });
+  const focusController = () => {
+    const own = {
+      onClose: () => { closeFocus(); setView('pill'); },
+      onExpand: () => { closeFocus(); setView('front'); },
+      onZoom: (value) => { zoomed = Boolean(value); dock.setZoom(zoomed); focus?.update({ zoomed }); live?.controller?.onZoom?.(zoomed); },
+      onStop: () => askCancel(),
+      onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
+      onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); },
+      onRatio: (key) => { setRatio(key); live?.controller?.onRatio?.(key); }
+    };
+    // Whatever the card does not answer itself goes to the owner of the live picture (looked up when it is asked, so a later owner is the one).
+    return new Proxy(own, { get: (target, name) => (name in target ? target[name] : live?.controller?.[name]) });
+  };
   const openFocus = () => {
     if (!live || focus) return;
-    focus = createFocusMode({ document, language, source: live.source, state: { domain, tabs: live.tabs || [], ratio, control, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' }, controller: focusController(), readClipboard: live.readClipboard || null });
+    const panel = wide();
+    if (panel) dock.open({ zoomed });
+    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' }, controller: focusController(), readClipboard: live.readClipboard || null });
+    if (panel) dock.mountHandle(focus.element, sandboxText(language, 'browserResize'));
   };
   const setRatio = (key) => {
     ratio = key;
@@ -336,8 +350,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     /** The tabs or who has the browser changed (the parts that are given). */
     liveState(next = {}) {
       if (live && next.tabs) live.tabs = next.tabs;
+      if (live && typeof next.url === 'string') live.url = next.url;
       if (next.control) control = next.control;
-      focus?.update({ ...(next.tabs ? { tabs: next.tabs } : {}), control });
+      focus?.update({ ...(next.tabs ? { tabs: next.tabs } : {}), ...(typeof next.url === 'string' ? { url: next.url } : {}), control });
       render();
     },
     /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */
@@ -350,6 +365,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     get element() { return root; },
     get focus() { return focus; },
     get ratio() { return ratio; },
+    get zoomed() { return zoomed; },
     get phase() { return phase; },
     get view() { return view; },
     remove() {

@@ -3,8 +3,11 @@
 // screen, then, while the model works, empty room and two buttons (Stop, Take over). When the person has taken over the room becomes a trackpad, a row of
 // tools (keyboard, paste, refresh) is over it, and one button gives the browser back to the model. The menu holds back, a screenshot for the model, copying the
 // address, the downloaded files and the ratio of the screen. What it asks of the browser it asks of a `controller`; it draws from the `state` it is told.
-//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over }
-//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onNewTab, onSwitchTab(id), onCloseTab(id), onBack, onScreenshot, onCopyUrl, onRefresh, onDownloads, onRatio(key) }
+//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over, zoomed }
+// On a computer (`layout: 'panel'`) it is the side panel (and, with `zoomed`, the big one): the tabs are the top row with Enlarge, the menu and the cross beside them; there is no
+// trackpad: the person points and types on the screen itself (the mouse, the wheel, the keys); with the browser in their hands there is a row for the address, and under
+// the screen Paste and Screenshot are on the left and Give back on the right.
+//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onNewTab, onSwitchTab(id), onCloseTab(id), onBack, onScreenshot, onCopyUrl, onRefresh, onDownloads, onRatio(key), onZoom(bool), onNavigate(url) }
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLiveView } from './live-view.js';
@@ -26,7 +29,9 @@ const PATHS = {
   link: 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3A4 4 0 0010 18.7l1-1',
   file: 'M7 3h7l4 4v14H7zM14 3v4h4',
   stop: 'M7 7h10v10H7z',
-  check: 'M5 12.5l4.5 4.5L19 7.5'
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  zoom: 'M4 10V4h6M20 14v6h-6M4 4l6 6M20 20l-6-6',
+  zoomOut: 'M10 4v6H4M14 20v-6h6M10 10L3.5 3.5M14 14l6.5 6.5'
 };
 const icon = (document, name, size = 18) => {
   const svg = document.createElementNS(SVG, 'svg');
@@ -48,9 +53,10 @@ const icon = (document, name, size = 18) => {
 const PAD_GAIN = 1.5; // a slide across the pad moves the circle one and a half screens
 const KEYS = [['Escape', 'Esc'], ['Tab', 'Tab'], ['ArrowLeft', '←'], ['ArrowUp', '↑'], ['ArrowDown', '↓'], ['ArrowRight', '→'], ['Enter', '↵']];
 
-export function createFocusMode({ document, host = document.body, language = 'zh-TW', source = null, state: initial = {}, controller = {}, readClipboard = null }) {
+export function createFocusMode({ document, host = document.body, language = 'zh-TW', layout = 'phone', source = null, state: initial = {}, controller = {}, readClipboard = null }) {
+  const panel = layout === 'panel';
   const t = (key) => sandboxText(language, key);
-  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, ...initial };
+  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, ...initial };
   const ask = (name, ...args) => controller[name]?.(...args);
 
   const make = (tag, className, attrs = {}) => {
@@ -67,7 +73,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     return node;
   };
 
-  const root = make('div', 'bf', { role: 'dialog', 'aria-label': t('browserCardLabel') });
+  const root = make('div', `bf${panel ? ' is-panel' : ''}`, { role: 'dialog', 'aria-label': t('browserCardLabel') });
   // The top.
   const top = make('div', 'bf-top');
   const dot = make('i', 'bf-dot');
@@ -80,7 +86,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   // The screen.
   const screen = make('div', 'bf-screen');
   const view = createLiveView({ document, host: screen, ratio: state.ratio, source });
-  const expand = button('bf-expand', t('browserExpand'), () => ask('onExpand'), icon(document, 'expand', 14), t('browserExpand'));
+  const expand = button('bf-expand', t('browserExpand'), () => ask(state.zoomed ? 'onZoom' : 'onExpand', false), icon(document, 'expand', 14), t('browserExpand'));
   screen.append(expand);
   const status = make('div', 'bf-status');
   const pad = make('div', 'bf-pad', { 'aria-label': t('browserPadHint') });
@@ -104,7 +110,28 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   const takeButton = button('bf-act is-primary', t('browserTakeOver'), () => ask('onTakeOver'), icon(document, 'hand', 17), t('browserTakeOver'));
   const giveButton = button('bf-act is-primary', t('browserGiveBack'), () => ask('onGiveBack'), icon(document, 'check', 17), t('browserGiveBack'));
   actions.append(stopButton, takeButton, giveButton);
-  root.append(top, tabs, screen, status, pad, tools, keyboard, actions);
+  // The side panel of a computer: the tabs are the top row, with Enlarge, the menu and the cross; the address row is there when the browser is in the person's hands.
+  const zoomButton = button('bf-icon', t('browserZoom'), () => ask('onZoom', !state.zoomed), icon(document, 'zoom'));
+  const closeButton = top.firstChild;
+  const head = make('div', 'bf-head');
+  const urlRow = make('div', 'bf-url');
+  const urlField = make('input', 'bf-url-field', { type: 'text', spellcheck: 'false', autocapitalize: 'none', autocomplete: 'off', 'aria-label': t('browserUrl'), placeholder: t('browserUrl') });
+  urlField.addEventListener('keydown', (event) => { if (event.key === 'Enter') ask('onNavigate', urlField.value.trim()); });
+  urlRow.append(urlField);
+  // Under the screen: while the model works, Stop and Take over; in the person's hands, Paste and Screenshot on the left and Give back on the right.
+  const bar = make('div', 'bf-bar');
+  const barTools = make('div', 'bf-bar-tools');
+  barTools.append(
+    button('bf-tool', t('browserPaste'), () => void paste(), icon(document, 'paste', 17), t('browserPaste')),
+    button('bf-tool', t('browserScreenshotToModel'), () => ask('onScreenshot'), icon(document, 'shot', 17), t('browserScreenshotToModel'))
+  );
+  if (panel) {
+    head.append(tabs, zoomButton, menuButton, closeButton);
+    bar.append(barTools, actions);
+    root.append(head, urlRow, screen, bar);
+  } else {
+    root.append(top, tabs, screen, status, pad, tools, keyboard, actions);
+  }
   host.append(root);
 
   // The cursor of the person.
@@ -142,6 +169,24 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   pad.addEventListener('pointermove', (event) => trackpad.move(event.pointerId, event.clientX, event.clientY, event.timeStamp));
   pad.addEventListener('pointerup', (event) => trackpad.up(event.pointerId, event.timeStamp));
   pad.addEventListener('pointercancel', () => trackpad.cancel());
+
+  // On a computer the person points at the screen itself: the mouse, the wheel, the keys and what they paste go into the browser while it is in their hands.
+  const pointOf = (event) => {
+    const rect = view.element.getBoundingClientRect();
+    return { x: rect.width ? (event.clientX - rect.left) / rect.width : 0, y: rect.height ? (event.clientY - rect.top) / rect.height : 0 };
+  };
+  const mine = () => panel && state.control === 'user';
+  if (panel) {
+    const surface = view.element;
+    surface.tabIndex = 0;
+    surface.addEventListener('pointermove', (event) => { if (!mine()) return; const { x, y } = pointOf(event); view.moveCursor(x, y, 'user'); input()?.pointer?.(x, y, event.buttons ? 'drag' : 'move'); });
+    surface.addEventListener('pointerdown', (event) => { if (!mine()) return; surface.focus?.(); const { x, y } = pointOf(event); view.press(true); input()?.pointer?.(x, y, 'down'); });
+    surface.addEventListener('pointerup', (event) => { if (!mine()) return; const { x, y } = pointOf(event); view.press(false); input()?.pointer?.(x, y, 'up'); });
+    surface.addEventListener('wheel', (event) => { if (!mine()) return; event.preventDefault?.(); const { x, y } = pointOf(event); input()?.wheel?.(event.deltaX, event.deltaY, x, y); }, { passive: false });
+    surface.addEventListener('keydown', (event) => { if (!mine() || event.metaKey || event.ctrlKey) return; event.preventDefault?.(); input()?.key?.(event.key, true); });
+    surface.addEventListener('keyup', (event) => { if (!mine() || event.metaKey || event.ctrlKey) return; event.preventDefault?.(); input()?.key?.(event.key, false); });
+    surface.addEventListener('paste', (event) => { if (!mine()) return; event.preventDefault?.(); const text = event.clipboardData?.getData?.('text') || ''; if (text) input()?.text?.(text); });
+  }
 
   let keyboardOpen = false;
   const setKeyboard = (open) => {
@@ -214,6 +259,16 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     takeButton.hidden = user || state.over;
     giveButton.hidden = !user;
     view.setRatio(state.ratio);
+    screen.style.setProperty('--bl-ratio', view.element.style.getPropertyValue('--bl-ratio'));
+    root.classList.toggle('is-zoomed', Boolean(state.zoomed));
+    zoomButton.setAttribute('aria-label', state.zoomed ? t('browserZoomOut') : t('browserZoom'));
+    zoomButton.title = zoomButton.getAttribute('aria-label');
+    zoomButton.replaceChildren(icon(document, state.zoomed ? 'zoomOut' : 'zoom'));
+    urlRow.hidden = !(panel && user);
+    if (panel && document.activeElement !== urlField) urlField.value = state.url || '';
+    barTools.hidden = !user;
+    expand.querySelector('span').textContent = state.zoomed ? t('browserZoomOut') : t('browserExpand');
+    expand.setAttribute('aria-label', expand.querySelector('span').textContent);
     tabs.replaceChildren(...state.tabs.map((tab) => {
       const node = make('div', `bf-tab${tab.active ? ' is-active' : ''}`, { role: 'tab', 'aria-selected': String(Boolean(tab.active)) });
       const label = button('bf-tab-label', tab.title || state.domain, () => ask('onSwitchTab', tab.id), null, tab.title || state.domain);

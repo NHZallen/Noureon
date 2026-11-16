@@ -8,7 +8,7 @@
 // The circle is 13% of the width of the screen, so it grows and shrinks with the card and the focus mode alike. Inside it the picture around the point is
 // magnified 1.6 times. It has no animation. When the person has taken over it is the same circle with a very faint touch of the accent colour.
 
-import { cssRatio, DEFAULT_RATIO } from './ratios.js';
+import { cssRatio, DEFAULT_RATIO, ratioOf } from './ratios.js';
 
 export const LENS_ZOOM = 1.6;
 export const LENS_SIZE = 0.13; // of the width of the screen
@@ -19,6 +19,9 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   const root = document.createElement('div');
   root.className = 'bl-view';
   root.style.aspectRatio = cssRatio(ratio);
+  // The ratio as a number too (width over height): a place that must fit the screen in the height it has works the width out from it.
+  const setNumber = (key) => { const { width, height } = ratioOf(key); root.style.setProperty('--bl-ratio', String(width / height)); };
+  setNumber(ratio);
   const picture = document.createElement('div');
   picture.className = 'bl-picture';
   const lens = document.createElement('div');
@@ -77,6 +80,7 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
     setSource: attach,
     setRatio(key) {
       root.style.aspectRatio = cssRatio(key);
+      setNumber(key);
       root.dataset.ratio = key;
       place();
     },
