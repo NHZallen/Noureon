@@ -40,9 +40,13 @@ else
 fi
 
 say "2. Download runsc and check its checksum"
-# Google now publishes gVisor as one archive (gvisor.tar.bz2 + .sha512), not as a bare runsc file (that address answers 404; found on the first real run).
+# Google now publishes gVisor as one archive (gvisor.tar.zstd or gvisor.tar.bz2, each with a .sha512), not as a bare runsc file (that address answers 404; found on the first real run).
 # The archive is checked against its published SHA-512 before anything is installed; the binary is then taken out of it by name.
-ARCHIVE=gvisor.tar.bz2
+# Pick the archive this machine can open without installing anything: zstd if there is a zstd tool, else bzip2.
+if command -v zstd >/dev/null 2>&1; then ARCHIVE=gvisor.tar.zstd; TARFLAG="--zstd"
+elif command -v bzip2 >/dev/null 2>&1; then ARCHIVE=gvisor.tar.bz2; TARFLAG="-j"
+else fail "neither zstd nor bzip2 is installed, so the archive cannot be opened (apt-get install -y zstd)"; fi
+echo "archive: $ARCHIVE"
 if [ "$ALREADY" = 1 ] && [ -x /usr/local/bin/runsc ]; then
   echo "(already installed: $(/usr/local/bin/runsc --version | head -1))"
 else
@@ -52,7 +56,6 @@ else
     [ "$code" = 200 ] || fail "$BASE/$f answers $code, not 200. Nothing was changed. Paste this line to the owner."
     echo "found   $BASE/$f"
   done
-  command -v bzip2 >/dev/null 2>&1 || fail "bzip2 is needed to open the archive (apt-get install -y bzip2)"
   if [ "$DRY" = 1 ]; then
     echo "  [dry-run] download, check the SHA-512, take runsc out of the archive, install it to /usr/local/bin/runsc"
   else
@@ -62,7 +65,7 @@ else
     have=$(sha512sum "$WORK/$ARCHIVE" | awk '{print $1}')
     [ -n "$want" ] && [ "$want" = "$have" ] || fail "the SHA-512 of the archive does not match; nothing was installed"
     echo "OK    SHA-512 matches"
-    mkdir "$WORK/x" && tar -xjf "$WORK/$ARCHIVE" -C "$WORK/x"
+    mkdir "$WORK/x" && tar "$TARFLAG" -xf "$WORK/$ARCHIVE" -C "$WORK/x"
     BIN=$(find "$WORK/x" -type f -name runsc | head -1)
     [ -n "$BIN" ] || fail "no file named runsc in the archive; contents: $(cd "$WORK/x" && find . -type f | head -10 | tr '\n' ' ')"
     install -m 0755 "$BIN" /usr/local/bin/runsc
@@ -106,10 +109,24 @@ fi
 docker info --format '{{json .Runtimes}}' | grep -q runsc || fail "Docker does not list runsc after the reload. Do NOT restart Docker on your own (that stops every container). Paste this output and the file $DAEMON_JSON to the owner."
 echo "OK    runsc is a registered runtime"
 snapshot > "$WORK/after.txt"
-if diff -q "$WORK/before.txt" "$WORK/after.txt" >/dev/null; then
-  echo "OK    all $(wc -l < "$WORK/before.txt" | tr -d ' ') containers kept running (same ids, same start times, no restarts)"
+# A container that was running before must still be the same one: same start time, no restart. A container that is gone or new is only reported:
+# Coolify deploys by starting a new container and removing the old one, so that can happen on its own.
+changed=0
+while read -r id st rc; do
+  line=$(grep "^$id " "$WORK/after.txt" || true)
+  name=$(docker inspect -f '{{.Name}}' "$id" 2>/dev/null || echo "$id")
+  if [ -z "$line" ]; then
+    echo "info   gone: $name (a deployment may have replaced it; check docker ps)"
+  elif [ "$line" != "$id $st $rc" ]; then
+    echo "WARNING: $name was RESTARTED during the reload (before: $st restarts=$rc, after: $line)"; changed=1
+  fi
+done < "$WORK/before.txt"
+while read -r id _; do
+  grep -q "^$id " "$WORK/before.txt" || echo "info   new: $(docker inspect -f '{{.Name}}' "$id" 2>/dev/null || echo "$id")"
+done < "$WORK/after.txt"
+if [ "$changed" = 0 ]; then
+  echo "OK    no container that was running before was restarted by the reload"
 else
-  echo "WARNING: the container list changed during the reload:"; diff "$WORK/before.txt" "$WORK/after.txt" || true
   echo "Tell the owner now. Nothing else was touched."
 fi
 
