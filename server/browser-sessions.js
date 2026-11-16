@@ -102,7 +102,19 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
         if (signal?.aborted) throw new BrowserSessionError('The reply was stopped.', 'aborted');
         const state = await host.get(session.id);
         onPoll?.(state);
-        if (state?.state === 'ready') return state;
+        if (state?.state === 'ready') {
+          // Sites the person logged out of while no browser was running: their login state goes now, before anything is done in the browser.
+          if (session.pendingClear.length) {
+            try {
+              await host.action(session.id, { type: 'clear-site', sites: session.pendingClear });
+              session.pendingClear = [];
+              await profiles.clearPending(session.userId);
+            } catch (error) {
+              log('browser_clear_failed', { code: error?.code || '', status: error?.status || 0 });
+            }
+          }
+          return state;
+        }
         if (DONE_STATES.has(state?.state)) { forget(session); throw new BrowserSessionError('The browser could not be started.', 'failed'); }
         if (now() >= until) throw new BrowserSessionError('The browser did not get ready in time.', 'timeout');
         await sleep(pollMs);
@@ -179,6 +191,12 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     /** Closes every browser this server opened (when it stops), keeping the login states. */
     async closeAll() {
       for (const session of [...byId.values()]) await this.close(session.id, session.userId).catch(() => {});
+    },
+    /** For the people in charge: every browser this server opened is closed (the login states are kept); resolves how many. */
+    async stopAll() {
+      const open = [...byId.values()];
+      for (const session of open) await this.close(session.id, session.userId).catch(() => {});
+      return open.length;
     },
     /** How many browsers are open (for the health view). */
     count: () => byId.size,

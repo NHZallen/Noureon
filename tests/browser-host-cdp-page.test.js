@@ -336,3 +336,35 @@ test('tabs: the list says which one is in front; a tab can be brought to the fro
   await act({ type: 'tabs', op: 'close', tabId: second.tabId });
   assert.equal((await act({ type: 'tabs', op: 'list' })).tabs.length, 1);
 });
+
+test('logging out of a site: its cookies go, the cookies of another site stay', { skip: chromium() ? false : 'no Chromium here' }, async (t) => {
+  // The page says which cookies the browser sent, so what is kept can be seen without reaching into the browser.
+  const site = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html', 'set-cookie': ['a=1; Path=/', 'b=2; Path=/'] }); res.end(`<title>Cookies</title><p>sent: ${req.headers.cookie || 'none'}</p>`); });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-clear-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const sent = async (url) => { await act({ type: 'navigate', url }); return (await act({ type: 'text' })).text; };
+  const here = `http://127.0.0.1:${site.address().port}/`;
+  const other = `http://localhost:${site.address().port}/`;
+  await sent(here); await sent(other); // each site is given its cookies
+  assert.match(await sent(here), /sent: a=1; b=2/);
+  assert.match(await sent(other), /sent: a=1; b=2/);
+  const done = await act({ type: 'clear-site', sites: ['127.0.0.1'] });
+  assert.equal(done.cookies, 2);
+  assert.match(await sent(other), /sent: a=1; b=2/, 'the other site keeps its cookies');
+  assert.match(await sent(here), /sent: none/, 'this site is logged out');
+  await assert.rejects(act({ type: 'clear-site', sites: [] }), /say which sites/);
+  await assert.rejects(act({ type: 'clear-site', sites: ['bad name!'] }), /say which sites/);
+});

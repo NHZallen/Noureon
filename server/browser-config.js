@@ -4,6 +4,7 @@
 //   BROWSER_HOST_SECRET  the secret the requests to browser-host are signed with (32 characters or more; the first of a list, as on the host).
 //   BROWSER_ALLOWED      who may use it: emails and/or account ids, separated by commas. NOT set means NOBODY (unlike the Google connector, where not set means everyone):
 //                        this reaches out to any website on behalf of a person. Later the invite codes of the design take its place.
+//   BROWSER_ADMINS       the accounts that run it (account ids or emails): they may use it, make invite codes and stop all the browsers. They count as allowed.
 //   BROWSER_MAX_ACTIONS  a limit of actions for one reply; 0 or not set means no limit (Allen, 2026-11-16).
 
 const EMAIL = /^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/;
@@ -29,6 +30,10 @@ export function readBrowserConfig(env = {}, problems = []) {
     if (EMAIL.test(entry) || UUID.test(entry)) allowed.add(entry);
     else problems.push(`BROWSER_ALLOWED has something that is neither an email address nor an account id: ${entry.slice(0, 40)}`);
   }
+  const admins = new Set();
+  for (const entry of list(env.BROWSER_ADMINS).map((item) => item.toLowerCase())) {
+    if (EMAIL.test(entry) || UUID.test(entry)) { admins.add(entry); allowed.add(entry); } else problems.push(`BROWSER_ADMINS has something that is neither an email address nor an account id: ${entry.slice(0, 40)}`);
+  }
   const maxActions = Number(env.BROWSER_MAX_ACTIONS || 0);
   if (!Number.isInteger(maxActions) || maxActions < 0 || maxActions > 100000) problems.push('BROWSER_MAX_ACTIONS must be a whole number (0 for no limit)');
   const switchedOff = String(env.BROWSER_ENABLED || '').trim().toLowerCase() === 'false';
@@ -38,6 +43,7 @@ export function readBrowserConfig(env = {}, problems = []) {
     hosts: Object.freeze(hosts),
     secret,
     allowed: Object.freeze(allowed),
+    admins: Object.freeze(admins),
     maxActions: Number.isInteger(maxActions) && maxActions > 0 ? maxActions : 0
   });
 }
@@ -70,13 +76,30 @@ export function createEmailLookup({ url, serviceKey, fetchImpl = fetch, now = Da
   };
 }
 
-/** `mayUse(userId)` for the replies: by account id at once, by email when the list has emails. */
-export function createBrowserAccess({ config, emailOf = null }) {
+/** Whether this account runs the browser agent (BROWSER_ADMINS), by account id or by email. */
+export function browserAdmin(config, { userId = '', email = '' } = {}) {
+  if (!config?.enabled) return false;
+  return config.admins.has(String(userId).toLowerCase()) || (Boolean(email) && config.admins.has(String(email).toLowerCase()));
+}
+
+/** `mayUse(userId)` for the replies: by account id at once, by email when the list has emails, else by an invite code that was redeemed (asked of `invites`, kept a minute). */
+export function createBrowserAccess({ config, emailOf = null, invites = null, now = Date.now }) {
+  const known = new Map();
   const hasEmails = [...config.allowed].some((entry) => entry.includes('@'));
-  return async function mayUse(userId) {
+  const mayUse = async function mayUse(userId) {
     if (!config.enabled || !userId) return false;
     if (browserAllows(config, { userId })) return true;
-    if (!hasEmails || !emailOf) return false;
-    return browserAllows(config, { userId, email: await emailOf(userId) });
+    if (hasEmails && emailOf && browserAllows(config, { userId, email: await emailOf(userId) })) return true;
+    if (!invites) return false;
+    const cached = known.get(userId);
+    if (cached && cached.until > now()) return cached.yes;
+    let yes = false;
+    try { yes = await invites.hasAccess(userId); } catch { yes = false; }
+    if (known.size > 500) known.clear();
+    known.set(userId, { yes, until: now() + 60_000 });
+    return yes;
   };
+  // A person who has just redeemed a code is let in at once, not a minute later.
+  mayUse.forget = (userId) => { known.delete(userId); };
+  return mayUse;
 }

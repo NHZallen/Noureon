@@ -5,6 +5,7 @@
 //   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close"|"activate"|"reload", tabId?, url?}
 //   snapshot {tabId?, maxChars?}  the page as a list of things to act on, each with a number (`ref`) that stays good while the page stays the same document
 //   click {ref, tabId?}   type {ref, text, submit?, tabId?}   press {key, tabId?}   scroll {direction: "up"|"down"|"left"|"right"|"top"|"bottom", tabId?}   back {tabId?}   wait {ms}
+//   clear-site {sites: ["example.com"]}  logs the browser out of those sites: their cookies and what they stored (local storage, caches) are removed; says how many cookies went
 //   download {ref? | url?, maxBytes?, tabId?}  does what makes the page send a file (a click on the thing, or the address) and takes the file itself out of the browser: { name, mime, size, base64 }; the file is not kept in the browser
 //   fill-card {card: {number, expMonth, expYear, expYear4, cvc, name, line1?, …}, origins: ["https://…"], tabId?}  (also on standard input)  types the card into the fields of the page it can find; says which fields it filled and which it did not find, never a value
 //   fill-code {code, origins: ["https://…"], tabId?}  (also on standard input)  types a one-time code into the code field of the page (one box, or one box for each digit); says only how many boxes it filled
@@ -411,9 +412,32 @@ async function pageAction(cdp, action, targetId, sessionId) {
   return null;
 }
 
+// ---- Logging out of a site (the person logged out or deleted the password on the settings page): what the site keeps in the browser goes, nothing else ----
+const SITE_NAME = /^[a-z0-9.-]{1,253}$/;
+async function clearSites(cdp, action) {
+  const sites = [...new Set((Array.isArray(action.sites) ? action.sites : []).map((site) => String(site).toLowerCase()).filter((site) => SITE_NAME.test(site)))].slice(0, 50);
+  if (!sites.length) throw new Error('say which sites');
+  const targetId = await pickTab(cdp);
+  const sessionId = await attach(cdp, targetId);
+  await cdp.send('Network.enable', {}, sessionId);
+  const { cookies } = await cdp.send('Network.getAllCookies', {}, sessionId);
+  const belongs = (domain) => { const d = String(domain).replace(/^\./, '').toLowerCase(); return sites.some((site) => d === site || d.endsWith(`.${site}`)); };
+  let removed = 0;
+  for (const cookie of cookies || []) {
+    if (!belongs(cookie.domain)) continue;
+    await cdp.send('Network.deleteCookies', { name: cookie.name, domain: cookie.domain, path: cookie.path }, sessionId).catch(() => {});
+    removed += 1;
+  }
+  for (const site of sites) {
+    for (const scheme of ['https', 'http']) await cdp.send('Storage.clearDataForOrigin', { origin: `${scheme}://${site}`, storageTypes: 'all' }, sessionId).catch(() => {});
+  }
+  return { ok: true, cookies: removed };
+}
+
 export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
   const cdp = await connect(devtools);
   try {
+    if (action.type === 'clear-site') return await clearSites(cdp, action);
     if (action.type === 'tabs') {
       if (action.op === 'list') {
         const pages = (await pagesOf(cdp)).slice(0, 12);

@@ -15,6 +15,7 @@ import { SecurityNoticeError } from './security-notices.js';
 import { deviceName } from '../src/app/runtime/security/device-name.js';
 import { createBrowserLiveRoutes } from './browser-live-routes.js';
 import { createBrowserLoginRoutes } from './browser-login-routes.js';
+import { createBrowserAccountRoutes } from './browser-account-routes.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -102,6 +103,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
   const projectLimiter = createRateLimiter({ limit: 120, windowMs: 60_000, now });
   const startedAt = now();
   const browserLive = createBrowserLiveRoutes({ browser, limiter: createRateLimiter({ limit: 120, windowMs: 60_000, now }) });
+  const browserAccount = createBrowserAccountRoutes({ browser, limiter: createRateLimiter({ limit: 30, windowMs: 60_000, now }) });
   const browserLogins = createBrowserLoginRoutes({ browser, limiter: createRateLimiter({ limit: 30, windowMs: 60_000, now }) });
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
@@ -140,7 +142,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         return;
       }
       const browserContext = { url, authenticate, readJson, send: (code, body) => { status = code; send(response, code, body, origin); }, fail: (code, message, extra) => { throw new RequestError(code, message, extra); } };
-      if (await browserLive(request, browserContext) || await browserLogins(request, browserContext)) return;
+      if (await browserLive(request, browserContext) || await browserLogins(request, browserContext) || await browserAccount(request, browserContext)) return;
       if (route === 'GET /healthz') {
         send(response, 200, { ok: true, protocol: PROTOCOL_VERSION, build: config.build, runs: Boolean(runs), sandbox: runs?.sandboxState?.() || 'off', uptimeSeconds: Math.round((now() - startedAt) / 1000) }, origin);
         status = 200;

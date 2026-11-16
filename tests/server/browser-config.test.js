@@ -62,3 +62,21 @@ test('the replies know only the account id: the email is looked up only when the
   assert.equal(await down('user-a'), false);
   assert.equal(await createBrowserAccess({ config: readBrowserConfig({}) })('anyone'), false);
 });
+
+test('the people in charge count as allowed; the invite codes let others in, asked once a minute', async () => {
+  const { browserAdmin, createBrowserAccess } = await import('../../server/browser-config.js');
+  const A = '11111111-1111-4111-8111-111111111111';
+  const config = readBrowserConfig({ BROWSER_HOSTS: 'http://172.29.0.1:40010', BROWSER_HOST_SECRET: 's'.repeat(40), BROWSER_ADMINS: A });
+  assert.equal(config.enabled, true);
+  assert.equal(browserAdmin(config, { userId: A }), true);
+  assert.equal(browserAdmin(config, { userId: 'other' }), false);
+  let asked = 0; let clock = 1000;
+  const mayUse = createBrowserAccess({ config, invites: { hasAccess: async (id) => { asked += 1; return id === 'invited'; } }, now: () => clock });
+  assert.equal(await mayUse(A), true);
+  assert.equal(await mayUse('invited'), true); assert.equal(await mayUse('invited'), true);
+  assert.equal(asked, 1, 'kept for a minute');
+  assert.equal(await mayUse('stranger'), false);
+  clock += 61_000;
+  assert.equal(await mayUse('invited'), true); assert.equal(asked, 3);
+  mayUse.forget('stranger');
+});
