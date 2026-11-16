@@ -1,0 +1,7 @@
+# Round nine: tests whether the hard CPU limit (a CFS quota) is what made the picture stutter. The quota is set so high that it never bites (6 cores = the whole machine),
+# and the container gets a LOW weight instead (cpu_shares 256, the default is 1024): when the machine is busy the other services win, when it is idle the browser may use
+# whatever it needs. Memory stays limited. Put it AFTER prod-host.yml (and after cap4.yml if both are given, it wins).
+services:
+  neko:
+    cpus: 6
+    cpu_shares: 256
