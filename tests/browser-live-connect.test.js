@@ -8,7 +8,9 @@ import { connectBrowserLive } from '../src/app/ui/browser-live/live-connect.js';
 const SID = 'b0123456789abcdef';
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
 
+let tabsNow = [];
 function world({ viewerOk = true } = {}) {
+  tabsNow = [{ tabId: 'T1', title: 'Shop', url: 'https://shop.example/', active: true }, { tabId: 'T2', title: 'Docs', url: 'https://docs.example/', active: false }];
   const window = new Window();
   const document = window.document;
   const host = document.createElement('div'); document.body.append(host);
@@ -16,6 +18,7 @@ function world({ viewerOk = true } = {}) {
   const calls = [];
   const api = async (method, path, body) => {
     calls.push([method, path, body]);
+    if (path.endsWith('/tabs')) return { ok: true, status: 200, data: { ok: true, tabs: tabsNow } };
     if (path.endsWith('/viewer') && method === 'POST') return viewerOk ? { ok: true, status: 200, data: { viewerId: 'v-1', token: 't', host: 'live.example.com', wsPath: '/s/x/api/ws' } } : { ok: false, status: 409, data: {} };
     return { ok: true, status: 200, data: {} };
   };
@@ -27,8 +30,10 @@ function world({ viewerOk = true } = {}) {
     return source;
   };
   const timers = [];
-  const connector = connectBrowserLive({ card, sessionId: SID, api, document, createSource, setTimer: (fn, ms) => { timers.push([fn, ms]); return timers.length; }, clearTimer: () => {} });
-  return { card, calls, sources, connector, timers, document };
+  const repeats = [];
+  const copied = [];
+  const connector = connectBrowserLive({ card, sessionId: SID, api, document, createSource, setTimer: (fn, ms) => { timers.push([fn, ms]); return timers.length; }, clearTimer: () => {}, setRepeat: (fn, ms) => { repeats.push([fn, ms]); return repeats.length; }, clearRepeat: () => { repeats.cleared = (repeats.cleared || 0) + 1; }, writeClipboard: (text) => { copied.push(text); } });
+  return { card, calls, sources, connector, timers, document, repeats, copied };
 }
 const names = (w) => w.calls.map((c) => `${c[0]} ${c[1].replace(`/v1/browser/${SID}`, '')}`);
 
@@ -121,4 +126,30 @@ test('a stream that ends within seconds is not brought back at once and without 
   assert.equal(w.timers.length, 3, 'after the last try nothing is scheduled');
   assert.equal(w.sources.length, 4);
   assert.deepEqual(w.card.element.querySelector('.bcard-live'), null);
+});
+
+
+test('the tabs of the focus mode: asked for while it is open, what the person does goes to the server, and the strip is drawn from the answer', async () => {
+  const w = world();
+  await settle();
+  assert.equal(w.repeats.length, 0, 'not asked for while only the card is there');
+  w.card.openFocus();
+  await settle();
+  assert.deepEqual(names(w).filter((n) => n.endsWith('/tabs')), ['POST /tabs']);
+  assert.equal(w.repeats.length, 1); assert.equal(w.repeats[0][1], 3000);
+  const labels = () => [...w.card.element.ownerDocument.querySelectorAll('.bf-tab-label')].map((b) => b.textContent);
+  assert.deepEqual(labels(), ['Shop', 'Docs']);
+  const press = (selector, index = 0) => w.card.element.ownerDocument.querySelectorAll(selector)[index].click();
+  press('.bf-tab-label', 1);
+  await settle();
+  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/tabs')).at(-2)[2], { op: 'activate', tabId: 'T2' });
+  press('.bf-tab-new');
+  await settle();
+  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/tabs')).at(-2)[2], { op: 'new' });
+  press('.bf-tab-close', 0);
+  await settle();
+  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/tabs')).at(-2)[2], { op: 'close', tabId: 'T1' });
+  w.card.closeFocus();
+  await settle();
+  assert.equal(w.repeats.cleared, 1, 'not asked for any more when the focus mode is closed');
 });

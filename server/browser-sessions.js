@@ -17,6 +17,25 @@ export class BrowserSessionError extends Error {
 }
 
 const DONE_STATES = new Set(['stopped', 'failed']);
+const TAB_ID = /^[A-Za-z0-9_-]{1,100}$/;
+/** The host action for what the person asked with the tabs; anything else is refused. */
+export function tabActionOf(request) {
+  const op = String(request?.op || '');
+  const tabId = typeof request?.tabId === 'string' && TAB_ID.test(request.tabId) ? request.tabId : undefined;
+  const url = typeof request?.url === 'string' && request.url.length <= 2000 ? request.url : undefined;
+  if (op === 'list') return { type: 'tabs', op: 'list' };
+  if (op === 'new') return { type: 'tabs', op: 'new', ...(url ? { url } : {}) };
+  if (op === 'close' || op === 'activate' || op === 'reload') {
+    if (!tabId) throw new BrowserSessionError('Say which tab.', 'bad_request');
+    return { type: 'tabs', op, tabId };
+  }
+  if (op === 'back') return { type: 'back', ...(tabId ? { tabId } : {}) };
+  if (op === 'navigate') {
+    if (!url) throw new BrowserSessionError('Give an address.', 'bad_request');
+    return { type: 'navigate', url, ...(tabId ? { tabId } : {}) };
+  }
+  throw new BrowserSessionError('That is not something to do with the tabs.', 'bad_request');
+}
 
 export function createBrowserSessions({ host, profiles, log = () => {}, now = Date.now, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), saveEveryMs = 5 * 60_000, sweepEveryMs = 60 * 60_000, tickMs = 30_000, makeId = () => `b${randomBytes(12).toString('hex')}` }) {
   const byId = new Map();
@@ -98,6 +117,11 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     async closeViewer(id, userId, viewerId) { return host.closeViewer(own(id, userId).id, viewerId); },
     async control(id, userId, request) { return host.control(own(id, userId).id, request); },
     async screen(id, userId, ratio) { return host.setScreen(own(id, userId).id, ratio); },
+    /** What the person does with the tabs from the screen (the list, a new tab, switching, closing, reloading, back, an address): only these, only for the owner of the browser. */
+    async tabAction(id, userId, request) {
+      const action = tabActionOf(request);
+      return host.action(own(id, userId).id, action, { wait: 30_000 });
+    },
     async cardTicket(id, userId, origin) { return host.cardTicket(own(id, userId).id, origin); },
     /** Keeps the login state now (the browser goes on). Resolves whether it was kept. */
     async saveNow(id, userId) {

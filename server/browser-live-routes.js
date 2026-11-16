@@ -2,6 +2,7 @@
 //   POST   /v1/browser/:sessionId/viewer             -> { viewerId, token, host, wsPath, ratioSizes }  (a temporary member of the browser's neko; the page then opens wss://host + wsPath)
 //   DELETE /v1/browser/:sessionId/viewer/:viewerId   -> { ok }
 //   POST   /v1/browser/:sessionId/control            { mode: 'user' | 'model', viewerId? } -> { control }
+//   POST   /v1/browser/:sessionId/tabs               { op: 'list' | 'new' | 'close' | 'activate' | 'reload' | 'back' | 'navigate', tabId?, url? } -> { tabs?, tabId?, url? }
 //   POST   /v1/browser/:sessionId/screen             { ratio: '4:3' | '16:9' | 'portrait' } -> { ratio, width, height }
 // Only the owner of a browser reaches it (browser-sessions.js checks that); a person who may not use the browser agent gets nothing. The host's address, its secret and the passwords of the
 // viewers never leave the server: the page gets a one-time session token and the path of the WebSocket.
@@ -26,6 +27,20 @@ export function createBrowserLiveRoutes({ browser, limiter = null }) {
         if (body?.mode !== 'user' && body?.mode !== 'model') problem('bad_request', 'mode must be user or model.');
         if (body.mode === 'user' && typeof body.viewerId !== 'string') problem('bad_request', 'viewerId is needed to give control to a person.');
         return [200, await browser.sessions.control(match[1], user.id, { mode: body.mode, viewerId: body.viewerId })];
+      }
+    },
+    {
+      method: 'POST', re: new RegExp(`^/v1/browser/${ID}/tabs$`), body: 4096,
+      run: async ({ user, match, body, problem }) => {
+        let result;
+        try {
+          result = await browser.sessions.tabAction(match[1], user.id, body || {});
+        } catch (error) {
+          if (error?.name === 'BrowserSessionError' && error.code === 'bad_request') problem('bad_request', error.message);
+          throw error;
+        }
+        // What goes back is the plain facts of the tabs (never a picture or the text of a page).
+        return [200, { ok: true, ...(Array.isArray(result?.tabs) ? { tabs: result.tabs.map((tab) => ({ tabId: String(tab.tabId), title: String(tab.title || '').slice(0, 200), url: String(tab.url || '').slice(0, 500), active: tab.active === true })) } : {}), ...(result?.tabId ? { tabId: String(result.tabId) } : {}), ...(typeof result?.url === 'string' ? { url: result.url.slice(0, 500) } : {}) }];
       }
     },
     {

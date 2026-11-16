@@ -300,3 +300,39 @@ test('a file the page sends is taken out of the browser with its name and size, 
   const again = await act({ type: 'snapshot' });
   assert.equal(again.title, 'Two', 'the page that was not a file opened as a page, and the browser still works after downloads');
 });
+
+test('tabs: the list says which one is in front; a tab can be brought to the front, reloaded and closed', { skip: chromium() ? false : 'no Chromium here' }, async (t) => {
+  const site = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(`<title>${req.url === '/b' ? 'Page B' : 'Page A'}</title><p>${Math.random()}</p>`); });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-tabs-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const base = `http://127.0.0.1:${site.address().port}`;
+  await act({ type: 'navigate', url: `${base}/` });
+  const second = await act({ type: 'tabs', op: 'new', url: `${base}/b` });
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  const listed = (await act({ type: 'tabs', op: 'list' })).tabs;
+  assert.equal(listed.length, 2);
+  assert.ok(listed.every((tab) => typeof tab.active === 'boolean'));
+  await act({ type: 'tabs', op: 'activate', tabId: listed.find((tab) => tab.tabId !== second.tabId).tabId });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const after = (await act({ type: 'tabs', op: 'list' })).tabs;
+  assert.equal(after.filter((tab) => tab.active).length, 1);
+  assert.equal(after.find((tab) => tab.active).tabId, listed.find((tab) => tab.tabId !== second.tabId).tabId);
+  assert.equal((await act({ type: 'tabs', op: 'reload', tabId: second.tabId })).ok, true);
+  await assert.rejects(act({ type: 'tabs', op: 'activate' }), /tabId is needed/);
+  await assert.rejects(act({ type: 'tabs', op: 'activate', tabId: 'nonexistent' }), /no such tab/);
+  await act({ type: 'tabs', op: 'close', tabId: second.tabId });
+  assert.equal((await act({ type: 'tabs', op: 'list' })).tabs.length, 1);
+});

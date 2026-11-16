@@ -2,7 +2,7 @@
 // One DevTools action, run in a throw-away container that joins the browser's network (docker-args.mjs sidecarArgs). Prints ONE line of JSON: {"ok":true,...} or
 // {"ok":false,"error":"..."}; the exit code is 0 only for ok. Needs Node 22 (global WebSocket). The browser does not need --remote-allow-origins: this client sends no Origin.
 //   node cdp-actions.mjs '{"type":"navigate","url":"https://example.com/"}'
-//   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close", tabId?, url?}
+//   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close"|"activate"|"reload", tabId?, url?}
 //   snapshot {tabId?, maxChars?}  the page as a list of things to act on, each with a number (`ref`) that stays good while the page stays the same document
 //   click {ref, tabId?}   type {ref, text, submit?, tabId?}   press {key, tabId?}   scroll {direction: "up"|"down"|"left"|"right"|"top"|"bottom", tabId?}   back {tabId?}   wait {ms}
 //   download {ref? | url?, maxBytes?, tabId?}  does what makes the page send a file (a click on the thing, or the address) and takes the file itself out of the browser: { name, mime, size, base64 }; the file is not kept in the browser
@@ -415,7 +415,31 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
   const cdp = await connect(devtools);
   try {
     if (action.type === 'tabs') {
-      if (action.op === 'list') return { ok: true, tabs: (await pagesOf(cdp)).map((p) => ({ tabId: p.targetId, url: p.url, title: p.title })) };
+      if (action.op === 'list') {
+        const pages = (await pagesOf(cdp)).slice(0, 12);
+        // The tab in front is the one that is visible (a tab that is not in front draws nothing).
+        const visible = await Promise.all(pages.map(async (p) => {
+          try {
+            const session = await attach(cdp, p.targetId);
+            const state = await cdp.send('Runtime.evaluate', { expression: 'document.visibilityState', returnByValue: true }, session, 5000);
+            await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {});
+            return state.result?.value === 'visible';
+          } catch { return false; }
+        }));
+        return { ok: true, tabs: pages.map((p, i) => ({ tabId: p.targetId, url: p.url, title: p.title, active: visible[i] })) };
+      }
+      if (action.op === 'activate') {
+        if (!action.tabId) throw new Error('tabId is needed');
+        await cdp.send('Target.activateTarget', { targetId: await pickTab(cdp, action.tabId) });
+        return { ok: true };
+      }
+      if (action.op === 'reload') {
+        const targetId = await pickTab(cdp, action.tabId);
+        const session = await attach(cdp, targetId);
+        await cdp.send('Page.enable', {}, session);
+        await cdp.send('Page.reload', {}, session);
+        return { ok: true, tabId: targetId };
+      }
       if (action.op === 'new') {
         const { targetId } = await cdp.send('Target.createTarget', { url: action.url ? checkNavigableUrl(action.url, { allowBlank: true }) : 'about:blank' });
         return { ok: true, tabId: targetId };

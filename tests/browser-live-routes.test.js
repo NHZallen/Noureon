@@ -14,7 +14,8 @@ function setup({ allowed = true, sessions = {} } = {}) {
       viewer: async (...a) => { calls.push(['viewer', ...a]); return sessions.viewer ? sessions.viewer() : { viewerId: 'v-1', token: 'tok', host: 'live.example.com', wsPath: '/s/x/api/ws' }; },
       closeViewer: async (...a) => { calls.push(['closeViewer', ...a]); },
       control: async (...a) => { calls.push(['control', ...a]); return { control: a[2].mode }; },
-      screen: async (...a) => { calls.push(['screen', ...a]); return { ratio: a[2], width: 1280, height: 720 }; }
+      screen: async (...a) => { calls.push(['screen', ...a]); return { ratio: a[2], width: 1280, height: 720 }; },
+      tabAction: async (...a) => { calls.push(['tabs', ...a]); if (a[2]?.op === 'bad') { const e = new BrowserSessionError('That is not something to do with the tabs.', 'bad_request'); throw e; } return { ok: true, tabs: [{ tabId: 'T1', title: 'Shop', url: 'https://shop.example/', active: true, secret: 'x' }], text: 'must not leak' }; }
     }
   };
   const handle = createBrowserLiveRoutes({ browser });
@@ -82,4 +83,22 @@ test('the host client signs the live calls and refuses a bad viewer id', async (
   assert.deepEqual(seen.map((s) => `${s[0]} ${s[1].replace('http://172.29.0.1:40010', '')}`), [`POST /v1/sessions/${SID}/viewers`, `POST /v1/sessions/${SID}/control`, `POST /v1/sessions/${SID}/screen`, `POST /v1/sessions/${SID}/card-ticket`, `DELETE /v1/sessions/${SID}/viewers/v-1`]);
   assert.deepEqual(seen[1][2], { mode: 'user', viewerId: 'v-1' });
   await assert.rejects(() => client.closeViewer(SID, '../x'), (e) => e.code === 'bad_viewer_id');
+});
+
+test('the tabs route: the person works the tabs of their own browser; only the plain facts of the tabs come back; a bad request is a plain error', async () => {
+  const t = setup();
+  const listed = await t.run('POST', `/v1/browser/${SID}/tabs`, { op: 'list' });
+  assert.deepEqual(listed.sent.payload, { ok: true, tabs: [{ tabId: 'T1', title: 'Shop', url: 'https://shop.example/', active: true }] });
+  assert.deepEqual(t.calls[0], ['tabs', SID, 'user-1', { op: 'list' }]);
+  assert.equal((await t.run('POST', `/v1/browser/${SID}/tabs`, { op: 'bad' })).failed.code, 'bad_request');
+});
+
+test('what the person may do with the tabs is a short list, each one checked', async () => {
+  const { tabActionOf } = await import('../server/browser-sessions.js');
+  assert.deepEqual(tabActionOf({ op: 'list' }), { type: 'tabs', op: 'list' });
+  assert.deepEqual(tabActionOf({ op: 'new', url: 'https://a.example/' }), { type: 'tabs', op: 'new', url: 'https://a.example/' });
+  assert.deepEqual(tabActionOf({ op: 'close', tabId: 'ABC-123' }), { type: 'tabs', op: 'close', tabId: 'ABC-123' });
+  assert.deepEqual(tabActionOf({ op: 'navigate', url: 'https://a.example/', tabId: 'T1' }), { type: 'navigate', url: 'https://a.example/', tabId: 'T1' });
+  assert.deepEqual(tabActionOf({ op: 'back' }), { type: 'back' });
+  for (const bad of [{ op: 'close' }, { op: 'activate', tabId: '../x' }, { op: 'navigate' }, { op: 'snapshot' }, { op: 'eval' }, {}, null]) assert.throws(() => tabActionOf(bad), (e) => e.name === 'BrowserSessionError', JSON.stringify(bad));
 });
