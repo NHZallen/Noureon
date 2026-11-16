@@ -297,6 +297,8 @@ function checkSkillsAndConnectors(tools, fail) {
   }
   // The connectors the person has logged in to may be used (not in a temporary chat): the server reads which ones from the person's own connections.
   if (tools.connectors !== undefined && typeof tools.connectors !== 'boolean') fail('tools.connectors', 'must be true or false');
+  // The browser (server/browser-tools.js): the conversation has it switched on. Whether the person may use it is decided by the server, not by this field.
+  if (tools.browser !== undefined && typeof tools.browser !== 'boolean') fail('tools.browser', 'must be true or false');
 }
 
 /**
@@ -459,6 +461,7 @@ function validateCouncilSpec(input) {
         advanced: false,
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(tools.browser === true ? { browser: true } : {}),
         ...(projectFileEntries(tools.projectFiles)?.length || tools.projectFiles?.media?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(synthesisTools ? { synthesis: synthesisTools } : {})
       },
@@ -703,6 +706,7 @@ export function validateRunSpec(input) {
         ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(tools.browser === true ? { browser: true } : {}),
         ...(projectFileEntries(tools.projectFiles)?.length || tools.projectFiles?.media?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(text(tools.memory.project, 80) ? { project: tools.memory.project } : {}), ...(tools.memory.sharedProject ? { sharedProject: String(tools.memory.sharedProject).toLowerCase() } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),

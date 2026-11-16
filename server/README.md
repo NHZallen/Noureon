@@ -38,6 +38,11 @@
 | `CONNECTOR_CANVA_CLIENT_ID`、`CONNECTOR_CANVA_CLIENT_SECRET` | 選填，要一起設：在 Canva 開發者入口（canva.com/developers → 你的應用程式 → Configuration，開啟 Canva MCP）建的 App 的 Client ID 與 Secret，給連接器 Canva 用（Canva 只讓核准過的回呼網址登入）。回呼網址要在入口的 Redirect URLs 填 `CONNECTOR_REDIRECT_URI` 的值。Secret 只放在這裡 |
 | `CONNECTOR_GOOGLE_CLIENT_ID`、`CONNECTOR_GOOGLE_CLIENT_SECRET` | 選填，要一起設：在 Google Cloud 主控台（Google Auth Platform → 用戶端，類型「網頁應用程式」）建的 OAuth 用戶端的 ID 與密鑰，給連接器 Google 登入用。已授權的重新導向 URI 要填 `CONNECTOR_REDIRECT_URI` 的值（正式與測試各一個）。專案要啟用 Calendar、Sheets、Docs、Slides、Drive、Gmail 六個 API，資料存取權要加入 `src/data/connector-catalog.js` 裡 google 的全部範圍。同意畫面在「測試中」時，登入每 7 天失效一次。**Secret 只放在這裡** |
 | `CONNECTOR_GOOGLE_ALLOWED` | 選填：能連接 Google 連接器的帳號，信箱或帳號 ID（UID）都可以，用逗號分隔（舊名 `CONNECTOR_GOOGLE_ALLOWED_EMAILS` 也認）。有設定時，不在名單裡的人看到「申請候補」而不是「連線」，也不能開始登入；沒設定就是所有人都能連線。Google 同意畫面在「測試中」時，名單裡的信箱也要加進 Google 的測試使用者。改完要重新部署 |
+| `BROWSER_HOSTS` | 選填：瀏覽器代理的瀏覽器主機位址（`browser-host/`，例如 `http://172.29.0.1:40010`），多個用逗號分隔，目前只用第一個。沒設就沒有瀏覽器代理 |
+| `BROWSER_HOST_SECRET` | 選填：和瀏覽器主機簽章用的密鑰（至少 32 字元，要和主機 `/etc/noureon-browser/host.env` 的 `BROWSER_HOST_SECRET` 相同）。只放在環境變數，不寫進任何檔案或日誌 |
+| `BROWSER_ALLOWED` | 選填：能用瀏覽器代理的帳號，信箱或帳號 ID（UID），用逗號分隔。**沒設就是沒有人能用**（和 Google 連接器相反，因為它會替人連到任何網站）。改完要重新部署 |
+| `BROWSER_ENABLED` | 選填：設成 `false` 一鍵關閉瀏覽器代理（主伺服器停止自己開的瀏覽器並保存登入狀態），其他情況在上面三個都設好時就是開的 |
+| `BROWSER_MAX_ACTIONS` | 選填：一次回覆最多幾次瀏覽器操作；沒設或 0 就不限 |
 | `RESEND_API_KEY`、`MAIL_FROM`、`WAITLIST_TO` | 選填：候補申請的通知信。`RESEND_API_KEY` 是 resend.com 的 API 金鑰（只放在這裡），`MAIL_FROM` 是寄件人（預設 `Noureon <noreply@noureon.com>`，網域要先在 Resend 驗證），`WAITLIST_TO` 是收信的客服信箱（預設 `support@noureon.com`）。沒有金鑰時按「申請候補」會顯示無法送出 |
 | `PORT` | 選填，預設 8080 |
 

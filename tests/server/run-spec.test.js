@@ -195,3 +195,16 @@ test('the slip of the memory is kept when it is a short text, and refused when i
   notText.request.memorySlip = { text: 'no' };
   assert.equal(validateRunSpec(notText).ok, false);
 });
+
+test('the browser switch of a conversation is a plain true or false, kept for a reply', () => {
+  const on = good();
+  on.tools.browser = true;
+  const accepted = validateRunSpec(on);
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.spec.tools.browser, true);
+  const off = good();
+  assert.equal(validateRunSpec(off).spec.tools.browser, undefined, 'nothing is added when it is off');
+  const bad = good();
+  bad.tools.browser = 'yes';
+  assert.equal(validateRunSpec(bad).ok, false);
+});

@@ -35,7 +35,7 @@ test('a browser starts empty without a stored login state, and with one it is ha
   const w = world();
   const first = await w.sessions.open(A, {});
   assert.equal(first.sessionId, 'browser00000001');
-  assert.deepEqual(w.calls[0], ['create', { sessionId: 'browser00000001', userId: A, screen: { w: 1280, h: 720 }, hasProfile: false }]);
+  assert.deepEqual(w.calls[0], ['create', { sessionId: 'browser00000001', userId: A, screen: { w: 1024, h: 768 }, hasProfile: false }]);
   assert.ok(!w.calls.some((call) => call[0] === 'putProfile'));
   const w2 = world({ stored: { archive: Buffer.from('plain-tar-gz'), pendingClear: [] } });
   await w2.sessions.open(B, {});

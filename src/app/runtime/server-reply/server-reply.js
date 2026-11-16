@@ -7,6 +7,7 @@ import { pictureOffsets } from '../../../data/picture-interleave.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
+import { browserAsked } from './browser-switch.js';
 import { takeTrace } from '../memory-store/memory-trace.js';
 import { imageGenerationForReply } from '../tool-models/image-generation-request.js';
 import { buildTitleSummaryPrompt } from '../settings/settings-title-summary-helpers.js';
@@ -327,6 +328,8 @@ export function createServerReply({
         ...(skills.length ? { skills } : {}),
         // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).
         ...(connectors ? { connectors: true } : {}),
+        // The browser (a temporary switch for the test site; the server decides who may use it).
+        ...(browserAsked(modelInfo) ? { browser: true } : {}),
         // The memory of notes: the server gives the model search_memory and memory_write (it reads the notes from the table, checks a write and saves it there).
         ...(memory ? { memory: memoryTools } : {}),
         // The files of the project the model may look into (data/project-files-tool.js): their names, and the text or where the server reads them from the cloud.

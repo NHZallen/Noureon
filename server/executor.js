@@ -27,6 +27,7 @@ import { withDocumentPrep } from './document-prep.js';
 import { transcribeServerParts } from './transcribe-parts.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
+import { createBrowserLoader } from './browser-tools.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { categoriesOf } from '../src/app/runtime/memory-notes/categories.js';
@@ -99,7 +100,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, browser = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -374,7 +375,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).
-  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader, projectFilesLoader);
+  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, browserLoader, imageLoader, memoryLoader, projectFilesLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
   const skillEvents = (event) => {
     if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });
@@ -412,6 +413,20 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       }
     } catch (error) {
       onProblem('connectors_failed', error);
+    }
+  }
+  // The browser (server/browser-tools.js): a real browser the model works for the person. Only when the request asks for it, the person may use it (the list of the settings), and the page said the model can see pictures.
+  let browserLoader = null;
+  if (browser && spec.tools.browser === true && mode !== 'grounding' && userId) {
+    try {
+      if (await browser.mayUse(userId)) {
+        browserLoader = createBrowserLoader({
+          sessions: browser.sessions, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions,
+          emit: (event) => emitEvent(event)
+        });
+      }
+    } catch (error) {
+      onProblem('browser_failed', error);
     }
   }
   // A picture the text model draws by itself (server/image-tool.js): the person chose the picture model in the settings. Not with Gemini's own search either.

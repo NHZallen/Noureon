@@ -50,6 +50,8 @@ export function createRunManager({
   skills = null,
   // The services a person has logged in to (server/mcp/connections.js), or null: then no connector is offered to a reply.
   connectors = null,
+  // The browser agent (server/browser-service.js), or null: then no browser is offered to a reply.
+  browser = null,
   // The person's memory of notes (server/memory-records.js), or null: then a reply is given no memory tools.
   memory = null,
   // Where the pictures an image run makes are kept (server/file-store.js), or null: then images are not made here.
@@ -416,6 +418,7 @@ export function createRunManager({
         credentials,
         skills,
         connectors,
+        browser,
         memory,
         memoryOut,
         netControl,

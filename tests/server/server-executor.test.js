@@ -271,3 +271,55 @@ test('a model that searches by itself may also use a connector in the same reply
   assert.match(JSON.stringify(requests[1].messages), /ENG-1 Login fails/);
   assert.ok(live.some((event) => event.ev?.type === 'connector' && event.ev.event === 'call'));
 });
+
+const browserFor = ({ allowed = true, opened = [] } = {}) => ({
+  mayUse: async () => allowed,
+  maxActions: 0,
+  sessions: {
+    current: () => (opened.length ? { sessionId: 'b00000001', conversationId: '123e4567-e89b-12d3-a456-426614174000' } : null),
+    open: async (userId, options) => { opened.push(options.conversationId); return { sessionId: 'b00000001' }; },
+    waitReady: async () => ({ state: 'ready' }),
+    action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+    close: async () => true
+  }
+});
+
+test('the browser: the model opens a page through its tool, the person is on the list, and the row of the step list names only the domain', async () => {
+  const requests = [];
+  let round = 0;
+  const opened = [];
+  const live = [];
+  const result = await executeReply({
+    spec: specFor({ tools: { webSearch: 'off', advanced: false, browser: true } }),
+    secrets,
+    userId: '123e4567-e89b-12d3-a456-426614174000',
+    browser: browserFor({ opened }),
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/items?q=private-words' })) : sse(content('I opened the shop.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  const names = requests[0].tools.map((tool) => tool.function?.name || tool.name);
+  assert.ok(names.includes('browser_open') && names.includes('browser_snapshot') && names.includes('browser_close'));
+  assert.equal(opened.length, 1);
+  assert.match(JSON.stringify(requests[1].messages), /The tab shows this/);
+  const rows = live.filter((event) => event.ev?.type === 'browser');
+  assert.ok(rows.some((event) => event.ev.event === 'call' && event.ev.domain === 'shop.example'));
+  assert.ok(!JSON.stringify(rows).includes('private-words'), 'nothing of the address but the domain');
+});
+
+test('the browser is not offered when the person is not on the list, when the request did not ask for it, or when nothing is set up', async () => {
+  for (const [name, options] of [['not on the list', { tools: { webSearch: 'off', advanced: false, browser: true }, browser: browserFor({ allowed: false }) }], ['not asked for', { tools: { webSearch: 'off', advanced: false }, browser: browserFor() }], ['nothing set up', { tools: { webSearch: 'off', advanced: false, browser: true }, browser: null }]]) {
+    const requests = [];
+    const result = await executeReply({
+      spec: specFor({ tools: options.tools }), secrets, userId: '123e4567-e89b-12d3-a456-426614174000', browser: options.browser,
+      fetchImpl: async (url, init) => { requests.push(JSON.parse(init.body)); return streamResponse(sse(content('Hello.'))); }
+    });
+    assert.equal(result.status, 'done', name);
+    const names = (requests[0].tools || []).map((tool) => tool.function?.name || tool.name);
+    assert.ok(!names.some((tool) => tool.startsWith('browser_')), name);
+  }
+});

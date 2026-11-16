@@ -7,6 +7,8 @@ const list = (value, fallback = []) => {
 
 export const DEFAULT_ALLOWED_ORIGINS = Object.freeze(['https://noureon.com', 'https://www.noureon.com']);
 
+import { readBrowserConfig } from './browser-config.js';
+
 /** Reads and checks the settings; throws a message naming what is missing, so a bad deployment fails at once and says why. */
 // The real site: its logo and its terms and privacy pages are public, so a service can read them for the consent screen even when the web host of a test site is behind a login.
 export const SITE_URL = 'https://noureon.com';
@@ -67,6 +69,8 @@ export function loadConfig(env = process.env) {
   if (!/^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(waitlistTo)) problems.push('WAITLIST_TO must be an email address');
   if (!/^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(reportTo)) problems.push('REPORT_TO must be an email address');
   for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
+  // The browser agent (server/browser-config.js): off unless its address, its secret and somebody on its list are all set.
+  const browser = readBrowserConfig(env, problems);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
     port,
@@ -83,6 +87,7 @@ export function loadConfig(env = process.env) {
     connectorClientId,
     connectorPreregistered: Object.freeze(preregistered),
     connectorAllowed: Object.freeze(connectorAllowed),
+    browser,
     mailKey,
     mailFrom,
     waitlistTo,

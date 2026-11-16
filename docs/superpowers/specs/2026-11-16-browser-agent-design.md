@@ -436,6 +436,12 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 5. 大輸出（截圖）程式印完立刻結束會被截斷，要等輸出送完才結束；動作程式加 50 秒保險；密碼欄位在可存取性樹裡是「值為圓點」的文字框，要靠 DOM 判斷。
 6. **會話 cookie（沒有到期時間）不保留**：Chromium 啟動時會清掉。很多網站的登入是會話 cookie（沒勾「記住我」）。可用 `RestoreOnStartup=1`（還原上次的分頁）換取保留，代價是啟動時會重開上次的分頁；**待 Allen 決定**，建議在 P2 一起試。
 
+**P2 實作筆記（伺服器側，2026-11-16）**：Allen 確認 contract（NOU-205）：`BROWSER_ALLOWED` 沒設＝沒有人能用；暫時用網址參數 `?browser=1` 當開關（`src/app/runtime/server-reply/browser-switch.js`，只存本機，由 Sun 的「＋」開關取代）；P2 沒有確認卡，所以系統提示規定不付款、不刪除、不更改帳號與設定、不送出不可返回的表單，不確定就在對話裡問使用者；**不限制操作次數與截圖張數**（`BROWSER_MAX_ACTIONS` 預設 0＝不限；時間限制仍在：閒置 1 小時、單次 2 小時）；會話 cookie 先不處理。
+- `server/browser-config.js`（環境變數、名單、信箱查詢）、`server/browser-tools.js`（10 個工具、系統提示、步驟事件）、`server/browser-service.js`（接起 client、儲存、工作階段、權限；`main.js` 建一個、關機時關掉所有自己開的瀏覽器）、`run-spec.js` 一個布林欄位 `tools.browser`、`executor.js` 併一個 loader（約 15 行）。五語的步驟文字在 `sandbox-texts.js`（`browserOpen`、`browserAct`、`browserClose`、`browserQueued`、`browserFailed`）。
+- 權限：請求帶 `tools.browser: true`（頁面只在模型看得到圖時才送）、`BROWSER_ENABLED` 沒關、`BROWSER_ALLOWED` 有這個帳號（帳號 ID，或由認證服務查出的信箱，快取 5 分鐘）。三者缺一就沒有這組工具。
+- 已知取捨：每次送出都會把先前回合的截圖再送一次（現有迴圈的做法），不限制張數時長對話的 token 會一直增加，模型供應商的上下文上限到了就會出錯；之後可考慮只保留最近幾張。頁面目前不認識 `browser` 事件，步驟列不會顯示這些列（不會出錯），畫法等 Sun 決定。
+- 真機未驗：主伺服器（Coolify 容器）連到 `172.29.0.1:40010` 時，browser-host 看到的來源位址（要在名單 `BROWSER_ALLOWED_IPS` 內）；用 browser-host 日誌 `ev:"refused"` 的 `remote` 判斷。
+
 **主伺服器端**（只寫模組與測試，尚未接進 `main.js`，P2 才接）：
 - `server/key-vault.js`：新增 `sealBlob`／`openBlob`（檔案、位元組；每人且每個用途一把 HKDF 金鑰，使用者、用途、檔名綁在 AAD；格式 `nb1`，與 `nk2` 文字互不相通）。
 - `server/browser-host-client.js`：簽章的控制通道客戶端（與 `browser-host/auth.mjs` 的規格一致，測試直接對真的 browser-host HTTP 層驗證；不 import `browser-host/`，因為伺服器映像只複製 `server/` 與 `src/`）。

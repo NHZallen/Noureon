@@ -48,7 +48,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
      * Opens a browser for a person: { sessionId, state }. `keepLogin` false starts empty and keeps nothing. Resolves as soon as the host has taken the order (the browser
      * may still be queued or starting: `waitReady`). A person who has a browser already gets that one.
      */
-    async open(userId, { screen = { w: 1280, h: 720 }, keepLogin = true } = {}) {
+    async open(userId, { screen = { w: 1024, h: 768 }, keepLogin = true, conversationId = '' } = {}) {
       const existing = byUser.get(userId);
       if (existing) return { sessionId: existing, state: 'open', reused: true };
       let loaded = null;
@@ -61,7 +61,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
         }
       }
       const id = makeId();
-      const session = { id, userId, keepLogin, openedAt: now(), savedAt: now(), pendingClear: loaded?.pendingClear || [] };
+      const session = { id, userId, keepLogin, conversationId: String(conversationId || ''), openedAt: now(), savedAt: now(), pendingClear: loaded?.pendingClear || [] };
       byId.set(id, session);
       byUser.set(userId, id);
       try {
@@ -75,11 +75,13 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
       }
     },
     /** Waits until the browser is ready (the host may queue it behind others); throws `failed` or `timeout`. */
-    async waitReady(id, userId, { timeoutMs = 150_000, pollMs = 1500 } = {}) {
+    async waitReady(id, userId, { timeoutMs = 150_000, pollMs = 1500, onPoll = null, signal = null } = {}) {
       const session = own(id, userId);
       const until = now() + timeoutMs;
       for (;;) {
+        if (signal?.aborted) throw new BrowserSessionError('The reply was stopped.', 'aborted');
         const state = await host.get(session.id);
+        onPoll?.(state);
         if (state?.state === 'ready') return state;
         if (DONE_STATES.has(state?.state)) { forget(session); throw new BrowserSessionError('The browser could not be started.', 'failed'); }
         if (now() >= until) throw new BrowserSessionError('The browser did not get ready in time.', 'timeout');
@@ -136,6 +138,16 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     },
     start() { if (!timer) { timer = setInterval(() => { void this.tick(); }, tickMs); timer.unref?.(); } },
     stop() { if (timer) { clearInterval(timer); timer = null; } },
+    /** The browser a person has open now: { sessionId, conversationId } or null. */
+    current(userId) {
+      const id = byUser.get(userId);
+      const session = id ? byId.get(id) : null;
+      return session ? { sessionId: session.id, conversationId: session.conversationId } : null;
+    },
+    /** Closes every browser this server opened (when it stops), keeping the login states. */
+    async closeAll() {
+      for (const session of [...byId.values()]) await this.close(session.id, session.userId).catch(() => {});
+    },
     /** How many browsers are open (for the health view). */
     count: () => byId.size,
     has: (userId) => byUser.has(userId)

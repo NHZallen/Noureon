@@ -24,6 +24,7 @@ import { createSkillBundleStore } from './skill-bundles.js';
 import { createDerivedPdfStore } from './derived-pdf-store.js';
 import { createOfficePdfConverter, setOfficePdfConverter } from './office-pdf.js';
 import { createServiceClient } from './supabase-rest.js';
+import { createBrowserService } from './browser-service.js';
 import { createShares } from './shares.js';
 import { createProjectReader } from './project-reader.js';
 import { createProjectInvites } from './project-invites.js';
@@ -46,6 +47,7 @@ try {
 let runs = null;
 let credentials = null;
 let connectors = null;
+let browser = null;
 let memoryRebuild = null;
 let shares = null;
 let projectReader = null;
@@ -86,7 +88,8 @@ if (config.runsConfigured) {
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
     connectors = createConnectorService({ db, vault, log, config: { allowed: config.connectorAllowed, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), waitlistTo: config.waitlistTo, preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo-small.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }), projectVectors: createProjectVectorSearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    browser = createBrowserService({ config: config.browser, db, vault, url: config.supabaseUrl, serviceKey: config.serviceKey, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, browser, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }), projectVectors: createProjectVectorSearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
     projectReader = createProjectReader({ db, files });
@@ -109,6 +112,8 @@ server.listen(config.port, () => {
   void checkSandbox();
   setInterval(() => { void checkSandbox(); }, SANDBOX_CHECK_MS).unref();
   void checkSlides();
+  browser?.start();
+  void browser?.check();
   runs?.startSweeping();
   sweeper?.start();
   shares?.start();
@@ -120,6 +125,7 @@ const stop = async (signal) => {
   sweeper?.stop();
   shares?.stop();
   // The replies that are running are put down where they are and handed over for the next process to take up.
+  await browser?.stop().catch(() => {});
   const handedOver = await runs?.shutdown().catch(() => 0);
   log('stopped', { handedOver: handedOver || 0 });
   process.exit(0);
