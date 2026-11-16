@@ -65,7 +65,8 @@ test('one browser per user, no second session with the same id, a full queue is 
 
 test('bad input is 400 and nothing is started', async () => {
   const t = setup();
-  assert.throws(() => t.m.create({ sessionId: '--privileged', userId: 'a', screen: {} }), /bad session id/);
+  assert.throws(() => t.m.create({ sessionId: '--privileged', userId: 'a', screen: {} }), (e) => e instanceof HostError && e.status === 400 && /bad session id/.test(e.message));
+  assert.throws(() => t.m.create({ sessionId: undefined, userId: 'a', screen: {} }), (e) => e.status === 400);
   assert.throws(() => t.m.create({ sessionId: id(1), userId: 'a b', screen: {} }), (e) => e.status === 400);
   assert.throws(() => t.m.create({ sessionId: id(1), userId: 'a', screen: { w: 5, h: 5 } }), (e) => e.status === 400);
   assert.deepEqual(t.calls, []);

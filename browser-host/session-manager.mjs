@@ -76,7 +76,7 @@ export function createSessionManager({ adapter, config = {}, now = Date.now, log
 
   function create({ sessionId, userId, screen, hasProfile = false }) {
     if (!cfg.enabled) throw new HostError(503, 'disabled', 'browsers are switched off');
-    checkSessionId(sessionId);
+    try { checkSessionId(sessionId); } catch { throw new HostError(400, 'bad_request', 'bad session id'); }
     if (typeof userId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(userId)) throw new HostError(400, 'bad_request', 'bad user id');
     let size;
     try { size = checkScreen(screen); } catch { throw new HostError(400, 'bad_request', 'bad screen size'); }

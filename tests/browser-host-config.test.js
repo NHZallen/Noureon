@@ -1,0 +1,33 @@
+// The settings of browser-host (browser-host/config.mjs).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { loadConfig } from '../browser-host/config.mjs';
+
+const GOOD = { BROWSER_HOST_SECRET: 'a'.repeat(40), BROWSER_ALLOWED_IPS: '10.0.1.0/24' };
+
+test('good settings, and the defaults', () => {
+  const c = loadConfig(GOOD);
+  assert.deepEqual(c.allowedIps, ['10.0.1.0/24']); assert.equal(c.bind, '127.0.0.1'); assert.equal(c.port, 40010);
+  assert.equal(c.manager.maxSessions, 2); assert.equal(c.manager.idleMs, 3_600_000); assert.equal(c.manager.taskMaxMs, 7_200_000); assert.equal(c.manager.enabled, true);
+  assert.equal(c.paths.seccomp, '/opt/noureon-browser/chromium-seccomp.json');
+  assert.equal(loadConfig({ ...GOOD, BROWSER_ENABLED: 'false' }).manager.enabled, false);
+  assert.deepEqual(loadConfig({ ...GOOD, BROWSER_HOST_SECRET: `${'a'.repeat(32)},${'b'.repeat(32)}` }).secrets.length, 2);
+});
+
+test('a missing or weak secret, or an empty allow-list, stops the start with a plain message that does not print the secret', () => {
+  assert.throws(() => loadConfig({ BROWSER_ALLOWED_IPS: '1.2.3.4' }), /BROWSER_HOST_SECRET is empty/);
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_HOST_SECRET: 'tooshort' }), (e) => /32 characters/.test(e.message) && !e.message.includes('tooshort'));
+  assert.throws(() => loadConfig({ BROWSER_HOST_SECRET: GOOD.BROWSER_HOST_SECRET }), /BROWSER_ALLOWED_IPS is empty/);
+});
+
+test('numbers are checked, and without TLS the service may not listen on a public address', () => {
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_MAX_SESSIONS: '0' }), /BROWSER_MAX_SESSIONS/);
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_MAX_SESSIONS: 'two' }), /BROWSER_MAX_SESSIONS/);
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_HOST_PORT: '80' }), /BROWSER_HOST_PORT/);
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_HOST_BIND: '0.0.0.0' }), /TLS/);
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_HOST_BIND: '84.247.153.81' }), /TLS/);
+  assert.equal(loadConfig({ ...GOOD, BROWSER_HOST_BIND: '172.29.0.1' }).bind, '172.29.0.1');
+  assert.equal(loadConfig({ ...GOOD, BROWSER_HOST_BIND: '0.0.0.0', BROWSER_HOST_TLS_CERT: '/c', BROWSER_HOST_TLS_KEY: '/k' }).bind, '0.0.0.0');
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_HOST_TLS_CERT: '/c' }), /go together/);
+  assert.throws(() => loadConfig({ ...GOOD, BROWSER_APP_DIR: 'relative' }), /absolute/);
+});

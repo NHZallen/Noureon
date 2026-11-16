@@ -84,5 +84,5 @@ export function createVerifier({ secrets, allowedIps = [], allowAnyIp = false, w
     seen.set(nonce, at + nonceTtlMs);
     return { ok: true };
   }
-  return { verify, get remembered() { return seen.size; } };
+  return { verify, addressAllowed, get remembered() { return seen.size; } };
 }

@@ -128,3 +128,11 @@ test('helpers: canonical text and address normalising', () => {
   assert.equal(normalizeAddress('2001:db8::1'), null);
   assert.equal(normalizeAddress('not an ip'), null);
 });
+
+test('the address can be checked on its own (the server does it before it reads any body)', () => {
+  const v = make();
+  assert.equal(v.addressAllowed('203.0.113.7'), true);
+  assert.equal(v.addressAllowed('::ffff:203.0.113.7'), true);
+  assert.equal(v.addressAllowed('198.51.100.9'), false);
+  assert.equal(v.addressAllowed(undefined), false);
+});
