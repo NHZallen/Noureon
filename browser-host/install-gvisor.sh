@@ -8,11 +8,13 @@
 #
 # The default platform of gVisor (systrap) needs no /dev/kvm.
 #
-# Usage:  sudo sh browser-host/install-gvisor.sh [--dry-run]
+# Usage:  sudo sh browser-host/install-gvisor.sh [--dry-run | --verify]
+#   --verify  changes nothing: downloads the published archive, checks its SHA-512 and compares every file of it with what is installed.
 set -eu
 
-DRY=0
+DRY=0; VERIFY=0
 [ "${1:-}" = "--dry-run" ] && DRY=1
+[ "${1:-}" = "--verify" ] && VERIFY=1
 say()  { printf '\n== %s ==\n' "$*"; }
 fail() { printf 'STOP: %s\n' "$*" >&2; exit 1; }
 run()  { if [ "$DRY" = 1 ]; then printf '  [dry-run] %s\n' "$*"; else "$@"; fi; }
@@ -29,6 +31,54 @@ trap 'rm -rf "$WORK"' EXIT
 
 snapshot() { docker ps --no-trunc --format '{{.ID}}' | sort | while read -r id; do docker inspect -f '{{.Id}} {{.State.StartedAt}} {{.RestartCount}}' "$id"; done; }
 
+# Download the published archive, check its SHA-512, open it. Sets SRC to the folder that holds runsc, containerd-shim-runsc-v1 and gvisor-bin/.
+# Google now publishes gVisor as one archive (gvisor.tar.zstd or gvisor.tar.bz2, each with a .sha512), not as a bare runsc file (that address answers 404).
+# runsc needs the files of gvisor-bin/ next to it; "runsc install" can fetch them itself, but that is a temporary best-effort feature and its download is not
+# checked here, so this script installs them from the checked archive instead.
+fetch_archive() {
+  if command -v zstd >/dev/null 2>&1; then ARCHIVE=gvisor.tar.zstd; TARFLAG="--zstd"
+  elif command -v bzip2 >/dev/null 2>&1; then ARCHIVE=gvisor.tar.bz2; TARFLAG="-j"
+  else fail "neither zstd nor bzip2 is installed, so the archive cannot be opened (apt-get install -y zstd)"; fi
+  echo "archive: $ARCHIVE"
+  # Always check that the two addresses exist, also in --dry-run.
+  for f in "$ARCHIVE" "$ARCHIVE.sha512"; do
+    code=$(curl -sI -o /dev/null -w '%{http_code}' -L "$BASE/$f" || true)
+    [ "$code" = 200 ] || fail "$BASE/$f answers $code, not 200. Nothing was changed. Paste this line to the owner."
+    echo "found   $BASE/$f"
+  done
+  if [ "$DRY" = 1 ]; then SRC=""; return 0; fi
+  curl -fsSLo "$WORK/$ARCHIVE" "$BASE/$ARCHIVE"
+  curl -fsSLo "$WORK/$ARCHIVE.sha512" "$BASE/$ARCHIVE.sha512"
+  want=$(awk '{print $1; exit}' "$WORK/$ARCHIVE.sha512")
+  have=$(sha512sum "$WORK/$ARCHIVE" | awk '{print $1}')
+  [ -n "$want" ] && [ "$want" = "$have" ] || fail "the SHA-512 of the archive does not match; nothing was installed"
+  echo "OK    SHA-512 matches"
+  mkdir "$WORK/x" && tar "$TARFLAG" -xf "$WORK/$ARCHIVE" -C "$WORK/x"
+  BIN=$(find "$WORK/x" -type f -name runsc | head -1)
+  [ -n "$BIN" ] || fail "no file named runsc in the archive; contents: $(cd "$WORK/x" && find . -type f | head -10 | tr '\n' ' ')"
+  SRC=$(dirname "$BIN")
+}
+
+if [ "$VERIFY" = 1 ]; then
+  say "Verify: the installed files against the checked archive (nothing is changed)"
+  fetch_archive
+  bad=0
+  for f in runsc containerd-shim-runsc-v1; do
+    [ -f "$SRC/$f" ] || continue
+    if [ ! -f "/usr/local/bin/$f" ]; then echo "MISSING /usr/local/bin/$f"; bad=1
+    elif cmp -s "$SRC/$f" "/usr/local/bin/$f"; then echo "same    /usr/local/bin/$f"
+    else echo "DIFFERS /usr/local/bin/$f"; bad=1; fi
+  done
+  for f in "$SRC"/gvisor-bin/*; do
+    b=$(basename "$f")
+    if [ ! -f "/usr/local/bin/gvisor-bin/$b" ]; then echo "MISSING /usr/local/bin/gvisor-bin/$b"; bad=1
+    elif cmp -s "$f" "/usr/local/bin/gvisor-bin/$b"; then echo "same    /usr/local/bin/gvisor-bin/$b"
+    else echo "DIFFERS /usr/local/bin/gvisor-bin/$b"; bad=1; fi
+  done
+  [ "$bad" = 0 ] && echo "OK    everything installed is the same as the checked archive" || echo "Some files differ or are missing (a newer release than the installed one also shows as DIFFERS). Tell the owner; nothing was changed."
+  exit 0
+fi
+
 say "1. Before: the containers that are running now"
 snapshot > "$WORK/before.txt"
 wc -l < "$WORK/before.txt" | sed 's/^ *//; s/$/ containers running (recorded, to compare after the reload)/'
@@ -40,35 +90,19 @@ else
 fi
 
 say "2. Download runsc and check its checksum"
-# Google now publishes gVisor as one archive (gvisor.tar.zstd or gvisor.tar.bz2, each with a .sha512), not as a bare runsc file (that address answers 404; found on the first real run).
-# The archive is checked against its published SHA-512 before anything is installed; the binary is then taken out of it by name.
-# Pick the archive this machine can open without installing anything: zstd if there is a zstd tool, else bzip2.
-if command -v zstd >/dev/null 2>&1; then ARCHIVE=gvisor.tar.zstd; TARFLAG="--zstd"
-elif command -v bzip2 >/dev/null 2>&1; then ARCHIVE=gvisor.tar.bz2; TARFLAG="-j"
-else fail "neither zstd nor bzip2 is installed, so the archive cannot be opened (apt-get install -y zstd)"; fi
-echo "archive: $ARCHIVE"
 if [ "$ALREADY" = 1 ] && [ -x /usr/local/bin/runsc ]; then
   echo "(already installed: $(/usr/local/bin/runsc --version | head -1))"
 else
-  # Always check that the two addresses exist, also in --dry-run (a dry run that does not look is how the 404 slipped through the first time).
-  for f in "$ARCHIVE" "$ARCHIVE.sha512"; do
-    code=$(curl -sI -o /dev/null -w '%{http_code}' -L "$BASE/$f" || true)
-    [ "$code" = 200 ] || fail "$BASE/$f answers $code, not 200. Nothing was changed. Paste this line to the owner."
-    echo "found   $BASE/$f"
-  done
+  fetch_archive
   if [ "$DRY" = 1 ]; then
-    echo "  [dry-run] download, check the SHA-512, take runsc out of the archive, install it to /usr/local/bin/runsc"
+    echo "  [dry-run] would install runsc, containerd-shim-runsc-v1 and gvisor-bin/* from the checked archive to /usr/local/bin"
   else
-    curl -fsSLo "$WORK/$ARCHIVE" "$BASE/$ARCHIVE"
-    curl -fsSLo "$WORK/$ARCHIVE.sha512" "$BASE/$ARCHIVE.sha512"
-    want=$(awk '{print $1; exit}' "$WORK/$ARCHIVE.sha512")
-    have=$(sha512sum "$WORK/$ARCHIVE" | awk '{print $1}')
-    [ -n "$want" ] && [ "$want" = "$have" ] || fail "the SHA-512 of the archive does not match; nothing was installed"
-    echo "OK    SHA-512 matches"
-    mkdir "$WORK/x" && tar "$TARFLAG" -xf "$WORK/$ARCHIVE" -C "$WORK/x"
-    BIN=$(find "$WORK/x" -type f -name runsc | head -1)
-    [ -n "$BIN" ] || fail "no file named runsc in the archive; contents: $(cd "$WORK/x" && find . -type f | head -10 | tr '\n' ' ')"
-    install -m 0755 "$BIN" /usr/local/bin/runsc
+    install -m 0755 "$SRC/runsc" /usr/local/bin/runsc
+    [ -f "$SRC/containerd-shim-runsc-v1" ] && install -m 0755 "$SRC/containerd-shim-runsc-v1" /usr/local/bin/containerd-shim-runsc-v1
+    if [ -d "$SRC/gvisor-bin" ]; then
+      mkdir -p /usr/local/bin/gvisor-bin
+      for f in "$SRC"/gvisor-bin/*; do install -m 0755 "$f" "/usr/local/bin/gvisor-bin/$(basename "$f")"; done
+    fi
     /usr/local/bin/runsc --version | head -1
   fi
 fi

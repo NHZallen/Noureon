@@ -5,7 +5,8 @@
 #   1. Docker's default seccomp and AppArmor          (what a normal container gets)
 #   2. a seccomp profile that allows user namespaces   (browser-host/chromium-seccomp.json, from Chrome's own recommendation; P1 will refine it)
 #   3. default seccomp, AppArmor off                   (tells whether AppArmor is the blocker; for diagnosis only, never for production)
-#   4. everything off                                  (control: it must work, otherwise the test itself is broken)
+#   0. (before them) can a process in a container create a user namespace at all, with and without seccomp/AppArmor
+#   4. plain Docker with Chromium --no-sandbox        (control: it must work, otherwise the test itself is broken)
 #   5. gVisor (--runtime=runsc), Chromium's own sandbox on   (only if browser-host/install-gvisor.sh was run)
 #   6. gVisor, Chromium with --no-sandbox              (inside gVisor, gVisor is the sandbox; this is the expected production setting if 5 fails)
 # A line "SANDBOX OK" means Chromium started with its sandbox; "FAIL" shows the first lines of the error. Paste the whole output.
@@ -21,22 +22,51 @@ BIN=$(docker run --rm --entrypoint sh "$IMAGE" -c 'command -v chromium || comman
 echo "Chromium binary: $BIN"
 echo "host: $(uname -r), user namespaces: $(cat /proc/sys/user/max_user_namespaces), apparmor userns restriction: $(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo n/a)"
 
+WORK=$(mktemp -d)
+N=0
+cleanup() { docker ps -aq --filter "name=noureon-probe-$$" 2>/dev/null | xargs -r docker rm -f >/dev/null 2>&1 || true; rm -rf "$WORK"; }
+trap cleanup EXIT INT TERM
+
+# 0. Can a process inside a container create a user namespace at all? (the thing Chromium's own sandbox needs; Ubuntu 24.04 restricts it on the host)
+for mode in "default" "seccomp+apparmor off"; do
+  if [ "$mode" = default ]; then opts=""; else opts="--security-opt seccomp=unconfined --security-opt apparmor=unconfined"; fi
+  # shellcheck disable=SC2086
+  if docker run --rm --user 1000:1000 --cap-drop=ALL $opts alpine:3.20 unshare -U -r true >/dev/null 2>&1; then
+    echo "userns OK   0. a container process can create a user namespace ($mode)"
+  else
+    echo "userns NO   0. a container process cannot create a user namespace ($mode)"
+  fi
+done
+
 CFLAGS=""   # extra Chromium flags for the next try
 try() { # label, docker options...
   label=$1; shift
+  N=$((N + 1)); name="noureon-probe-$$-$N"; out="$WORK/out.$N"; t0=$(date +%s)
+  # Output goes to a file (never through a pipe that closes early: a closed pipe killed the docker client and left the container running the first time).
   # shellcheck disable=SC2086
-  out=$(docker run --rm --user 1000:1000 --cap-drop=ALL --shm-size=1g "$@" --entrypoint "$BIN" "$IMAGE" \
-        --headless=new --disable-gpu --disable-dev-shm-usage $CFLAGS --dump-dom about:blank 2>&1 | head -12)
-  if printf '%s' "$out" | grep -q '<html'; then echo "SANDBOX OK  $label"
-  else echo "FAIL        $label"; printf '%s\n' "$out" | sed 's/^/              /' | head -6; fi
+  timeout 120 docker run --name "$name" --user 1000:1000 --cap-drop=ALL --security-opt no-new-privileges --shm-size=1g "$@" --entrypoint "$BIN" "$IMAGE" \
+      --headless=new --disable-gpu --disable-dev-shm-usage --no-first-run $CFLAGS --dump-dom about:blank >"$out" 2>&1
+  rc=$?
+  docker rm -f "$name" >/dev/null 2>&1 || true
+  secs=$(( $(date +%s) - t0 ))
+  if grep -q '<html' "$out"; then echo "SANDBOX OK  $label  (${secs}s)"
+  else
+    [ "$rc" = 124 ] && why="timed out after 120 s" || why="exit code $rc"
+    echo "FAIL        $label  ($why, ${secs}s)"
+    # the first lines that are not the usual harmless noise
+    grep -v 'inotify\|dbus\|cpufreq\|crashpad' "$out" | head -5 | sed 's/^/              /'
+  fi
 }
 try "1. default seccomp + default AppArmor"
 [ -f "$HERE/chromium-seccomp.json" ] && try "2. user-namespace seccomp profile" --security-opt "seccomp=$HERE/chromium-seccomp.json" || echo "SKIP        2. (browser-host/chromium-seccomp.json is not there yet)"
 try "3. default seccomp, AppArmor off (diagnosis only)" --security-opt apparmor=unconfined
-try "4. control: seccomp and AppArmor off (diagnosis only)" --security-opt seccomp=unconfined --security-opt apparmor=unconfined
+CFLAGS="--no-sandbox"; try "4. control: Chromium --no-sandbox in plain Docker (diagnosis only; it must work, otherwise the test itself is broken)"
+CFLAGS=""
 if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
   try "5. gVisor, Chromium sandbox on" --runtime=runsc
   CFLAGS="--no-sandbox"; try "6. gVisor, Chromium --no-sandbox (gVisor is the sandbox)" --runtime=runsc
 else
   echo "SKIP        5, 6. (runsc is not registered; run browser-host/install-gvisor.sh first)"
 fi
+echo
+echo "Left-over probe containers (must be none): $(docker ps -aq --filter "name=noureon-probe-$$" | wc -l | tr -d ' ')"
