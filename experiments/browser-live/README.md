@@ -81,3 +81,37 @@ docker compose -f docker-compose.yml -f variants/small.yml up -d
 - `./measure.sh 60` 的輸出。
 
 觀看的人在台灣：看畫面是否順、打字與移動滑鼠的延遲感（接管）。延遲數字另外用 `browser-host/measure-latency.sh` 量。
+
+## 第七輪：正式機（Contabo，和 Coolify 同一台）上的 gVisor 對照
+
+目的：同一個畫面、同一批操作，量三種執行方式的 CPU 與記憶體，決定瀏覽器容器要不要跑在 gVisor 裡。**這台是正式機，照下面做，不要用上面「啟動」那一節的預設設定**（固定密碼、預設網路、可打到 Coolify）。
+
+前提：`browser-host/install.sh` 已裝好（隔離網段 `noureon-browser`、防火牆、出口代理），`docker compose version` 是 v2.24 以上。
+
+三種組合（每組一個 `-f` 清單，`BASE` 是前兩個檔案）：
+
+| 代號 | 檔案 | 意思 |
+|---|---|---|
+| P | `BASE + prod-host.yml` | 普通 Docker，Chromium `--no-sandbox`（neko 原樣，基準） |
+| G | `BASE + prod-host.yml + runsc.yml` | gVisor，Chromium `--no-sandbox` |
+| GS | `BASE + prod-host.yml + runsc.yml + sandbox-on.yml` | gVisor，Chromium 自己的沙盒開著 |
+
+```
+cd ~/Noureon/experiments/browser-live
+export PUBLIC_IP=<主機公開 IP>
+export NEKO_USER_PW=$(openssl rand -hex 12) NEKO_ADMIN_PW=$(openssl rand -hex 12)
+BASE="-f docker-compose.yml -f variants/h264-43.yml"
+sudo sh ../../browser-host/experiment-allow-only.sh add <Allen 電腦的公開 IP>     # 只讓 Allen 的 IP 連得進來
+docker compose $BASE -f variants/prod-host.yml up -d                             # P；G、GS 見上表
+```
+
+每一組都做同樣四件事（量測前先讓 Allen 在電腦打開 `http://<PUBLIC_IP>:18080`，名字隨便，密碼是 `$NEKO_USER_PW`）：
+
+1. **沒人看**：`./measure.sh 60`。
+2. **一個人看、不動**：Allen 開著畫面，`./measure.sh 60`。
+3. **一個人看、程式在捲動**：`docker run --rm --network container:neko-spike -v "$PWD":/work -w /work node:22-alpine node drive.mjs https://en.wikipedia.org/wiki/Web_browser 60`，同時 `./measure.sh 60`。第 3 項進行中另開一個終端機記錄正式服務有沒有被拖慢：`uptime; vmstat 1 5; docker stats --no-stream`（看 `st` 欄與其他容器的 CPU）。
+4. **有沒有畫面**：Allen 回報畫面流不流暢、延遲、打字與點擊有沒有反應；Hark 記下 `docker logs neko-spike | tail -20` 有沒有錯誤。
+
+每組做完：`docker compose $BASE <同一組檔案> down`，確認 `docker ps` 回到原本的容器，再換下一組。全部做完：`sudo sh ../../browser-host/experiment-allow-only.sh remove`，確認 `status` 顯示 `no experiment rule`。
+
+預期要回答的問題：G 比 P 多吃多少 CPU（如果不到 1.5 倍可接受）；GS 能不能正常開頁面、載入網站；畫面是否通（容器自己送出的 UDP 受瀏覽器網段防火牆限制，這是要驗證的假設）；正式服務有沒有變慢。

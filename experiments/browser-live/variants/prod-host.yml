@@ -16,6 +16,12 @@
 # Keep it up only while measuring (minutes, not hours). Open the page only from your own computer.
 services:
   neko:
+    # Limits for the production machine, so a page that eats the CPU cannot slow Coolify, Traefik and the others (the same numbers as noureon-browser.slice).
+    # Docker's own limits work with both runtimes; the slice is not used here because runsc and the systemd cgroup driver have not been tried together yet.
+    cpus: 2.5
+    mem_limit: 3g
+    memswap_limit: 3g
+    pids_limit: 1024
     ports: !override
       - "18080:8080"
       - "52000-52100:52000-52100/udp"

@@ -1,0 +1,7 @@
+# Chromium WITHOUT --no-sandbox (its own sandbox on). Only meaningful together with variants/runsc.yml: in plain Docker the host refuses the user namespace
+# the sandbox needs (see browser-host/probe-chromium-sandbox.sh). Put it AFTER prod-host.yml.
+services:
+  neko:
+    volumes: !override
+      - ./chromium-proxy-sandbox.conf:/etc/neko/supervisord/chromium.conf:ro
+      - ./policies.json:/etc/chromium/policies/managed/policies.json:ro
