@@ -1,7 +1,7 @@
 // The docker command lines of browser-host (browser-host/docker-args.mjs): every safety flag is pinned, and nothing from outside can add a flag.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
+import { holderRunArgs, browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
 
 const GOOD = {
   sessionId: 'sess-12345678', screen: { w: 1024, h: 768 }, userPassword: 'a'.repeat(24), adminPassword: 'b'.repeat(24),
@@ -94,4 +94,15 @@ test('an optional cgroup parent is added only when given, and checked', () => {
   assert.ok(!browserRunArgs(GOOD).includes('--cgroup-parent'));
   assert.ok(pairs(browserRunArgs({ ...GOOD, cgroupParent: 'noureon-browser.slice' })).includes('--cgroup-parent noureon-browser.slice'));
   assert.throws(() => browserRunArgs({ ...GOOD, cgroupParent: '--privileged' }), /cgroup/);
+});
+
+test('the container that keeps the profile volume mounted has no network, no capabilities and nothing but that volume (read-only)', () => {
+  const args = holderRunArgs({ sessionId: GOOD.sessionId });
+  const text = args.join(' ');
+  assert.ok(text.includes('--network none') && args.includes('--cap-drop=ALL') && args.includes('--read-only') && text.includes('no-new-privileges'));
+  assert.ok(text.includes(`-v ${volumeName(GOOD.sessionId)}:/data:ro`));
+  assert.ok(text.includes('noureon.browser=1') && text.includes(`noureon.session=${GOOD.sessionId}`));
+  for (const bad of ['--privileged', '--pid', '--net=host']) assert.ok(!args.includes(bad), bad);
+  assert.ok(!text.includes('docker.sock'));
+  assert.throws(() => holderRunArgs({ sessionId: '--privileged' }));
 });

@@ -267,6 +267,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // Whatever happens, one line of JSON comes out within 50 s (the host gives up at 60 s and then knows nothing).
   const watchdog = new Promise((resolve) => { setTimeout(() => resolve({ ok: false, error: 'the action took more than 50 s' }), 50_000).unref?.(); });
   try { result = await Promise.race([runAction(JSON.parse(process.argv[2] || '{}'), process.env.DEVTOOLS || 'http://127.0.0.1:9222'), watchdog]); } catch (error) { result = { ok: false, error: String(error?.message || error).slice(0, 300) }; }
-  process.stdout.write(`${JSON.stringify(result)}\n`);
-  process.exit(result.ok ? 0 : 1);
+  // The answer of a screenshot is large; leaving at once cut it off when stdout was a pipe (seen on the real machine: exit 0 and an answer that was not JSON).
+  process.exitCode = result.ok ? 0 : 1;
+  process.stdout.write(`${JSON.stringify(result)}\n`, () => process.exit());
 }

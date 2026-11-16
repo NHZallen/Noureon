@@ -21,8 +21,9 @@ test('the calls become the exact command lines, in the right place', async () =>
   await t.adapter.createVolume(S);
   await t.adapter.loadProfile(S, Buffer.from('archive'));
   await t.adapter.startContainer(S);
-  const [volume, load, start] = t.calls;
+  const [volume, holder, load, start] = t.calls;
   assert.deepEqual(volume.args.slice(0, 2), ['volume', 'create']);
+  assert.equal(holder.args[0], 'run'); assert.ok(holder.args.includes('-d') && holder.args.includes('--network') && holder.args.includes('none'), 'the volume is kept mounted by a small container before anything is unpacked');
   assert.deepEqual(load.args.slice(-5), ['tar', 'xzf', '-', '-C', '/data']);
   assert.equal(load.opts.input.toString(), 'archive', 'the archive goes in on stdin, not on the command line');
   assert.ok(!load.args.join(' ').includes('archive'));
@@ -40,8 +41,10 @@ test('waiting for the browser: ready when healthy, an error when the container s
 });
 
 test('packing: the bytes come back; a result that was too large is a 413; a failure keeps only the first line of docker\'s message', async () => {
-  const t = setup(() => reply('packed-bytes'));
-  assert.equal((await t.adapter.exportProfile(S)).toString(), 'packed-bytes');
+  const packed = `packed-bytes${'.'.repeat(3000)}`;
+  const t = setup(() => reply(packed));
+  assert.equal((await t.adapter.exportProfile(S)).toString(), packed);
+  await assert.rejects(setup(() => reply('x'.repeat(85))).adapter.exportProfile(S), (e) => e instanceof HostError && e.code === 'empty_profile', 'an empty folder packed is not a login state');
   assert.ok(t.calls[0].opts.maxBytes <= 150 * 1024 * 1024);
   await assert.rejects(setup(() => reply('', -1, '', { truncated: true })).adapter.exportProfile(S), (e) => e instanceof HostError && e.status === 413);
   await assert.rejects(setup(() => reply('', 1, 'boom first line\nsecret second line')).adapter.exportProfile(S), (e) => /boom first line/.test(e.message) && !/secret/.test(e.message));
@@ -53,6 +56,9 @@ test('stopping and removing things that are already gone is fine; real failures 
   const goneVolume = setup(() => reply('', 1, 'Error: No such volume: x'));
   await goneVolume.adapter.removeVolume(S);
   await assert.rejects(setup(() => reply('', 1, 'permission denied')).adapter.removeVolume(S), /removing the profile volume failed/);
+  const order = setup();
+  await order.adapter.removeVolume(S);
+  assert.deepEqual(order.calls.map((c) => c.args.slice(0, 2).join(' ')), ['rm -f', 'volume rm'], 'the holder goes first, then the volume');
 });
 
 test('a DevTools action: the answer of the sidecar is returned; a failed action is a 400 with its message; silence is a 502', async () => {

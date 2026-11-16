@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { HostError } from './session-manager.mjs';
 import {
-  browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
+  browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
 } from './docker-args.mjs';
 
 /** Runs `docker <args>`. Resolves { code, stdout: Buffer, stderr: string, truncated }; never rejects. code -1: output too large, -2: timed out, -3: could not run docker. */
@@ -34,7 +34,11 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
   const tolerant = async (args) => { const r = await run(args, { timeoutMs: 30_000 }); return r.code === 0 || /No such (container|volume)/i.test(r.stderr); };
 
   return {
-    async createVolume(s) { must(await run(volumeCreateArgs({ sessionId: s.sessionId, sizeMb: options.volumeMb }), { timeoutMs: 20_000 }), 'creating the profile volume'); },
+    async createVolume(s) {
+      must(await run(volumeCreateArgs({ sessionId: s.sessionId, sizeMb: options.volumeMb }), { timeoutMs: 20_000 }), 'creating the profile volume');
+      // The volume is in memory and lives only while a container has it: the holder keeps it until removeVolume.
+      must(await run(holderRunArgs({ sessionId: s.sessionId }), { timeoutMs: 60_000 }), 'keeping the profile volume');
+    },
     async loadProfile(s, buffer) { must(await run(profileLoadArgs({ sessionId: s.sessionId }), { input: buffer, timeoutMs: 120_000 }), 'unpacking the login state'); },
     async startContainer(s) {
       must(await run(browserRunArgs({
@@ -58,11 +62,16 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
       const r = await run(profileSaveArgs({ sessionId: s.sessionId }), { timeoutMs: 120_000, maxBytes: options.maxProfileBytes ?? 150 * 1024 * 1024 });
       if (r.truncated) throw new HostError(413, 'too_large', 'the login state is too large');
       must(r, 'packing the login state');
+      // A real profile is hundreds of kilobytes (the browser writes many files at its first start); a few dozen bytes is an empty folder, and must never replace a login state that was kept.
+      if (r.stdout.length < 2048) throw new HostError(500, 'empty_profile', 'the login state is empty');
       return r.stdout;
     },
     async stopContainer(s) { if (!(await tolerant(stopArgs(s.sessionId)))) throw new Error('stopping the browser failed'); },
     async removeContainer(s) { if (!(await tolerant(removeArgs(s.sessionId)))) throw new Error('removing the browser failed'); },
-    async removeVolume(s) { if (!(await tolerant(volumeRemoveArgs(s.sessionId)))) throw new Error('removing the profile volume failed'); },
+    async removeVolume(s) {
+      if (!(await tolerant(holderRemoveArgs(s.sessionId)))) throw new Error('removing the profile volume failed');
+      if (!(await tolerant(volumeRemoveArgs(s.sessionId)))) throw new Error('removing the profile volume failed');
+    },
     async action(s, request) {
       const r = await run(sidecarArgs({ sessionId: s.sessionId, scriptPath: paths.cdpScript, action: request }), { timeoutMs: 60_000, maxBytes: 40 * 1024 * 1024 });
       let parsed = null;

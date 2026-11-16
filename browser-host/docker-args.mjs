@@ -36,6 +36,20 @@ export function volumeCreateArgs({ sessionId, sizeMb = 512 }) {
     '--label', 'noureon.browser=1', '--label', `noureon.session=${checkSessionId(sessionId)}`, volumeName(sessionId)];
 }
 
+export const holderName = (sessionId) => `noureon-hold-${checkSessionId(sessionId)}`;
+
+/**
+ * A volume of type tmpfs exists only while some container has it mounted: when the last one stops, its contents are gone (seen on the real machine: the login state
+ * unpacked by the helper vanished before the browser started, and the pack after the browser stopped was empty). This small container does nothing but keep the volume mounted
+ * from before the login state is unpacked until the volume is removed. No network, no capabilities, nothing but that volume.
+ */
+export function holderRunArgs({ sessionId }) {
+  return ['run', '-d', '--name', holderName(sessionId), '--network', 'none', '--cap-drop=ALL', '--security-opt', 'no-new-privileges', '--read-only', '--user', `${BROWSER_UID}:${BROWSER_UID}`,
+    '--memory', '16m', '--pids-limit', '8', '--label', 'noureon.browser=1', '--label', `noureon.session=${checkSessionId(sessionId)}`, '--label', 'noureon.role=holder',
+    '-v', `${volumeName(sessionId)}:/data:ro`, HELPER_IMAGE, 'sleep', '2147483647'];
+}
+export const holderRemoveArgs = (sessionId) => ['rm', '-f', holderName(sessionId)];
+
 const helperBase = (mount) => ['run', '--rm', '-i', '--network', 'none', '--cap-drop=ALL', '--security-opt', 'no-new-privileges', '--read-only', '--user', `${BROWSER_UID}:${BROWSER_UID}`,
   '--memory', '256m', '--pids-limit', '64', '-v', mount, HELPER_IMAGE];
 

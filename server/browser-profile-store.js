@@ -73,7 +73,8 @@ export function createBrowserProfileStore({ db, vault, url, serviceKey, fetchImp
     async save(userId, archive) {
       const path = pathOf(userId);
       const bytes = Buffer.from(archive || []);
-      if (!bytes.length) throw new BrowserProfileError('There is no login state to keep.', 'empty', 400);
+      // A browser's profile is hundreds of kilobytes; a few dozen bytes is an empty folder, and it must never replace a login state that was kept.
+      if (bytes.length < 1024) throw new BrowserProfileError('There is no login state to keep.', 'empty', 400);
       if (bytes.length > maxBytes) throw new BrowserProfileError('The login state is too large to keep.', 'too_large', 413);
       const { blob, keyVersion } = vault.sealBlob(bytes, sealing(userId));
       let response;
