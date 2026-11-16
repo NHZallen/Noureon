@@ -7,7 +7,6 @@
 import { sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
-import { createBrowserSteps } from './browser-steps.js';
 import { createCredentialAskCards } from './credential-ask-card.js';
 import { createNetAskCards } from './net-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
@@ -377,13 +376,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
     connectorRows.set(key, begin(label, { kind: 'connector' }));
   };
 
-  const browserSteps = createBrowserSteps({ begin, endCurrent, list });
-
   // Words the model wrote before a call (it was asked to put that in the call's note) were taken for the answer, and the
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'browser', 'image', 'memory'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image', 'memory'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -404,8 +401,6 @@ export function createSandboxLedger({ document, host, before = null, language = 
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') connectorCall(event);
         else askAboutConnector(event);
-      } else if (event.type === 'browser') {
-        browserSteps(event);
       } else if (event.type === 'image') {
         imageEvent(event);
       } else if (event.type === 'searching') {
