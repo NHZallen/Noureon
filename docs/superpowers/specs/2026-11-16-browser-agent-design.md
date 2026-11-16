@@ -424,7 +424,17 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 ### 12.1 P1 實作筆記（2026-11-16，staging）
 
-**瀏覽器主機端**（`browser-host/`，contract v2 已由 Allen 確認）：服務入口 `main.mjs`、簽章通道 `auth.mjs`／`server.mjs`、容器管理 `session-manager.mjs`／`docker-adapter.mjs`／`docker-args.mjs`、CDP 動作 `cdp-actions.mjs`（`navigate`、`screenshot`、`tabs`、`text`；只允許 http/https）、正式 Chromium 設定 `chromium.conf.template`（沙盒開、無 `--bwsi`、無 `--remote-allow-origins`）與 `policies.json`、`check-origin.mjs`（網頁連不到自己的 DevTools）、安裝腳本 `install.sh`（第 6 步）與 `install-node.sh`（官方 Node 22，核對 SHA-256，不動 apt）。驗收腳本 `e2e-test.sh`（開、截圖、沙盒、權限、登入狀態跨兩次保留、兩個上限、無殘留）與 `e2e-load.sh`（兩個沒人看但被驅動的瀏覽器的負載）。**真機驗收尚未跑**（等 Allen 放行正式安裝）。
+**瀏覽器主機端**（`browser-host/`，contract v2 已由 Allen 確認）：服務入口 `main.mjs`、簽章通道 `auth.mjs`／`server.mjs`、容器管理 `session-manager.mjs`／`docker-adapter.mjs`／`docker-args.mjs`、CDP 動作 `cdp-actions.mjs`（`navigate`、`screenshot`、`tabs`、`text`；只允許 http/https）、正式 Chromium 設定 `chromium.conf.template`（沙盒開、無 `--bwsi`、無 `--remote-allow-origins`）與 `policies.json`、`check-origin.mjs`（網頁連不到自己的 DevTools）、安裝腳本 `install.sh`（第 6 步）與 `install-node.sh`（官方 Node 22，核對 SHA-256，不動 apt）。驗收腳本 `e2e-test.sh`（開、截圖、沙盒、權限、登入狀態跨兩次保留、兩個上限、無殘留）與 `e2e-load.sh`（兩個沒人看但被驅動的瀏覽器的負載）。真機驗收已完成（見下）。
+
+**P1 真機驗收結果（2026-11-16，Contabo，staging 2ed73b2b）**：`install.sh`、`smoke-test.sh`（25/25）、`e2e-test.sh`（全過）、`e2e-load.sh 90`（兩個沒人看但被驅動的瀏覽器：機器 load1 高峰 4.95、上限 12；每個瀏覽器 CPU 大多 0–15%、偶有 30–60% 的尖峰，記憶體 280–420 MB；機器閒置 18–92%，沒有 steal）。§10.6 的 1（沙盒開）、2（網頁連不到自己的 DevTools）、7（容器無多餘權限、不含主機密鑰）通過。登入狀態跨兩次開關保留（持久 cookie）。**P1 的 `BROWSER_MAX_SESSIONS=2` 在沒人看的情況下可行。**
+
+在真機上才發現、沙盒看不到的事（寫下來避免重犯）：
+1. **tmpfs 磁碟區只在有容器掛載時存在。** 最後一個容器停掉，內容就消失（解包用的暫時容器一結束資料就沒了，瀏覽器關閉後再打包也是空的）。解法：每個工作階段多一個只掛著磁碟區的「看守」容器（`holderRunArgs`，無網路、無能力、唯讀、16 MB），到磁碟區被移除為止。打包小於 2 KB 一律拒絕（主機端）、小於 1 KB 一律拒絕（主伺服器端），不能用空檔蓋掉保留的登入狀態。
+2. **映像的偏好設定把 cookie 設成「只在這次使用期間」（`cookies: 4`）**，關閉時寫進資料庫、下次啟動時清掉。解法：政策 `DefaultCookiesSetting: 1`。沒有它，持久登入也留不住。
+3. **有畫面的 Chromium 把自己的視窗（網址列下拉選單、分頁列）也列為 page 目標**，我們的政策還把它們變成錯誤頁。只把一般網頁、about:blank、新分頁頁、載入失敗頁算分頁（`isUserPage`）。
+4. **主機自己連服務時，來源位址隨橋接網路狀態變**（沒有容器時橋接沒有 carrier，來源是公網 IP）。所以主機自己的所有位址都算本機（仍須簽章）。`RestrictAddressFamilies` 要加 `AF_NETLINK`，否則列網卡位址失敗。
+5. 大輸出（截圖）程式印完立刻結束會被截斷，要等輸出送完才結束；動作程式加 50 秒保險；密碼欄位在可存取性樹裡是「值為圓點」的文字框，要靠 DOM 判斷。
+6. **會話 cookie（沒有到期時間）不保留**：Chromium 啟動時會清掉。很多網站的登入是會話 cookie（沒勾「記住我」）。可用 `RestoreOnStartup=1`（還原上次的分頁）換取保留，代價是啟動時會重開上次的分頁；**待 Allen 決定**，建議在 P2 一起試。
 
 **主伺服器端**（只寫模組與測試，尚未接進 `main.js`，P2 才接）：
 - `server/key-vault.js`：新增 `sealBlob`／`openBlob`（檔案、位元組；每人且每個用途一把 HKDF 金鑰，使用者、用途、檔名綁在 AAD；格式 `nb1`，與 `nk2` 文字互不相通）。
