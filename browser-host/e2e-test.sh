@@ -83,12 +83,18 @@ if printf '%s' "$t" | grep -q e2elong && printf '%s' "$t" | grep -q e2eshort; th
   X="$OUT/unpacked"; mkdir -p "$X"; tar xzf "$OUT/profile.tar.gz" -C "$X" 2>/dev/null
   COOKIE_FILES=$(find "$X" -name 'Cookies' -type f 2>/dev/null)
   info "cookie databases in the archive: $(printf '%s' "$COOKIE_FILES" | sed "s#$X/##g" | tr '\n' ' ')"
+  info "  files of the archive that are about cookies, with sizes:"; (cd "$X" && find . \( -iname '*cookie*' -o -name 'Local State' -o -name 'Preferences' \) -type f -exec ls -l --time-style=full-iso {} \; 2>/dev/null | awk '{print "    " $5 " " $6 " " $7 " " $9}')
+  info "  how the cookie values are sealed in the archive (v10 = fixed key, v11 = a key from a keyring): $(for f in $COOKIE_FILES; do grep -a -o 'v1[01]' "$f" | sort | uniq -c | tr '\n' ' '; done)"
+  info "  Local State mentions os_crypt: $(grep -a -c os_crypt "$X/Local State" 2>/dev/null)"
   for f in $COOKIE_FILES; do info "  $(printf '%s' "$f" | sed "s#$X/##"): $(wc -c < "$f") bytes; has e2elong: $(grep -a -c e2elong "$f"); has e2eshort: $(grep -a -c e2eshort "$f"); journal beside it: $([ -e "$f-journal" ] && echo yes || echo no)"; done
   [ -z "$(docker ps -aq --filter "name=$NAME_A")" ] && [ -z "$(docker volume ls -q --filter "name=noureon-profile-$A")" ] && pass "no container and no volume of it is left" || bad "something of the first browser is left"
   r=$(call POST /v1/sessions --json "{\"sessionId\":\"$D\",\"userId\":\"e2e-user-a\",\"screen\":{},\"hasProfile\":true}"); [ "$(field "$(body "$r")" state)" = awaiting_profile ] && pass "a new browser waits for the login state" || bad "unexpected: $r"
   r=$(call PUT "/v1/sessions/$D/profile" --file "$OUT/profile.tar.gz"); [ "$(status "$r")" = 202 ] && pass "the login state was sent" || bad "could not send it: $r"
   wait_ready "$D" && pass "the second browser is ready" || bad "the second browser did not start"
-  # And in the second browser's own folder, as the browser found it:
+  # And in the second browser's own folder, as the browser found it (and what its log says about cookies, the database, and the key):
+  info "  second browser, cookie files: $(docker exec "noureon-browser-$D" sh -c "cd /home/neko/.config/chromium && ls -l --time-style=full-iso Default/Cookies* 2>&1 | awk '{print \$5, \$6, \$7, \$9}'" | tr '\n' ';')"
+  docker exec "noureon-browser-$D" sh -c "grep -a -i -E 'cookie|sqlite|crypt|keyring|password.store|libsecret|kwallet' /var/log/neko/chromium.log 2>/dev/null | tail -12" | cut -c1-220 | sed 's/^/    log: /'
+
   for f in $(docker exec "noureon-browser-$D" find /home/neko/.config/chromium -name Cookies -type f 2>/dev/null); do info "  in the second browser: $f: $(docker exec "noureon-browser-$D" sh -c "wc -c < '$f'; grep -a -c e2elong '$f'" 2>&1 | tr '\n' ' ')(bytes, then lines with e2elong)"; done
   call POST "/v1/sessions/$D/actions" --json '{"type":"navigate","url":"https://httpbin.org/cookies"}' >/dev/null
   t=$(call POST "/v1/sessions/$D/actions" --json '{"type":"text"}')
