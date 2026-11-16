@@ -174,6 +174,20 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 | 同機＋普通 Docker＋`--no-sandbox` | 最弱（只有容器；Chromium 沙盒在這台被主機設定擋掉） | 可接受 |
 | **專用主機＋普通 Docker＋Chromium 沙盒（要在專用主機上解除使用者命名空間限制）** | 以「機器隔離」為主：主機上沒有任何其他服務與密鑰，逃逸的最大影響僅限那台機器 | 可接受 |
 
+### 3.4 neko 映像在我們要的權限限制下（`probe-neko-hardening.sh`，2026-11-16，Contabo）
+
+容器條件：隔離網段 `noureon-browser`、不發布任何埠、`--cap-drop=ALL`、`no-new-privileges`、`make-chromium-seccomp.sh` 的 seccomp、預設 AppArmor、記憶體 3 GB、Chromium **沒有** `--no-sandbox`。
+
+| 層級 | 加回的權限 | 結果 |
+|---|---|---|
+| 1 | 無 | 失敗：supervisord 無法 `chown /var/run/supervisor.sock` |
+| 2 | `SETUID`、`SETGID` | 同上 |
+| 3 | `SETUID SETGID CHOWN DAC_OVERRIDE FOWNER KILL` | **成功**，10 秒內 healthy |
+
+層級 3 之下 `chrome://sandbox` 回報：`Layer 1 Sandbox: Namespace`、PID 命名空間 Yes、網路命名空間 Yes、Seccomp-BPF Yes、**「You are adequately sandboxed.」** Chromium 與 crashpad 以非 root 使用者 `neko` 執行。**這就是 §10.6 第 7 項的證據。**
+
+結論：P1 沿用 neko 映像（§12 P1 的選項 a），容器以 `--cap-drop=ALL` 加回上列六個權限。**這六個權限只有容器內以 root 啟動的 supervisord 持有**，降權後的瀏覽器程序沒有。還沒做的：進一步縮小（試 `SETUID SETGID CHOWN` 加其他單一權限）、唯讀根檔案系統、`--pids-limit`。**不放進這個探測的另一個發現：實驗用的 Chromium 設定帶 `--remote-allow-origins=*`，正式設定不可以帶（見 §10.2，P1 驗證控制器不需要它）。**
+
 ## 4. 架構
 
 ```
@@ -328,6 +342,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 | 9 | 供應鏈：neko 映像、Chromium | 映像固定 digest、定期更新與掃描；政策檔進版本控制 | 必做 |
 | 10 | 邀請碼被暴力猜 | 約 40 位元、每人每小時 5 次失敗、不洩漏原因、`SECURITY DEFINER` 函式收權 | 必做 |
 | 11 | 網頁內容與畫面送給模型供應商 | 隱私政策寫明；接管期間模型不看畫面 | 必做 |
+| 12 | 瀏覽器裡的網頁（惡意網站）連到**同一個瀏覽器的 DevTools**（`127.0.0.1:9222`），用 CDP 讀其他分頁的 cookie 或操作瀏覽器 | 正式設定**不帶 `--remote-allow-origins=*`**（實驗設定帶了，為了方便）；DevTools 只聽容器內的 `127.0.0.1`，不發布到主機；控制器是非瀏覽器程式，不送 Origin，所以不需要放行任何來源（P1 驗證；若控制器的 WebSocket 函式庫非送 Origin 不可，只放行一個網頁不可能出現的專用來源，不用 `*`）；**測試：在瀏覽器裡開一個會嘗試連 `ws://127.0.0.1:9222/` 的測試頁，必須連不上**；Chromium 預設的 Host 標頭檢查（擋 DNS rebinding）不關 | **必做** |
 
 ### 10.3 同機專屬
 
