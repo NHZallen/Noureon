@@ -40,14 +40,32 @@ else
 fi
 
 say "2. Download runsc and check its checksum"
+# Google now publishes gVisor as one archive (gvisor.tar.bz2 + .sha512), not as a bare runsc file (that address answers 404; found on the first real run).
+# The archive is checked against its published SHA-512 before anything is installed; the binary is then taken out of it by name.
+ARCHIVE=gvisor.tar.bz2
 if [ "$ALREADY" = 1 ] && [ -x /usr/local/bin/runsc ]; then
   echo "(already installed: $(/usr/local/bin/runsc --version | head -1))"
 else
-  run curl -fsSLo "$WORK/runsc" "$BASE/runsc"
-  run curl -fsSLo "$WORK/runsc.sha512" "$BASE/runsc.sha512"
-  if [ "$DRY" = 0 ]; then
-    (cd "$WORK" && sha512sum -c runsc.sha512) || fail "checksum of runsc does not match; nothing was installed"
-    install -m 0755 "$WORK/runsc" /usr/local/bin/runsc
+  # Always check that the two addresses exist, also in --dry-run (a dry run that does not look is how the 404 slipped through the first time).
+  for f in "$ARCHIVE" "$ARCHIVE.sha512"; do
+    code=$(curl -sI -o /dev/null -w '%{http_code}' -L "$BASE/$f" || true)
+    [ "$code" = 200 ] || fail "$BASE/$f answers $code, not 200. Nothing was changed. Paste this line to the owner."
+    echo "found   $BASE/$f"
+  done
+  command -v bzip2 >/dev/null 2>&1 || fail "bzip2 is needed to open the archive (apt-get install -y bzip2)"
+  if [ "$DRY" = 1 ]; then
+    echo "  [dry-run] download, check the SHA-512, take runsc out of the archive, install it to /usr/local/bin/runsc"
+  else
+    curl -fsSLo "$WORK/$ARCHIVE" "$BASE/$ARCHIVE"
+    curl -fsSLo "$WORK/$ARCHIVE.sha512" "$BASE/$ARCHIVE.sha512"
+    want=$(awk '{print $1; exit}' "$WORK/$ARCHIVE.sha512")
+    have=$(sha512sum "$WORK/$ARCHIVE" | awk '{print $1}')
+    [ -n "$want" ] && [ "$want" = "$have" ] || fail "the SHA-512 of the archive does not match; nothing was installed"
+    echo "OK    SHA-512 matches"
+    mkdir "$WORK/x" && tar -xjf "$WORK/$ARCHIVE" -C "$WORK/x"
+    BIN=$(find "$WORK/x" -type f -name runsc | head -1)
+    [ -n "$BIN" ] || fail "no file named runsc in the archive; contents: $(cd "$WORK/x" && find . -type f | head -10 | tr '\n' ' ')"
+    install -m 0755 "$BIN" /usr/local/bin/runsc
     /usr/local/bin/runsc --version | head -1
   fi
 fi

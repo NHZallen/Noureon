@@ -95,12 +95,21 @@ run systemctl enable noureon-browser-firewall.service
 run systemctl restart noureon-browser-firewall.service
 
 say "5. The egress proxy (a container on the host network: it must reach WARP on 127.0.0.1 and listen on the bridge address)"
+# The upstream (where the browsers' traffic goes out): either EGRESS_UPSTREAM_SOCKS as written, or the SOCKS5 port of an existing container (EGRESS_UPSTREAM_CONTAINER,
+# e.g. "warp" on the production machine). A container address changes when the container is recreated: run this script again then (it only recreates the proxy).
+UPSTREAM="${EGRESS_UPSTREAM_SOCKS:-}"
+if [ -n "${EGRESS_UPSTREAM_CONTAINER:-}" ]; then
+  up_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$EGRESS_UPSTREAM_CONTAINER" 2>/dev/null | awk '{print $1}')
+  [ -n "$up_ip" ] || fail "the container $EGRESS_UPSTREAM_CONTAINER (EGRESS_UPSTREAM_CONTAINER) has no address; is it running?"
+  UPSTREAM="$up_ip:${EGRESS_UPSTREAM_PORT:-1080}"
+  echo "upstream: container $EGRESS_UPSTREAM_CONTAINER at $UPSTREAM"
+fi
 if [ "$DRY" = 0 ]; then
   docker pull node:22-alpine >/dev/null
   docker rm -f noureon-egress >/dev/null 2>&1 || true
   docker run -d --name noureon-egress --restart unless-stopped --network host \
     --user 65534:65534 --read-only --cap-drop=ALL --security-opt no-new-privileges \
-    --env-file "$ENV_FILE" -e EGRESS_BIND="$BROWSER_NET_GATEWAY" \
+    --env-file "$ENV_FILE" -e EGRESS_BIND="$BROWSER_NET_GATEWAY" -e EGRESS_UPSTREAM_SOCKS="$UPSTREAM" \
     -e EGRESS_EXTRA_BLOCK="${PUBLIC_IP}${EGRESS_EXTRA_BLOCK:+,$EGRESS_EXTRA_BLOCK}" \
     -v "$APP/egress-proxy.mjs:/app/egress-proxy.mjs:ro" node:22-alpine node /app/egress-proxy.mjs >/dev/null
   sleep 2
