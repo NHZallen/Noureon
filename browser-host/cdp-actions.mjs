@@ -5,6 +5,7 @@
 //   actions: navigate {url, tabId?}   screenshot {tabId?, format?: "png"|"jpeg", quality?}   text {tabId?, maxChars?}   tabs {op: "list"|"new"|"close", tabId?, url?}
 //   snapshot {tabId?, maxChars?}  the page as a list of things to act on, each with a number (`ref`) that stays good while the page stays the same document
 //   click {ref, tabId?}   type {ref, text, submit?, tabId?}   press {key, tabId?}   scroll {direction: "up"|"down"|"left"|"right"|"top"|"bottom", tabId?}   back {tabId?}   wait {ms}
+//   download {ref? | url?, maxBytes?, tabId?}  does what makes the page send a file (a click on the thing, or the address) and takes the file itself out of the browser: { name, mime, size, base64 }; the file is not kept in the browser
 //   fill-card {card: {number, expMonth, expYear, expYear4, cvc, name, line1?, …}, origins: ["https://…"], tabId?}  (also on standard input)  types the card into the fields of the page it can find; says which fields it filled and which it did not find, never a value
 //   fill-code {code, origins: ["https://…"], tabId?}  (also on standard input)  types a one-time code into the code field of the page (one box, or one box for each digit); says only how many boxes it filled
 //   fill-login {username?, password?, origins: ["https://…"], tabId?}  (body arrives on standard input: `--stdin`)  fills the visible login fields of the page, only when the page is of one of `origins`; says which
@@ -284,6 +285,69 @@ async function fillCard(cdp, action, targetId, sessionId) {
   return { ok: true, tabId: targetId, origin, filled, missing };
 }
 
+// ---- Files: what the page sends as a download is taken out of the browser before it can be saved there, and handed back (design doc §8.2) ----
+const MAX_DOWNLOAD = 25 * 1024 * 1024;
+const DOWNLOADABLE = /^(application\/(octet-stream|pdf|zip|gzip|x-[\w.+-]+|vnd\.[\w.+-]+|msword|rtf|epub\+zip)|audio\/|video\/|text\/csv|text\/calendar|image\/(vnd|heic|tiff))/i;
+const headerOf = (headers, name) => (headers || []).find((h) => h.name.toLowerCase() === name)?.value || '';
+const isDownloadResponse = (headers) => /attachment/i.test(headerOf(headers, 'content-disposition')) || DOWNLOADABLE.test(headerOf(headers, 'content-type'));
+/** The name of a downloaded file: the one the server says, else the last part of the address; never a path. */
+export function downloadName(headers, url) {
+  const disposition = headerOf(headers, 'content-disposition');
+  let name = '';
+  const star = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(disposition);
+  if (star) { try { name = decodeURIComponent(star[1].trim()); } catch { name = star[1]; } }
+  if (!name) name = /filename\s*=\s*"?([^";]+)"?/.exec(disposition)?.[1] || '';
+  if (!name) { try { name = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() || ''); } catch { name = ''; } }
+  // eslint-disable-next-line no-control-regex
+  name = name.split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f<>:"|?*]/g, '_').replace(/^\.+/, '').trim().slice(0, 120);
+  return name || 'download';
+}
+
+async function downloadFile(cdp, action, targetId, sessionId) {
+  const limit = Math.min(MAX_DOWNLOAD, Math.max(1024, Math.floor(Number(action.maxBytes)) || MAX_DOWNLOAD));
+  if (!action.ref && !action.url) throw new Error('say what to click (ref) or which address (url)');
+  const url = action.url ? checkNavigableUrl(action.url) : '';
+  await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
+  await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Response' }] }, sessionId);
+  let found = null;
+  let tooLarge = false;
+  const seen = new Set();
+  const handle = async () => {
+    for (const event of cdp.events) {
+      if (event.method !== 'Fetch.requestPaused' || event.sessionId !== sessionId || seen.has(event.params.requestId)) continue;
+      seen.add(event.params.requestId);
+      const { requestId, responseHeaders, request, responseStatusCode } = event.params;
+      if (!found && responseStatusCode >= 200 && responseStatusCode < 300 && isDownloadResponse(responseHeaders)) {
+        const declared = Number(headerOf(responseHeaders, 'content-length')) || 0;
+        if (declared > limit) { tooLarge = true; await cdp.send('Fetch.failRequest', { requestId, errorReason: 'Aborted' }, sessionId).catch(() => {}); continue; }
+        found = { requestId, headers: responseHeaders, url: request.url };
+        continue;
+      }
+      await cdp.send('Fetch.continueResponse', { requestId }, sessionId).catch(() => cdp.send('Fetch.continueRequest', { requestId }, sessionId).catch(() => {}));
+    }
+  };
+  try {
+    if (action.ref) {
+      const { x, y } = await centerOf(cdp, sessionId, checkRef(action.ref));
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }, sessionId);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }, sessionId);
+    } else {
+      cdp.send('Page.navigate', { url }, sessionId, 30_000).catch(() => {}); // a download "fails" to navigate
+    }
+    for (let i = 0; i < 120 && !found && !tooLarge; i += 1) { await handle(); if (!found && !tooLarge) await wait(250); }
+    if (tooLarge) throw new Error(`the file is larger than ${Math.round(limit / 1024 / 1024)} MB`);
+    if (!found) throw new Error('the page did not send a file');
+    const body = await cdp.send('Fetch.getResponseBody', { requestId: found.requestId }, sessionId, 40_000);
+    const raw = body.base64Encoded ? Buffer.from(body.body, 'base64') : Buffer.from(body.body, 'utf8');
+    await cdp.send('Fetch.failRequest', { requestId: found.requestId, errorReason: 'Aborted' }, sessionId).catch(() => {});
+    if (raw.length > limit) throw new Error(`the file is larger than ${Math.round(limit / 1024 / 1024)} MB`);
+    return { ok: true, tabId: targetId, name: downloadName(found.headers, found.url), mime: headerOf(found.headers, 'content-type').split(';')[0].trim().toLowerCase() || 'application/octet-stream', size: raw.length, base64: raw.toString('base64') };
+  } finally {
+    await cdp.send('Fetch.disable', {}, sessionId).catch(() => {});
+  }
+}
+
 async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'snapshot') {
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
@@ -305,6 +369,7 @@ async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'fill-login') return fillLogin(cdp, action, targetId, sessionId);
   if (action.type === 'fill-code') return fillCode(cdp, action, targetId, sessionId);
   if (action.type === 'fill-card') return fillCard(cdp, action, targetId, sessionId);
+  if (action.type === 'download') return downloadFile(cdp, action, targetId, sessionId);
   if (action.type === 'click') {
     const ref = checkRef(action.ref);
     const { x, y } = await centerOf(cdp, sessionId, ref);
@@ -400,7 +465,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       await wait(Math.min(10_000, Math.max(0, Math.floor(Number(action.ms)) || 1000)));
       return { ok: true };
     }
-    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code', 'fill-card'].includes(action.type)) {
+    if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code', 'fill-card', 'download'].includes(action.type)) {
       const targetId = await pickTab(cdp, action.tabId);
       const sessionId = await attach(cdp, targetId);
       await cdp.send('Page.enable', {}, sessionId);

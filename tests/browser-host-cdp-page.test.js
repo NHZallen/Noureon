@@ -244,3 +244,59 @@ test('a card is typed into the fields of the page, only on the site it is for; t
   assert.deepEqual(split.missing.sort(), ['cvc', 'name']);
   await assert.rejects(act({ type: 'fill-card', origins: ['http://x.example'], card: FULL_CARD }), /does not say which site/);
 });
+
+import { downloadName } from '../browser-host/cdp-actions.mjs';
+
+test('the name of a downloaded file: what the server says, never a path, never odd characters', () => {
+  const h = (value) => [{ name: 'Content-Disposition', value }];
+  assert.equal(downloadName(h('attachment; filename="report 2026.pdf"'), 'https://x.example/a/b'), 'report 2026.pdf');
+  assert.equal(downloadName(h("attachment; filename*=UTF-8''%E5%A0%B1%E5%91%8A.pdf"), 'https://x.example/'), '報告.pdf');
+  assert.equal(downloadName(h('attachment; filename="../../etc/passwd"'), 'https://x.example/'), 'passwd');
+  assert.equal(downloadName([], 'https://x.example/files/data.csv?x=1'), 'data.csv');
+  assert.equal(downloadName(h('attachment; filename="a<b>:c|d.txt"'), 'https://x.example/'), 'a_b__c_d.txt');
+  assert.equal(downloadName([], 'https://x.example/'), 'download');
+  assert.equal(downloadName(h('attachment; filename=".hidden"'), 'https://x.example/'), 'hidden');
+});
+
+const DL_PAGE = '<!doctype html><title>Files</title><a href="/file.bin">Get the file</a> <a href="/big.bin">Get the big file</a> <a href="/page2">A page</a><button onclick="location.href=\'/file.bin\'">Download button</button>';
+
+test('a file the page sends is taken out of the browser with its name and size, a page is not a file, too large is refused, and nothing is saved in the browser', { skip: chromium() && spawnSync('openssl', ['version']).status === 0 ? false : 'no Chromium or no openssl here' }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-dl-'));
+  const keyPath = path.join(dir, 'key.pem'); const certPath = path.join(dir, 'cert.pem');
+  spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certPath, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'], { stdio: 'ignore' });
+  const payload = Buffer.from('hello,world\n1,2\n'.repeat(500));
+  const site = https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }, (req, res) => {
+    if (req.url === '/file.bin') { res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="data 1.csv"', 'content-length': payload.length }); res.end(payload); return; }
+    if (req.url === '/big.bin') { res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': 5 * 1024 * 1024 }); res.end(Buffer.alloc(5 * 1024 * 1024)); return; }
+    res.writeHead(200, { 'content-type': 'text/html' }); res.end(req.url === '/page2' ? '<title>Two</title>' : DL_PAGE);
+  });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-dl-profile-'));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const browser = spawn(chromium(), ['--headless=new', '--no-sandbox', '--ignore-certificate-errors', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', detached: true });
+  t.after(async () => {
+    const gone = new Promise((resolve) => browser.once('exit', resolve));
+    try { process.kill(-browser.pid, 'SIGKILL'); } catch { browser.kill('SIGKILL'); }
+    await gone;
+    site.closeAllConnections();
+    await new Promise((resolve) => site.close(resolve));
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
+  });
+  const devtools = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  const act = (action) => runAction(action, devtools);
+  const origin = `https://127.0.0.1:${site.address().port}`;
+  await act({ type: 'navigate', url: `${origin}/` });
+  const look = await act({ type: 'snapshot' });
+  const link = look.elements.find((e) => e.name === 'Get the file');
+  const got = await act({ type: 'download', ref: link.ref });
+  assert.equal(got.name, 'data 1.csv'); assert.equal(got.size, payload.length); assert.equal(got.mime, 'application/octet-stream');
+  assert.equal(Buffer.from(got.base64, 'base64').equals(payload), true);
+  const viaUrl = await act({ type: 'download', url: `${origin}/file.bin` });
+  assert.equal(viaUrl.size, payload.length);
+  await assert.rejects(act({ type: 'download', ref: look.elements.find((e) => e.name === 'Get the big file').ref, maxBytes: 1024 * 1024 }), /larger than/);
+  await assert.rejects(act({ type: 'download', ref: look.elements.find((e) => e.name === 'A page').ref }), /did not send a file/);
+  await assert.rejects(act({ type: 'download' }), /say what to click/);
+  const again = await act({ type: 'snapshot' });
+  assert.equal(again.title, 'Two', 'the page that was not a file opened as a page, and the browser still works after downloads');
+});
