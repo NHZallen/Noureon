@@ -16,7 +16,10 @@ const manager = createSessionManager({ adapter, config: config.manager, log });
 // A program on this machine (the installer's health check, the acceptance scripts) shows as its source whichever address of the machine the kernel picks: the bridge address while
 // the bridge is up, the public address while no browser is running and the bridge has no carrier (seen on the real machine, 2026-11-16). So the machine's own addresses count as "this machine".
 // Nobody outside can have one of them as a source (the kernel drops such packets), the service listens on the private bridge only, and every request still has to be signed.
-const isLocalAddress = (ip) => Object.values(os.networkInterfaces()).flat().some((entry) => entry && entry.family === 'IPv4' && entry.address === ip);
+// (Listing the addresses asks the kernel over netlink, which the service unit must allow; when it cannot be asked, nothing counts as local and the list alone decides.)
+const isLocalAddress = (ip) => {
+  try { return Object.values(os.networkInterfaces()).flat().some((entry) => entry && entry.family === 'IPv4' && entry.address === ip); } catch (error) { log({ ev: 'interfaces_unreadable', why: String(error?.message || error).slice(0, 120) }); return false; }
+};
 const verifier = createVerifier({ secrets: config.secrets, allowedIps: config.allowedIps, isLocalAddress });
 const server = createServer({ manager, verifier, maxProfileBytes: config.manager.maxProfileBytes, log, tls: config.tls ? { cert: (await import('node:fs')).readFileSync(config.tls.cert), key: (await import('node:fs')).readFileSync(config.tls.key) } : null });
 
