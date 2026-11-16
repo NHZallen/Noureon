@@ -84,9 +84,8 @@ export function startBrowserAgentMenu({ document, configAccess, i18n, getActiveC
   const language = () => { try { return configAccess.getConfig().uiLanguage || 'zh-TW'; } catch { return 'zh-TW'; } };
   const text = (key) => String((i18n[language()] || i18n['zh-TW'] || {})[key] ?? key);
   const menu = createBrowserAgentMenu({ document, getActiveConversation, normalizeConversationModel, text, client, showNotification });
-  const opener = document.getElementById('add-file-btn');
-  // In the capture phase, so the row is ready before the handlers that open the menu or the sheet run.
-  opener?.addEventListener('click', () => { menu.sync(); }, true);
+  // On the document and in the capture phase, so the row is ready before anything that opens the menu or the sheet runs (the sheet of a phone stops the press at the container of the button, so a listener on the button itself never hears it).
+  document.addEventListener('click', (event) => { if (event.target?.closest?.('#add-file-btn')) menu.sync(); }, true);
   menu.sync();
   return menu;
 }

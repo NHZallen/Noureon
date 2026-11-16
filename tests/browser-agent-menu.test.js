@@ -85,7 +85,13 @@ test('the row is brought up to date when the plus button is pressed, before the 
   const menu = startBrowserAgentMenu({ document: t.document, configAccess: { getConfig: () => ({ uiLanguage: 'en' }) }, i18n: { en }, getActiveConversation: () => ({ id: 'c1' }), normalizeConversationModel: () => ({ provider: 'gemini', id: 'gemini-2.5-flash', name: 'Gemini' }), showNotification: () => {}, client: { getAccess: async () => ({ ok: true, allowed: true }) } });
   assert.ok(menu.toggle);
   t.document.getElementById(BROWSER_MENU_BUTTON_ID).remove();
-  t.document.getElementById('add-file-btn').click();
+  // The sheet of a phone stops the press at the container of the button: the row is still made ready first.
+  const container = t.document.createElement('div');
+  container.id = 'file-input-container';
+  const opener = t.document.getElementById('add-file-btn');
+  opener.replaceWith(container); container.append(opener);
+  container.addEventListener('click', (event) => event.stopPropagation(), true);
+  opener.click();
   assert.ok(t.document.getElementById(BROWSER_MENU_BUTTON_ID), 'made again when the plus is pressed');
 });
 
