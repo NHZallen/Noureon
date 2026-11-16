@@ -20,6 +20,8 @@ export const COMPOSER_TOOL_SHAPES = Object.freeze({
   // Graduation cap with its tassel.
   learning: '<path d="m2.8 9.6 9.2-4.4 9.2 4.4L12 14zM6.6 11.6v4.2c0 1.1 2.4 2.5 5.4 2.5s5.4-1.4 5.4-2.5v-4.2M21.2 9.6v5.2"/>',
   // Magnifying glass with a rising line in the lens: digging deeper into a subject.
+  // A browser window: the frame, the bar of the address and a pointer.
+  browserAgent: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9h17"/><path d="m10 12.5 5 2.3-2.2.8-.8 2.2z"/>',
   deepResearch: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1M7.6 12.4l2-2.2 1.5 1.3 2.3-3"/>'
 });
 

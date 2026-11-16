@@ -38,7 +38,14 @@ export default {
         baCopy: '複製',
         baCopied: '已複製',
         baCodesNote: '每人兩組，可以送給想一起試的朋友。',
-        baNever: '從未'
+        baNever: '從未',
+        baMenuLabel: '瀏覽器代理',
+        baMenuDescription: '讓 AI 用真實瀏覽器操作網站',
+        baMenuNoVision: '這個模型看不到圖片，不能使用瀏覽器代理。',
+        baMenuNeedInvite: '需要邀請碼才能使用瀏覽器代理。請到「設定 → 瀏覽器代理」輸入邀請碼。',
+        baMenuOn: '已為這個對話開啟瀏覽器代理。',
+        baMenuOff: '已關閉這個對話的瀏覽器代理。',
+        baMenuUnavailable: '現在無法確認瀏覽器代理的使用權，請稍後再試。'
     },
     en: {
         baNav: 'Browser agent',
@@ -78,7 +85,14 @@ export default {
         baCopy: 'Copy',
         baCopied: 'Copied',
         baCodesNote: 'Two for each person; give them to friends who want to try it.',
-        baNever: 'never'
+        baNever: 'never',
+        baMenuLabel: 'Browser agent',
+        baMenuDescription: 'Let the AI work websites in a real browser',
+        baMenuNoVision: 'This model cannot see pictures, so it cannot use the browser agent.',
+        baMenuNeedInvite: 'An invite code is needed to use the browser agent. Enter one in Settings → Browser agent.',
+        baMenuOn: 'The browser agent is on for this conversation.',
+        baMenuOff: 'The browser agent is off for this conversation.',
+        baMenuUnavailable: 'Cannot check your access to the browser agent right now. Try again in a moment.'
     },
     fr: {
         baNav: 'Agent navigateur',
@@ -118,7 +132,14 @@ export default {
         baCopy: 'Copier',
         baCopied: 'Copié',
         baCodesNote: 'Deux par personne ; donnez-les à des amis qui veulent essayer.',
-        baNever: 'jamais'
+        baNever: 'jamais',
+        baMenuLabel: 'Agent navigateur',
+        baMenuDescription: 'Laisser l’IA utiliser des sites dans un vrai navigateur',
+        baMenuNoVision: 'Ce modèle ne voit pas les images ; il ne peut pas utiliser l’agent navigateur.',
+        baMenuNeedInvite: 'Un code d’invitation est nécessaire pour utiliser l’agent navigateur. Saisissez-le dans Paramètres → Agent navigateur.',
+        baMenuOn: 'L’agent navigateur est activé pour cette conversation.',
+        baMenuOff: 'L’agent navigateur est désactivé pour cette conversation.',
+        baMenuUnavailable: 'Impossible de vérifier votre accès à l’agent navigateur pour le moment. Réessayez dans un instant.'
     },
     ru: {
         baNav: 'Браузерный агент',
@@ -158,7 +179,14 @@ export default {
         baCopy: 'Копировать',
         baCopied: 'Скопировано',
         baCodesNote: 'По два на человека; отдайте их друзьям, которые хотят попробовать.',
-        baNever: 'никогда'
+        baNever: 'никогда',
+        baMenuLabel: 'Браузерный агент',
+        baMenuDescription: 'ИИ работает с сайтами в настоящем браузере',
+        baMenuNoVision: 'Эта модель не видит изображения, поэтому не может использовать браузерный агент.',
+        baMenuNeedInvite: 'Для браузерного агента нужен код приглашения. Введите его в «Настройки → Браузерный агент».',
+        baMenuOn: 'Браузерный агент включён для этого разговора.',
+        baMenuOff: 'Браузерный агент выключен для этого разговора.',
+        baMenuUnavailable: 'Сейчас не удаётся проверить доступ к браузерному агенту. Попробуйте чуть позже.'
     },
     es: {
         baNav: 'Agente de navegador',
@@ -198,6 +226,13 @@ export default {
         baCopy: 'Copiar',
         baCopied: 'Copiado',
         baCodesNote: 'Dos por persona; dáselos a amigos que quieran probarlo.',
-        baNever: 'nunca'
+        baNever: 'nunca',
+        baMenuLabel: 'Agente de navegador',
+        baMenuDescription: 'Deja que la IA use sitios web en un navegador real',
+        baMenuNoVision: 'Este modelo no ve imágenes, así que no puede usar el agente de navegador.',
+        baMenuNeedInvite: 'Hace falta un código de invitación para usar el agente de navegador. Introdúcelo en Ajustes → Agente de navegador.',
+        baMenuOn: 'El agente de navegador está activado en esta conversación.',
+        baMenuOff: 'El agente de navegador está desactivado en esta conversación.',
+        baMenuUnavailable: 'No se puede comprobar ahora tu acceso al agente de navegador. Inténtalo de nuevo en un momento.'
     }
 };

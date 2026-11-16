@@ -20,6 +20,7 @@ const TOOLS = Object.freeze([
   ['web-search-popover-btn', 'webSearch'],
   ['model-council-menu-btn', 'modelCouncil'],
   ['research-mode-menu-btn', 'deepResearch'],
+  ['browser-agent-menu-btn', 'browserAgent'],
   ['learning-mode-btn', 'learning']
 ]);
 const PAGE_SIZES = Object.freeze({ home: 'medium', design: 'large', ratio: 'medium', resolution: 'medium', advanced: 'large' });

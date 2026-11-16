@@ -217,8 +217,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         import('/src/app/runtime/share/start-shares.js').then(({ startShares }) => startShares({ document, configAccess: runtimeConfigAccess, dataStore: runtimeAppDataStore, i18n, saveAppData: (...args) => saveAppData(...args), showNotification: (...args) => showNotification(...args), showCustomConfirm: (...args) => showCustomConfirm(...args), renderSidebar: () => renderSidebar(), openConversation: (id) => loadChat(id) })).catch((error) => console.warn('Sharing did not start.', error));
         // The usage rings of the providers (OpenCode Go, OpenRouter) above the Extensions entry; each only with its key; loaded after the page.
         import('/src/app/ui/provider-quota/start-quota.js').then(({ startProviderQuota }) => startProviderQuota({ document, getApiKeyForProvider, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The usage rings did not start.', error));
-        // The rail of icons and the keyboard shortcuts of a computer (ui/desktop/); loaded after the page.
-        import('/src/app/ui/desktop/start-desktop.js').then(({ startDesktop }) => startDesktop({ document, configAccess: runtimeConfigAccess, saveConfig: () => saveConfig(), i18n, toggleSidebar: (...args) => toggleSidebar(...args) })).catch((error) => console.warn('The desktop interface did not start.', error));
+        // The rail, the keyboard shortcuts and the browser agent row of the ＋ menu (ui/desktop/); loaded after the page.
+        import('/src/app/ui/desktop/start-desktop.js').then(({ startDesktop }) => startDesktop({ document, configAccess: runtimeConfigAccess, saveConfig: () => saveConfig(), i18n, toggleSidebar: (...args) => toggleSidebar(...args), getActiveConversation: () => getActiveConversation(), normalizeConversationModel, showNotification: (...a) => showNotification(...a) })).catch((error) => console.warn('The desktop interface did not start.', error));
         function normalizeConversationModel(conv) {
             if (!conv) return null;
             const canonicalModelId = getCanonicalModelId(conv.model);
