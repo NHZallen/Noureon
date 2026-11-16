@@ -146,6 +146,9 @@ export function createEgressProxy(options = {}) {
       const headers = { ...req.headers };
       delete headers['proxy-connection']; delete headers['proxy-authorization'];
       const outgoing = http.request({ method: req.method, path: `${url.pathname}${url.search}`, headers, createConnection: () => upstream });
+      // A SOCKS upstream hands back a socket that is paused on purpose (see socks5Connect); Node's http client does not wake a socket that was paused by hand, so
+      // wake it once the client has attached its listeners (the 'socket' event comes after that). Without this, plain http through WARP never answered.
+      outgoing.on('socket', (socket) => socket.resume());
       outgoing.on('response', (incoming) => { res.writeHead(incoming.statusCode, incoming.headers); incoming.pipe(res); });
       outgoing.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); });
       req.pipe(outgoing);

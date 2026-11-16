@@ -164,3 +164,53 @@ test('the SOCKS5 client reports a refusal from the upstream', async () => {
   await assert.rejects(socks5Connect({ proxyHost: '127.0.0.1', proxyPort: fake.address().port, ip: '93.184.216.34', port: 443 }), /code 5/);
   fake.close();
 });
+
+// Cloudflare WARP's proxy mode is a SOCKS5 upstream. Plain http used to hang through it: the SOCKS socket is paused (so no bytes are lost between the handshake and
+// the first reader), and Node's http client does not wake a socket that was paused on purpose. (Found on the production machine; https was fine because CONNECT pipes.)
+async function socksUpstreamToWeb() {
+  const web = http.createServer((req, res) => res.end(`via socks ${req.url}`));
+  await new Promise((resolve) => web.listen(0, '127.0.0.1', resolve));
+  const seen = [];
+  const socks = net.createServer((client) => {
+    let stage = 0; let buf = Buffer.alloc(0);
+    client.on('data', (chunk) => {
+      if (stage === 2) return;
+      buf = Buffer.concat([buf, chunk]);
+      if (stage === 0 && buf.length >= 3) { client.write(Buffer.from([5, 0])); buf = buf.subarray(3); stage = 1; }
+      if (stage === 1 && buf.length >= 10) {
+        seen.push(`${buf[4]}.${buf[5]}.${buf[6]}.${buf[7]}:${(buf[8] << 8) | buf[9]}`);
+        stage = 2;
+        const rest = buf.subarray(10);
+        const back = net.connect({ host: '127.0.0.1', port: web.address().port }, () => {
+          client.write(Buffer.from([5, 0, 0, 1, 0, 0, 0, 0, 0, 0]));
+          if (rest.length) back.write(rest);
+          client.pipe(back); back.pipe(client);
+        });
+        back.on('error', () => client.destroy()); client.on('error', () => back.destroy());
+      }
+    });
+  });
+  await new Promise((resolve) => socks.listen(0, '127.0.0.1', resolve));
+  const close = async () => { for (const server of [socks, web]) { server.closeAllConnections?.(); await new Promise((resolve) => server.close(resolve)); } };
+  return { port: socks.address().port, seen, close };
+}
+
+test('plain http works through a SOCKS5 upstream (WARP), not only https', async () => {
+  const up = await socksUpstreamToWeb();
+  const proxy = createEgressProxy({ log: () => {}, lookup: async () => ['93.184.216.34'], upstreamSocks: `127.0.0.1:${up.port}` });
+  await new Promise((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  try {
+    const result = await new Promise((resolve) => {
+      const request = http.request({ host: '127.0.0.1', port: proxy.address().port, method: 'GET', path: 'http://example.com/x', headers: { host: 'example.com' } }, (response) => {
+        let text = ''; response.on('data', (chunk) => { text += chunk; }); response.on('end', () => resolve({ status: response.statusCode, text }));
+      });
+      const giveUp = setTimeout(() => { request.destroy(); resolve({ status: 0, text: 'timeout' }); }, 3000);
+      request.on('error', () => { clearTimeout(giveUp); resolve({ status: 0, text: 'error' }); });
+      request.end();
+    });
+    assert.deepEqual(result, { status: 200, text: 'via socks /x' });
+    assert.deepEqual(up.seen, ['93.184.216.34:80']);
+  } finally {
+    proxy.closeAllConnections?.(); await new Promise((resolve) => proxy.close(resolve)); await up.close();
+  }
+});
