@@ -39,6 +39,9 @@ i=0; while [ "$i" -lt 60 ]; do call GET "/v1/sessions/$ID" | grep -q '"state":"r
 call POST "/v1/sessions/$ID/actions" --json '{"type":"navigate","url":"https://httpbin.org/response-headers?Set-Cookie=e2elong%3De2evalue%3B%20Max-Age%3D86400%3B%20Path%3D%2F"}' >/dev/null
 has_cookie "0) just set"; sleep 3; dump "0) just set"
 
+echo "== how this browser is set up (nothing secret in any of it)"
+docker exec "$NAME" sh -c 'echo "policy files:"; ls -la /etc/chromium/policies/managed/ /etc/chromium.d/ 2>&1 | cut -c1-140; echo; echo "the browser process:"; ps -eo args | grep "[u]sr/lib/chromium/chromium" | grep -v -e "--type=" | head -1 | tr " " "\n" | grep -- "^--" | tr "\n" " " | cut -c1-1200; echo; echo; echo "content settings about cookies in Preferences:"; grep -a -o "\"default_content_setting_values\":{[^}]*}" /home/neko/.config/chromium/Default/Preferences | cut -c1-400; grep -a -o "\"cookie_controls_mode\":[0-9]" /home/neko/.config/chromium/Default/Preferences; echo; echo "all policy files, joined:"; cat /etc/chromium/policies/managed/*.json 2>/dev/null | tr -d "\n " | cut -c1-2500; echo' 2>&1 | sed 's/^/  /'
+
 echo "== D) Chromium alone is stopped (SIGINT) and started again by supervisord, in the same container"
 docker exec "$NAME" sh -c 'pkill -INT -o -x chromium; echo "signal sent: $?"' 2>&1 | sed 's/^/  /'
 sleep 8; wait_action && echo "  the browser answers again" || echo "  the browser did NOT come back"
