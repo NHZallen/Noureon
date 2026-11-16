@@ -70,7 +70,7 @@
 - 瀏覽器放在**原本的 Contabo VPS**（和正式站同一台，vmi3631014，亞洲，6 vCPU／12 GB，可用約 7.3 GB）。【定，Allen 2026-11-17，推翻先前「另一台 AWS 俄勒岡 4 vCPU／8 GB」的決定】
 - **隔離方式【定，Allen 2026-11-16，第九輪之後】：不租專用主機；不用 gVisor；靠 Chromium 自己的沙盒**，加上專用網段與預設拒絕的防火牆、唯一出口是檢查過的出口代理、非 root、`--cap-drop=ALL`、`no-new-privileges`、不掛主機目錄、資源上限（`noureon-browser.slice`，只有權重與記憶體上限，沒有 CPU 硬配額）。原因：第七到九輪證明 gVisor 讓手感明顯變差、CPU 多 40–50%、主機壓力大（§3.1–§3.3）。gVisor 已裝在主機上但**不使用**（要不要移除另議）。
 - **要讓 Chromium 自己的沙盒在普通 Docker 下起得來**，需要讓容器能建立使用者命名空間：先換 seccomp 規則（`make-chromium-seccomp.sh`，Docker 預設規則加五個系統呼叫，不動主機），不夠才加只給瀏覽器容器用的 AppArmor 設定（動主機，要先經 Allen 同意）。**不放寬主機層級的 `apparmor_restrict_unprivileged_userns`。**
-- **接受的殘餘風險（Allen 已決定，Sun 審 §10 時要看）：** 同機＋無 gVisor，所以 Chromium 沙盒被繞過後再加一個核心漏洞，就會碰到正式主機；容器內能建立使用者命名空間也多暴露一些核心功能。緩解：上述容器加固、每人一個容器、任務有時限、主機上沒有放瀏覽器用的密鑰、防火牆與出口代理。**容量：全站同時只 1 個被看的瀏覽器**（一個被看的工作階段吃 2–3 核）；使用者變多就要重新考慮專用主機。
+- **接受的殘餘風險（Allen 已決定，Sun 審 §10 時要看）：** 同機＋無 gVisor，所以 Chromium 沙盒被繞過後再加一個核心漏洞，就會碰到正式主機；容器內能建立使用者命名空間也多暴露一些核心功能。緩解：上述容器加固、每人一個容器、任務有時限、主機上沒有放瀏覽器用的密鑰、防火牆與出口代理。**容量（Allen 2026-11-16 決定：全站同時要能開 2 個瀏覽器，推翻我建議的 1 個）：** 一個**被看的**工作階段吃 2–3 核（高峰 3.4–3.9 核），沒人看的只吃約 0.05 核。所以「同時 2 個」指**兩個瀏覽器同時在跑**，其中**同時被看（開著直播畫面）的預設最多 1 個**【預設，P3 做畫面時由 Allen 確認；用環境變數 `BROWSER_MAX_LIVE_VIEWS`，預設 1】，否則兩個被看的就要 5–8 核，會把 6 核的正式主機吃滿。第二個人要看的時候怎麼辦（排隊提示、降畫質、或只給預覽圖）是 P3 的產品決定。**P1 要驗證：兩個沒人看、但由 CDP 驅動（載入頁面、捲動）的瀏覽器同時跑，CPU 與主機負載是否可接受**（第七到九輪沒有量這個情境）。
 - 對外網路經**現有的 `warp` 容器**（當 SOCKS5 上游）；只有瀏覽器網頁流量走它。【Allen 2026-11-17：現有 `warp` 容器的用途不必追，只要不被我們改動】
 - 後備方案：容量不夠、或同機干擾正式服務時，改租一台專用 VPS 放瀏覽器；`browser-host/` 的設計本來就好遷移（§4.2），搬過去只要重跑 `install.sh`。
 - 因為可能隨時搬到別的 VPS，**一切都要做成好遷移**（§4.2、§11）。【定】
@@ -209,7 +209,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 **控制通道**：主伺服器 → browser-host 用 HTTPS，請求帶 HMAC 簽章（時間戳與請求內容），主機只收主伺服器的公開 IP；不使用 docker0 共享密鑰那種只適用於同機的做法。
 
-**容量**：同機要和正式服務共用 CPU 與記憶體。**一開始 `BROWSER_MAX_SESSIONS=1`**，量過再決定要不要到 2。資源上限寫在 `browser-host/noureon-browser.slice`（CPU 權重低於正式服務、**沒有 CPU 硬配額**、記憶體 4 GB、不用 swap），瀏覽器容器用 `--cgroup-parent=noureon-browser.slice` 加入。實測（§3.2、§3.3）：一個被看的工作階段吃 2–3 核（高峰 3.4–3.9 核），沒人看約 0.05 核；所以**全站同時只開 1 個被看的**。預設每人 1 個。
+**容量**：同機要和正式服務共用 CPU 與記憶體。**`BROWSER_MAX_SESSIONS=2`（Allen 決定），同時被看的 `BROWSER_MAX_LIVE_VIEWS=1`（預設）。**資源上限寫在 `browser-host/noureon-browser.slice`（CPU 權重低於正式服務、**沒有 CPU 硬配額**、記憶體 4 GB、不用 swap），瀏覽器容器用 `--cgroup-parent=noureon-browser.slice` 加入。實測（§3.2、§3.3）：一個被看的工作階段吃 2–3 核（高峰 3.4–3.9 核），沒人看約 0.05 核；所以**同時被看的預設最多 1 個**，兩個沒人看的瀏覽器預期可以並行（P1 驗證）。預設每人 1 個。
 
 ### 4.3 模型的工具（伺服器端的工具載入器，仿 `server/mcp/tool-loader.js`）
 
@@ -365,7 +365,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 ## 11. 容量與主機
 
-- 主機：原本的 Contabo VPS（6 vCPU／12 GB，可用約 7.3 GB，Allen 2026-11-17）。**全站同時只開 1 個被看的、每人 1 個**（第七到九輪實測）；要到 2 個或使用者變多，先重新評估是否改租專用 VPS。
+- 主機：原本的 Contabo VPS（6 vCPU／12 GB，可用約 7.3 GB，Allen 2026-11-17）。**全站同時 2 個瀏覽器（Allen 決定）、其中同時被看的預設最多 1 個、每人 1 個**；使用者變多或要放寬被看的數量，先重新評估是否改租專用 VPS。
 - 瀏覽器容器要有 CPU 與記憶體上限；只在有人看的時候串流。
 - **搬家**：§4.2 的規則；搬到別的主機只需要裝好、改 DNS、在 `BROWSER_HOSTS` 加上新主機、等舊的任務跑完（最多 2 小時）、關掉舊的。
 - 成本：不另加主機費；對外流量要看 Contabo 方案額度（§6）。
@@ -409,7 +409,7 @@ PN＝普通 Docker、Chromium `--no-sandbox`；GQN＝gVisor、Chromium 沙盒開
 
 ## 14. 契約與審查
 
-Linear 契約說明（`contract`）：新的事件類型 `browser`（含 `confirm`、`answer`、`takeover`、`login`、`code`、`payment`）、新的工具名稱（§4.3）、新的伺服器路由（取得串流憑證、接管與歸還、畫面比例、密碼庫、登入狀態清除與登出、邀請碼兌換、下載與上傳、一次性卡片憑證）、控制通道（主伺服器到 browser-host，HTTPS＋HMAC）、環境變數（`BROWSER_ALLOWED`、`BROWSER_ENABLED`、`BROWSER_HOSTS`、`BROWSER_MAX_SESSIONS`、`BROWSER_TASK_MAX_MINUTES=120`、`BROWSER_IDLE_MINUTES=60`、`browser-host` 自己的設定檔）、新的資料表與函式（§7、§8、§9）、`scripts/server-shared-modules.json` 若有新增共用模組要 Allen 更新。
+Linear 契約說明（`contract`）：新的事件類型 `browser`（含 `confirm`、`answer`、`takeover`、`login`、`code`、`payment`）、新的工具名稱（§4.3）、新的伺服器路由（取得串流憑證、接管與歸還、畫面比例、密碼庫、登入狀態清除與登出、邀請碼兌換、下載與上傳、一次性卡片憑證）、控制通道（主伺服器到 browser-host，HTTPS＋HMAC）、環境變數（`BROWSER_ALLOWED`、`BROWSER_ENABLED`、`BROWSER_HOSTS`、`BROWSER_MAX_SESSIONS`（預設 2）、`BROWSER_MAX_LIVE_VIEWS`（預設 1）、`BROWSER_TASK_MAX_MINUTES=120`、`BROWSER_IDLE_MINUTES=60`、`browser-host` 自己的設定檔）、新的資料表與函式（§7、§8、§9）、`scripts/server-shared-modules.json` 若有新增共用模組要 Allen 更新。
 需要 Allen 與 Sun 都審查：金鑰與權限（密碼庫、登入狀態、邀請碼、卡片資料路徑）、容器與網路隔離（§10）。
 
 ## 15. 文件與實驗的位置
