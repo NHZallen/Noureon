@@ -77,6 +77,8 @@ if printf '%s' "$t" | grep -q e2elong && printf '%s' "$t" | grep -q e2eshort; th
   r=$(call POST "/v1/sessions/$A/save" --out "$OUT/running.tar.gz"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/running.tar.gz" ] && pass "the login state can be packed while the browser runs ($(wc -c < "$OUT/running.tar.gz") bytes)" || bad "could not pack the login state: $r"
   tar tzf "$OUT/running.tar.gz" 2>/dev/null | grep -qi 'cookies' && pass "the archive holds the cookie database" || bad "no cookie database in the archive"
   tar tzf "$OUT/running.tar.gz" 2>/dev/null | grep -qE '(^|/)(Cache|Code Cache|GPUCache)/' && bad "caches are inside the archive" || pass "caches are left out of the archive"
+  # A marker file in the profile folder: does the second browser find the folder as the first one left it?
+  docker exec "noureon-browser-$A" sh -c 'echo e2e-marker > /home/neko/.config/chromium/e2e-marker && chown 1000:1000 /home/neko/.config/chromium/e2e-marker' 2>&1 | sed 's/^/    marker: /'
   # The way the main server closes a browser: the browser stops first (it writes its cookies), then the state is packed.
   r=$(call DELETE "/v1/sessions/$A?save=1" --out "$OUT/profile.tar.gz"); [ "$(status "$r")" = 200 ] && [ -s "$OUT/profile.tar.gz" ] && pass "the first browser was closed and its login state packed after it stopped ($(wc -c < "$OUT/profile.tar.gz") bytes)" || bad "could not close it with the login state: $r"
   # Where is the cookie: in the archive that was packed after the browser stopped? (the names in the cookie database are plain text)
@@ -93,6 +95,8 @@ if printf '%s' "$t" | grep -q e2elong && printf '%s' "$t" | grep -q e2eshort; th
   wait_ready "$D" && pass "the second browser is ready" || bad "the second browser did not start"
   # And in the second browser's own folder, as the browser found it (and what its log says about cookies, the database, and the key):
   info "  second browser, cookie files: $(docker exec "noureon-browser-$D" sh -c "cd /home/neko/.config/chromium && ls -l --time-style=full-iso Default/Cookies* 2>&1 | awk '{print \$5, \$6, \$7, \$9}'" | tr '\n' ';')"
+  info "  second browser, the folder as found: $(docker exec "noureon-browser-$D" sh -c "cd /home/neko/.config/chromium && ls -l --time-style=full-iso e2e-marker 'Local State' Default/Preferences Default/Cookies 2>&1 | awk '{print \$5, \$7, \$9, \$10}'" | tr '\n' ';')"
+  info "  second browser, what is in /var/log/neko: $(docker exec "noureon-browser-$D" sh -c "ls /var/log/neko 2>&1 | tr '\n' ' '; echo; tail -5 /var/log/neko/chromium.log 2>&1 | cut -c1-200" | tr '\n' '|')"
   docker exec "noureon-browser-$D" sh -c "grep -a -i -E 'cookie|sqlite|crypt|keyring|password.store|libsecret|kwallet' /var/log/neko/chromium.log 2>/dev/null | tail -12" | cut -c1-220 | sed 's/^/    log: /'
 
   for f in $(docker exec "noureon-browser-$D" find /home/neko/.config/chromium -name Cookies -type f 2>/dev/null); do info "  in the second browser: $f: $(docker exec "noureon-browser-$D" sh -c "wc -c < '$f'; grep -a -c e2elong '$f'" 2>&1 | tr '\n' ' ')(bytes, then lines with e2elong)"; done
