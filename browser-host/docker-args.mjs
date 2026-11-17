@@ -110,7 +110,9 @@ export function browserRunArgs(options) {
     '--label', 'noureon.browser=1', '--label', `noureon.session=${sessionId}`,
     '--cap-drop=ALL', ...BROWSER_CAPS.flatMap((cap) => [`--cap-add=${cap}`]),
     '--security-opt', 'no-new-privileges', '--security-opt', `seccomp=${seccompPath}`,
-    '--memory', memory, '--memory-swap', memory, '--shm-size', shm, '--pids-limit', String(pids)];
+    '--memory', memory, '--memory-swap', memory, '--shm-size', shm, '--pids-limit', String(pids),
+    // The image's own health check runs every 10 seconds, so a browser that is up after 5 seconds was called ready after 12 (measured by Hark, P7): checked every second instead.
+    '--health-interval=1s', '--health-timeout=3s'];
   if (options.cgroupParent) args.push('--cgroup-parent', checkText(options.cgroupParent, 'cgroup parent'));
   args.push('--mount', `type=volume,src=${volumeName(sessionId)},dst=${PROFILE_MOUNT}`,
     '-v', `${confPath}:/etc/neko/supervisord/chromium.conf:ro`, '-v', `${policiesPath}:/etc/chromium/policies/managed/policies.json:ro`,

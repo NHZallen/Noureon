@@ -56,7 +56,7 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
         if (/^running (healthy|nohealth)$/.test(text)) return;
         if (/^(exited|dead|removing)/.test(text)) throw new Error('the browser stopped while starting');
         if (now() >= deadline) throw new Error('the browser did not become ready in time');
-        await sleep(1000);
+        await sleep(250);
       }
     },
     /** The container's address on the isolated network. */

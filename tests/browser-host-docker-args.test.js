@@ -23,6 +23,12 @@ test('the browser container: no capabilities except the six, no new privileges, 
   assert.equal(args.at(-1), 'ghcr.io/m1k1o/neko/chromium:latest');
 });
 
+test('the browser container is checked for health every second (the image\'s ten seconds made a browser that was up after five seconds be called ready after twelve)', () => {
+  const args = browserRunArgs(GOOD);
+  assert.ok(args.includes('--health-interval=1s'));
+  assert.ok(args.includes('--health-timeout=3s'));
+});
+
 test('the browser container never gets what would break out: no privileged mode, no host network or pid, no published port, no docker socket, no host paths except two read-only files', () => {
   const args = browserRunArgs(GOOD);
   // Exact flags (a substring test would trip over the harmless --pids-limit).
