@@ -477,6 +477,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
   };
 
   return {
+    /** The words of the answer have begun (the server's reply): the work in the browser is over, so its card says "done" now and not when the last word is written. */
+    browserDone() { browserCard?.then((card) => card.complete()).catch(() => {}); },
     /** The reply's clock was set back (time spent waiting for the person is not counted): the time shown at the end follows. */
     setStartedAt(ms) {
       if (!Number.isFinite(ms)) return;

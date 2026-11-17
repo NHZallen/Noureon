@@ -282,6 +282,8 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
    * Asks the service for its tools and keeps the list. A tool that was not there, or whose text or inputs are not what the person last saw, is put in `changed`
    * (off until they confirm); `first` says this is the list the person is about to see for the first time.
    */
+  // The lists being asked for again in the background (one for each person and service at a time).
+  const refreshingTools = new Map();
   async function refreshTools(userId, connectorId, { first = false } = {}) {
     const connector = connectorOf(connectorId);
     const row = await getRow(userId, connectorId);
@@ -408,7 +410,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       }
       const found = await Promise.all(CONNECTORS.filter((connector) => connected.has(connector.id)).map(async (connector) => {
         try {
-          const connection = await service.freshConnection(userId, connector.id);
+          const connection = await service.connectionForRun(userId, connector.id);
           if (!connection) return null;
           const tools = asArray(connection.row.tools).map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, kind: tool.kind === 'read' ? 'read' : 'write', state: effectiveState(connector, connection.row, tool.name) }));
           return tools.length ? { id: connector.id, name: connector.name, tools } : null;
@@ -418,6 +420,24 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
         }
       }));
       return found.filter(Boolean);
+    },
+    /**
+     * The connection a reply starts with. A list of tools that is more than an hour old is still given at once and asked for again in the background (a reply used to wait
+     * for every service to answer, ten seconds or more after a quiet hour, before the model was even asked); only a connection with no list at all is waited for.
+     */
+    async connectionForRun(userId, connectorId) {
+      const found = await service.connection(userId, connectorId);
+      if (!found) return null;
+      const checked = Date.parse(found.row.tools_checked_at || 0);
+      if (found.row.tools_checked_at && now() - checked < TOOLS_KEEP_MS) return found;
+      if (!asArray(found.row.tools).length) return service.freshConnection(userId, connectorId);
+      const key = `${userId}:${connectorId}`;
+      if (!refreshingTools.has(key)) {
+        refreshingTools.set(key, refreshTools(userId, connectorId)
+          .catch((error) => { log('connector_tools_failed', { connector: connectorId, code: error?.code || error?.name || 'error' }); })
+          .finally(() => { refreshingTools.delete(key); }));
+      }
+      return found;
     },
     /** The tools list is asked for again when it is an hour old (or never asked). */
     async freshConnection(userId, connectorId) {

@@ -152,6 +152,23 @@ test('the process list draws the card under its line and gives it the cancel of 
   }
 });
 
+test('the first words of a server reply end the browser work at once: the card says done while the answer is still being written', async () => {
+  const window = new Window();
+  try {
+    const { document } = window;
+    const ledger = createSandboxLedger({ document, host: document.body, language: 'en', summary: true });
+    ledger.event(call('open', 'acme.com', 'Browsing: acme.com'));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(document.body.querySelector('.bcard').dataset.phase, 'run');
+    ledger.browserDone();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(document.body.querySelector('.bcard').dataset.phase, 'done');
+    assert.equal(document.body.querySelector('.bcard-pill .bcard-text').textContent, 'Done');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
 const fakeLive = () => {
   const calls = [];
   const source = { mount(el) { el.append(el.ownerDocument.createElement('div')); }, mountLens(el) { el.append(el.ownerDocument.createElement('div')); }, destroy() {}, input: { pointer() {}, wheel() {}, key() {}, text() {} } };

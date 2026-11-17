@@ -136,7 +136,7 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     answering,
     // The server's answer arrived (its step list is the server's: no "answering" step of the page's own).
     serverText: () => {
-      if (!answered) endThinking();
+      if (!answered) { endThinking(); liveRun?.browserDone?.(); }
       answered = true;
     },
     // The channel was joined again (the server was replaced): the steps come again from their start, so the list is drawn afresh.

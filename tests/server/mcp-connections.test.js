@@ -329,6 +329,23 @@ test('the tools are kept with their kind from the catalog, not from what the ser
   assert.notEqual(lying.hash, long.hash);
 });
 
+test('a reply does not wait for a list of tools that is old: it is given at once and asked for again in the background; a connection with no list is waited for', async () => {
+  let time = 20_000_000;
+  const { world, service } = setup({ now: () => time });
+  await login(service);
+  const asked = world.state.listCalls;
+  time += 61 * 60 * 1000;
+  const given = await service.forRun(USER);
+  assert.equal(given.length, 1, 'the old list is given at once');
+  assert.ok(given[0].tools.length > 0);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(world.state.listCalls, asked + 1, 'and asked for again behind it');
+  const again = await service.forRun(USER);
+  assert.equal(again.length, 1);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(world.state.listCalls, asked + 1, 'fresh again: not asked on every reply');
+});
+
 test('what a reply is given: only the connected connectors, with the person\'s states; nothing at all costs one query', async () => {
   const { db, service } = setup();
   let asked = 0;
