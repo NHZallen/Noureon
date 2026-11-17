@@ -726,3 +726,30 @@ test('the record keeps the list (short, at most twelve, a known state each) and 
     window.happyDOM.abort();
   }
 });
+
+test('what the person adds while the browser works is a line of the list (under the tasks or the steps), and is kept in the record and shown in the saved tag', async () => {
+  const { window, card, steps } = make();
+  try {
+    card.handle(planEvent(['Search', 'doing']));
+    card.handle({ type: 'browser', event: 'steer', id: 'a', text: '  not that\nairline ' });
+    assert.deepEqual(steps().map((row) => row.textContent), ['Search', 'You added: not that airline']);
+    assert.ok(steps()[1].classList.contains('is-note'));
+  } finally {
+    window.happyDOM.abort();
+  }
+  const { normalizeBrowserRecord } = await import('../src/app/ui/sandbox/sandbox-run-block.js');
+  const stepsRecord = [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }];
+  const record = normalizeBrowserRecord({ end: 'done', steps: stepsRecord, steers: [{ text: 'not that airline', at: 3 }, { text: '', at: 1 }, ...Array.from({ length: 30 }, (_, index) => ({ text: `s${index}`, at: index }))] });
+  assert.equal(record.steers.length, 20);
+  assert.deepEqual(record.steers[0], { text: 'not that airline', at: 3 });
+  const { browserTagElement } = await import('../src/app/ui/sandbox/browser-tag.js');
+  const view = new Window();
+  try {
+    const host = browserTagElement(view.document, { end: 'done', steps: stepsRecord, steers: [{ text: 'not that airline', at: 1 }] }, { language: 'en' });
+    view.document.body.append(host);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual([...host.querySelectorAll('.bcard-step')].map((row) => row.textContent), ['Browsing: acme.com', 'You added: not that airline']);
+  } finally {
+    view.happyDOM.abort();
+  }
+});

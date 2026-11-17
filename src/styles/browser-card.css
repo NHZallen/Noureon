@@ -46,6 +46,8 @@
 .bcard-step > span { min-width: 0; overflow-wrap: anywhere; }
 .bcard-tick { display: grid; place-items: center; flex: none; width: 0.95rem; height: 0.95rem; margin-top: 0.08rem; border-radius: 50%; border: 1.4px solid var(--text-tertiary); box-sizing: border-box; }
 .bcard-step.is-todo { color: var(--text-secondary); }
+.bcard-step.is-note { color: var(--text-secondary); }
+.bcard-step.is-note .bcard-tick { border-style: dashed; }
 .bcard-step.is-done .bcard-tick { background: var(--text-primary); border-color: var(--text-primary); color: var(--chat-bg); }
 .bcard-step.is-fail .bcard-tick { background: var(--state-danger); border-color: var(--state-danger); color: var(--on-color); }
 .bcard-step.is-run .bcard-tick { border-color: var(--text-secondary); border-top-color: transparent; animation: bcard-turn 0.9s linear infinite; }

@@ -48,6 +48,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const steps = [];
   // The work list the model wrote for this reply (the server keeps its rules: a done task never changes); it takes the place of the steps in the list when there is one.
   let plan = null;
+  // What the person added while the work went on (the reply is not cut for it): lines at the end of the list.
+  const notes = [];
   let phase = 'run'; // run, queued, done, failed, cancelled
   let view = 'front'; // front, back, pill
   let queuedLabel = '';
@@ -159,9 +161,11 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   // What the row over the screen of the focus mode says: the same words, state and steps as the capsule of the card.
   const focusWords = () => ({ label: labelNow(), status: statusOf(), steps: steps.map((step) => ({ label: step.label, state: step.state })) });
   let shownView = null;
-  const render = () => {
-    // A change of the card (to its pill, back) keeps the card where it is on the screen.
-    if (shownView !== null && shownView !== view && root.isConnected) keepInPlace(root, renderNow, { release: view !== 'pill' });
+  // `morphs`: the change is played as a morph (card-morph.js), where the height of the whole changes a little at a time, and the page follows it by itself (at the end of a page, the
+  // bottom stays and the top comes down): keeping the card in place by force would hold the room back and give it up at the end in one jump.
+  const render = ({ morphs = false } = {}) => {
+    // Any other change of the card keeps the card where it is on the screen.
+    if (!morphs && shownView !== null && shownView !== view && root.isConnected) keepInPlace(root, renderNow, { release: view !== 'pill' });
     else renderNow();
     shownView = view;
     notify();
@@ -193,7 +197,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     screenSite.textContent = waitingFrame ? t('browserLoading') : (!live && phase === 'run') ? t('browserStarting') : domain;
     // Once it is over there is no task to cancel: only the shrink button stays (and a queue can be left, but not shrunk).
     cancelButton.hidden = phase === 'done' || phase === 'failed' || phase === 'cancelled';
-    list.replaceChildren(...(plan || steps).map((step) => {
+    list.replaceChildren(...[...(plan || steps), ...notes].map((step) => {
       const row = make('li', `bcard-step is-${step.state}`);
       const tick = make('i', 'bcard-tick');
       if (step.state === 'done') tick.append(icon(document, 'check', 9, 3.2));
@@ -218,14 +222,14 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     const direction = (view === 'pill' && next === 'front') ? 'open' : (view === 'front' && next === 'pill') ? 'fold' : '';
     const before = direction && root.isConnected ? measureCard({ root, card, pill }) : null;
     view = next;
-    render();
+    render({ morphs: Boolean(before) });
     if (before) morph(direction, before);
   };
   // The card finishes into its pill (done, stopped): the same fold as when the person folds it.
   const foldInto = (apply) => {
     const before = (view === 'front' || view === 'back') && root.isConnected ? measureCard({ root, card, pill }) : null;
     apply();
-    render();
+    render({ morphs: Boolean(before) });
     if (before) morph('fold', before);
   };
 
@@ -342,6 +346,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       phase = 'queued';
       view = 'pill';
       queuedLabel = event.label || '';
+      render();
+      return;
+    }
+    if (event?.event === 'steer') {
+      const text = String(event.text || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+      if (text && notes.length < 20) notes.push({ label: t('browserSteered', { text }), state: 'note' });
       render();
       return;
     }

@@ -288,7 +288,15 @@ export function createSingleModelResponseLifecycle({
         return true;
       }
     };
-    if (steerSink) replySteering.attach(steerSink);
+    if (steerSink) {
+      replySteering.attach(steerSink);
+      // While the browser works the reply is not cut for a message: when it is taken, its bubble goes and the card shows it as a line of the work.
+      const showEvent = view.event;
+      view.event = (event) => {
+        if (event?.type === 'browser' && event.event === 'steer' && event.id) replyCut.pending.remove([event.id]);
+        return showEvent(event);
+      };
+    }
     try {
       if (getOutputMode() === 'realtime' || flow) {
         stop();

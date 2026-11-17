@@ -20,6 +20,7 @@ function fill(host) {
     const document = host.ownerDocument;
     const card = createBrowserCard({ document, host, language });
     if (record.plan?.length) card.handle({ event: 'plan', tasks: record.plan });
+    (record.steers || []).forEach((entry) => card.handle({ event: 'steer', text: entry.text }));
     record.steps.forEach((step) => card.handle({ event: 'call', action: step.action, domain: step.domain, label: step.label }));
     if (record.end === 'failed') card.handle({ event: 'failed' });
     else if (record.end === 'cancelled') card.cancel();

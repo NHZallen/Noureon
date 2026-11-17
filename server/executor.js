@@ -141,8 +141,9 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event.event === 'plan' && Array.isArray(event.tasks)) browserPlan = event.tasks.slice(0, 12).map((task) => ({ text: String(task.text || '').slice(0, 120), status: ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo' }));
   };
   let browserPlan = [];
+  const browserSteers = [];
   let browserFrame = '';
-  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserPlan.length ? { plan: browserPlan.map((task) => ({ ...task })) } : {}), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
+  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserPlan.length ? { plan: browserPlan.map((task) => ({ ...task })) } : {}), ...(browserSteers.length ? { steers: browserSteers.map((entry) => ({ ...entry })) } : {}), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
   const record = (status, { downloads = status !== 'running' } = {}) => ({
     status,
     steps: downloads ? downloadSteps() : [],
@@ -181,6 +182,14 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   const cloneStep = (step) => ({ ...step, files: (step.files || []).map((file) => ({ ...file })) });
   if (steer && onSegment) {
     steer.setBatchHandler((items, context) => {
+      // While the browser is at work the reply is not cut: the card, the browser and the work list stay where they are, and what the person added is a line of the work (kept in the record).
+      if (browserLoader?.active) {
+        for (const item of items) {
+          if (browserSteers.length < 20) browserSteers.push({ text: String(item.text || '').slice(0, 300), at: browserTrace.length });
+          emitEvent({ type: 'browser', event: 'steer', id: item.id || '', text: String(item.text || '').slice(0, 300) });
+        }
+        return;
+      }
       const steps = Array.isArray(context.steps) ? context.steps.slice(stepBase).map(cloneStep) : null;
       const snapshot = { rec: { ...record('done', { downloads: false }), segment: true }, answer, pictures: [...drawnParts], at: [...drawnAt] };
       if (steps) snapshot.rec.steps = steps;

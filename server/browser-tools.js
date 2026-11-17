@@ -424,6 +424,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     get list() { return []; },
     get instruction() { return BROWSER_INSTRUCTION; },
     get used() { return actions; },
+    /** The browser of this reply is open and has been used: a message the person adds goes into the same reply (no cut), so the card and the browser stay where they are. */
+    get active() { return usedAny && Boolean(current()); },
     /** The work list as it stands (the record keeps it with the reply). */
     get plan() { return plan.tasks; },
     /** Starts the browser before it is asked for (see above); and lets it go at the end of the reply when it was never used. */

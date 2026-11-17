@@ -271,6 +271,52 @@ test('the work list the model wrote is kept in the record of the reply, with eac
   assert.deepEqual(lifted.run.browser.plan, [{ text: 'Open the shop', status: 'done' }, { text: 'Read the price', status: 'doing' }]);
 });
 
+test('a message the person adds while the browser works does not cut the reply: the card stays in its message, the model gets the message, and the record keeps it as a line of the work', async () => {
+  let round = 0;
+  const requests = [];
+  const live = [];
+  const segments = [];
+  const steer = createSteerQueue({});
+  const browser = {
+    mayUse: async () => true,
+    maxActions: 0,
+    sessions: {
+      current: () => ({ sessionId: 'b00000001', conversationId: '123e4567-e89b-12d3-a456-426614174000' }),
+      open: async () => ({ sessionId: 'b00000001' }),
+      waitReady: async () => ({ state: 'ready' }),
+      action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+      close: async () => true
+    }
+  };
+  const result = await executeReply({
+    spec: specFor({ browser: true }),
+    secrets,
+    userId: USER,
+    sandboxHost: fakeHost([]),
+    files: fakeFiles(),
+    browser,
+    steer,
+    onSegment: (segment) => segments.push(segment),
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      round += 1;
+      if (round === 1) {
+        steer.push('not that airline', 'steer-1');
+        return streamResponse(sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })));
+      }
+      return streamResponse(sse(content('Done without it.')));
+    }
+  });
+  assert.equal(segments.length, 0, 'the reply is not cut while the browser is in use');
+  assert.match(JSON.stringify(requests[1].messages), /not that airline/, 'the model is given it after the answers of its tools');
+  const told = live.map((event) => event.ev).filter((event) => event?.type === 'browser' && event.event === 'steer');
+  assert.deepEqual(told.map((event) => [event.id, event.text]), [['steer-1', 'not that airline']]);
+  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  assert.deepEqual(lifted.run.browser.steers.map((entry) => entry.text), ['not that airline']);
+  assert.match(lifted.text, /Done without it\./);
+});
+
 test('stopped while it thinks, with no answer yet: what it thought and what the browser did stay with the message, and the browser says it was stopped (a reply with Python or not)', async () => {
   for (const advanced of [true, false]) {
     let round = 0;

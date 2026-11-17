@@ -178,7 +178,9 @@ export function normalizeBrowserRecord(browser) {
     .map((task) => ({ text: oneLine(task?.text, 120), status: BROWSER_TASK_STATES.includes(task?.status) ? task.status : 'todo' }))
     .filter((task) => task.text)
     .slice(0, 12);
-  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps, ...(plan.length ? { plan } : {}), ...(frame ? { frame } : {}) } : null;
+  // What the person added while the browser worked (the reply was not cut for it).
+  const steers = (Array.isArray(browser.steers) ? browser.steers : []).map((entry) => ({ text: oneLine(entry?.text, 300), at: Math.max(0, Math.min(1000, Math.round(Number(entry?.at) || 0))) })).filter((entry) => entry.text).slice(0, 20);
+  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps, ...(plan.length ? { plan } : {}), ...(steers.length ? { steers } : {}), ...(frame ? { frame } : {}) } : null;
 }
 
 const COUNCIL_STAGES = ['translation', 'firstRound', 'deliberation', 'synthesis'];
