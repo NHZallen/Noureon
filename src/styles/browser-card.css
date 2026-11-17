@@ -140,12 +140,12 @@
 .bl-picture > * { width: 100%; height: 100%; display: block; }
 .bl-lens { position: absolute; width: 13cqw; height: 13cqw; margin: -6.5cqw 0 0 -6.5cqw; border-radius: 50%; pointer-events: none; }
 .bl-lens[hidden] { display: none; }
-.bl-glass { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--on-color) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--on-color) 90%, transparent); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 14px color-mix(in srgb, var(--on-color) 60%, transparent); }
-.bl-glass::before { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: radial-gradient(circle at 30% 22%, color-mix(in srgb, var(--on-color) 75%, transparent), transparent 40%), radial-gradient(circle at 50% 50%, transparent 58%, color-mix(in srgb, var(--on-color) 45%, transparent) 100%); }
+.bl-glass { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--on-color) 6%, transparent); border: 1.5px solid color-mix(in srgb, var(--on-color) 50%, transparent); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 12px color-mix(in srgb, var(--on-color) 22%, transparent); }
+.bl-glass::before { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: radial-gradient(circle at 30% 22%, color-mix(in srgb, var(--on-color) 28%, transparent), transparent 36%), radial-gradient(circle at 50% 50%, transparent 62%, color-mix(in srgb, var(--on-color) 16%, transparent) 100%); }
 .bl-lens-in { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .bl-lens-in > * { width: 100%; height: 100%; display: block; }
 /* The person's circle: the same one, with a very faint touch of the accent colour. */
-.bl-lens.is-user .bl-glass { border-color: color-mix(in srgb, var(--button-primary-bg) 16%, var(--on-color)); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 14px color-mix(in srgb, var(--on-color) 55%, transparent); }
+.bl-lens.is-user .bl-glass { border-color: color-mix(in srgb, var(--button-primary-bg) 16%, color-mix(in srgb, var(--on-color) 50%, transparent)); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 12px color-mix(in srgb, var(--on-color) 20%, transparent); }
 .bl-lens.is-user .bl-glass::after { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 3; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--button-primary-bg) 3%, transparent) 0, color-mix(in srgb, var(--button-primary-bg) 9%, transparent) 50%, color-mix(in srgb, var(--button-primary-bg) 20%, transparent) 100%); }
 .bl-lens.is-pressed { transform: scale(0.84); }
 
