@@ -7,6 +7,7 @@ import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createFocusMode } from '../browser-live/focus-mode.js';
 import { createLiveView } from '../browser-live/live-view.js';
 import { createPanelDock } from '../browser-live/panel-dock.js';
+import { keepInPlace } from './keep-in-place.js';
 import { cssRatio, DEFAULT_RATIO } from '../browser-live/ratios.js';
 import { askWords, createAskPanel } from './browser-panels.js';
 
@@ -154,8 +155,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   // What the row over the screen of the focus mode says: the same words, state and steps as the capsule of the card.
   const focusWords = () => ({ label: labelNow(), status: statusOf(), steps: steps.map((step) => ({ label: step.label, state: step.state })) });
+  let shownView = null;
   const render = () => {
-    renderNow();
+    // A change of the card (to its pill, back) keeps the card where it is on the screen.
+    if (shownView !== null && shownView !== view && root.isConnected) keepInPlace(root, renderNow, { release: view !== 'pill' });
+    else renderNow();
+    shownView = view;
     notify();
   };
   const renderNow = () => {

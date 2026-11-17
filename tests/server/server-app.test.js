@@ -428,6 +428,22 @@ test('an answer about a site reaches the reply of the person who gives it, and o
   }, { runs });
 });
 
+test('an answer to what the browser agent asks reaches the reply of the person who gives it, and only a valid answer is taken', async () => {
+  const answers = [];
+  const runs = { answerBrowser: async (args) => { answers.push(args); return args.runId === USER ? { ok: true, answered: true } : { ok: false, reason: 'not_running' }; } };
+  await withServer(async ({ base }) => {
+    const answer = (runId, body, headers = { ...auth, ...json }) => fetch(`${base}/v1/runs/${runId}/browser`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const ok = await answer(USER, { askId: 'ask0000000000001', answer: { decision: 'confirm' } });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { ok: true, answered: true });
+    assert.deepEqual(answers[0], { userId: USER, runId: USER, askId: 'ask0000000000001', answer: { decision: 'confirm' } });
+    assert.equal((await answer(USER, { askId: '../x', answer: { decision: 'confirm' } })).status, 400);
+    assert.equal((await answer(USER, { askId: 'ask0000000000001' })).status, 400);
+    assert.equal((await answer('323e4567-e89b-12d3-a456-426614174002', { askId: 'ask0000000000001', answer: { decision: 'confirm' } })).status, 404, 'a reply that is not running here');
+    assert.equal((await answer(USER, { askId: 'ask0000000000001', answer: { decision: 'confirm' } }, json)).status, 401);
+  }, { runs });
+});
+
 test('the page asks that the conversation of its reply be named: signed in, for a reply of the person that is running, and the answer comes at once', async () => {
   const asked = [];
   const runs = { name: async (args) => { asked.push(args); return args.runId === USER ? (args.prompt ? { ok: true } : { ok: false, reason: 'not_taken' }) : { ok: false, reason: 'not_running' }; } };
