@@ -6,6 +6,8 @@
 import { createNekoSource } from './neko-source.js';
 
 const RETRY_MS = [1500, 4000, 10_000];
+// After those, it keeps looking now and then for as long as the task runs (a phone that was away, a network that dropped and came back), not at once and without end.
+const SLOW_RETRY_MS = 15_000;
 // A stream that lived this long was a real one: the tries start again after it. A stream that ends within seconds is a failure however often it comes back.
 const STABLE_MS = 20_000;
 
@@ -109,13 +111,24 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   function schedule() {
     if (!wanted()) return;
     waiting = true;
-    if (retry || attempts >= RETRY_MS.length) return;
-    retry = setTimer(() => { retry = null; attempts += 1; waiting = false; if (wanted()) void connect(); }, RETRY_MS[attempts]);
+    if (retry) return;
+    retry = setTimer(() => { retry = null; attempts += 1; waiting = false; if (wanted()) void connect(); }, attempts < RETRY_MS.length ? RETRY_MS[attempts] : SLOW_RETRY_MS);
   }
+  // The page comes back to the front or the network comes back: if there is no picture, look at once (the tries start again).
+  const lookNow = () => {
+    if (!wanted() || source || connecting) return;
+    clearTimer(retry); retry = null;
+    attempts = 0; waiting = false;
+    void connect();
+  };
+  const onVisible = () => { if (document.visibilityState === 'visible') lookNow(); };
+  document.addEventListener?.('visibilitychange', onVisible);
+  globalThis.addEventListener?.('online', lookNow);
+  const unlisten = () => { document.removeEventListener?.('visibilitychange', onVisible); globalThis.removeEventListener?.('online', lookNow); };
 
   card.watch((next) => {
     state = next;
-    if (next.phase !== 'run' && next.phase !== 'queued') over = true;
+    if (next.phase !== 'run' && next.phase !== 'queued') { over = true; unlisten(); }
     if (letting) return;
     if (wanted()) {
       if (waiting) return;
@@ -128,5 +141,5 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     }
   });
 
-  return { stop: () => { over = true; return release(); } };
+  return { stop: () => { over = true; unlisten(); return release(); } };
 }

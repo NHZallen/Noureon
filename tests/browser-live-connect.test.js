@@ -82,7 +82,7 @@ test('taking over and giving back, and the size of the screen, reach the server;
   assert.deepEqual(w.calls.at(-1), ['POST', `/v1/browser/${SID}/control`, { mode: 'model' }]);
 });
 
-test('no viewer from the server: a try again later, three times at most, and the card stays as it was', async () => {
+test('no viewer from the server: a try again later (quick at first, then every fifteen seconds), and the card stays as it was', async () => {
   const w = world({ viewerOk: false });
   await settle();
   assert.equal(w.sources.length, 0);
@@ -91,8 +91,23 @@ test('no viewer from the server: a try again later, three times at most, and the
   assert.equal(w.timers.length, 2);
   w.timers[1][0](); await settle();
   w.timers[2][0](); await settle();
-  assert.equal(w.timers.length, 3);
+  assert.equal(w.timers.length, 4, 'after the quick tries the slow ones go on');
+  assert.deepEqual(w.timers.map((t) => t[1]), [1500, 4000, 10_000, 15_000]);
   assert.equal(names(w).filter((n) => n === 'POST /viewer').length, 4);
+});
+
+test('the page comes back to the front or the network comes back while there is no picture: it looks at once, without waiting for the timer', async () => {
+  const w = world({ viewerOk: false });
+  await settle();
+  const before = names(w).filter((n) => n === 'POST /viewer').length;
+  w.document.dispatchEvent(new w.document.defaultView.Event('visibilitychange'));
+  await settle();
+  assert.equal(names(w).filter((n) => n === 'POST /viewer').length, before + 1);
+  w.connector.stop();
+  const after = names(w).filter((n) => n === 'POST /viewer').length;
+  w.document.dispatchEvent(new w.document.defaultView.Event('visibilitychange'));
+  await settle();
+  assert.equal(names(w).filter((n) => n === 'POST /viewer').length, after, 'not once it is over');
 });
 
 test('the reply is over: the stream goes and does not come back', async () => {
@@ -123,7 +138,7 @@ test('a stream that ends within seconds is not brought back at once and without 
   closeNow(2, 'no-media'); await settle();
   w.timers[2][0](); await settle();
   closeNow(3, 'no-media'); await settle();
-  assert.equal(w.timers.length, 3, 'after the last try nothing is scheduled');
+  assert.equal(w.timers.length, 4, 'after the quick tries the slow ones go on');
   assert.equal(w.sources.length, 4);
   assert.deepEqual(w.card.element.querySelector('.bcard-live'), null);
 });
