@@ -247,6 +247,7 @@ export function createRunManager({
     // How a person's requests reach a deep research that is running (start, pause, stop and the rest).
     const controls = isResearch ? createResearchControls() : null;
     const controller = new AbortController();
+    const marks = {};
     // How the person's answer to a question about a site gets to the sandbox that asked (the reply sets `answer` when it has one).
     const netControl = { answer: null };
     // The same for the window that asks the person for a login a tool needs (executor.js).
@@ -421,7 +422,7 @@ export function createRunManager({
         connectors,
         browser,
         // How long each part before the first word took, said in the log (so a slow start can be told from a slow model).
-        onMark: (label, ms) => log('run_timing', { runId, label, ms: Math.round(ms) }),
+        onMark: (label, ms) => { marks[label] = Math.round(ms); log('run_timing', { runId, label, ms: Math.round(ms) }); },
         memory,
         memoryOut,
         netControl,
@@ -469,7 +470,7 @@ export function createRunManager({
       const kept = { ...(steer?.left().length ? { steersLeft: steer.left() } : {}), ...(memoryOut.used.length ? { memoryUsed: memoryOut.used.slice(0, 20) } : {}), ...(memoryOut.events.length ? { memoryUpdated: memoryOut.events.slice(0, 20) } : {}), ...(memoryOut.history?.length ? { memoryHistory: memoryOut.history.slice(0, 5) } : {}), ...(memoryOut.files?.length ? { projectFilesUsed: memoryOut.files.slice(0, 20) } : {}) };
       await writer.finish(result.parts, 'complete', Object.keys(kept).length ? kept : null);
       finalStatus = 'complete';
-      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
+      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(Object.keys(marks).length ? { marks } : {}), ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
       if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec: cursor.messageId === spec.assistantMessageId ? spec : { ...spec, assistantMessageId: cursor.messageId, sequence: cursor.sequence }, secrets, result }).catch((error) => {
         log('vision_not_started', { runId, message: String(error?.message || '').slice(0, 160) });
