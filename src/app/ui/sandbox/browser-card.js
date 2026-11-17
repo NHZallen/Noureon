@@ -59,8 +59,6 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let zoomed = false;
   // The card has no picture yet (the browser is starting, or the first frame has not come): it is drawn with the loading look.
   let waitingFrame = false;
-  // The last picture of the live screen, kept on the card while the stream is looked for again (the stream is gone, the picture is not).
-  let held = false;
   // Where the focus mode was opened from ('front': the card, 'pill': the pill): the round button of the focus mode is Shrink from the card and Expand from the pill.
   let focusFrom = 'front';
   // The question the person is asked now (a confirmation, a login…): its panel takes the place of the card.
@@ -149,7 +147,6 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const labelNow = () => {
     if (phase === 'queued') return queuedLabel;
     if (asking && phase === 'run') return askWords(language, asking.kind).need;
-    if (held && phase === 'run') return t('browserReconnecting');
     if (phase === 'done') return t('browserDone');
     if (phase === 'cancelled') return t('browserCancelled');
     if (phase === 'failed') return t('browserFailed');
@@ -286,8 +283,6 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   const over = (next) => {
     closeAsk();
-    held = false;
-    still.classList.remove('is-stale');
     phase = next;
     if (next === 'done') view = 'pill';
     render();
@@ -416,8 +411,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     liveView = null;
     if (!live) {
       waitingFrame = false;
-      screen.hidden = held;
-      if (!held) card.style.aspectRatio = '';
+      screen.hidden = false;
+      card.style.aspectRatio = '';
       return;
     }
     liveView = createLiveView({ document, host: front, ratio, source: live.source });
@@ -429,9 +424,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     // Until the first picture arrives the card says it is loading (a black card for seconds looks broken); the live picture takes its place with the first frame.
     const video = liveView.element.querySelector('video');
     if (video && video.readyState < 2) {
-      screen.hidden = held;
-      waitingFrame = !held;
-      const ready = () => { waitingFrame = false; screen.hidden = true; if (held) { held = false; still.hidden = true; still.classList.remove('is-stale'); } render(); };
+      screen.hidden = false;
+      waitingFrame = true;
+      const ready = () => { waitingFrame = false; screen.hidden = true; render(); };
       video.addEventListener('loadeddata', ready, { once: true });
       video.addEventListener('playing', ready, { once: true });
     } else {
@@ -455,36 +450,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       still.hidden = false;
       screen.hidden = true;
     },
-    /** The picture the live screen shows now, as a small JPEG (a data address), or '' when there is none (nothing is playing yet, or the picture cannot be read). */
-    captureFrame() {
-      const video = liveView?.element?.querySelector?.('video');
-      if (!video || !(video.videoWidth > 0) || video.readyState < 2) return '';
-      try {
-        const canvas = document.createElement('canvas');
-        const scale = Math.min(1, 640 / video.videoWidth);
-        canvas.width = Math.round(video.videoWidth * scale); canvas.height = Math.round(video.videoHeight * scale);
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        const url = canvas.toDataURL('image/jpeg', 0.6);
-        return /^data:image\/jpeg;base64,/.test(url) ? url : '';
-      } catch {
-        return '';
-      }
-    },
     /** How far the live picture has played (seconds), or -1: a picture that does not move any more while the page is in front has lost its stream. */
     playhead() {
       const video = liveView?.element?.querySelector?.('video');
       return video ? Number(video.currentTime) || 0 : -1;
-    },
-    /** The stream is gone and is looked for again: this picture stays on the card (instead of the loading screen) until the new stream's first picture comes. */
-    holdFrame(url) {
-      if (typeof url !== 'string' || !url) return;
-      held = true;
-      card.style.aspectRatio = cssRatio(ratio);
-      still.src = url;
-      still.classList.add('is-stale');
-      still.hidden = false;
-      screen.hidden = true;
-      render();
     },
     /** Folds the card into its pill or tag (a saved message draws it so). */
     fold() { setView('pill'); },
