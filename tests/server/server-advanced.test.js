@@ -285,7 +285,6 @@ test('stopped while it thinks, with no answer yet: what it thought and what the 
 });
 
 test('stopped while the browser is still being opened: the record of the browser and the thinking so far stay', async () => {
-  let round = 0;
   const controller = new AbortController();
   const encoder = new TextEncoder();
   const browser = {
@@ -306,7 +305,6 @@ test('stopped while the browser is still being opened: the record of the browser
     signal: controller.signal,
     browser,
     fetchImpl: async () => {
-      round += 1;
       return new Response(new ReadableStream({
         start(stream) {
           stream.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: 'I will open the page' } }] })}\n\n`));
