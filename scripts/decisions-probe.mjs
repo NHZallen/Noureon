@@ -26,7 +26,7 @@ if (!key || (models.some((model) => providerOf(model) === 'gemini') && !geminiKe
 }
 const tools = [{ name: 'yt-dlp', description: 'download video or audio from a web page' }, { name: 'ffmpeg', description: 'convert audio and video files' }];
 
-// message, and what the page should conclude (search, file, chart, tool): true / false
+// message, and what the page should conclude (search, file, chart, tool, url, exact, verbatim, browser): true / false
 const CASES = [
   { message: '今天台北的天氣如何？', expect: { search: true, file: false, chart: false, tool: false } },
   { message: '幫我寫一份 3 頁的簡報，主題是 2026 電動車市場，做成 pptx 給我下載', expect: { search: false, file: true, chart: false, tool: false } },
@@ -39,15 +39,27 @@ const CASES = [
   { message: '為什麼這行 curl https://api.example.com/v1/users -H "X: 1" 會回 401？', expect: { url: false, exact: false, verbatim: false } },
   { message: '把上次那份巧克力派的食譜再給我一次，一樣的就好', expect: { exact: true, verbatim: false } },
   { message: '請把我們之前聊的那份合約條款，一字不改地貼回來', expect: { exact: true, verbatim: true } },
-  { message: '再給我一份新的巧克力派食譜，這次想要健康一點', expect: { exact: false, verbatim: false } }
+  { message: '再給我一份新的巧克力派食譜，這次想要健康一點', expect: { exact: false, verbatim: false } },
+  // The browser question (asked only where the browser agent could still be switched on): a request for a real browser is yes; talk about a browser, or work that needs no site, is no.
+  { message: '幫我開瀏覽器，去查桃園飛東京 12/3 到 12/8 的機票，早上去晚上回來，找三家給我', expect: { browser: true } },
+  { message: '去 booking 幫我看看板橋這週末有沒有五星飯店，列出價錢', expect: { browser: true } },
+  { message: 'Open a browser and check whether the new phone is in stock at the Apple Store', expect: { browser: true } },
+  { message: 'Ouvre le navigateur et réserve-moi une table pour deux ce soir', expect: { browser: true } },
+  { message: 'Открой браузер и найди мне дешёвые билеты в Токио', expect: { browser: true } },
+  { message: 'Abre el navegador y busca vuelos baratos a Tokio', expect: { browser: true } },
+  { message: 'Chrome 和 Safari 哪個比較省電？', expect: { browser: false } },
+  { message: '這個網頁在瀏覽器裡打不開，可能是什麼原因？', expect: { browser: false } },
+  { message: 'How do I clear the cache in my browser?', expect: { browser: false } },
+  { message: '用 JavaScript 寫一個在瀏覽器裡顯示時鐘的網頁', expect: { browser: false } },
+  { message: '請用三句話解釋什麼是遞迴', expect: { browser: false } }
 ];
-const QUESTIONS = ['search', 'file', 'chart', 'tool', 'url', 'exact', 'verbatim'];
+const QUESTIONS = ['search', 'file', 'chart', 'tool', 'url', 'exact', 'verbatim', 'browser'];
 
 const redact = (text) => [key, geminiKey].filter(Boolean).reduce((value, secret) => value.split(secret).join('***'), String(text));
 const show = (value) => (value === null || value === undefined ? '-' : value.toFixed(2));
 
 async function ask(model, testCase) {
-  const request = buildDecisionRequest({ message: testCase.message, tools, model, historyRecall: true });
+  const request = buildDecisionRequest({ message: testCase.message, tools, model, historyRecall: true, browserCandidate: true });
   const provider = DECISION_PROVIDERS[providerOf(model)];
   const started = Date.now();
   let response;
