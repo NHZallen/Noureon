@@ -96,6 +96,39 @@ test('no viewer from the server: a try again later (quick at first, then every f
   assert.equal(names(w).filter((n) => n === 'POST /viewer').length, 4);
 });
 
+test('the stream goes (the phone left the page): the last picture stays on the card instead of the loading screen, and the new stream replaces it with its first picture', async () => {
+  const w = world();
+  await settle();
+  const frame = 'data:image/jpeg;base64,/9j/AAAA';
+  w.card.captureFrame = () => frame;
+  w.sources[0].options.onState('live');
+  w.sources[0].options.onState('closed', 'ws-closed-1006');
+  await settle();
+  const root = w.card.element;
+  assert.equal(root.querySelector('.bcard-still').hidden, false, 'the last picture is shown');
+  assert.equal(root.querySelector('.bcard-still').getAttribute('src'), frame);
+  assert.equal(root.querySelector('.bcard-screen').hidden, true, 'not the loading screen');
+  w.timers.at(-1)[0](); await settle();
+  assert.equal(w.sources.length, 2);
+});
+
+test('back in front with a picture that does not move: the stream is let go and looked for again; a picture that moves is left alone', async () => {
+  const w = world();
+  await settle();
+  w.card.captureFrame = () => '';
+  let head = 1;
+  w.card.playhead = () => head;
+  const visible = () => { Object.defineProperty(w.document, 'visibilityState', { value: 'visible', configurable: true }); w.document.dispatchEvent(new w.document.defaultView.Event('visibilitychange')); };
+  visible();
+  assert.equal(w.timers.length, 1, 'a look is planned');
+  head = 2;
+  w.timers[0][0](); await settle();
+  assert.equal(w.sources.length, 1, 'it moved: nothing is done');
+  visible();
+  w.timers.at(-1)[0](); await settle();
+  assert.ok(w.sources[0].log.includes('destroy'), 'it did not move: the stream is let go');
+});
+
 test('the page comes back to the front or the network comes back while there is no picture: it looks at once, without waiting for the timer', async () => {
   const w = world({ viewerOk: false });
   await settle();

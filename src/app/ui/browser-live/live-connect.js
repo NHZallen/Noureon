@@ -102,8 +102,13 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   }
 
   // The stream ended by itself (the host closed the viewer, the network went): let go, and look again if somebody still wants to see.
+  // The last picture, kept for when the stream goes (a phone that leaves the page takes the stream away before the page can look): taken while the page is still in front and when it is left.
+  let lastFrame = '';
+  const keepFrame = () => { const frame = card.captureFrame?.(); if (frame) lastFrame = frame; };
   function lost(reason) {
     if (!source) return;
+    keepFrame();
+    if (lastFrame) card.holdFrame?.(lastFrame);
     if (liveSince && now() - liveSince >= STABLE_MS) attempts = 0;
     log('lost', reason || '', `try ${attempts + 1} of ${RETRY_MS.length + 1}`);
     waiting = true;
@@ -122,10 +127,22 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     attempts = 0; waiting = false;
     void connect();
   };
-  const onVisible = () => { if (document.visibilityState === 'visible') lookNow(); };
+  // Back in front with a stream that looks alive but does not move (the phone froze it while the page was away): let it go and look again.
+  let watchdog = null;
+  const checkAlive = () => {
+    clearTimer(watchdog); watchdog = null;
+    if (!source || !wanted()) return;
+    const before = card.playhead?.() ?? -1;
+    if (before < 0) return;
+    watchdog = setTimer(() => { watchdog = null; if (source && wanted() && (card.playhead?.() ?? -1) === before) lost('stalled'); }, 2500);
+  };
+  const onVisible = () => {
+    if (document.visibilityState === 'hidden') { keepFrame(); return; }
+    if (document.visibilityState === 'visible') { if (source) checkAlive(); else lookNow(); }
+  };
   document.addEventListener?.('visibilitychange', onVisible);
   globalThis.addEventListener?.('online', lookNow);
-  const unlisten = () => { document.removeEventListener?.('visibilitychange', onVisible); globalThis.removeEventListener?.('online', lookNow); };
+  const unlisten = () => { clearTimer(watchdog); document.removeEventListener?.('visibilitychange', onVisible); globalThis.removeEventListener?.('online', lookNow); };
 
   card.watch((next) => {
     state = next;

@@ -51,7 +51,13 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
       setState('live');
     };
     pc.onicecandidate = (event) => { if (event.candidate) send('signal/candidate', event.candidate.toJSON ? event.candidate.toJSON() : event.candidate); };
-    pc.onconnectionstatechange = () => { if (pc?.connectionState === 'failed' || pc?.connectionState === 'closed') setState('closed', `rtc-${pc.connectionState}`); };
+    let dropTimer = null;
+    pc.onconnectionstatechange = () => {
+      clearTimeout(dropTimer);
+      if (pc?.connectionState === 'failed' || pc?.connectionState === 'closed') setState('closed', `rtc-${pc.connectionState}`);
+      // A connection that was cut (the phone changed network, or came back from sleep) may not say that it failed: when it has not come back in a few seconds it is let go.
+      else if (pc?.connectionState === 'disconnected') dropTimer = setTimeout(() => { if (pc?.connectionState === 'disconnected') setState('closed', 'rtc-disconnected'); }, 4000);
+    };
     // The offer came but no picture: the media does not get through (a network that blocks it); say so instead of waiting for ever.
     clearTimeout(mediaTimer);
     mediaTimer = setTimeout(() => { if (state !== 'live') setState('closed', 'no-media'); }, 15_000);
