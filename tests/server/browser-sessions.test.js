@@ -230,3 +230,21 @@ test('the status of a person\'s browser: not open, open with the time left, or c
   await w.sessions.tick();
   assert.deepEqual(await w.sessions.status(A), { open: false, closedReason: 'idle' });
 });
+
+test('the person takes the browser over from the screen: it is held until they give it back or the viewer that held it leaves; only the owner is told', async () => {
+  const w = world();
+  w.host.control = async (id, request) => { w.calls.push(['control', id, request.mode]); return { control: request.mode }; };
+  w.host.closeViewer = async () => ({});
+  const { sessionId } = await w.sessions.open(A, {});
+  assert.equal(w.sessions.heldByUser(A), false);
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v1' });
+  assert.equal(w.sessions.heldByUser(A), true);
+  assert.equal(w.sessions.heldByUser(B), false, 'another person is not held');
+  await w.sessions.control(sessionId, A, { mode: 'model' });
+  assert.equal(w.sessions.heldByUser(A), false, 'given back');
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v1' });
+  await w.sessions.closeViewer(sessionId, A, 'v2');
+  assert.equal(w.sessions.heldByUser(A), true, 'another viewer leaving changes nothing');
+  await w.sessions.closeViewer(sessionId, A, 'v1');
+  assert.equal(w.sessions.heldByUser(A), false, 'the one that held it left');
+});

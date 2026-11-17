@@ -130,8 +130,23 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     },
     // The live screen. Only the person the browser belongs to may look at it, point and type in it, and change its size; the host never sees who is asking.
     async viewer(id, userId) { return host.createViewer(own(id, userId).id); },
-    async closeViewer(id, userId, viewerId) { return host.closeViewer(own(id, userId).id, viewerId); },
-    async control(id, userId, request) { return host.control(own(id, userId).id, request); },
+    async closeViewer(id, userId, viewerId) {
+      const session = own(id, userId);
+      // The person who held the browser left the screen: the host takes the input back, and so does the model.
+      if (session.holder && session.holder === viewerId) session.holder = null;
+      return host.closeViewer(session.id, viewerId);
+    },
+    async control(id, userId, request) {
+      const session = own(id, userId);
+      const answer = await host.control(session.id, request);
+      session.holder = request?.mode === 'user' ? String(request.viewerId || 'viewer') : null;
+      return answer;
+    },
+    /** True while the person has taken the browser over from the screen (the model waits until it is given back). */
+    heldByUser(userId) {
+      const session = byId.get(byUser.get(userId));
+      return Boolean(session?.holder);
+    },
     async screen(id, userId, ratio) { return host.setScreen(own(id, userId).id, ratio); },
     /** What the person does with the tabs from the screen (the list, a new tab, switching, closing, reloading, back, an address): only these, only for the owner of the browser. */
     async tabAction(id, userId, request) {

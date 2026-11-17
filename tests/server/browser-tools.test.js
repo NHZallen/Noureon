@@ -338,6 +338,35 @@ test('browser_download: a full space and a failed save are said, and nothing is 
   assert.equal(full.events.filter((e) => e.event === 'file').length, 0);
 });
 
+test('the person took the browser over from the screen: no call touches the browser until they give it back; a browser never given back is told to the model after ten minutes; a stopped reply stops waiting', async () => {
+  const t = setup({ current: { sessionId: 'b1', conversationId: 'c1' } });
+  let held = true;
+  let slept = 0;
+  t.sessions.heldByUser = () => held;
+  const loader = createBrowserLoader({ sessions: t.sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: () => {}, sleep: async () => { slept += 1; if (slept === 3) held = false; } });
+  const first = await loader.run(call('browser_snapshot'));
+  assert.ok(!/not given it back/.test(first), 'it went on when the person gave it back');
+  assert.ok(slept >= 3);
+  assert.ok(t.calls.some((c) => c[0] === 'action'), 'and then it looked');
+  // never given back
+  const t2 = setup({ current: { sessionId: 'b1', conversationId: 'c1' } });
+  t2.sessions.heldByUser = () => true;
+  const stuck = createBrowserLoader({ sessions: t2.sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: () => {}, holdWaitMs: 2_000, sleep: async () => {} });
+  assert.match(await stuck.run(call('browser_click', { ref: 3 })), /has not given it back/);
+  assert.ok(!t2.calls.some((c) => c[0] === 'action'), 'nothing was done in the browser meanwhile');
+  // asking the person is not held back, and neither is closing
+  const t3 = setup({ current: { sessionId: 'b1', conversationId: 'c1' } });
+  t3.sessions.heldByUser = () => true;
+  const free = createBrowserLoader({ sessions: t3.sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: () => {}, holdWaitMs: 2_000, sleep: async () => {} });
+  assert.match(await free.run(call('browser_close')), /browser is closed/);
+  // a stopped reply
+  const stopper = new AbortController();
+  const t4 = setup({ current: { sessionId: 'b1', conversationId: 'c1' }, signal: stopper.signal });
+  t4.sessions.heldByUser = () => true;
+  const waiting = createBrowserLoader({ sessions: t4.sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: () => {}, signal: stopper.signal, sleep: async () => { stopper.abort(); } });
+  assert.match(await waiting.run(call('browser_snapshot')), /stopped/);
+});
+
 // A browser that is started before it is asked for (the model thinks first): quietly, never by waiting in a queue, and let go when it was not asked for.
 function warmWorld({ states = [{ state: 'ready' }] } = {}) {
   const log = [];

@@ -529,7 +529,8 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
     if (action.type === 'clear-site') return await clearSites(cdp, action);
     if (action.type === 'tabs') {
       if (action.op === 'list') {
-        const pages = (await pagesOf(cdp)).slice(0, 12);
+        // Target.getTargets lists the tabs newest first; the tab strip of the browser has them oldest first (seen on the real machine, three times). The list follows the strip, so that the bar of the page is the same as the one on the screen.
+        const pages = (await pagesOf(cdp)).reverse().slice(0, 12);
         // The tab in front is the one that is visible (a tab that is not in front draws nothing).
         const visible = await Promise.all(pages.map(async (p) => {
           try {

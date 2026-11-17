@@ -53,5 +53,6 @@ test('the browser policy: the new tab page is a blank page, not an error page of
   const { readFile } = await import('node:fs/promises');
   const policy = JSON.parse(await readFile(new URL('../browser-host/policies.json', import.meta.url), 'utf8'));
   assert.equal(policy.NewTabPageLocation, 'about:blank');
+  assert.equal(policy.AIModeSettings, 1, 'no AI mode in the address bar: its pop-up is a chrome-untrusted page, which the block list turns into an English error page');
   assert.ok(policy.URLBlocklist.includes('chrome://*'));
 });

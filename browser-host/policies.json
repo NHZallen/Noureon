@@ -19,6 +19,7 @@
   "PromptForDownloadLocation": false,
   "BookmarkBarEnabled": false,
   "NewTabPageLocation": "about:blank",
+  "AIModeSettings": 1,
   "PasswordManagerEnabled": false,
   "BrowserLabsEnabled": false,
   "CommandLineFlagSecurityWarningsEnabled": false,

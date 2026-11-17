@@ -90,7 +90,7 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, waitForOtherMs = 35 * 60_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 0, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, waitForOtherMs = 35 * 60_000, holdWaitMs = 10 * 60_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 0, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let actions = 0;
   // The person pressed the cross of the card: the browser is closed for this reply, and every call says so (BROWSER_ENDED_BY_USER).
   let userEnded = false;
@@ -308,6 +308,17 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     return BROWSER_ENDED_BY_USER;
   }
 
+  const NOT_HELD = new Set(['browser_close', 'browser_request_handover', 'browser_request_login', 'browser_request_code', 'browser_request_payment']);
+  /** While the person holds the browser: waits (up to holdWaitMs) for them to give it back; null when it is free, or a text for the model when it was not given back in time or the reply was stopped. */
+  async function waitWhileHeld() {
+    if (!sessions.heldByUser?.(userId)) return null;
+    for (let waited = 0; sessions.heldByUser(userId); waited += 500) {
+      if (signal?.aborted || userEnded) return userEnded ? BROWSER_ENDED_BY_USER : 'The reply was stopped.';
+      if (waited >= holdWaitMs) return 'The user has been using the browser themselves and has not given it back. Do not touch the browser. Say that you are waiting for them to give it back, and ask in the conversation.';
+      await sleep(500);
+    }
+    return null;
+  }
   async function runCall(call) {
     if (signal?.aborted) return 'The reply was stopped.';
     const args = call.args && typeof call.args === 'object' ? call.args : {};
@@ -317,6 +328,11 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       return planText(result.tasks, { kept: result.kept });
     }
     if (maxActions > 0 && actions >= maxActions) return `The limit of ${maxActions} browser actions for one reply is reached. Go on with what you have.`;
+    // The person took the browser over themselves (the button of the screen): nothing is done in it, and nothing of it is looked at, until they give it back.
+    if (!NOT_HELD.has(call.name)) {
+      const held = await waitWhileHeld();
+      if (held) return held;
+    }
     try {
       if (call.name === 'browser_close') {
         const sessionId = current();
