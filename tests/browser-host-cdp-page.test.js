@@ -13,6 +13,16 @@ import { elementsOfTree, runAction } from '../browser-host/cdp-actions.mjs';
 
 const node = (id, role, name, extra = {}) => ({ nodeId: String(id), backendDOMNodeId: id, role: { value: role }, name: { value: name }, ...extra });
 
+// What a real Chromium has done is waited for until it shows (a fixed wait was too short when many tests run at once).
+const until = async (check, { ms = 30_000, every = 100 } = {}) => {
+  const end = Date.now() + ms;
+  for (;;) {
+    const value = await check();
+    if (value || Date.now() > end) return value;
+    await new Promise((resolve) => setTimeout(resolve, every));
+  }
+};
+
 test('the tree is reduced to what can be acted on, with a number for each; hidden things and nameless ones are left out', () => {
   const elements = elementsOfTree([
     node(1, 'link', 'Home', { properties: [{ name: 'url', value: { value: 'https://example.com/' } }] }),
@@ -69,7 +79,7 @@ test('a real page: look, type, submit, click, scroll, go back; a password is nev
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder that could not be removed is not a failure of the test */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const base = `http://127.0.0.1:${site.address().port}`;
 
@@ -130,7 +140,7 @@ test('the login fields of a real page are filled only on a site of the login, in
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const origin = `https://127.0.0.1:${site.address().port}`;
 
@@ -179,7 +189,7 @@ test('a code is typed into one box or into a box for each digit, only on a site 
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const origin = `https://127.0.0.1:${site.address().port}`;
   await act({ type: 'navigate', url: `${origin}/` });
@@ -222,7 +232,7 @@ test('a card is typed into the fields of the page, only on the site it is for; t
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const origin = `https://127.0.0.1:${site.address().port}`;
   await act({ type: 'navigate', url: `${origin}/` });
@@ -283,7 +293,7 @@ test('a file the page sends is taken out of the browser with its name and size, 
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const origin = `https://127.0.0.1:${site.address().port}`;
   await act({ type: 'navigate', url: `${origin}/` });
@@ -316,18 +326,17 @@ test('tabs: the list says which one is in front; a tab can be brought to the fro
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const base = `http://127.0.0.1:${site.address().port}`;
   await act({ type: 'navigate', url: `${base}/` });
   const second = await act({ type: 'tabs', op: 'new', url: `${base}/b` });
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  const listed = (await act({ type: 'tabs', op: 'list' })).tabs;
+  const listed = await until(async () => { const tabs = (await act({ type: 'tabs', op: 'list' })).tabs; return tabs.length === 2 ? tabs : null; });
   assert.equal(listed.length, 2);
   assert.ok(listed.every((tab) => typeof tab.active === 'boolean'));
   await act({ type: 'tabs', op: 'activate', tabId: listed.find((tab) => tab.tabId !== second.tabId).tabId });
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const after = (await act({ type: 'tabs', op: 'list' })).tabs;
+  const wantedTab = listed.find((tab) => tab.tabId !== second.tabId).tabId;
+  const after = await until(async () => { const tabs = (await act({ type: 'tabs', op: 'list' })).tabs; return tabs.find((tab) => tab.active)?.tabId === wantedTab ? tabs : null; }) || (await act({ type: 'tabs', op: 'list' })).tabs;
   assert.equal(after.filter((tab) => tab.active).length, 1);
   assert.equal(after.find((tab) => tab.active).tabId, listed.find((tab) => tab.tabId !== second.tabId).tabId);
   assert.equal((await act({ type: 'tabs', op: 'reload', tabId: second.tabId })).ok, true);
@@ -353,7 +362,7 @@ test('logging out of a site: its cookies go, the cookies of another site stay', 
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const sent = async (url) => { await act({ type: 'navigate', url }); return (await act({ type: 'text' })).text; };
   const here = `http://127.0.0.1:${site.address().port}/`;
@@ -386,7 +395,7 @@ test('a file of the person is put into the file field of the page, from its byte
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   await act({ type: 'navigate', url: `http://127.0.0.1:${site.address().port}/` });
   const snap = await act({ type: 'snapshot' });
@@ -396,8 +405,7 @@ test('a file of the person is put into the file field of the page, from its byte
   const field = snap.elements.find((e) => /resume/i.test(e.name || '')) || fileButtons[0];
   const done = await act({ type: 'upload', ref: field.ref, files: [{ name: 'cv.txt', mime: 'text/plain', base64: b64('my cv') }] });
   assert.equal(done.uploaded, 1);
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const after = await act({ type: 'snapshot' });
+  const after = await until(async () => { const shot = await act({ type: 'snapshot' }); return /cv\.txt:text\/plain:my cv/.test(shot.text) ? shot : null; }) || await act({ type: 'snapshot' });
   assert.match(after.text, /cv\.txt:text\/plain:my cv/);
   await assert.rejects(act({ type: 'upload', ref: field.ref, files: [{ name: 'a.txt', base64: b64('a') }, { name: 'b.txt', base64: b64('b') }] }), /one file only/);
   const heading = (await act({ type: 'snapshot' })).elements.find((e) => e.role === 'heading' || e.role === 'button' && /choose a file/i.test(e.name));
@@ -430,19 +438,19 @@ test('card boxes that sit in frames of another site are typed into only when the
     try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temporary folder */ }
   });
   const devtools = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
+  for (let i = 0; i < 240; i += 1) { try { await fetch(`${devtools}/json/version`); break; } catch { await new Promise((resolve) => setTimeout(resolve, 250)); } }
   const act = (action) => runAction(action, devtools);
   const origin = `https://127.0.0.1:${main.address().port}`;
   await act({ type: 'navigate', url: `${origin}/` });
-  await new Promise((resolve) => setTimeout(resolve, 1200));
   // The frames are of a host nobody named as a payment provider: only the page's own box is typed.
   setPaymentFrameHostsForTest([]);
-  const own = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  const own = await until(async () => { const answer = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD }); return answer.filled?.includes('name') ? answer : null; }) || await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
   assert.deepEqual(own.filled, ['name']);
   assert.ok(own.missing.includes('number') && own.missing.includes('cvc'));
   // The same frames, now of a provider: the number and the code go in, and the answer still holds no value.
   setPaymentFrameHostsForTest(['localhost']);
-  const done = await act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  const typed = async () => act({ type: 'fill-card', origins: [origin], card: FULL_CARD });
+  const done = await until(async () => { const answer = await typed(); return answer.filled?.includes('number') && answer.filled?.includes('cvc') ? answer : null; }) || await typed();
   assert.ok(done.filled.includes('number') && done.filled.includes('cvc') && done.filled.includes('name'), JSON.stringify(done));
   assert.ok(!done.missing.includes('number') && !done.missing.includes('cvc'));
   assert.ok(!JSON.stringify(done).includes('4242'));
