@@ -3,13 +3,14 @@
 export function createBrowserLiveHandler({ getRun, getDocument }) {
   return (card, sessionId) => {
     const run = getRun();
-    if (!run?.api || !sessionId) return;
-    void import('../../ui/browser-live/live-connect.js').then(({ connectBrowserLive }) => connectBrowserLive({
+    if (!run?.api || !sessionId) return null;
+    // The connection comes back (a promise of { stop }): the card keeps one, so a screen told twice is not looked at twice.
+    return import('../../ui/browser-live/live-connect.js').then(({ connectBrowserLive }) => connectBrowserLive({
       card,
       sessionId,
       document: getDocument(),
       api: (method, path, body) => getRun().api(method, path, body),
       readClipboard: () => (globalThis.navigator?.clipboard?.readText ? globalThis.navigator.clipboard.readText() : Promise.resolve(''))
-    })).catch(() => {});
+    })).catch(() => null);
   };
 }

@@ -768,3 +768,24 @@ test('a card that failed works again when the model goes on (a browser lost, ano
     window.happyDOM.abort();
   }
 });
+
+test('a screen that is told again is looked at through one connection: the one before is let go before the next is made, and with the card', async () => {
+  const window = new Window();
+  const { document } = window;
+  const log = [];
+  let made = 0;
+  try {
+    const ledger = createSandboxLedger({ document, host: document.body, language: 'en', summary: true, onBrowserLive: async (card, sessionId) => { made += 1; const n = made; log.push(`connect ${n} ${sessionId}`); return { stop: () => { log.push(`stop ${n}`); } }; } });
+    ledger.event(call('open', 'acme.com', 'Browsing: acme.com'));
+    ledger.event({ type: 'browser', event: 'live', sessionId: 'b1' });
+    ledger.event({ type: 'browser', event: 'live', sessionId: 'b1' });
+    ledger.event({ type: 'browser', event: 'live', sessionId: 'b1' });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.deepEqual(log, ['connect 1 b1', 'stop 1', 'connect 2 b1', 'stop 2', 'connect 3 b1'], 'never two at once');
+    ledger.remove();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(log.at(-1), 'stop 3', 'and the last one goes with the card');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

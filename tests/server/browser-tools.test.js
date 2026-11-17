@@ -93,7 +93,7 @@ test('a failed action is tried once more only when the browser did not answer; w
   semantic.setOpen({ sessionId: 'b1', conversationId: 'c1' });
   assert.match(await semantic.loader.run(call('browser_click', { ref: 3 })), /take a new snapshot/);
   assert.equal(m, 1, 'a mistake of the model is not repeated');
-  assert.equal(semantic.events.at(-1).event, 'failed');
+  assert.equal(semantic.events.some((event) => event.event === 'failed'), false, 'the card is not told the browser is lost for a mistake of a step');
   const gone = setup({ actions: { snapshot: () => { throw new BrowserHostError('gone', { status: 404, code: 'not_found' }); } } });
   gone.setOpen({ sessionId: 'b1', conversationId: 'c1' });
   assert.match(await gone.loader.run(call('browser_snapshot')), /Call browser_open to start it again/);
@@ -574,4 +574,16 @@ test('after a step failed the page is told where the live screen of the browser 
   fail = false;
   await t.loader.run(call('browser_click', { ref: 1 }));
   assert.equal(t.events.filter((event) => event.event === 'live').length, 2, 'the screen is announced again with the next step');
+});
+
+test('a step the page refused (the host says 400) is for the model to handle: the card is not told the browser is not available, and the screen is not announced again', async () => {
+  let refuse = false;
+  const t = setup({ actions: { click: () => { if (refuse) throw new BrowserHostError('that element is not on the page any more', { status: 400, code: 'action_failed' }); return { ok: true }; } } });
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  refuse = true;
+  assert.match(asText(await t.loader.run(call('browser_click', { ref: 1 }))), /could not do that/);
+  assert.equal(t.events.filter((event) => event.event === 'failed').length, 0);
+  refuse = false;
+  await t.loader.run(call('browser_click', { ref: 1 }));
+  assert.equal(t.events.filter((event) => event.event === 'live').length, 1);
 });

@@ -4,7 +4,7 @@ import { createBrowserLiveHandler } from '../src/app/runtime/reply/browser-live-
 
 test('with no run of the server, or no session, nothing is connected', () => {
   const handler = createBrowserLiveHandler({ getRun: () => null, getDocument: () => ({}) });
-  assert.equal(handler({}, 'b0123456789abcdef'), undefined);
+  assert.equal(handler({}, 'b0123456789abcdef'), null);
   const withRun = createBrowserLiveHandler({ getRun: () => ({ api: () => {} }), getDocument: () => ({}) });
-  assert.equal(withRun({}, ''), undefined);
+  assert.equal(withRun({}, ''), null);
 });

@@ -92,10 +92,20 @@ export function createSandboxLedger({ document, host, before = null, language = 
   };
   // The browser the model works: one card in the conversation under the line of the steps (browser-card.js), loaded when the first event comes.
   let browserCard = null;
+  let liveConnection = null;
   const browserEvent = (event) => {
     browserCard = (browserCard || import('./browser-card.js').then(({ createBrowserCard }) => createBrowserCard({ document, host: askCardHost(), language, onCancel: onBrowserCancel, onAnswer: onBrowserAnswer, enter: true })));
     // The live screen is not a step: the page connects to it (what the connector does is up to the owner of the reply).
-    if (event.event === 'live') { browserCard.then((card) => onBrowserLive?.(card, event.sessionId)).catch(() => {}); return; }
+    // The same screen may be told again (the page joined the reply again, or a step failed and the next one says where the screen is): the card has one connection to it, and the one before is let go
+    // first. (Each one the host counts: three at once, and the next are refused.)
+    if (event.event === 'live') {
+      const before = liveConnection;
+      liveConnection = browserCard.then(async (card) => {
+        await before?.then((connection) => connection?.stop?.()).catch(() => {});
+        return onBrowserLive?.(card, event.sessionId);
+      }).catch(() => null);
+      return;
+    }
     browserCard.then((card) => card.handle(event)).catch(() => {});
   };
   // The picture the text model draws (generate_image): a row that runs while the picture is made, and the card that asks first when the person has not allowed it for good.
@@ -518,6 +528,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
       outer?.remove();
       // The live screen of the browser card is let go with it (a card made afterwards, when the page joins the reply again, connects to it afresh).
       browserCard?.then((card) => card.dispose?.()).catch(() => {});
+      liveConnection?.then((connection) => connection?.stop?.()).catch(() => {});
       askHost?.remove();
       urls.forEach((url) => document.defaultView.URL.revokeObjectURL(url));
     }
