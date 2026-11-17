@@ -676,10 +676,10 @@ export function createRunManager({
     async stop({ userId, runId, mode = null }) {
       const entry = active.get(runId);
       if (mode === 'report' && entry?.controls && entry.userId === userId) return entry.controls.send('stop', { mode }).ok;
-      const found = await store.requestStop({ userId, runId });
+      // The reply here is stopped first, the record of the stop is written after (a round trip to the database is not waited for before the model and the browser let go).
       const local = active.get(runId);
       if (local && local.userId === userId && !local.controller.signal.aborted) local.controller.abort('stopped');
-      return found;
+      return await store.requestStop({ userId, runId });
     },
 
     get: (args) => store.get(args),

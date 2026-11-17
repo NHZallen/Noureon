@@ -235,7 +235,17 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
 
   async function run(call) {
     if (userEnded) return BROWSER_ENDED_BY_USER;
-    const result = await runCall(call);
+    // A stop of the reply does not wait for a step of the browser that is on its way (a page that loads slowly, a host that is slow to answer): the step is let go, and its end is not looked at.
+    const work = runCall(call);
+    work.catch(() => {});
+    let onAbort = null;
+    const stopped = new Promise((resolve) => {
+      if (!signal) return;
+      onAbort = () => resolve('The reply was stopped.');
+      if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, { once: true });
+    });
+    const result = await Promise.race([work, stopped]);
+    if (onAbort) signal.removeEventListener('abort', onAbort);
     if (!userEnded) return result;
     // A question that was open, or a step that was on its way, ended with the browser: the model is told why, not that the reply was stopped. A browser that opened meanwhile is closed.
     const left = current();
@@ -486,7 +496,9 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       const open = current();
       if (open && !takesCard && (!lastShot || signal?.aborted)) {
         let timer = null;
-        await Promise.race([picture(open), new Promise((resolve) => { timer = setTimeout(resolve, frameWaitMs); })]).catch(() => null);
+        // A stopped reply has the person waiting for it to end: one quick look (when it was never taken a picture, a little longer), not the whole wait.
+        const waitMs = signal?.aborted ? Math.min(frameWaitMs, lastShot ? 1_200 : 2_500) : frameWaitMs;
+        await Promise.race([picture(open), new Promise((resolve) => { timer = setTimeout(resolve, waitMs); })]).catch(() => null);
         clearTimeout(timer);
       }
       if (!lastShot) return '';

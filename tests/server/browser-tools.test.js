@@ -624,3 +624,25 @@ test('a step that was on its way when the person ended the browser answers that,
   assert.equal(await running, BROWSER_ENDED_BY_USER);
   assert.equal(t.events.some((event) => event.event === 'failed'), false);
 });
+
+test('a stop of the reply does not wait for a step of the browser that is slow: the step is let go at once', async () => {
+  const controller = new AbortController();
+  const t = setup({ signal: controller.signal, actions: { navigate: () => new Promise(() => {}) } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const running = t.loader.run(call('browser_open', { url: 'https://slow.example/' }));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const began = Date.now();
+  controller.abort('stopped');
+  assert.equal(await running, 'The reply was stopped.');
+  assert.ok(Date.now() - began < 500, 'it came back at once');
+});
+
+test('the last picture of a stopped reply is looked for quickly: a slow host does not hold the end of the reply', async () => {
+  const controller = new AbortController();
+  const t = setup({ signal: controller.signal, actions: { screenshot: () => new Promise(() => {}) } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  controller.abort('stopped');
+  const began = Date.now();
+  assert.equal(await t.loader.frame(), '');
+  assert.ok(Date.now() - began < 3500, `waited ${Date.now() - began} ms`);
+});
