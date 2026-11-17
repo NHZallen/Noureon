@@ -102,7 +102,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
   const shareLimiter = createRateLimiter({ limit: 20, windowMs: 60_000, now });
   const projectLimiter = createRateLimiter({ limit: 120, windowMs: 60_000, now });
   const startedAt = now();
-  const browserLive = createBrowserLiveRoutes({ browser, limiter: createRateLimiter({ limit: 120, windowMs: 60_000, now }) });
+  const browserLive = createBrowserLiveRoutes({ browser, log, limiter: createRateLimiter({ limit: 120, windowMs: 60_000, now }) });
   const browserAccount = createBrowserAccountRoutes({ browser, limiter: createRateLimiter({ limit: 30, windowMs: 60_000, now }) });
   const browserLogins = createBrowserLoginRoutes({ browser, limiter: createRateLimiter({ limit: 30, windowMs: 60_000, now }) });
 

@@ -17,7 +17,7 @@ const RATIOS = new Set(['4:3', '16:9', 'portrait']);
  * `browser`: the service of server/browser-service.js (or null). Returns an async function (request, context) -> true when the request was one of these routes (answered), false when it is not;
  * the context is { url, authenticate(request) -> { id }, readJson(request, max, options), send(status, body), fail(code, message, extra) (throws) } from the request handler of app.js.
  */
-export function createBrowserLiveRoutes({ browser, limiter = null }) {
+export function createBrowserLiveRoutes({ browser, limiter = null, log = () => {} }) {
   const routes = [
     { method: 'POST', re: new RegExp(`^/v1/browser/${ID}/viewer$`), run: ({ user, match }) => browser.sessions.viewer(match[1], user.id).then((body) => [200, body]) },
     { method: 'DELETE', re: new RegExp(`^/v1/browser/${ID}/viewer/${VIEWER}$`), run: ({ user, match }) => browser.sessions.closeViewer(match[1], user.id, match[2]).then(() => [200, { ok: true }]) },
@@ -57,14 +57,17 @@ export function createBrowserLiveRoutes({ browser, limiter = null }) {
     const route = routes.find((r) => r.method === request.method && r.re.test(url.pathname));
     if (!route) return false;
     const user = await authenticate(request);
-    if (limiter && !limiter.take?.(user.id)) problem('rate_limited', 'Too many requests.');
-    if (!(await browser.mayUse(user.id))) problem('not_found', 'There is no such browser.');
+    // What is refused is said in the log (the kind of route and why, nothing of the person or the page), so a screen that does not come can be traced.
+    const kind = url.pathname.split('/')[4] || '';
+    if (limiter && !limiter.take?.(user.id)) { log('browser_live_refused', { route: kind, why: 'rate_limited' }); problem('rate_limited', 'Too many requests.'); }
+    if (!(await browser.mayUse(user.id))) { log('browser_live_refused', { route: kind, why: 'not_allowed' }); problem('not_found', 'There is no such browser.'); }
     let body = null;
     if (route.body) body = await readJson(request, route.body, { optional: true });
     try {
       const [status, payload] = await route.run({ user, match: route.re.exec(url.pathname), body, problem });
       send(status, payload);
     } catch (error) {
+      if (error?.name === 'BrowserSessionError' || error?.name === 'BrowserHostError') log('browser_live_refused', { route: kind, why: String(error.code || error.name).slice(0, 40), status: Number(error.status) || 0 });
       if (error?.name === 'BrowserSessionError' && error.code === 'not_found') problem('not_found', 'There is no such browser.');
       if (error?.name === 'BrowserHostError') {
         if (error.code === 'not_live' || error.code === 'not_ready' || error.status === 404 || error.status === 409) problem('wrong_phase', 'The live screen is not ready.', { reason: error.code });

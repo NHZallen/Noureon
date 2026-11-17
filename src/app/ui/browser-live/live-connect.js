@@ -80,7 +80,8 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     try {
       const answer = await api('POST', `${base}/viewer`);
       if (answer?.ok && answer.data?.viewerId) granted = answer.data;
-    } catch { /* told below */ }
+      else log('viewer-refused', String(answer?.status ?? ''), String(answer?.code || answer?.data?.error?.code || ''));
+    } catch { log('viewer-failed', 'request'); }
     connecting = false;
     if (!granted) { schedule(); return; }
     if (!wanted()) { void api('DELETE', `${base}/viewer/${encodeURIComponent(granted.viewerId)}`).catch(() => {}); return; }
