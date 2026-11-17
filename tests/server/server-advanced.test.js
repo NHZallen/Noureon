@@ -1345,3 +1345,35 @@ test('the person ends the browser (the cross of its card) in the middle of the r
   assert.ok(events.includes('ended'));
   assert.ok(!events.includes('failed'));
 });
+
+test('a stop does not wait for a browser that was still starting: the reply ends at once and the browser is let go in the background', async () => {
+  const controller = new AbortController();
+  const browser = {
+    mayUse: async () => true,
+    maxActions: 0,
+    sessions: {
+      current: () => null,
+      open: () => new Promise(() => {}), // the host never answers
+      waitReady: async () => ({ state: 'ready' }),
+      action: async () => ({ ok: true }),
+      close: async () => true,
+      discard: async () => true
+    }
+  };
+  const began = Date.now();
+  const result = await Promise.race([
+    executeReply({
+      spec: specFor({ browser: true }),
+      secrets,
+      userId: USER,
+      sandboxHost: fakeHost([]),
+      files: fakeFiles(),
+      browser,
+      signal: controller.signal,
+      fetchImpl: async () => { controller.abort('stopped'); return streamResponse(sse(content('Half an answer'))); }
+    }),
+    new Promise((resolve) => setTimeout(() => resolve('hung'), 4000))
+  ]);
+  assert.notEqual(result, 'hung', 'the reply did not wait for the host');
+  assert.ok(Date.now() - began < 3000);
+});

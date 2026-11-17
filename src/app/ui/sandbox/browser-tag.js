@@ -5,7 +5,7 @@
 // A message is drawn in a document of its own that is turned into text (markdown-rendering-helpers.js) and put into the page afterwards, so what is built in it with code is lost.
 // Therefore the element made here is a place holder with the number of its record; the page looks for place holders that come into it and builds the card there.
 
-/** `record`: { end: 'running' | 'done' | 'failed' | 'cancelled', steps: [{ action, domain, label }], frame?: the last picture } (sandbox-run-block.js). */
+/** `record`: { end: 'running' | 'done' | 'failed' | 'cancelled' | 'timeup', steps: [{ action, domain, label }], frame?: the last picture } (sandbox-run-block.js). */
 const records = new Map();
 let counter = 0;
 let watching = false;
@@ -24,6 +24,7 @@ function fill(host) {
     record.steps.forEach((step) => card.handle({ event: 'call', action: step.action, domain: step.domain, label: step.label }));
     if (record.end === 'failed') card.handle({ event: 'failed' });
     else if (record.end === 'cancelled') card.cancel();
+    else if (record.end === 'timeup') card.handle({ event: 'timeup' });
     // A reply still running (the page came back to it): the card stays in its run phase, the live screen and the next steps of the server take it from here.
     else if (record.end !== 'running') card.complete();
     if (record.frame) card.setStill(record.frame);

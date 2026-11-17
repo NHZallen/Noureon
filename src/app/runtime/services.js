@@ -19,7 +19,9 @@ export const SERVICES = Object.freeze({
   // the rest of the page asks, instead of the browser's own box (which some browsers hold back, and a page that is driven by a tool cannot answer).
   confirmDialog: 'confirm-dialog',
   // The settings as { getConfig, update(patch), save() } (cloud-workspace-live-lifecycle.js): for the parts that start by themselves for a signed-in account and keep a setting (security/local-key-policy-sync.js).
-  settingsAccess: 'settings-access'
+  settingsAccess: 'settings-access',
+  // (messageText, conversation) -> a promise of true when the words of the message switched the browser agent on for the conversation (null for a message that does not ask for a browser) (ui/browser-agent/browser-agent-menu.js).
+  browserAutoOn: 'browser-auto-on'
 });
 
 const NAMES = new Set(Object.values(SERVICES));

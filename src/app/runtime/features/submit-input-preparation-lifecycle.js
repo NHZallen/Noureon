@@ -1,4 +1,5 @@
 import { sendMarks } from '../reply/send-marks.js';
+import { SERVICES, getService } from '../services.js';
 import { shouldAutoEnableWebSearch } from './auto-web-search.js';
 import { extractLinkedUrls } from '../reply/linked-pages.js';
 import { clearCliSelection, getCliSelection } from '../cli/cli-bridge.js';
@@ -113,6 +114,9 @@ export function createSubmitInputPreparationLifecycle({
       .filter(part => part?.text)
       .map(part => part.text)
       .join('\n');
+    // "Open a browser for me" said in words switches the browser agent on for this conversation (ui/browser-agent/browser-agent-menu.js).
+    const browserSwitch = getService(SERVICES.browserAutoOn)?.(userMessage, conversation);
+    if (browserSwitch) await browserSwitch.catch(() => {});
     const councilValidation = getCouncilValidation(conversation, uploadedFiles);
     if (!councilValidation.ok) {
       showNotification(councilValidation.message, 'warning');

@@ -151,12 +151,15 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     else wrap.append(icon(document, state === 'done' ? 'check' : state === 'help' ? 'warn' : 'cross', 14, 2.4));
     return wrap;
   };
+  // The notice that the time of the task is nearly up: on the capsule for a while, and kept in the list.
+  let timeNotice = '';
   const labelNow = () => {
     if (phase === 'queued') return queuedLabel;
     if (asking && phase === 'run') return askWords(language, asking.kind).need;
     if (phase === 'done') return t('browserDone');
-    if (phase === 'cancelled') return t('browserCancelled');
+    if (phase === 'cancelled') return t(endReason === 'time' ? 'browserTimeUp' : 'browserCancelled');
     if (phase === 'failed') return t('browserFailed');
+    if (timeNotice) return timeNotice;
     return steps.at(-1)?.label || t('browserCardLabel');
   };
 
@@ -272,8 +275,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     keep.focus?.();
   };
 
-  const cancel = ({ silent = false } = {}) => {
+  let endReason = '';
+  const cancel = ({ silent = false, reason = '' } = {}) => {
     if (phase === 'done' || phase === 'failed' || phase === 'cancelled') return;
+    endReason = reason;
     steps.forEach((step) => { if (step.state === 'run') step.state = 'fail'; });
     closePlan('fail');
     foldInto(() => {
@@ -367,6 +372,21 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     // The browser was ended by the person (on this page or another one that watches the reply): the card is stopped, the reply goes on without telling the server again.
     if (event?.event === 'ended') {
       cancel({ silent: true });
+      return;
+    }
+    // Fifteen minutes are left of the time of one task (the browser closes then): said on the capsule for a while and kept in the list.
+    if (event?.event === 'timeleft') {
+      const minutes = Math.max(1, Math.round(Number(event.minutes) || 15));
+      const words = t('browserTimeLeft', { minutes });
+      if (notes.length < 20) notes.push({ label: words, state: 'note' });
+      timeNotice = words;
+      setTimeout(() => { if (timeNotice === words) { timeNotice = ''; render(); } }, 20_000);
+      render();
+      return;
+    }
+    // The time of the task is up: the host closes the browser, and the card is the tag "Closed (time is up)".
+    if (event?.event === 'timeup') {
+      cancel({ silent: true, reason: 'time' });
       return;
     }
     if (event?.event === 'failed') {

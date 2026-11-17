@@ -139,6 +139,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event.event === 'failed') browserEnded = 'failed';
     // The person ended the browser themselves (the reply goes on): the record says it was stopped, and a page that comes back draws the stopped tag at once.
     if (event.event === 'ended') browserEnded = 'cancelled';
+    // The time limit of the task ran out (the host closes the browser): the tag says so.
+    if (event.event === 'timeup') browserEnded = 'timeup';
     // The work list as it stands (the loader holds the rules: a done task never changes); the record keeps the latest.
     if (event.event === 'plan' && Array.isArray(event.tasks)) browserPlan = event.tasks.slice(0, 12).map((task) => ({ text: String(task.text || '').slice(0, 120), status: ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo' }));
   };
@@ -819,8 +821,10 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (error instanceof ReplyError && error.code === ERROR_CODES.sandboxUnavailable) throw error;
     if (!signal?.aborted) throw new ReplyError(scrubMessage(error?.message, secrets), 'provider_error');
   } finally {
-    await closeConnectors();
-    await browserLoader?.releaseUnused?.().catch(() => {});
+    // A stopped reply does not wait for these (a connector that is slow to close, a browser that was still starting): they are let go in the background, and the person's stop is done at once.
+    const letGo = Promise.all([closeConnectors(), browserLoader?.releaseUnused?.().catch(() => {})]);
+    if (signal?.aborted) void letGo.catch(() => {});
+    else await letGo;
   }
   // The last picture of the browser goes with the record (the tag of the message opens to it).
   if (browserTrace.length) browserFrame = await browserLoader?.frame?.().catch(() => '') || '';

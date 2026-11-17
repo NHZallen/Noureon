@@ -100,3 +100,33 @@ test('the row is brought up to date when the plus button is pressed, before the 
 test('the five languages have the words of the row', () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) for (const key of ['baMenuLabel', 'baMenuDescription', 'baMenuNoVision', 'baMenuNeedInvite', 'baMenuOn', 'baMenuOff', 'baMenuUnavailable']) assert.ok(browserAgentTexts[language][key], `${language} ${key}`);
 });
+
+test('words that ask for a browser switch it on once for the conversation, with a place and a model that sees; otherwise the person is told why', async () => {
+  const t = setup();
+  assert.equal(await t.menu.autoEnable('just talking about browsers'), false);
+  assert.equal(isBrowserOn('c1'), false);
+  assert.equal(await t.menu.autoEnable('Open a browser and find flights'), true);
+  assert.equal(isBrowserOn('c1'), true);
+  assert.deepEqual(t.notes.at(-1), [text('baMenuOn'), 'info']);
+  const before = t.notes.length;
+  assert.equal(await t.menu.autoEnable('Open a browser again'), false, 'already on: nothing more is said');
+  assert.equal(t.notes.length, before);
+  t.window.happyDOM.abort();
+
+  const noPlace = setup({ conversation: { id: 'c2' }, access: { ok: true, allowed: false, codes: [] } });
+  assert.equal(await noPlace.menu.autoEnable('幫我開瀏覽器'), false);
+  assert.equal(isBrowserOn('c2'), false);
+  assert.deepEqual(noPlace.notes.at(-1), [text('baMenuNeedInvite'), 'warning']);
+  noPlace.window.happyDOM.abort();
+
+  const blind = setup({ conversation: { id: 'c3' }, vision: false });
+  assert.equal(await blind.menu.autoEnable('Open a browser'), false);
+  assert.deepEqual(blind.notes.at(-1), [text('baMenuNoVision'), 'warning']);
+  assert.equal(blind.asked.length, 0, 'the server is not asked');
+  blind.window.happyDOM.abort();
+
+  const temporary = setup({ conversation: { id: 'c4', retentionMode: 'ephemeral' } });
+  assert.equal(await temporary.menu.autoEnable('Open a browser'), false);
+  assert.equal(temporary.notes.length, 0);
+  temporary.window.happyDOM.abort();
+});

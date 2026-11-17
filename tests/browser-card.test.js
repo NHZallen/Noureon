@@ -845,3 +845,17 @@ test('the cross of the card lets go of the screen at once and asks the server to
     window.happyDOM.abort();
   }
 });
+
+test('fifteen minutes before the time of the task is up the capsule says so for a while and the list keeps it; when the time is up the card is the tag "Closed (time is up)"', async () => {
+  const { window, card, q } = make({ onCancel: () => { throw new Error('the server is not told'); } });
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.handle({ event: 'timeleft', minutes: 15 });
+    assert.match(q('.bcard-capsule .bcard-text').textContent, /15 minutes left/);
+    card.handle({ event: 'timeup' });
+    assert.equal(card.phase, 'cancelled');
+    assert.equal(q('.bcard-pill .bcard-text').textContent, 'Closed (time is up)');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

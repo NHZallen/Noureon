@@ -646,3 +646,41 @@ test('the last picture of a stopped reply is looked for quickly: a slow host doe
   assert.equal(await t.loader.frame(), '');
   assert.ok(Date.now() - began < 3500, `waited ${Date.now() - began} ms`);
 });
+
+test('the time limit of a task: the card is told once when fifteen minutes are left, and once when the time is up; the clocks stop with the reply', async () => {
+  const timers = [];
+  const cleared = [];
+  const events = [];
+  const sessions = {
+    current: () => null,
+    open: async () => ({ sessionId: 'b00000001' }),
+    waitReady: async () => ({ state: 'ready', taskMsLeft: 7_200_000 }),
+    action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+    close: async () => true
+  };
+  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', emit: (event) => events.push(event), setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: (id) => cleared.push(id) });
+  await loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.deepEqual(timers.map((entry) => entry.ms), [6_300_000, 7_200_000], 'fifteen minutes before, and at the end');
+  await loader.run(call('browser_open', { url: 'https://shop.example/two' }));
+  assert.equal(timers.length, 2, 'armed once for a browser');
+  timers[0].fn();
+  assert.deepEqual(events.at(-1), { type: 'browser', event: 'timeleft', minutes: 15 });
+  timers[1].fn();
+  assert.deepEqual(events.at(-1), { type: 'browser', event: 'timeup' });
+  await loader.releaseUnused();
+  assert.deepEqual(cleared, [1, 2], 'the clocks stop when the reply is over');
+});
+
+test('a browser with less than fifteen minutes left gets only the end, and the host\'s own count of the time left is used', async () => {
+  const timers = [];
+  const sessions = {
+    current: () => null,
+    open: async () => ({ sessionId: 'b00000001' }),
+    waitReady: async () => ({ state: 'ready', taskMsLeft: 600_000 }),
+    action: async () => ({ ok: true, url: 'https://shop.example/', title: 'Shop' }),
+    close: async () => true
+  };
+  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', setTimer: (fn, ms) => { timers.push(ms); return timers.length; }, clearTimer: () => {} });
+  await loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.deepEqual(timers, [600_000]);
+});

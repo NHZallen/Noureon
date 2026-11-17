@@ -90,10 +90,20 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 900_000, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let actions = 0;
   // The person pressed the cross of the card: the browser is closed for this reply, and every call says so (BROWSER_ENDED_BY_USER).
   let userEnded = false;
+  // The time limit of one task (the host closes the browser after `taskMaxMs`): the card says so once, `warnBeforeMs` before, and once more when the time is up (armLimit).
+  let limitTimers = [];
+  const clearLimit = () => { limitTimers.forEach((timer) => clearTimer(timer)); limitTimers = []; };
+  const armLimit = (leftMs) => {
+    if (limitTimers.length || userEnded) return;
+    const left = Number.isFinite(leftMs) && leftMs > 0 ? leftMs : taskMaxMs;
+    const keep = (timer) => { timer?.unref?.(); limitTimers.push(timer); };
+    if (left > warnBeforeMs) keep(setTimer(() => emit({ type: 'browser', event: 'timeleft', minutes: Math.max(1, Math.round(warnBeforeMs / 60_000)) }), left - warnBeforeMs));
+    keep(setTimer(() => { emit({ type: 'browser', event: 'timeup' }); }, left));
+  };
   // A wait for a place in the queue ends with the browser too (the stop of the reply, or the cross of the card).
   const endController = new AbortController();
   const waitSignal = signal ? AbortSignal.any([signal, endController.signal]) : endController.signal;
@@ -185,6 +195,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     })();
   }
   async function releaseUnused() {
+    clearLimit();
     if (!warming) return;
     await warming.catch(() => {});
     if (warmedId && !usedAny && sessions.current(userId)?.sessionId === warmedId) await (sessions.discard ? sessions.discard(warmedId, userId) : sessions.close(warmedId, userId)).catch(() => {});
@@ -200,15 +211,16 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     const here = sessions.current(userId);
     if (here) {
       if (here.conversationId && here.conversationId !== conversationId) return { problem: 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' };
-      return { sessionId: here.sessionId };
+      // (A browser that was started while the model thought: the host said how much time it had left when it was ready.)
+      return { sessionId: here.sessionId, taskMsLeft: lastPoll?.state === 'ready' ? lastPoll.taskMsLeft : undefined };
     }
     const opened = await sessions.open(userId, { conversationId, keepLogin });
-    await sessions.waitReady(opened.sessionId, userId, {
+    const ready = await sessions.waitReady(opened.sessionId, userId, {
       timeoutMs: waitForSpaceMs,
       signal: waitSignal,
       onPoll: announceQueue
     });
-    return { sessionId: opened.sessionId };
+    return { sessionId: opened.sessionId, taskMsLeft: ready?.taskMsLeft };
   }
 
   let announcedLive = null;
@@ -334,6 +346,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         const ready = await ensure();
         if (ready.problem) return ready.problem;
         sessionId = ready.sessionId;
+        armLimit(ready.taskMsLeft);
       } else {
         sessionId = current();
         if (!sessionId) return sessions.current(userId) ? 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' : 'No browser is open. Call browser_open with an address first.';
@@ -470,6 +483,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     async endByUser() {
       if (userEnded) return false;
       userEnded = true;
+      clearLimit();
       endController.abort();
       const open = current();
       if (open && !takesCard && !lastShot) {
@@ -497,7 +511,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       if (open && !takesCard && (!lastShot || signal?.aborted)) {
         let timer = null;
         // A stopped reply has the person waiting for it to end: one quick look (when it was never taken a picture, a little longer), not the whole wait.
-        const waitMs = signal?.aborted ? Math.min(frameWaitMs, lastShot ? 1_200 : 2_500) : frameWaitMs;
+        const waitMs = signal?.aborted ? Math.min(frameWaitMs, lastShot ? 600 : 1_500) : frameWaitMs;
         await Promise.race([picture(open), new Promise((resolve) => { timer = setTimeout(resolve, waitMs); })]).catch(() => null);
         clearTimeout(timer);
       }

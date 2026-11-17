@@ -2,10 +2,12 @@
 // §2.3). It is a button of the menu that the sheet reads like the others (id `browser-agent-menu-btn`, `is-active` when on). A model that cannot see pictures cannot use it: the row stays, greyed, and says why when
 // pressed. Someone who has no place yet is told to redeem an invite code in the settings. The choice is kept per conversation in this browser (runtime/server-reply/browser-switch.js).
 
+import { SERVICES, provideService } from '../../runtime/services.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { isBrowserOn, setBrowserOn } from '../../runtime/server-reply/browser-switch.js';
 import { modelSupportsVision } from '../../runtime/shell/model-registry.js';
 import * as browserClient from '../../runtime/browser-agent/browser-agent-client.js';
+import { asksForBrowser } from '../../runtime/browser-agent/browser-intent.js';
 
 export const BROWSER_MENU_BUTTON_ID = 'browser-agent-menu-btn';
 const ACCESS_KEPT_MS = 60_000;
@@ -76,7 +78,23 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
     showNotification(text(kept ? 'baMenuOn' : 'baMenuOff'), 'info');
   }
 
-  return { sync, toggle };
+  // A message that asks for a browser in words switches it on for its conversation, once, before the reply is made (browser-intent.js). A person who has no place yet, or a model that cannot see
+  // pictures, is told why not; the message is sent either way. Resolves whether the switch was turned on.
+  async function autoEnable(messageText, conversation = getActiveConversation()) {
+    if (!conversation || conversation.retentionMode === 'ephemeral' || !asksForBrowser(messageText) || isBrowserOn(conversation.id)) return false;
+    if (!visionOf(conversation)) { showNotification(text('baMenuNoVision'), 'warning'); return false; }
+    if (!access || now() - askedAt > ACCESS_KEPT_MS) {
+      try { access = await client.getAccess(); askedAt = now(); } catch { access = { ok: false }; }
+    }
+    if (!access.ok) { access = null; return false; }
+    if (!access.allowed) { showNotification(text('baMenuNeedInvite'), 'warning'); return false; }
+    const kept = setBrowserOn(conversation.id, true);
+    sync();
+    if (kept) showNotification(text('baMenuOn'), 'info');
+    return kept;
+  }
+
+  return { sync, toggle, autoEnable };
 }
 
 /** Starts the row: it is put up to date whenever the "＋" button is pressed (before the menu or the sheet reads it), and once now. Returns the menu. */
@@ -87,5 +105,7 @@ export function startBrowserAgentMenu({ document, configAccess, i18n, getActiveC
   // On the document and in the capture phase, so the row is ready before anything that opens the menu or the sheet runs (the sheet of a phone stops the press at the container of the button, so a listener on the button itself never hears it).
   document.addEventListener('click', (event) => { if (event.target?.closest?.('[id="add-file-btn"]')) menu.sync(); }, true);
   menu.sync();
+  // (A promise only for a message that asks for a browser: any other message goes on without waiting.)
+  provideService(SERVICES.browserAutoOn, (messageText, conversation) => (asksForBrowser(messageText) ? menu.autoEnable(messageText, conversation) : null));
   return menu;
 }
