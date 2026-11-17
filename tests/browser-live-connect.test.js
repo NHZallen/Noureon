@@ -53,20 +53,20 @@ test('the focus mode asks for the high quality, and closing it goes back', async
   assert.deepEqual(w.sources[0].log, ['hq', 'lq']);
 });
 
-test('nobody looks (the card is a pill): the stream and the viewer go; looking again makes a new one', async () => {
+test('the card is a pill: the stream and the viewer stay while the task runs, so that a press on the pill opens the focus mode at once, with nothing loaded again', async () => {
   const w = world();
   await settle();
-  w.card.element.querySelector('.bcard-shrink, [data-act="shrink"]')?.click?.();
-  // The card's own way to a pill: the round button of the front.
   const shrink = [...w.card.element.querySelectorAll('button')].find((b) => /縮|shrink/i.test(b.getAttribute('aria-label') || ''));
   shrink.click();
   await settle();
-  assert.ok(w.sources[0].log.includes('destroy'));
-  assert.ok(names(w).includes('DELETE /viewer/v-1'));
-  assert.equal(w.card.element.querySelector('.bcard-live'), null);
+  assert.equal(w.card.view, 'pill');
+  assert.ok(!w.sources[0].log.includes('destroy'), 'the stream stays');
+  assert.ok(!names(w).includes('DELETE /viewer/v-1'), 'and the viewer');
+  assert.ok(w.card.element.querySelector('.bcard-live'), 'the picture of the card stays mounted');
   w.card.element.querySelector('.bcard-pill').click();
   await settle();
-  assert.equal(w.sources.length, 2);
+  assert.equal(w.sources.length, 1, 'no new stream: nothing to load');
+  assert.ok(w.card.element.ownerDocument.querySelector('.bf'), 'the press on the pill opens the focus mode');
 });
 
 test('taking over and giving back, and the size of the screen, reach the server; a refused take-over is undone', async () => {

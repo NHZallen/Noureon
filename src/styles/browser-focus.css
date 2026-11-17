@@ -21,7 +21,7 @@
 
 /* While the model works the tabs and the screen sit lower, in the middle of the room, not under the top; when the person has taken over the room below is the trackpad. */
 .bf[data-control="model"] .bf-tabs { margin-top: auto; }
-.bf-screen { position: relative; flex: none; margin: 0.25rem var(--page-gutter, 1rem) 0; border-radius: 0.9rem; overflow: hidden; border: 1px solid var(--border-color); }
+.bf-screen { position: relative; flex: none; margin: 0.25rem var(--page-gutter, 1rem) 0; border-radius: 1.1rem; overflow: hidden; isolation: isolate; border: 1px solid var(--border-color); }
 /* The row over the lower edge of the screen: the same as the card's (the capsule, the round buttons), in the primary-action colours. */
 .bf-row { position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.75rem; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .bf-cap { display: inline-flex; align-items: center; gap: 0.55rem; height: 2.5rem; min-width: 0; max-width: calc(100% - 6rem); padding: 0 1rem 0 0.75rem; border: 1px solid color-mix(in srgb, var(--gpt-primary-action-text) 18%, transparent); border-radius: 999px; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); font: inherit; font-size: 0.9375rem; font-weight: 400; line-height: 1; cursor: pointer; }

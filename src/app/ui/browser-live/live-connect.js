@@ -1,5 +1,5 @@
 // Joins the card of the browser agent to the real live screen (design sections 6 and 16): asks the server for a temporary viewer, opens neko's stream, hands the picture and the
-// person's buttons to the card, and lets everything go again as soon as nobody looks (the card is a pill or turned over, the reply is over). Nothing is streamed that nobody sees.
+// person's buttons to the card, and lets everything go again when the task is over. While it runs the stream stays even when the card is a pill, so that a press on the pill opens the focus mode without loading again (the low quality costs about a core and 1.2 Mbps).
 //   api(method, path, body) -> { ok, status, data }   (the signed-in request of the page to the server)
 // The server's routes: POST /v1/browser/:id/viewer, DELETE /v1/browser/:id/viewer/:viewerId, POST /v1/browser/:id/control, POST /v1/browser/:id/screen.
 
@@ -24,7 +24,9 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   let letting = 0;
   let waiting = false;
 
-  const wanted = () => !over && state.phase === 'run' && (state.focus || state.view === 'front');
+  // While the task runs the stream stays, a pill or a turned card too (low quality): a press on the pill opens the focus mode at once, with the picture there, and nothing is loaded again.
+  // It goes when the task is over, is cancelled, or fails.
+  const wanted = () => !over && state.phase === 'run';
 
   // The tabs (the strip of the focus mode): asked for while the focus mode is open, and after what the person does with them.
   let tabs = [];

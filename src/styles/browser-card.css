@@ -7,7 +7,7 @@
 .bcard svg { color: inherit; }
 
 .bcard-card { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 1.1rem; border: 1px solid var(--border-color); background: var(--surface-muted); overflow: hidden; perspective: 1200px; }
-.bcard-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform var(--dur-modal, 0.3s) var(--ease-in-out, ease); }
+.bcard-face { border-radius: inherit; overflow: hidden; position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform var(--dur-modal, 0.3s) var(--ease-in-out, ease); }
 .bcard-front { transform: rotateY(0deg); }
 .bcard-back { transform: rotateY(180deg); background: var(--gpt-subtle); display: flex; flex-direction: column; padding: 0.75rem 0.875rem; }
 .bcard-card.is-flipped .bcard-front { transform: rotateY(-180deg); }
@@ -16,8 +16,7 @@
 /* The screen: until the live screen comes, a quiet place with the name of the site. */
 .bcard-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; color: var(--text-tertiary); font-size: 0.8125rem; }
 .bcard-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-.bcard-screen.is-loading { color: var(--on-color); background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--loading-glow) 58%, transparent), transparent 46%), linear-gradient(135deg, var(--loading-violet-deep), var(--loading-violet) 55%, var(--loading-violet-light)); background-size: 220% 220%, 100% 100%; background-position: 10% 85%, 0 0; animation: bcard-glow 4.5s ease-in-out infinite alternate; }
-.bcard-screen.is-loading .bcard-site { text-shadow: 0 1px 10px color-mix(in srgb, var(--loading-violet-deep) 85%, transparent); }
+.bcard-screen.is-loading { color: var(--loading-ink); background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--loading-glow) 58%, transparent), transparent 46%), linear-gradient(135deg, var(--loading-violet-deep), var(--loading-violet) 55%, var(--loading-violet-light)); background-size: 220% 220%, 100% 100%; background-position: 10% 85%, 0 0; animation: bcard-glow 4.5s ease-in-out infinite alternate; }
 @keyframes bcard-glow { from { background-position: 10% 85%, 0 0; } to { background-position: 90% 15%, 0 0; } }
 .bcard-site { max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -126,8 +125,9 @@
 }
 
 /* The screen of the browser agent and the glass circle over it (browser-live/live-view.js). The circle is 13% of the width of the screen. */
-.bl-view { position: relative; width: 100%; overflow: hidden; background: var(--media-black); container-type: inline-size; }
-.bl-picture { position: absolute; inset: 0; }
+.bl-view { position: relative; width: 100%; overflow: hidden; border-radius: inherit; isolation: isolate; background: var(--media-black); container-type: inline-size; }
+.bl-picture { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.bl-video { border-radius: inherit; }
 .bl-picture > * { width: 100%; height: 100%; display: block; }
 .bl-lens { position: absolute; width: 13cqw; height: 13cqw; margin: -6.5cqw 0 0 -6.5cqw; border-radius: 50%; pointer-events: none; }
 .bl-lens[hidden] { display: none; }

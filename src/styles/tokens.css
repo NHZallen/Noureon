@@ -92,6 +92,7 @@
     --loading-violet: #9a85ee;
     --loading-violet-light: #d6c9ff;
     --loading-glow: #fff3e6;
+    --loading-ink: #1c1448;
 
     /* code blocks and the track of a switch that is off */
     --code-bg: #f6f7f9;
@@ -173,7 +174,8 @@
     --loading-violet-deep: #2b2172;
     --loading-violet: #5846b8;
     --loading-violet-light: #8d78e6;
-    --loading-glow: #f1e4ff;
+    --loading-glow: #a89aff;
+    --loading-ink: #ffffff;
 
     /* the file cards in the dark theme are lighter, so the logo of each kind of file reads on a dark ground */
     --file-default: #94a3b8;
