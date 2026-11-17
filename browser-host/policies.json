@@ -18,6 +18,7 @@
   "AllowFileSelectionDialogs": false,
   "PromptForDownloadLocation": false,
   "BookmarkBarEnabled": false,
+  "NewTabPageLocation": "about:blank",
   "PasswordManagerEnabled": false,
   "BrowserLabsEnabled": false,
   "CommandLineFlagSecurityWarningsEnabled": false,

@@ -48,3 +48,10 @@ test('the live screen is off by default and checked when on', () => {
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '203.0.113.7', BROWSER_LIVE_HOST: 'https://x/y' }), /BROWSER_LIVE_HOST/);
   assert.throws(() => loadConfig({ ...GOOD, BROWSER_LIVE_PUBLIC_IP: '203.0.113.7', BROWSER_LIVE_HOST: 'live.example.com', BROWSER_LIVE_PORT_BASE: '80' }), /BROWSER_LIVE_PORT_BASE/);
 });
+
+test('the browser policy: the new tab page is a blank page, not an error page of the block list; chrome:// pages stay blocked', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const policy = JSON.parse(await readFile(new URL('../browser-host/policies.json', import.meta.url), 'utf8'));
+  assert.equal(policy.NewTabPageLocation, 'about:blank');
+  assert.ok(policy.URLBlocklist.includes('chrome://*'));
+});

@@ -29,7 +29,7 @@ test('addresses with a password, control characters, spaces inside, or absurd le
 
 test('the browser\'s own windows are not tabs; real pages, the new tab page and an error page are', () => {
   const page = (url) => ({ type: 'page', url, targetId: 'x' });
-  for (const url of ['https://example.com/', 'http://127.0.0.1:8000/a', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/', 'chrome-error://chromewebdata/']) assert.equal(isUserPage(page(url)), true, url);
+  for (const url of ['https://example.com/', 'http://127.0.0.1:8000/a', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/', 'chrome://new-tab-page-third-party/', 'chrome://new-tab-page-third-party', 'chrome-error://chromewebdata/']) assert.equal(isUserPage(page(url)), true, url);
   for (const url of ['chrome://omnibox-popup.top-chrome/', 'chrome://tab-strip.top-chrome/', 'chrome://sandbox/', 'chrome-untrusted://top-chrome/', 'devtools://devtools/bundled/devtools_app.html', 'chrome-extension://abc/page.html']) assert.equal(isUserPage(page(url)), false, url);
   assert.equal(isUserPage({ type: 'service_worker', url: 'https://example.com/sw.js' }), false);
   assert.equal(isUserPage({ type: 'background_page', url: 'https://example.com/' }), false);

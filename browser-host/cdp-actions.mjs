@@ -56,7 +56,8 @@ export function isUserPage(info) {
   if (!info || info.type !== 'page') return false;
   const url = String(info.url || '');
   if (/^(chrome-untrusted|devtools|chrome-extension):/.test(url)) return false;
-  if (/^chrome:\/\//.test(url)) return /^chrome:\/\/(newtab|new-tab-page)(\/|$)/.test(url);
+  // The new tab page has more than one address ("new-tab-page", "newtab", and "new-tab-page-third-party" when Google is the search engine): all of them are tabs a person sees.
+  if (/^chrome:\/\//.test(url)) return /^chrome:\/\/(newtab|new-tab-page(-third-party)?)(\/|$)/.test(url);
   return true;
 }
 const pagesOf = async (cdp) => (await cdp.send('Target.getTargets')).targetInfos.filter(isUserPage);

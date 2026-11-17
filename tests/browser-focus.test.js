@@ -43,6 +43,17 @@ test('while the model works: the site, the tabs, Take over below and the row ove
 });
 const document_buttons = (q) => q('.bf-actions').querySelectorAll('button');
 
+test('a tab with nothing in it is named "New tab", not with the name of the site in front', () => {
+  const { window, mode, document } = make();
+  try {
+    mode.update({ tabs: [{ id: 'a', title: 'Acme', active: true }, { id: 'b', title: 'chrome://new-tab-page', active: false, blank: true }] });
+    const names = [...document.querySelectorAll('.bf-tab-label')].map((node) => node.textContent);
+    assert.deepEqual(names, ['Acme', 'New tab']);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
 test('the tabs: a press switches, the cross closes, the plus opens a new one; the active one is marked', () => {
   const { window, q, calls, document } = make();
   try {

@@ -3,7 +3,7 @@
 // screen, then, while the model works, empty room and two buttons (Stop, Take over). When the person has taken over the room becomes a trackpad, a row of
 // tools (keyboard, paste, refresh) is over it, and one button gives the browser back to the model. The menu holds back, a screenshot for the model, copying the
 // address, the downloaded files and the ratio of the screen. What it asks of the browser it asks of a `controller`; it draws from the `state` it is told.
-//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
+//   state: { domain, url, tabs: [{ id, title, active, blank? }], control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
 // `origin` is where the focus mode was opened from: from the card the round button is Shrink (arrows inward: the card becomes the pill), from the pill it is Expand (arrows outward: the pill becomes the card).
 // Over the lower edge of the screen is the same row as the card has (the capsule that says what is done, the button that gives the card back, the cross that cancels the task); a press on the capsule
 // shows the steps over the screen. A press on the empty room (not while the browser is in the person's hands: there it is the trackpad) leaves the focus mode.
@@ -325,7 +325,8 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     }));
     tabs.replaceChildren(...state.tabs.map((tab) => {
       const node = make('div', `bf-tab${tab.active ? ' is-active' : ''}`, { role: 'tab', 'aria-selected': String(Boolean(tab.active)) });
-      const label = button('bf-tab-label', tab.title || state.domain, () => ask('onSwitchTab', tab.id), null, tab.title || state.domain);
+      const name = tab.blank ? t('browserNewTab') : (tab.title || state.domain);
+      const label = button('bf-tab-label', name, () => ask('onSwitchTab', tab.id), null, name);
       node.append(label, button('bf-tab-close', t('browserCloseTab'), () => ask('onCloseTab', tab.id), icon(document, 'x', 12)));
       return node;
     }), button('bf-tab-new', t('browserNewTab'), () => ask('onNewTab'), icon(document, 'plus', 16)));
