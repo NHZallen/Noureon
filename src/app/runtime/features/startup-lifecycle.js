@@ -125,7 +125,7 @@ export function createStartupLifecycle({
             .catch((error) => console.warn('The home page could not be built', error));
     }
 
-    function adjustTextareaHeight() {
+    function measureTextareaHeight() {
         const textarea = elements.messageInput;
         if (!textarea) return;
 
@@ -149,8 +149,8 @@ export function createStartupLifecycle({
             const contentWidth = textarea.clientWidth - paddingLeft - paddingRight;
             if (contentWidth <= 0) return false;
 
-            const measurementCanvas = adjustTextareaHeight.measurementCanvas
-                || (adjustTextareaHeight.measurementCanvas = document.createElement('canvas'));
+            const measurementCanvas = measureTextareaHeight.measurementCanvas
+                || (measureTextareaHeight.measurementCanvas = document.createElement('canvas'));
             const measurementContext = measurementCanvas.getContext('2d');
             measurementContext.font = [
                 computedStyle.fontStyle,
@@ -202,6 +202,17 @@ export function createStartupLifecycle({
         textarea.style.maxHeight = `${heightLimit}px`;
         textarea.style.height = `${Math.min(initialScrollHeight, heightLimit)}px`;
         textarea.style.overflowY = canExpand ? 'auto' : 'hidden';
+    }
+
+    // The box is measured when the text changes, but the page around it can still be moving (the first message of a chat takes the box down to the bottom, a keyboard goes away, a
+    // card comes in above it): a height taken in the middle of that stayed, one line too tall, until the next key. So it is measured again once the page has settled.
+    let settleTimers = [];
+    function adjustTextareaHeight() {
+        measureTextareaHeight();
+        const later = globalObject.setTimeout;
+        if (typeof later !== 'function') return;
+        settleTimers.forEach((timer) => globalObject.clearTimeout?.(timer));
+        settleTimers = [120, 450].map((ms) => later(measureTextareaHeight, ms));
     }
 
     function bindLoginLanguageSwitcher() {

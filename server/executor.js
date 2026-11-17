@@ -137,13 +137,16 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event?.type !== 'browser') return;
     if (event.event === 'call' && browserTrace.length < 80) browserTrace.push({ action: String(event.action || '').slice(0, 20), domain: String(event.domain || '').slice(0, 120), label: String(event.label || '').slice(0, 160) });
     if (event.event === 'failed') browserEnded = 'failed';
+    // The person ended the browser themselves (the reply goes on): the record says it was stopped, and a page that comes back draws the stopped tag at once.
+    if (event.event === 'ended') browserEnded = 'cancelled';
     // The work list as it stands (the loader holds the rules: a done task never changes); the record keeps the latest.
     if (event.event === 'plan' && Array.isArray(event.tasks)) browserPlan = event.tasks.slice(0, 12).map((task) => ({ text: String(task.text || '').slice(0, 120), status: ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo' }));
   };
   let browserPlan = [];
   const browserSteers = [];
   let browserFrame = '';
-  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserPlan.length ? { plan: browserPlan.map((task) => ({ ...task })) } : {}), ...(browserSteers.length ? { steers: browserSteers.map((entry) => ({ ...entry })) } : {}), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
+  // (While the reply still runs the record says so: a page that comes back to the message draws the live card again, not the tag "Done".)
+  const browserRecord = (status = '') => (browserTrace.length ? { end: browserEnded || (status === 'running' ? 'running' : signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserPlan.length ? { plan: browserPlan.map((task) => ({ ...task })) } : {}), ...(browserSteers.length ? { steers: browserSteers.map((entry) => ({ ...entry })) } : {}), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
   const record = (status, { downloads = status !== 'running' } = {}) => ({
     status,
     steps: downloads ? downloadSteps() : [],
@@ -154,7 +157,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(usedTools.length ? { tools: usedTools.slice(0, 20) } : {}),
     ...(usedWeb.length ? { web: usedWeb } : {}),
-    ...(browserTrace.length ? { browser: browserRecord() } : {}),
+    ...(browserTrace.length ? { browser: browserRecord(status) } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
@@ -468,6 +471,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
           sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, files, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions, keepLogin: spec.tools.browserKeepLogin !== false, inputFiles: () => collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
           emit: (event) => { noteBrowser(event); emitEvent(event); }
         });
+        // The person pressed the cross of the browser card: the browser ends, the reply goes on (the model is told by what its next browser call answers).
+        if (browserControl) browserControl.end = () => { const ending = browserLoader.endByUser(); browserAsker.cancelAll(); return ending; };
         // The rows of the steps come from the loader (what the card shows): the record keeps the same ones.
         // The browser starts while the model thinks (its first tool call would otherwise be the start); one that is not asked for is let go at the end.
         browserLoader.prewarm();

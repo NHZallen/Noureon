@@ -211,6 +211,7 @@ test('a reply that does not call Python is an ordinary reply, and no container i
 
 test('a reply with Python that only used the browser still keeps the record of the browser work (the tag of the saved message)', async () => {
   let round = 0;
+  const updates = [];
   const browser = {
     mayUse: async () => true,
     maxActions: 0,
@@ -229,12 +230,16 @@ test('a reply with Python that only used the browser still keeps the record of t
     sandboxHost: fakeHost([]),
     files: fakeFiles(),
     browser,
+    onUpdate: (parts) => { updates.push(parts); },
     fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })) : sse(content('Opened it.'))); }
   });
   assert.equal(result.status, 'done');
   assert.match(result.parts[0].text, /```noureon-run/);
   const lifted = liftSandboxRunBlock(result.parts[0].text);
   assert.equal(lifted.run.browser.end, 'done');
+  // While the reply runs the stored message says "running" (a page that comes back to it must not draw "Done").
+  const midRun = updates.map((parts) => liftSandboxRunBlock(parts[0]?.text || '').run?.browser).filter(Boolean);
+  assert.ok(midRun.length > 0 && midRun.every((browser) => browser.end === 'running'), 'every running update says running');
   assert.ok(lifted.run.browser.steps.some((step) => step.domain === 'shop.example'));
   assert.match(lifted.text, /Opened it\./);
 });
@@ -1290,4 +1295,53 @@ test('a sandbox that cannot give the proxy leaves the reply with Python and no w
   });
   assert.equal(result.status, 'done');
   assert.ok(problems.includes('sandbox_net_failed'));
+});
+
+test('the person ends the browser (the cross of its card) in the middle of the reply: the browser is closed, the reply goes on, the model is told what to do, and the record says it was ended', async () => {
+  let round = 0;
+  let open = true;
+  const requests = [];
+  const live = [];
+  const browserControl = { answer: null, end: null };
+  const browser = {
+    mayUse: async () => true,
+    maxActions: 0,
+    sessions: {
+      current: () => (open ? { sessionId: 'b00000001', conversationId: '123e4567-e89b-12d3-a456-426614174000' } : null),
+      open: async () => { open = true; return { sessionId: 'b00000001' }; },
+      waitReady: async () => ({ state: 'ready' }),
+      action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+      close: async () => { open = false; return true; }
+    }
+  };
+  const result = await executeReply({
+    spec: specFor({ browser: true }),
+    secrets,
+    userId: USER,
+    sandboxHost: fakeHost([]),
+    files: fakeFiles(),
+    browser,
+    browserControl,
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })));
+      if (round === 2) {
+        // The person presses the cross while the model is thinking about its next step, and the model still asks for the browser.
+        assert.equal(await browserControl.end(), true);
+        return streamResponse(sse(toolCall('call_2', 'browser_snapshot', {})));
+      }
+      return streamResponse(sse(content('You ended the browser. Here is what I found.')));
+    }
+  });
+  assert.equal(result.status, 'done', 'the reply was not stopped');
+  assert.equal(open, false, 'the browser is closed');
+  assert.match(JSON.stringify(requests[2].messages), /ended the browser themselves/, 'the model is told what happened');
+  assert.match(result.parts[0].text, /You ended the browser\. Here is what I found\./);
+  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  assert.equal(lifted.run.browser.end, 'cancelled');
+  const events = live.map((event) => event.ev).filter((event) => event?.type === 'browser').map((event) => event.event);
+  assert.ok(events.includes('ended'));
+  assert.ok(!events.includes('failed'));
 });

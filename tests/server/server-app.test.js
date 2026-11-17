@@ -444,6 +444,20 @@ test('an answer to what the browser agent asks reaches the reply of the person w
   }, { runs });
 });
 
+test('the cross of the browser card ends the browser of the reply (not the reply): only for the person who owns a reply that is running', async () => {
+  const ended = [];
+  const runs = { endBrowser: async (args) => { ended.push(args); return args.runId === USER ? { ok: true, ended: true } : { ok: false, reason: 'not_running' }; }, answerBrowser: async () => { throw new Error('an end is not an answer'); } };
+  await withServer(async ({ base }) => {
+    const send = (runId, body, headers = { ...auth, ...json }) => fetch(`${base}/v1/runs/${runId}/browser`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const ok = await send(USER, { end: true });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { ok: true, ended: true });
+    assert.deepEqual(ended[0], { userId: USER, runId: USER });
+    assert.equal((await send('323e4567-e89b-12d3-a456-426614174002', { end: true })).status, 404, 'a reply that is not running here');
+    assert.equal((await send(USER, { end: true }, json)).status, 401, 'signing in is needed');
+  }, { runs });
+});
+
 test('the page asks that the conversation of its reply be named: signed in, for a reply of the person that is running, and the answer comes at once', async () => {
   const asked = [];
   const runs = { name: async (args) => { asked.push(args); return args.runId === USER ? (args.prompt ? { ok: true } : { ok: false, reason: 'not_taken' }) : { ok: false, reason: 'not_running' }; } };

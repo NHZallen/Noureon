@@ -163,7 +163,7 @@ export function normalizeConnectors(connectors) {
 }
 
 // What the browser agent did in a reply (server/executor.js): the steps as the card showed them and how it ended. The message draws the tag "Done" from it.
-const BROWSER_ENDS = ['done', 'failed', 'cancelled'];
+const BROWSER_ENDS = ['running', 'done', 'failed', 'cancelled'];
 const BROWSER_TASK_STATES = ['todo', 'doing', 'done'];
 const oneLine = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
 export function normalizeBrowserRecord(browser) {

@@ -62,7 +62,7 @@ const KINDS = {
 
 /**
  * `emit(event)` tells the pages ({ type: 'browser', event: 'ask' | 'answer', … }); `signal` is the reply's stop; `onWaited(ms)` says how long the reply waited, so the reply's clock and
- * time limit do not count it. Returns { ask(kind, info), answer(askId, answer) }.
+ * time limit do not count it. Returns { ask(kind, info), answer(askId, answer), cancelAll() }.
  */
 export function createBrowserAsk({ emit, signal = null, waitMs = BROWSER_ASK_WAIT_MS, now = Date.now, onWaited = () => {}, makeId = randomUUID }) {
   const pending = new Map();
@@ -92,6 +92,10 @@ export function createBrowserAsk({ emit, signal = null, waitMs = BROWSER_ASK_WAI
       onWaited(Math.max(0, now() - began));
       emit({ type: 'browser', event: 'answer', id, kind, decision: outcome.shown });
       return outcome.result;
+    },
+    /** Every question still open ends as cancelled (the person ended the browser: nobody is going to answer). */
+    cancelAll() {
+      for (const entry of [...pending.values()]) entry.finish({ result: { cancelled: true }, shown: 'cancel' });
     },
     answer(askId, answer) {
       const entry = pending.get(askId);

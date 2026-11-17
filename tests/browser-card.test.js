@@ -92,7 +92,7 @@ test('cancelling asks first; "Keep going" leaves the work alone; "Cancel task" s
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     q('.bcard-buttons .bcard-round[aria-label="Cancel the task"]').click();
     assert.equal(document.body.querySelector('.bcard-dialog-text').textContent, 'Cancel the task?');
-    assert.match(document.body.querySelector('.bcard-dialog-body').textContent, /stops the model right away/);
+    assert.match(document.body.querySelector('.bcard-dialog-body').textContent, /closes the browser, and the model goes on/);
     document.body.querySelector('.bcard-dialog-button:not(.is-primary)').click();
     assert.equal(document.body.querySelector('.bcard-dialog'), null);
     assert.equal(cancelled, 0);
@@ -785,6 +785,62 @@ test('a screen that is told again is looked at through one connection: the one b
     ledger.remove();
     await new Promise((resolve) => setTimeout(resolve, 30));
     assert.equal(log.at(-1), 'stop 3', 'and the last one goes with the card');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the server says the person ended the browser (another page, or this one): the card is the tag "Stopped", and the server is not told again', () => {
+  let cancelled = 0;
+  const { window, card, q } = make({ onCancel: () => { cancelled += 1; } });
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.handle({ event: 'ended' });
+    assert.equal(card.phase, 'cancelled');
+    assert.equal(q('.bcard-pill .bcard-text').textContent, 'Stopped');
+    assert.equal(cancelled, 0, 'the end came from the server: nothing is sent back');
+    card.handle({ event: 'ended' });
+    assert.equal(cancelled, 0);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the server ends the browser: the process list lets go of the screen, and the card is stopped without asking the server again', async () => {
+  const window = new Window();
+  try {
+    const { document } = window;
+    let cancelled = 0;
+    const stopped = [];
+    const ledger = createSandboxLedger({ document, host: document.body, language: 'en', summary: true, onBrowserCancel: () => { cancelled += 1; }, onBrowserLive: async () => ({ stop: () => stopped.push('stop') }) });
+    ledger.event(call('open', 'acme.com', 'Browsing: acme.com'));
+    ledger.event({ type: 'browser', event: 'live', sessionId: 'b1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    ledger.event({ type: 'browser', event: 'ended' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(document.body.querySelector('.bcard').dataset.phase, 'cancelled');
+    assert.deepEqual(stopped, ['stop'], 'the connection to the screen is let go');
+    assert.equal(cancelled, 0);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the cross of the card lets go of the screen at once and asks the server to end only the browser', async () => {
+  const window = new Window();
+  try {
+    const { document } = window;
+    let cancelled = 0;
+    const stopped = [];
+    const ledger = createSandboxLedger({ document, host: document.body, language: 'en', summary: true, onBrowserCancel: () => { cancelled += 1; }, onBrowserLive: async () => ({ stop: () => stopped.push('stop') }) });
+    ledger.event(call('open', 'acme.com', 'Browsing: acme.com'));
+    ledger.event({ type: 'browser', event: 'live', sessionId: 'b1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    document.body.querySelector('.bcard-buttons .bcard-round[aria-label="Cancel the task"]').click();
+    document.body.querySelector('.bcard-dialog-button.is-danger').click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(cancelled, 1);
+    assert.deepEqual(stopped, ['stop']);
   } finally {
     window.happyDOM.abort();
   }

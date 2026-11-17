@@ -258,7 +258,7 @@ export function createRunManager({
     const memoryOut = { used: [], events: [] };
     // And for the question a text model's picture tool asks (whether it may draw): server/image-ask.js.
     const imageControl = { answer: null };
-    const browserControl = { answer: null };
+    const browserControl = { answer: null, end: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
     // The title of the conversation, when the page may be closed before it makes one (server/conversation-naming.js): the page asks once the reply is taken, it is done
@@ -751,6 +751,12 @@ export function createRunManager({
     },
 
     /** A person's answer to a question the browser agent asks (a confirmation, how to log in, a code): { ok: true, answered } or { ok: false, reason: 'not_running' }. */
+    /** The person pressed the cross of the browser card: the browser of the reply ends, the reply does not. */
+    async endBrowser({ userId, runId }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.browserControl?.end) return { ok: false, reason: 'not_running' };
+      return { ok: true, ended: Boolean(await entry.browserControl.end()) };
+    },
     async answerBrowser({ userId, runId, askId, answer }) {
       const entry = active.get(runId);
       if (!entry || entry.userId !== userId || !entry.browserControl?.answer) return { ok: false, reason: 'not_running' };

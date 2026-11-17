@@ -52,7 +52,8 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
           onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }),
           onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }),
           onImageAnswer: createImageAnswerHandler({ getRun: () => serverRun }),
-          onBrowserCancel: () => { void serverRun?.stop?.(); },
+          // The cross of the card ends the browser only: the reply goes on and answers with what it found.
+          onBrowserCancel: () => { void serverRun?.endBrowser?.()?.catch?.(() => {}); },
           onBrowserLive: createBrowserLiveHandler({ getRun: () => serverRun, getDocument }),
           onBrowserAnswer: (askId, answer) => serverRun?.answerBrowser?.(askId, answer)
         } : {})

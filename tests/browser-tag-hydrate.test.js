@@ -35,3 +35,29 @@ test('the tag drawn in a document that is turned into text comes back in the pag
     page.happyDOM.abort();
   }
 });
+
+// A page that comes back to a reply still running must not draw "Done": the record says "running", so the card stays in its run phase.
+test('a record of a reply still running keeps the card running, not "Done"', async () => {
+  const page = new Window();
+  globalThis.document = page.document;
+  globalThis.MutationObserver = page.MutationObserver;
+  try {
+    const { browserTagElement } = await import('../src/app/ui/sandbox/browser-tag.js');
+    const { normalizeBrowserRecord } = await import('../src/app/ui/sandbox/sandbox-run-block.js');
+    const record = normalizeBrowserRecord({ end: 'running', steps: [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }] });
+    assert.equal(record.end, 'running');
+    const drawing = new Window().document;
+    const holder = drawing.createElement('div');
+    holder.append(browserTagElement(drawing, record, { language: 'en' }));
+    const message = page.document.createElement('div');
+    page.document.body.append(message);
+    message.innerHTML = holder.innerHTML;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const text = message.textContent;
+    assert.ok(!/Done/.test(text), `no "Done" while running: ${text}`);
+  } finally {
+    delete globalThis.document;
+    delete globalThis.MutationObserver;
+    page.happyDOM.abort();
+  }
+});

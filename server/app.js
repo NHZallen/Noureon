@@ -310,6 +310,14 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
         const body = await readJson(request, 8192);
+        // The cross of the browser card: { end: true } ends the browser of the reply, not the reply.
+        if (body?.end === true) {
+          const ending = await runs.endBrowser({ userId: user.id, runId: runPath[1] });
+          if (!ending.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+          send(response, 200, { ok: true, ended: ending.ended }, origin);
+          status = 200;
+          return;
+        }
         if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !body?.answer || typeof body.answer !== 'object') throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
         const result = await runs.answerBrowser({ userId: user.id, runId: runPath[1], askId: body.askId, answer: body.answer });
         if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');

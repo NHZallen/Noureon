@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { BrowserHostError } from '../../server/browser-host-client.js';
 import { BrowserSessionError } from '../../server/browser-sessions.js';
-import { BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowserLoader, snapshotText } from '../../server/browser-tools.js';
+import { BROWSER_ENDED_BY_USER, BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowserLoader, snapshotText } from '../../server/browser-tools.js';
 
 const PAGE = { ok: true, tabId: 'T1', url: 'https://shop.example/items?q=secret-search', title: 'Shop', scroll: { y: 0, height: 2000, view: 700 }, elements: [{ ref: 3, role: 'searchbox', name: 'Search' }, { ref: 4, role: 'password field', name: 'Password' }, { ref: 5, role: 'button', name: 'Go', disabled: true }], text: 'Welcome to the shop', truncated: false };
 
@@ -586,4 +586,41 @@ test('a step the page refused (the host says 400) is for the model to handle: th
   refuse = false;
   await t.loader.run(call('browser_click', { ref: 1 }));
   assert.equal(t.events.filter((event) => event.event === 'live').length, 1);
+});
+
+test('the person ends the browser (the cross of the card): it is closed, the card is told, every call says so, no step is called a failure, and the reply is not touched', async () => {
+  const t = setup();
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  await t.loader.run(call('browser_snapshot'));
+  assert.equal(t.loader.active, true);
+  assert.equal(await t.loader.endByUser(), true);
+  assert.equal(await t.loader.endByUser(), false, 'ending twice does nothing more');
+  assert.equal(t.loader.endedByUser, true);
+  assert.equal(t.loader.active, false, 'a message the person adds now is a normal one');
+  assert.ok(t.calls.some((entry) => entry[0] === 'close'), 'the browser is closed');
+  assert.equal(t.events.filter((event) => event.event === 'ended').length, 1);
+  assert.equal(t.events.some((event) => event.event === 'failed'), false);
+  const answer = await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.equal(answer, BROWSER_ENDED_BY_USER);
+  assert.ok(!t.calls.some((entry) => entry[0] === 'open'), 'it is not opened again in this reply');
+  assert.equal(await t.loader.run(call('browser_plan', { tasks: [{ text: 'x', status: 'doing' }] })), BROWSER_ENDED_BY_USER);
+  // The words are general: they tell the model what to do (answer with what it has, say the user ended it), not what the task was.
+  assert.match(BROWSER_ENDED_BY_USER, /ended the browser themselves/);
+  assert.match(BROWSER_ENDED_BY_USER, /not an error/);
+  assert.match(BROWSER_ENDED_BY_USER, /what you did and found/);
+  assert.ok(!/flight|ticket|price|hotel/i.test(BROWSER_ENDED_BY_USER));
+  assert.match(BROWSER_INSTRUCTION, /end the browser themselves/);
+});
+
+test('a step that was on its way when the person ended the browser answers that, not a failure and not "the reply was stopped"', async () => {
+  let release;
+  const t = setup({ actions: { click: () => new Promise((resolve, reject) => { release = () => reject(new BrowserHostError('the page did not answer', { status: 400, code: 'action_failed' })); }) } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  await t.loader.run(call('browser_snapshot'));
+  const running = t.loader.run(call('browser_click', { ref: 3 }));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await t.loader.endByUser();
+  release();
+  assert.equal(await running, BROWSER_ENDED_BY_USER);
+  assert.equal(t.events.some((event) => event.event === 'failed'), false);
 });

@@ -1334,3 +1334,25 @@ test('a reply can be asked to name its conversation: only by its person, once, f
   assert.equal(timers.length > 0, true);
   assert.deepEqual(await manager.name({ userId: USER, runId, ...ask }), { ok: false, reason: 'not_running' }, 'it has ended');
 });
+
+test('the cross of the browser card ends the browser of the reply that runs (the person\'s own, while it runs), and the reply itself goes on to its end', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let ended = 0;
+  const { manager } = managerHarness({
+    execute: async ({ browserControl }) => {
+      browserControl.end = async () => { ended += 1; return true; };
+      await gate;
+      return { parts: [{ text: 'It answered with what it had.' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(await manager.endBrowser({ userId: USER, runId }), { ok: true, ended: true });
+  assert.equal(ended, 1);
+  assert.deepEqual(await manager.endBrowser({ userId: '999e4567-e89b-12d3-a456-426614174009', runId }), { ok: false, reason: 'not_running' });
+  assert.deepEqual(await manager.endBrowser({ userId: USER, runId: 'nothing' }), { ok: false, reason: 'not_running' });
+  release();
+  await settle();
+  assert.deepEqual(await manager.endBrowser({ userId: USER, runId }), { ok: false, reason: 'not_running' }, 'it is over');
+});

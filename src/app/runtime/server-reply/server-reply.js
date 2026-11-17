@@ -424,6 +424,8 @@ export function createServerReply({
     // The person's answer to a question a text model's picture tool asks (whether it may draw): 'once', 'always' or 'deny'.
     answerImage: (askId, answer) => request('POST', `/v1/runs/${runId}/image`, { body: JSON.stringify({ askId, answer }) }),
     // The person's answer to what the browser agent asks (a confirmation, how to log in, a code): { decision } / { method, … }. The answer may hold a password; it goes to the server and nowhere else.
+    // The cross of the browser card: the browser of the reply is ended, the reply goes on and answers with what it has.
+    endBrowser: () => request('POST', `/v1/runs/${runId}/browser`, { body: JSON.stringify({ end: true }) }),
     answerBrowser: (askId, answer) => request('POST', `/v1/runs/${runId}/browser`, { body: JSON.stringify({ askId, answer }) }),
     /** Follows an image the server is making until it is over: resolves { parts } or throws a ServerReplyError (server-image.js). */
     async followImage(options) {

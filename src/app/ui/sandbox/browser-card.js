@@ -39,7 +39,7 @@ const icon = (document, name, size = 16, width = 2) => {
 };
 
 /**
- * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person cancelled the task (the reply is stopped).
+ * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person pressed the cross (the browser is ended; the reply goes on).
  * `handle(event)` takes the `browser` events of the server; `complete()` says the reply is over.
  */
 export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null, enter = false }) {
@@ -272,7 +272,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     keep.focus?.();
   };
 
-  const cancel = () => {
+  const cancel = ({ silent = false } = {}) => {
     if (phase === 'done' || phase === 'failed' || phase === 'cancelled') return;
     steps.forEach((step) => { if (step.state === 'run') step.state = 'fail'; });
     closePlan('fail');
@@ -282,6 +282,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       view = 'pill';
       closeFocus();
     });
+    if (silent) return;
     try {
       onCancel?.();
     } catch {
@@ -361,6 +362,11 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       plan = (Array.isArray(event.tasks) ? event.tasks : []).filter((task) => task?.text).slice(0, 12).map((task) => ({ label: String(task.text), state: task.status === 'doing' ? 'run' : task.status === 'done' ? 'done' : 'todo' }));
       if (!plan.length) plan = null;
       render();
+      return;
+    }
+    // The browser was ended by the person (on this page or another one that watches the reply): the card is stopped, the reply goes on without telling the server again.
+    if (event?.event === 'ended') {
+      cancel({ silent: true });
       return;
     }
     if (event?.event === 'failed') {

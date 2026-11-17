@@ -93,3 +93,13 @@ test('a hand-over to the person is answered done or cancelled', async () => {
   t.asker.answer('ask-000001', { decision: 'done' });
   assert.deepEqual(await pending, { decision: 'done' });
 });
+
+test('when the person ends the browser every open question ends as cancelled, and the pages are told', async () => {
+  const t = setup();
+  const pending = t.asker.ask('confirm', { action: 'payment', domain: 'shop.example', summary: 'Pay' });
+  t.asker.cancelAll();
+  assert.deepEqual(await pending, { cancelled: true });
+  assert.equal(t.events.at(-1).decision, 'cancel');
+  assert.deepEqual(t.asker.answer('ask-000001', { decision: 'confirm' }), { answered: false }, 'nothing is left to answer');
+  t.asker.cancelAll(); // no question open: nothing happens
+});

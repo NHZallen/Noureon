@@ -161,3 +161,25 @@ test('the page asks the question when the person presses the button (source of t
   assert.match(css, /\.council-tl-exit\s*\{/);
   assert.match(css, /\.council-tl-member:is\([^)]*\.is-exited[^)]*\) \.council-tl-member-name/);
 });
+
+test('the cross of the browser card asks the server to end only the browser of the reply', async () => {
+  const calls = [];
+  const reply = createServerReply({
+    getAccessToken: async () => 'token-123',
+    getApiKeyForProvider: () => 'k',
+    getModelApiId: (model) => model.id,
+    getDefaultGenConfig: () => ({}),
+    describeRequest: async () => ({ systemInstructionText: '' }),
+    flushSync: async () => {},
+    readMessage: async () => null,
+    findLiveRun: async () => ({ id: 'run-9', message_id: 'm9', kind: 'single' }),
+    fetchImpl: async (url, options) => { calls.push({ url: String(url), options }); return new Response('{"ok":true}', { status: 200 }); },
+    clientVersion: '17.12.0',
+    wait: async () => {}
+  });
+  const run = await reply.find('c1');
+  await run.endBrowser();
+  assert.equal(calls[0].url, 'https://api.noureon.com/v1/runs/run-9/browser');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { end: true });
+});
