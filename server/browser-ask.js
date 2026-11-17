@@ -6,6 +6,7 @@
 //   kind 'code'     { domain, digits }                                                                   answer { code } | { method: 'other' } | { method: 'resend' }
 //   kind 'payment'  { domain, methods: ['card', 'applepay', 'other'] }                                  answer { method }
 //   kind 'card'     { domain, host, path, ticket }  the card goes from the page to the browser host, not here   answer { done: true, filled, missing } | { cancel: true }
+//   kind 'busy'     { minutes }                                                                         answer { decision: 'stop' | 'wait' | 'skip' }  (the person's one browser is in another conversation; minutes = at most how long until it closes by itself)
 //   kind 'takeover' { domain, reason }                                                                   answer { decision: 'done' | 'cancel' }  (the person works the browser themselves, then gives it back)
 
 import { randomUUID } from 'node:crypto';
@@ -21,6 +22,10 @@ const PAY_METHODS = new Set(['card', 'applepay', 'other']);
 const CARD_FIELDS = new Set(['number', 'exp', 'expMonth', 'expYear', 'cvc', 'name', 'line1', 'line2', 'city', 'state', 'zip', 'country', 'phone', 'email']);
 const fieldNames = (list) => (Array.isArray(list) ? list.filter((name) => CARD_FIELDS.has(name)) : []);
 const KINDS = {
+  busy: {
+    info: (info) => ({ minutes: Math.max(0, Math.min(1440, Math.round(Number(info.minutes) || 0))) }),
+    check: (answer) => (['stop', 'wait', 'skip'].includes(answer?.decision) ? { result: { decision: answer.decision }, shown: answer.decision } : null)
+  },
   payment: {
     info: (info) => ({ domain: text(info.domain, 100), methods: (Array.isArray(info.methods) ? info.methods : ['card', 'other']).filter((method) => PAY_METHODS.has(method)) }),
     check: (answer) => (PAY_METHODS.has(answer?.method) ? { result: { method: answer.method }, shown: answer.method } : null)

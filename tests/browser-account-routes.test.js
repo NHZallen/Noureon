@@ -23,7 +23,7 @@ function setup() {
       addPendingClear: async (id, sites) => { calls.push(['clear', id, sites]); return true; },
       remove: async (id) => { calls.push(['remove', id]); }
     },
-    sessions: { stopAll: async () => { calls.push(['stopAll']); return 3; } }
+    sessions: { stopAll: async () => { calls.push(['stopAll']); return 3; }, status: async (id) => { calls.push(['status', id]); return { open: true, conversationId: 'c1', idleMsLeft: 600_000 }; } }
   };
   const handle = createBrowserAccountRoutes({ browser });
   const run = async (method, path, body, user = { id: A }) => {
@@ -71,4 +71,11 @@ test('stopping every browser and making codes are for the people in charge; for 
   assert.deepEqual((await t.run('POST', '/v1/browser/admin/codes', { count: 2 }, { id: ADMIN })).sent.payload.codes, ['NRN-CCCC-DDDD']);
   assert.equal((await t.run('GET', '/v1/browser/other')).handled, false);
   assert.equal(await createBrowserAccountRoutes({ browser: null })({ method: 'GET' }, { url: new URL('/v1/browser/access', 'http://l') }), false);
+});
+
+test('the person asks where their own browser stands (for the countdown of the tag): only their own', async () => {
+  const t = setup();
+  const answer = await t.run('GET', '/v1/browser/status');
+  assert.deepEqual(answer.sent.payload, { open: true, conversationId: 'c1', idleMsLeft: 600_000 });
+  assert.deepEqual(t.calls.at(-1), ['status', A]);
 });

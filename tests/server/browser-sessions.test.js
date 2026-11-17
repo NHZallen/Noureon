@@ -218,3 +218,15 @@ test('a browser the host closed by itself (idle, time of the task) is remembered
   await again.sessions.open(A, {});
   assert.equal(again.sessions.closedReason(A), '', 'a new browser forgets why the last one closed');
 });
+
+test('the status of a person\'s browser: not open, open with the time left, or closed by the host and why', async () => {
+  const w = world();
+  assert.deepEqual(await w.sessions.status(A), { open: false });
+  await w.sessions.open(A, { conversationId: 'c1' });
+  w.host.get = async () => ({ state: 'ready', idleMsLeft: 1_200_000.4, taskMsLeft: 7_000_000 });
+  assert.deepEqual(await w.sessions.status(A), { open: true, conversationId: 'c1', state: 'ready', idleMsLeft: 1_200_000, taskMsLeft: 7_000_000 });
+  assert.deepEqual(await w.sessions.status(B), { open: false }, 'not another person\'s');
+  w.host.get = async () => ({ state: 'stopped', stoppedReason: 'idle' });
+  await w.sessions.tick();
+  assert.deepEqual(await w.sessions.status(A), { open: false, closedReason: 'idle' });
+});

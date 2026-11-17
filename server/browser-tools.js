@@ -90,7 +90,7 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 900_000, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, waitForOtherMs = 35 * 60_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 0, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let actions = 0;
   // The person pressed the cross of the card: the browser is closed for this reply, and every call says so (BROWSER_ENDED_BY_USER).
   let userEnded = false;
@@ -101,7 +101,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     if (limitTimers.length || userEnded) return;
     const left = Number.isFinite(leftMs) && leftMs > 0 ? leftMs : taskMaxMs;
     const keep = (timer) => { timer?.unref?.(); limitTimers.push(timer); };
-    if (left > warnBeforeMs) keep(setTimer(() => emit({ type: 'browser', event: 'timeleft', minutes: Math.max(1, Math.round(warnBeforeMs / 60_000)) }), left - warnBeforeMs));
+    // (No warning is given by default: the idle time is what the tag counts down, ui/browser-agent/browser-idle-watch.js; the end of the task is only said when it comes.)
+    if (warnBeforeMs > 0 && left > warnBeforeMs) keep(setTimer(() => emit({ type: 'browser', event: 'timeleft', minutes: Math.max(1, Math.round(warnBeforeMs / 60_000)) }), left - warnBeforeMs));
     keep(setTimer(() => { emit({ type: 'browser', event: 'timeup' }); }, left));
   };
   // A wait for a place in the queue ends with the browser too (the stop of the reply, or the cross of the card).
@@ -201,6 +202,29 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     if (warmedId && !usedAny && sessions.current(userId)?.sessionId === warmedId) await (sessions.discard ? sessions.discard(warmedId, userId) : sessions.close(warmedId, userId)).catch(() => {});
   }
 
+  // The person's one browser is in another conversation: they choose to stop it, to wait, or to go on without a browser (the question needs `ask`; without it the model is told, as before).
+  async function askAboutBusy() {
+    if (!ask) return '';
+    let minutes = 0;
+    try {
+      const status = await sessions.status?.(userId);
+      if (Number.isFinite(status?.idleMsLeft)) minutes = Math.ceil(status.idleMsLeft / 60_000);
+    } catch { /* the estimate is only a help */ }
+    const result = await ask('busy', { minutes });
+    if (result.cancelled || result.timeout) return result.cancelled ? 'cancel' : 'skip';
+    return result.decision || '';
+  }
+  // Waits until the other browser is gone (it closes by itself after its idle time), at most `waitForSpaceMs`; true when the place is free.
+  async function waitForOther() {
+    emit({ type: 'browser', event: 'queued', position: 0, label: sandboxText(language, 'browserWaitOther') });
+    const until = Date.now() + waitForOtherMs;
+    while (!signal?.aborted && !userEnded && Date.now() < until) {
+      if (!sessions.current(userId)) return true;
+      await sleep(5000);
+    }
+    return false;
+  }
+
   // The browser of this person: the one that is open (it must be of this conversation), or a new one (it may have to wait for a free place).
   async function ensure() {
     if (warming) {
@@ -210,10 +234,24 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     }
     const here = sessions.current(userId);
     if (here) {
-      if (here.conversationId && here.conversationId !== conversationId) return { problem: 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' };
+      if (here.conversationId && here.conversationId !== conversationId) {
+        const answer = await askAboutBusy(here);
+        if (answer === 'stop') { await sessions.close(here.sessionId, userId).catch(() => {}); return openNew(); }
+        if (answer === 'wait') {
+          // The person waits for the other one to be done: nothing is opened until it is gone (it closes by itself when nobody uses it), and the card says so.
+          if (!(await waitForOther())) return { problem: 'The other browser was still in use, so this one could not start. Say so to the user, and go on without a browser or ask them to try again later.' };
+          return openNew();
+        }
+        if (answer === 'skip') return { problem: 'The user chose to go on without the browser. Do not use any browser tool again in this reply; answer without it and say so briefly.' };
+        return { problem: 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' };
+      }
       // (A browser that was started while the model thought: the host said how much time it had left when it was ready.)
       return { sessionId: here.sessionId, taskMsLeft: lastPoll?.state === 'ready' ? lastPoll.taskMsLeft : undefined };
     }
+    return openNew();
+  }
+
+  async function openNew() {
     const opened = await sessions.open(userId, { conversationId, keepLogin });
     const ready = await sessions.waitReady(opened.sessionId, userId, {
       timeoutMs: waitForSpaceMs,

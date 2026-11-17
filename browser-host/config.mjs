@@ -48,7 +48,7 @@ export function loadConfig(env = process.env) {
       enabled: env.BROWSER_ENABLED !== 'false',
       maxSessions: int(env, 'BROWSER_MAX_SESSIONS', 2, { min: 1, max: 8 }),
       maxQueue: int(env, 'BROWSER_MAX_QUEUE', 10, { min: 0, max: 100 }),
-      idleMs: int(env, 'BROWSER_IDLE_MINUTES', 60, { min: 1, max: 1440 }) * 60_000,
+      idleMs: int(env, 'BROWSER_IDLE_MINUTES', 30, { min: 1, max: 1440 }) * 60_000,
       taskMaxMs: int(env, 'BROWSER_TASK_MAX_MINUTES', 120, { min: 1, max: 1440 }) * 60_000,
       maxProfileBytes: int(env, 'BROWSER_MAX_PROFILE_MB', 150, { min: 1, max: 1024 }) * 1024 * 1024
     },

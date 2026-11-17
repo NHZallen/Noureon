@@ -8,7 +8,7 @@ const GOOD = { BROWSER_HOST_SECRET: 'a'.repeat(40), BROWSER_ALLOWED_IPS: '10.0.1
 test('good settings, and the defaults', () => {
   const c = loadConfig(GOOD);
   assert.deepEqual(c.allowedIps, ['10.0.1.0/24']); assert.equal(c.bind, '127.0.0.1'); assert.equal(c.port, 40010);
-  assert.equal(c.manager.maxSessions, 2); assert.equal(c.manager.idleMs, 3_600_000); assert.equal(c.manager.taskMaxMs, 7_200_000); assert.equal(c.manager.enabled, true);
+  assert.equal(c.manager.maxSessions, 2); assert.equal(c.manager.idleMs, 1_800_000); assert.equal(c.manager.taskMaxMs, 7_200_000); assert.equal(c.manager.enabled, true);
   assert.equal(c.paths.seccomp, '/opt/noureon-browser/chromium-seccomp.json');
   assert.equal(loadConfig({ ...GOOD, BROWSER_ENABLED: 'false' }).manager.enabled, false);
   assert.deepEqual(loadConfig({ ...GOOD, BROWSER_HOST_SECRET: `${'a'.repeat(32)},${'b'.repeat(32)}` }).secrets.length, 2);

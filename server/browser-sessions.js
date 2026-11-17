@@ -214,6 +214,26 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     /** How many browsers are open (for the health view). */
     count: () => byId.size,
     has: (userId) => byUser.has(userId),
+    /**
+     * Where the person's browser stands now, for the countdown on the tag of a finished reply: { open, conversationId?, state?, idleMsLeft?, taskMsLeft?, closedReason? }. `closedReason` ('idle', 'task_max')
+     * is there when the host closed the last one by itself within the last day. Asks the host once; a host that does not answer says the browser is not known to be open.
+     */
+    async status(userId) {
+      const id = byUser.get(userId);
+      const session = id ? byId.get(id) : null;
+      if (!session) return { open: false, ...(closedBy.has(userId) && now() - closedBy.get(userId).at < 24 * 3_600_000 ? { closedReason: closedBy.get(userId).reason } : {}) };
+      try {
+        const state = await host.get(session.id);
+        const live = state?.state === 'ready' || state?.state === 'starting' || state?.state === 'queued';
+        return {
+          open: live, conversationId: session.conversationId || '', state: state?.state || '',
+          ...(Number.isFinite(state?.idleMsLeft) ? { idleMsLeft: Math.max(0, Math.round(state.idleMsLeft)) } : {}),
+          ...(Number.isFinite(state?.taskMsLeft) ? { taskMsLeft: Math.max(0, Math.round(state.taskMsLeft)) } : {})
+        };
+      } catch {
+        return { open: false };
+      }
+    },
     /** 'idle' or 'task_max' when the host closed the person's last browser by itself within the last day, else ''. */
     closedReason(userId) {
       const entry = closedBy.get(userId);

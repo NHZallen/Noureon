@@ -9,6 +9,8 @@ import { modelSupportsVision } from '../../runtime/shell/model-registry.js';
 import * as browserClient from '../../runtime/browser-agent/browser-agent-client.js';
 import { asksForBrowser } from '../../runtime/browser-agent/browser-intent.js';
 import { verdictOf } from '../../runtime/decisions/decision-store.js';
+import { getBrowserStatus } from '../../runtime/browser-agent/browser-status-client.js';
+import { createBrowserIdleWatch } from './browser-idle-watch.js';
 
 export const BROWSER_MENU_BUTTON_ID = 'browser-agent-menu-btn';
 const ACCESS_KEPT_MS = 60_000;
@@ -109,6 +111,10 @@ export function startBrowserAgentMenu({ document, configAccess, i18n, getActiveC
   // On the document and in the capture phase, so the row is ready before anything that opens the menu or the sheet runs (the sheet of a phone stops the press at the container of the button, so a listener on the button itself never hears it).
   document.addEventListener('click', (event) => { if (event.target?.closest?.('[id="add-file-btn"]')) menu.sync(); }, true);
   menu.sync();
+  // The tag of a finished task counts down the idle time of the browser and says when the host closed it (browser-idle-watch.js); the words come with the texts of the card, loaded the first time.
+  let sandboxTexts = null;
+  void import('../../runtime/sandbox/sandbox-texts.js').then((module) => { sandboxTexts = module; }).catch(() => {});
+  createBrowserIdleWatch({ document, getActiveConversation, getStatus: getBrowserStatus, showNotification, words: (key, params) => (sandboxTexts ? sandboxTexts.sandboxText(language(), key, params) : '') });
   // (A promise only for a message that asks for a browser: any other message goes on without waiting.)
   provideService(SERVICES.browserAutoOn, (messageText, conversation, decisions) => (conversation && !isBrowserOn(conversation.id) && menu.wantsBrowser(messageText, decisions) ? menu.autoEnable(messageText, conversation, decisions) : null));
   return menu;

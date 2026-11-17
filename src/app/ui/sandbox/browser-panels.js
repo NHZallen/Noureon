@@ -287,8 +287,32 @@ function cardPanel({ document, language, info, answer, helpers }) {
   return { element: root, focus: () => inputs.number.focus?.(), destroy: () => { wipe(); root.remove(); } };
 }
 
-const BUILDERS = { confirm: confirmPanel, login: loginPanel, code: codePanel, takeover: takeoverPanel, payment: paymentPanel, card: cardPanel };
-const OPEN_KEYS = { confirm: 'browserAskOpenConfirm', login: 'browserAskOpenLogin', code: 'browserAskOpenCode', takeover: 'browserAskOpenHand', payment: 'browserPayTitle', card: 'browserCardTitle' };
+
+// The person's one browser is in another conversation: stop it and use it here, wait for it (how long at most is said), or go on without a browser.
+function busyPanel({ document, language, info, answer }) {
+  const t = (key, values) => sandboxText(language, key, values);
+  const root = make(document, 'div', 'bpanel');
+  root.setAttribute('role', 'group');
+  const hint = info.minutes > 0 ? t('browserBusyHint', { minutes: info.minutes }) : t('browserBusyHintUnknown');
+  root.append(make(document, 'div', 'bpanel-title', t('browserBusyTitle')), make(document, 'div', 'bpanel-summary', t('browserBusyBody')));
+  const row = make(document, 'div', 'bpanel-row');
+  const wait = make(document, 'button', 'bpanel-button', t('browserBusyWait'));
+  const stop = make(document, 'button', 'bpanel-button is-primary', t('browserBusyStop'));
+  for (const button of [wait, stop]) button.type = 'button';
+  row.append(wait, stop);
+  const skip = make(document, 'button', 'bpanel-link', t('browserBusySkip'));
+  skip.type = 'button';
+  root.append(row, make(document, 'div', 'bpanel-hint', hint), skip);
+  let sent = false;
+  const finish = (decision) => { if (sent) return; sent = true; root.classList.add('is-sent'); root.querySelectorAll('button').forEach((el) => { el.disabled = true; }); answer({ decision }); };
+  wait.addEventListener('click', () => finish('wait'));
+  stop.addEventListener('click', () => finish('stop'));
+  skip.addEventListener('click', () => finish('skip'));
+  return { element: root, finish, focus: () => stop.focus?.(), destroy: () => root.remove() };
+}
+
+const BUILDERS = { busy: busyPanel, confirm: confirmPanel, login: loginPanel, code: codePanel, takeover: takeoverPanel, payment: paymentPanel, card: cardPanel };
+const OPEN_KEYS = { busy: 'browserAskOpenBusy', confirm: 'browserAskOpenConfirm', login: 'browserAskOpenLogin', code: 'browserAskOpenCode', takeover: 'browserAskOpenHand', payment: 'browserPayTitle', card: 'browserCardTitle' };
 
 /** `ask`: the event of the server ({ id, kind, … }). Returns null for a kind this page does not know (the question then waits for the answer of the timeout). */
 export function createAskPanel({ document, language, ask, onAnswer, helpers = null }) {

@@ -896,3 +896,32 @@ test('from fifteen minutes before the end the capsule says what is being done an
     window.happyDOM.abort();
   }
 });
+
+test('the browser is in another conversation: the panel says so with the longest wait, and the three choices go out once each as an answer', () => {
+  const answers = [];
+  const w = make({ onAnswer: (id, payload) => answers.push([id, payload]) });
+  try {
+    w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'shop.example', label: 'x' });
+    w.card.handle({ type: 'browser', event: 'ask', id: 'ask-9', kind: 'busy', minutes: 13 });
+    const root = w.card.element;
+    assert.equal(root.querySelector('.bcard-panel').hidden, false);
+    assert.equal(root.querySelector('.bpanel-title').textContent, 'The browser is in use in another conversation');
+    assert.match(root.querySelector('.bpanel-hint').textContent, /At most about 13 min/);
+    const [wait, stop] = root.querySelectorAll('.bpanel-button');
+    stop.click(); wait.click(); root.querySelector('.bpanel-link').click();
+    assert.deepEqual(answers, [['ask-9', { decision: 'stop' }]], 'one answer only');
+  } finally {
+    w.window.happyDOM.abort();
+  }
+});
+
+test('the longest wait is not known: the panel says it is not certain', () => {
+  const w = make({ onAnswer: () => {} });
+  try {
+    w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'shop.example', label: 'x' });
+    w.card.handle({ type: 'browser', event: 'ask', id: 'ask-9', kind: 'busy', minutes: 0 });
+    assert.match(w.card.element.querySelector('.bpanel-hint').textContent, /not certain/);
+  } finally {
+    w.window.happyDOM.abort();
+  }
+});

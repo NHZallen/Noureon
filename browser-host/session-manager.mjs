@@ -15,7 +15,7 @@ const randomHex = (bytes) => crypto.randomBytes(bytes).toString('hex');
 
 export function createSessionManager({ adapter, live = null, config = {}, now = Date.now, log = () => {}, makeSecret = () => randomHex(12) }) {
   const cfg = {
-    enabled: true, maxSessions: 2, maxQueue: 10, idleMs: 3_600_000, taskMaxMs: 7_200_000, startTimeoutMs: 90_000, profileWaitMs: 60_000,
+    enabled: true, maxSessions: 2, maxQueue: 10, idleMs: 1_800_000, taskMaxMs: 7_200_000, startTimeoutMs: 90_000, profileWaitMs: 60_000,
     collectMs: 600_000, forgetMs: 3_600_000, maxProfileBytes: 150 * 1024 * 1024, ...config
   };
   const sessions = new Map();

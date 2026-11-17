@@ -2,6 +2,7 @@
 // delete it all), and for the people in charge: stopping every browser and making codes. Whoever is signed in may ask where they stand; the rest follows the rules named on each route.
 //   GET    /v1/browser/access                     -> { allowed, admin, codes: [{ code, used }] }
 //   POST   /v1/browser/redeem                     { code } -> { ok }
+//   GET    /v1/browser/status                     -> { open, conversationId?, state?, idleMsLeft?, taskMsLeft?, closedReason? }   (the person's own browser, for the countdown of the tag)
 //   GET    /v1/browser/profile                    -> { exists, sizeBytes?, updatedAt?, lastUsedAt?, sites: [] }   (sites to be logged out of at the next start)
 //   POST   /v1/browser/profile/logout             { origin } -> { ok }   (the site is logged out when the next browser starts, or now when one is running)
 //   DELETE /v1/browser/profile                    -> { ok }              (the whole login state; the vault stays)
@@ -30,6 +31,10 @@ export function createBrowserAccountRoutes({ browser, limiter = null }) {
         browser.mayUse.forget?.(user.id);
         return [200, { ok: true }];
       }
+    },
+    {
+      method: 'GET', re: /^\/v1\/browser\/status$/,
+      run: async ({ user }) => [200, await browser.sessions.status(user.id)]
     },
     {
       method: 'GET', re: /^\/v1\/browser\/profile$/,

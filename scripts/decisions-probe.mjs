@@ -35,7 +35,8 @@ const CASES = [
   { message: '請用三句話解釋什麼是遞迴', expect: { search: false, file: false, chart: false, tool: false } },
   { message: 'Who won the Nobel Prize in Physics this year?', expect: { search: true, file: false, chart: false, tool: false } },
   // The address question (only asked when the message has an address) and the two about earlier conversations (asked when the recall is on).
-  { message: '幫我摘要這篇文章：https://example.com/blog/2026-ev-market', expect: { url: true, exact: false, verbatim: false } },
+  { message: '幫我摘要這篇文章：https://example.com/blog/2026-ev-market', expect: { url: true, exact: false, verbatim: false, browser: false } },
+  { message: '請把這個網址的內容翻成英文：https://example.com/about', expect: { url: true, browser: false } },
   { message: '為什麼這行 curl https://api.example.com/v1/users -H "X: 1" 會回 401？', expect: { url: false, exact: false, verbatim: false } },
   { message: '把上次那份巧克力派的食譜再給我一次，一樣的就好', expect: { exact: true, verbatim: false } },
   { message: '請把我們之前聊的那份合約條款，一字不改地貼回來', expect: { exact: true, verbatim: true } },
@@ -51,7 +52,8 @@ const CASES = [
   { message: '這個網頁在瀏覽器裡打不開，可能是什麼原因？', expect: { browser: false } },
   { message: 'How do I clear the cache in my browser?', expect: { browser: false } },
   { message: '用 JavaScript 寫一個在瀏覽器裡顯示時鐘的網頁', expect: { browser: false } },
-  { message: '請用三句話解釋什麼是遞迴', expect: { browser: false } }
+  { message: '請用三句話解釋什麼是遞迴', expect: { browser: false } },
+  { message: '幫我查三家從台北到大阪的便宜機票，比一下價錢和時間', expect: { browser: true } }
 ];
 const QUESTIONS = ['search', 'file', 'chart', 'tool', 'url', 'exact', 'verbatim', 'browser'];
 

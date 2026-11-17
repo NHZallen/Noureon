@@ -658,7 +658,7 @@ test('the time limit of a task: the card is told once when fifteen minutes are l
     action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
     close: async () => true
   };
-  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', emit: (event) => events.push(event), setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: (id) => cleared.push(id) });
+  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', warnBeforeMs: 900_000, emit: (event) => events.push(event), setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: (id) => cleared.push(id) });
   await loader.run(call('browser_open', { url: 'https://shop.example/' }));
   assert.deepEqual(timers.map((entry) => entry.ms), [6_300_000, 7_200_000], 'fifteen minutes before, and at the end');
   await loader.run(call('browser_open', { url: 'https://shop.example/two' }));
@@ -680,7 +680,7 @@ test('a browser with less than fifteen minutes left gets only the end, and the h
     action: async () => ({ ok: true, url: 'https://shop.example/', title: 'Shop' }),
     close: async () => true
   };
-  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', setTimer: (fn, ms) => { timers.push(ms); return timers.length; }, clearTimer: () => {} });
+  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', warnBeforeMs: 900_000, setTimer: (fn, ms) => { timers.push(ms); return timers.length; }, clearTimer: () => {} });
   await loader.run(call('browser_open', { url: 'https://shop.example/' }));
   assert.deepEqual(timers, [600_000]);
 });
@@ -699,4 +699,68 @@ test('a browser the host closed because it sat idle: the card says "Closed (idle
   const t3 = setup();
   await t3.loader.run(call('browser_snapshot'));
   assert.equal(t3.events.some((event) => event.event === 'failed'), false, 'a browser that was never open says nothing more');
+});
+
+test('by default no warning is given before the end of a task (only the end itself)', async () => {
+  const timers = [];
+  const sessions = {
+    current: () => null,
+    open: async () => ({ sessionId: 'b00000001' }),
+    waitReady: async () => ({ state: 'ready', taskMsLeft: 7_200_000 }),
+    action: async () => ({ ok: true, url: 'https://shop.example/', title: 'Shop' }),
+    close: async () => true
+  };
+  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', setTimer: (fn, ms) => { timers.push(ms); return timers.length; }, clearTimer: () => {} });
+  await loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.deepEqual(timers, [7_200_000]);
+});
+
+function busySetup({ answer, otherGoneAfterMs = 0 }) {
+  const asked = [];
+  let other = { sessionId: 'b-other', conversationId: 'other-conversation' };
+  let mine = null;
+  const calls = [];
+  const events = [];
+  let clock = 0;
+  const sessions = {
+    current: () => mine || other,
+    status: async () => ({ open: true, idleMsLeft: 12 * 60_000 + 1 }),
+    open: async (userId, options) => { calls.push(['open']); mine = { sessionId: 'b-mine', conversationId: options.conversationId }; return { sessionId: 'b-mine' }; },
+    waitReady: async () => ({ state: 'ready' }),
+    action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+    close: async (id) => { calls.push(['close', id]); if (id === 'b-other') other = null; return true; }
+  };
+  const loader = createBrowserLoader({
+    sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: (event) => events.push(event),
+    ask: async (kind, info) => { asked.push([kind, info]); return answer; },
+    sleep: async (ms) => { clock += ms; if (otherGoneAfterMs && clock >= otherGoneAfterMs) other = null; }
+  });
+  return { loader, asked, calls, events };
+}
+
+test('the browser is in another conversation: the person is asked, with the longest wait; "stop it" closes that one and opens here', async () => {
+  const t = busySetup({ answer: { decision: 'stop' } });
+  const result = await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.deepEqual(t.asked, [['busy', { minutes: 13 }]]);
+  assert.deepEqual(t.calls, [['close', 'b-other'], ['open']]);
+  assert.match(result, /Done\./);
+});
+
+test('"wait for it": nothing is opened until the other browser is gone, and the card says it waits; when it does not go in time the model is told', async () => {
+  const t = busySetup({ answer: { decision: 'wait' }, otherGoneAfterMs: 15_000 });
+  const result = await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.deepEqual(t.calls, [['open']], 'the other one was not closed');
+  assert.equal(t.events.find((event) => event.event === 'queued')?.label, 'Waiting for the other conversation\'s browser');
+  assert.match(result, /Done\./);
+});
+
+test('"go on without a browser", a question that was not answered, or no way to ask: nothing is opened and the model is told what to do', async () => {
+  const skip = busySetup({ answer: { decision: 'skip' } });
+  assert.match(await skip.loader.run(call('browser_open', { url: 'https://shop.example/' })), /go on without the browser/);
+  assert.deepEqual(skip.calls, []);
+  const timeout = busySetup({ answer: { timeout: true } });
+  assert.match(await timeout.loader.run(call('browser_open', { url: 'https://shop.example/' })), /go on without the browser/);
+  const noAsk = setup();
+  noAsk.setOpen({ sessionId: 'b-other', conversationId: 'other-conversation' });
+  assert.match(await noAsk.loader.run(call('browser_open', { url: 'https://shop.example/' })), /already have a browser open in another conversation/);
 });
