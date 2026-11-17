@@ -219,6 +219,8 @@ export function createSingleModelResponseLifecycle({
     let madeHere = false;
     if (!serverRun && prep.plan) {
       ({ serverRun, madeHere } = await handOverToServer({ serverReply, getConfig, supportsVision }, { ...request, requestParts: reply.requestParts }, prep));
+      // The server has the reply: what is waited for now is the model (the line beside the dot says so).
+      if (serverRun) progress('waitingModel');
     }
     // The server did not take the reply (or there is no account to make it with): the search it was to make, and the files and addresses it
     // was to prepare, are done here, as before (the files not yet prepared: the message is prepared whole, not added to).

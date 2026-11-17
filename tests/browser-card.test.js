@@ -169,6 +169,23 @@ test('the first words of a server reply end the browser work at once: the card s
   }
 });
 
+test('a card that comes into the conversation rises and fades in; one that finishes folds with the shrink of the pill; a saved tag moves in neither', () => {
+  const { window, document, card, q } = make({ enter: true });
+  try {
+    assert.equal(q('.bcard').dataset.enter, '1');
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.complete();
+    assert.equal(q('.bcard').dataset.anim, 'shrink', 'folds into its pill by itself');
+    assert.equal(card.view, 'pill');
+    const quiet = make();
+    quiet.card.handle(call('open', 'acme.com', 'x'));
+    assert.equal(quiet.q('.bcard').dataset.enter, undefined);
+    assert.ok(document);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
 const fakeLive = () => {
   const calls = [];
   const source = { mount(el) { el.append(el.ownerDocument.createElement('div')); }, mountLens(el) { el.append(el.ownerDocument.createElement('div')); }, destroy() {}, input: { pointer() {}, wheel() {}, key() {}, text() {} } };
@@ -557,7 +574,7 @@ test('the card panel: a refused send says so and can be tried again; cancel goes
   assert.equal(d.answers.length, 1);
 });
 
-test('until the first picture arrives the card says it is loading; with the first frame the live picture takes its place', () => {
+test('until the first picture arrives the card says it is loading; with the first frame the live picture takes its place', async () => {
   const { window, card, q } = make();
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
@@ -567,6 +584,9 @@ test('until the first picture arrives the card says it is loading; with the firs
     assert.ok(q('.bcard-screen').classList.contains('is-loading'));
     assert.equal(q('.bcard-site').textContent, 'Connecting the screen…');
     q('.bl-picture video').dispatchEvent(new window.Event('playing'));
+    assert.ok(q('.bcard-screen').classList.contains('is-fading'), 'the loading look fades away first');
+    assert.equal(q('.bcard-screen').hidden, false);
+    await new Promise((resolve) => setTimeout(resolve, 320));
     assert.equal(q('.bcard-screen').hidden, true);
     assert.equal(q('.bcard-screen').classList.contains('is-loading'), false);
   } finally {

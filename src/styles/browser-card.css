@@ -117,6 +117,16 @@
 @keyframes bcard-grow { from { opacity: 0.2; transform: scale(0.55, 0.3); } to { opacity: 1; transform: none; } }
 @keyframes bcard-settle { from { opacity: 0.2; transform: scale(1.6, 3); } to { opacity: 1; transform: none; } }
 
+/* The card comes in (it rises a little and fades in), and its loading look fades away when the first picture is there. */
+.bcard[data-enter] { animation: bcard-enter 0.28s var(--ease-out, ease-out); }
+@keyframes bcard-enter { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+.bcard-screen { transition: opacity 0.25s ease-out; }
+.bcard-screen.is-fading { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+    .bcard[data-enter] { animation: none; }
+    .bcard-screen { transition: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .bcard[data-anim] .bcard-card, .bcard[data-anim] .bcard-pill, .bcard-screen.is-loading { animation: none; }
     .bcard-face { transition: none; }

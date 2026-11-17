@@ -41,7 +41,7 @@ const icon = (document, name, size = 16, width = 2) => {
  * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person cancelled the task (the reply is stopped).
  * `handle(event)` takes the `browser` events of the server; `complete()` says the reply is over.
  */
-export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null }) {
+export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null, enter = false }) {
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
   const steps = [];
@@ -285,7 +285,11 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const over = (next) => {
     closeAsk();
     phase = next;
-    if (next === 'done') view = 'pill';
+    if (next === 'done') {
+      // A card that is in the conversation folds into its pill the way it does when the person folds it (not a jump); one that is only being made does not move.
+      if (view === 'front' && root.isConnected) { clearTimeout(animTimer); root.dataset.anim = 'shrink'; animTimer = setTimeout(() => { delete root.dataset.anim; }, 400); }
+      view = 'pill';
+    }
     render();
   };
 
@@ -426,8 +430,21 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     const video = liveView.element.querySelector('video');
     if (video && video.readyState < 2) {
       screen.hidden = false;
+      screen.classList.remove('is-fading');
       waitingFrame = true;
-      const ready = () => { waitingFrame = false; screen.hidden = true; render(); };
+      // The loading look fades away when the first picture has really been drawn (not at the first sign of data: a black frame showed in between).
+      let revealing = false;
+      const reveal = () => {
+        if (revealing || !waitingFrame || liveView?.element?.querySelector('video') !== video) return;
+        revealing = true;
+        screen.classList.add('is-fading');
+        setTimeout(() => {
+          if (liveView?.element?.querySelector('video') !== video) return;
+          waitingFrame = false; screen.hidden = true; screen.classList.remove('is-fading');
+          render();
+        }, 260);
+      };
+      const ready = () => { if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(reveal); else reveal(); };
       video.addEventListener('loadeddata', ready, { once: true });
       video.addEventListener('playing', ready, { once: true });
     } else {
@@ -437,6 +454,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
 
   render();
+  // A card that comes into the conversation while the work goes on rises and fades in (it was one frame from nothing to a card).
+  if (enter) { root.dataset.enter = '1'; setTimeout(() => { delete root.dataset.enter; }, 450); }
   return {
     handle,
     /** `fn({ phase, view, focus })` after every change of what the card shows; also once at once. */

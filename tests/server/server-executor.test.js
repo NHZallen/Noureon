@@ -242,6 +242,18 @@ test('the times pages show come from the server: the reply\'s own clock, and how
   assert.ok(events.indexOf(ended[0]) < events.findIndex((event) => event.a === 'Hi'), 'before the answer');
 });
 
+test('the time before the first word is told in marks: when the model was asked, its first thought and its first words, in that order', async () => {
+  const marks = [];
+  await executeReply({
+    spec: specFor(),
+    secrets,
+    onMark: (label, ms) => marks.push([label, ms]),
+    fetchImpl: async () => streamResponse(sse({ choices: [{ delta: { reasoning: 'Let me think' } }] }, content('Hel'), content('lo')))
+  });
+  assert.deepEqual(marks.map((mark) => mark[0]), ['model_asked', 'first_thought', 'first_words']);
+  assert.ok(marks.every((mark) => Number.isFinite(mark[1]) && mark[1] >= 0));
+});
+
 test('a model that searches by itself may also use a connector in the same reply (one loop, both kinds of tool)', async () => {
   const requests = [];
   let round = 0;

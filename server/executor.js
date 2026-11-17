@@ -101,7 +101,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, browser = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, browserControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, browser = null, onMark = () => {}, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, browserControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -225,6 +225,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       if (chunk) trimStart = false;
     }
     if (!chunk) return;
+    if (!answer) onMark('first_words', now() - startedAt);
     // The first words of the answer end the thinking: that is the moment the time it thought is taken.
     if (!thoughtClosed && thought.text && thought.first) {
       thoughtClosed = true;
@@ -239,6 +240,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (!chunk) return;
     thought.text += chunk;
     if (kind === 'summary') thought.kind = 'summary';
+    if (thought.first === null || thought.first === undefined) onMark('first_thought', now() - startedAt);
     thought.first ??= now();
     thought.last = now();
     onLive({ th: chunk, k: thought.kind });
@@ -787,6 +789,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       }
       if (!signal?.aborted) await streamWithSkills(searched);
     } else {
+      onMark('model_asked', now() - startedAt);
       await streamWithSkills(parts);
     }
   } catch (error) {

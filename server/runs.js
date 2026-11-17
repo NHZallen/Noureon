@@ -420,6 +420,8 @@ export function createRunManager({
         skills,
         connectors,
         browser,
+        // How long each part before the first word took, said in the log (so a slow start can be told from a slow model).
+        onMark: (label, ms) => log('run_timing', { runId, label, ms: Math.round(ms) }),
         memory,
         memoryOut,
         netControl,

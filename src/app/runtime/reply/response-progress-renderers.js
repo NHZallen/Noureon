@@ -2,6 +2,8 @@ import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 import { councilTimelineHTML } from '../../ui/council/council-timeline.js';
 
 // After this long without a word, the dot says the reply is still being got ready.
+// A quiet line beside the dot after a moment, saying what it is waiting for; "still getting ready" if the wait before the server has taken the reply goes on.
+const WAIT_NOTE_MS = 2_000;
 const WAIT_STILL_MS = 15_000;
 
 export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, getCouncilRuntimeTexts }) {
@@ -31,7 +33,8 @@ export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, get
     const phase = `style="--wait-phase:-${elapsed}ms"`;
     const step = { fileReading: localized.waitReadingFiles, makingPdf: localized.waitMakingPdf, documentTranslation: localized.waitConvertingDocs, searchTranslation: localized.waitSearching }[progress.stage];
     if (step) return `<div class="ledger reply-wait-step" role="status" ${phase}><div class="ledger-row is-running"><div class="ledger-row-head"><span class="ledger-mark" aria-hidden="true"></span><span class="ledger-label">${escapeHTML(step)}</span></div></div></div>`;
-    const still = elapsed >= WAIT_STILL_MS ? `<span class="reply-wait-still">${escapeHTML(localized.waitStill)}</span>` : '';
+    const note = progress.stage === 'waitingModel' ? localized.waitModel : elapsed >= WAIT_STILL_MS ? localized.waitStill : localized.waitPreparing;
+    const still = elapsed >= WAIT_NOTE_MS ? `<span class="reply-wait-still">${escapeHTML(note)}</span>` : '';
     return `<div class="reply-wait" role="status" aria-label="${escapeHTML(localized.preparingRequest)}"><span class="reply-wait-dot" ${phase} aria-hidden="true"></span>${still}</div>`;
   };
 
