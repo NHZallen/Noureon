@@ -6,7 +6,7 @@
 import { loaderInstruction } from '../../../data/skill-tool.js';
 import { keepToolResult } from '../../../data/tool-result.js';
 import { loaderEndEvent, loaderStepEvent } from '../sandbox/sandbox-texts.js';
-import { createRoundInterrupt, putSteerInPreviousTurn, steerTurnFields } from './steer-queue.js';
+import { steerTurnFields } from './steer-queue.js';
 
 /**
  * `loader` is createSkillLoader(...) (skill-tool.js). `onEvent({ type: 'skill', name, label })` is told when a skill is being loaded (the label says so in
@@ -30,10 +30,8 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
       text += lead + chunk;
       onChunk(lead + chunk);
     };
-    // A message the person adds while the model is still working out its next step does not wait for that step: the round is given up and asked again with the message in it.
-    const round = createRoundInterrupt({ signal, steer, allowed: () => toolTurns.length > 0 && !roundStarted });
     try {
-      await streamApiCall(requestParts, emit, round.signal, false, {
+      await streamApiCall(requestParts, emit, signal, false, {
         ...requestOptions,
         tools,
         toolTurns,
@@ -42,12 +40,7 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
       });
     } catch (error) {
       // A stop keeps what was written; anything else is the caller's to handle.
-      if (!signal?.aborted && !round.interrupted()) throw error;
-    }
-    round.dispose();
-    if (round.interrupted() && !signal?.aborted) {
-      putSteerInPreviousTurn(steer, toolTurns);
-      continue;
+      if (!signal?.aborted) throw error;
     }
     const calls = (response?.toolCalls || []).filter((call) => loader.handles(call.name));
     if (signal?.aborted || !canCall || calls.length === 0) break;
