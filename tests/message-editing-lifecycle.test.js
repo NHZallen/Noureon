@@ -196,3 +196,39 @@ test('a phone edit also leaves the cut to the submit', () => {
     cleanup();
   }
 });
+
+test('the box gets the draft back after an edit and is measured again (it stayed as tall as the edited message)', async () => {
+  const { document, cleanup } = createDom(`
+    <main id="messages"><article class="message-item" data-message-index="0"><div class="message-stack-user">Original message</div></article></main>
+    <div id="composer-parent"><div id="input-bar"><textarea id="message-input"></textarea><div id="previews"></div></div></div>
+    <button id="add-file"></button><div id="file-options"></div>
+  `);
+  try {
+    const conversation = { messages: [{ role: 'user', parts: [{ text: 'Original message' }] }] };
+    const input = document.querySelector('#message-input');
+    let inputEvents = 0;
+    input.addEventListener('input', () => { inputEvents += 1; });
+    const lifecycle = createMessageEditingLifecycle({
+      document,
+      elements: {
+        messageList: document.querySelector('#messages'),
+        messageInput: input,
+        inputBarContainer: document.querySelector('#input-bar'),
+        filePreviewContainer: document.querySelector('#previews'),
+        addFileBtn: document.querySelector('#add-file'),
+        fileOptionsPopover: document.querySelector('#file-options')
+      },
+      getActiveConversation: () => conversation,
+      renderChat: () => {},
+      saveAppData: async () => {},
+      submitEditedMessage: async () => {},
+      isMobile: () => true
+    });
+    lifecycle.startMessageEditing(0);
+    const before = inputEvents;
+    await lifecycle.cancelMessageEditing();
+    assert.ok(inputEvents > before, 'an input event tells the box to be measured again');
+  } finally {
+    cleanup();
+  }
+});

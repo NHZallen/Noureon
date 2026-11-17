@@ -79,6 +79,8 @@ export function createMessageEditingLifecycle({
       editor.composerParent.insertBefore(elements.inputBarContainer, editor.composerNextSibling);
     }
     renderFilePreviews();
+    // The box was sized for the message that was edited in it (two lines, say): the draft it gets back may be shorter, and nothing else tells the box to be measured again.
+    messageInput?.dispatchEvent?.(new (messageInput.ownerDocument?.defaultView?.Event || Event)('input', { bubbles: true }));
   };
 
   const dismissEditor = ({ restore = true, rerender = true, animate = true } = {}) => {
