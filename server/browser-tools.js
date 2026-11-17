@@ -286,7 +286,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         if (file.size > MAX_UPLOAD_BYTES) return `That file is larger than ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB, which is too large to send from here. Tell the user.`;
         // A file leaves the user's hands: they are asked each time, with the name of the file and the site it goes to.
         if (ask) {
-          const answer = await confirm('irreversible', `Send the file ${oneLine(file.name, 80)} to this page`);
+          const answer = await confirm('irreversible', sandboxText(language, 'browserConfirmUpload', { name: oneLine(file.name, 80) }));
           if (answer !== 'confirm') return declined(answer);
         }
         let bytes;
@@ -301,7 +301,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         const got = await act(sessionId, { type: 'download', ...(Number.isInteger(args.ref) ? { ref: args.ref } : { url: String(args.url) }), maxBytes: 25 * 1024 * 1024 });
         // A file that can run on the person's computer is asked about first; the others are kept.
         if (EXECUTABLE_FILE.test(got.name) && ask) {
-          const answer = await confirm('irreversible', `Keep the program file ${oneLine(got.name, 80)}`);
+          const answer = await confirm('irreversible', sandboxText(language, 'browserConfirmKeep', { name: oneLine(got.name, 80) }));
           if (answer !== 'confirm') return declined(answer);
         }
         let marker;

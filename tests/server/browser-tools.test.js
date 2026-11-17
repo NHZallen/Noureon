@@ -359,6 +359,17 @@ test('a file the user attached is put into a file field only after the user conf
   assert.match(asked[0][1].summary, /cv\.pdf/);
 });
 
+test('the question before an upload is put in the language of the person', async () => {
+  const wanted = { 'zh-TW': /傳到這個網頁/, en: /Send the file cv\.pdf to this page/, fr: /Envoyer le fichier/, ru: /Отправить файл/, es: /Enviar el archivo/ };
+  for (const [language, pattern] of Object.entries(wanted)) {
+    const asked = [];
+    const t = setup({ language, current: { sessionId: 'b00000001', conversationId: 'c1' }, inputFiles: [attached('cv.pdf', 'hello')], ask: async (kind, payload) => { asked.push(payload); return { decision: 'confirm' }; }, actions: { upload: () => ({ ok: true }) } });
+    await t.loader.run(call('browser_upload', { ref: 7, file: 'cv.pdf' }));
+    assert.match(asked[0].summary, pattern, language);
+    assert.match(asked[0].summary, /cv\.pdf/);
+  }
+});
+
 test('without the confirmation nothing is sent; an unknown name lists the attached files; no files, too large or no number are said', async () => {
   const no = setup({ current: { sessionId: 'b00000001', conversationId: 'c1' }, inputFiles: [attached('cv.pdf', 'hello')], ask: async () => ({ decision: 'cancel_it' }), actions: { upload: () => ({ ok: true }) } });
   assert.match(asText(await no.loader.run(call('browser_upload', { ref: 7, file: 'cv.pdf' }))), /did not confirm|not done/);

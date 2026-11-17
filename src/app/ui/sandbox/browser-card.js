@@ -133,10 +133,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   capsule.addEventListener('click', () => setView('back'));
   const panelBox = make('div', 'bcard-panel');
   panelBox.hidden = true;
-  const askOpen = make('button', 'bcard-ask-open', { type: 'button' });
-  askOpen.hidden = true;
-  askOpen.addEventListener('click', () => setView('front'));
-  root.append(card, pill, askOpen, panelBox);
+  root.append(card, pill, panelBox);
   host.append(root);
 
   const statusOf = () => (asking && phase === 'run' ? 'help' : phase === 'queued' ? 'run' : phase === 'cancelled' || phase === 'failed' ? 'fail' : phase);
@@ -168,12 +165,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     root.dataset.view = view;
     pillCross.hidden = phase !== 'queued';
     pillCross.setAttribute('aria-label', t('browserCancelQueue'));
-    const panelShown = Boolean(asking) && phase === 'run' && view !== 'pill';
-    card.hidden = view === 'pill' || (panelShown && !asking.panel.below);
+    // A question (a confirmation, a password, a code, a card…) is shown under the card or the pill, which stay where they are.
+    card.hidden = view === 'pill';
     pill.hidden = view !== 'pill';
-    panelBox.hidden = !panelShown;
-    askOpen.hidden = !(asking && phase === 'run' && view === 'pill');
-    askOpen.textContent = askWords(language, asking?.kind).open;
+    panelBox.hidden = !(asking && phase === 'run');
     // The card is turned over (or not): the face that is not seen does not take the focus.
     card.classList.toggle('is-flipped', view === 'back');
     front.inert = view === 'back';
@@ -288,18 +283,37 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     render();
   };
 
+  // The answer of the person goes to the server; when it does not get there (or the reply is not running any more, e.g. the server was just updated), the panel
+  // is made again with a line that says so, instead of staying locked for ever.
+  const showAsk = (event, note = '') => {
+    const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => answerAsk(event, id, payload), helpers: { fetch: fetchImpl, takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); } } });
+    if (!panel) return false;
+    asking?.panel?.destroy();
+    asking = { id: event.id, kind: event.kind, panel };
+    panelBox.replaceChildren(panel.element);
+    if (note) { const line = make('div', 'bpanel-error'); line.setAttribute('role', 'alert'); line.textContent = note; panel.element.append(line); }
+    return true;
+  };
+  const answerAsk = (event, id, payload) => {
+    let result;
+    try { result = onAnswer?.(id, payload); } catch { result = null; }
+    if (!result || typeof result.then !== 'function') return;
+    const failed = (note) => { if (asking && asking.id === event.id && phase === 'run') { showAsk(event, note); render(); } };
+    result.then((res) => {
+      if (res?.ok === false) failed(t(res.status === 404 ? 'browserAnswerGone' : 'browserAnswerFailed'));
+      else if (res?.data?.answered === false) failed(t('browserAnswerGone'));
+    }, () => failed(t('browserAnswerFailed')));
+  };
+
   const handle = (event) => {
     if (phase === 'cancelled') return;
     if (event?.event === 'ask') {
       closeAsk();
-      const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => onAnswer?.(id, payload), helpers: { fetch: fetchImpl, takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); } } });
-      if (!panel) return;
       if (phase === 'queued') phase = 'run';
-      asking = { id: event.id, kind: event.kind, panel };
-      panelBox.replaceChildren(panel.element);
+      if (!showAsk(event)) return;
       if (view === 'back') view = 'front';
       render();
-      panel.focus?.();
+      asking.panel.focus?.();
       return;
     }
     if (event?.event === 'answer') {

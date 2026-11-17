@@ -54,7 +54,7 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
           onImageAnswer: createImageAnswerHandler({ getRun: () => serverRun }),
           onBrowserCancel: () => { void serverRun?.stop?.(); },
           onBrowserLive: createBrowserLiveHandler({ getRun: () => serverRun, getDocument }),
-          onBrowserAnswer: (askId, answer) => { void serverRun?.answerBrowser?.(askId, answer); }
+          onBrowserAnswer: (askId, answer) => serverRun?.answerBrowser?.(askId, answer)
         } : {})
       });
       // Its line says the reply is working: the dot (and its "still getting ready") under it would say it twice.
