@@ -247,7 +247,8 @@ export function createRunManager({
     // How a person's requests reach a deep research that is running (start, pause, stop and the rest).
     const controls = isResearch ? createResearchControls() : null;
     const controller = new AbortController();
-    const marks = {};
+    // How long the start took: on the page first (the numbers it sent: c_…), then here (executor.js).
+    const marks = Object.fromEntries(Object.entries(spec.clientMarks && typeof spec.clientMarks === 'object' ? spec.clientMarks : {}).map(([label, ms]) => [`c_${label}`, Math.round(Number(ms) || 0)]));
     // How the person's answer to a question about a site gets to the sandbox that asked (the reply sets `answer` when it has one).
     const netControl = { answer: null };
     // The same for the window that asks the person for a login a tool needs (executor.js).

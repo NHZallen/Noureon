@@ -55,6 +55,9 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   // system instructions, which the server is sent as they are).
   // A search the provider makes itself (some refuse our tools next to it) or a search packet put in front of the request: no skill tool then.
   const ownSearchReply = Boolean(webSearchEnabled && !researchByModel);
+  // The memory of notes is made ready while the skills are looked up (they do not wait for each other).
+  resetTrace(conversation?.id);
+  const memoryReady = import('../memory-store/page-memory-loader.js').then((module) => module.createPageMemoryTools({ getConfig, getMemory: getNotesMemory, getHistory: getPageHistory, getVectors: getPageVectors, conversation })).catch(() => null);
   // The files of a skill asked for are told about only when the model has a tool to read them.
   const invokedSkills = await resolveInvokedSkills(skillNamesOfParts(userParts));
   const filesNote = canCallTools && !ownSearchReply && invokedSkills.some((skill) => skill.files?.length) ? (await import('../../../data/skill-files-note.js')).skillFilesNote : null;
@@ -65,8 +68,7 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
   // The memory of notes: its two tools join the loader of skills, for a model that calls tools and a reply that may be given tools. A reply that cannot have them
   // (a provider's own search) learns afterwards by the curator instead.
-  resetTrace(conversation?.id);
-  const memoryAccess = await (await import('../memory-store/page-memory-loader.js')).createPageMemoryTools({ getConfig, getMemory: getNotesMemory, getHistory: getPageHistory, getVectors: getPageVectors, conversation }).catch(() => null);
+  const memoryAccess = await memoryReady;
   const memoryTools = memoryAccess && canCallTools && !ownSearchReply ? memoryAccess : null;
   if (memoryTools) resetTrace(conversation?.id, { toolsOffered: true });
   const uiLanguage = getConfig().uiLanguage;

@@ -212,3 +212,13 @@ test('the browser switch of a conversation is a plain true or false, kept for a 
   bad.tools.browser = 'yes';
   assert.equal(validateRunSpec(bad).ok, false);
 });
+
+test('the times the page took to send the message are kept (a few numbers of milliseconds), and anything else in their place is refused', () => {
+  const kept = validateRunSpec({ ...good(), clientMarks: { decisions: 420, saved: 1800, prepared: 2300, history: 2600 } });
+  assert.equal(kept.ok, true);
+  assert.deepEqual(kept.spec.clientMarks, { decisions: 420, saved: 1800, prepared: 2300, history: 2600 });
+  assert.equal(validateRunSpec(good()).spec.clientMarks, undefined);
+  for (const bad of [{ Decisions: 1 }, { decisions: 'slow' }, { decisions: -1 }, { decisions: 9_999_999_999 }, 'x', { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9 }]) {
+    assert.equal(validateRunSpec({ ...good(), clientMarks: bad }).ok, false, JSON.stringify(bad));
+  }
+});

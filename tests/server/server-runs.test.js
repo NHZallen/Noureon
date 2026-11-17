@@ -266,14 +266,15 @@ const messageWrites = (db) => db.log.rpcs.filter((call) => call.name === 'server
 test('a reply is accepted, run, written, and finished, and its key goes with it', async () => {
   const seen = [];
   const { manager, db, vault } = managerHarness({
-    execute: async ({ spec, secrets, onUpdate, onCheckpoint }) => {
+    execute: async ({ spec, secrets, onUpdate, onCheckpoint, onMark }) => {
       seen.push({ secrets, hasSecretsInSpec: 'secrets' in spec });
+      onMark('first_words', 812.4);
       onUpdate([{ text: 'partial' }]);
       await onCheckpoint({ round: 1 });
       return { parts: [{ text: 'whole answer' }], status: 'done', run: { elapsedMs: 5 }, toolCalls: 2, rounds: [{ finish: 'tool_use', calls: 2, chars: 0 }, { finish: 'end_turn', calls: 0, chars: 12 }] };
     }
   });
-  const runId = await manager.start({ userId: USER, spec: specOf() });
+  const runId = await manager.start({ userId: USER, spec: { ...specOf(), clientMarks: { decisions: 400, prepared: 2300 } } });
   assert.equal(runId, 'run-1');
   await settle();
   assert.deepEqual(seen[0].secrets, { providerKey: KEY }, 'the run has the key');
@@ -291,6 +292,7 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
   const done = db.log.updates.find((update) => update.values.status === 'done');
   assert.equal(done.values.key_envelope, null);
   assert.deepEqual(done.values.usage.rounds, [{ finish: 'tool_use', calls: 2, chars: 0 }, { finish: 'end_turn', calls: 0, chars: 12 }], 'how each round ended is kept with the run');
+  assert.deepEqual(done.values.usage.marks, { c_decisions: 400, c_prepared: 2300, first_words: 812 }, 'the times of the start, the page\'s first, are kept with the run');
   assert.equal(manager.activeCount, 0);
 });
 

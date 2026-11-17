@@ -6,6 +6,7 @@
 //   single-model-reply-finish.js      the run record and the text saved
 // This file joins them, and draws the wait row before the first words.
 
+import { sendMarks } from './send-marks.js';
 import { lookableVideoParts, prepareChatVideos, withChatVideoNotes } from '../messages/chat-video.js';
 import { getPageTranscription } from '../memory-store/memory-ref.js';
 import { addNumberedSources } from '../../ui/citations/source-numbering.js';
@@ -198,6 +199,7 @@ export function createSingleModelResponseLifecycle({
 
     // 1. What kind of reply this is.
     const prep = await prepareReply({ getConfig, supportsToolCalling, webResearch, serverReply, getWindow }, request);
+    sendMarks.mark('prepared');
     const { replyMode, researchByModel, serverSearches, serverPrepares } = prep;
     // The server makes the speech into text when it makes the reply and prepares the files; the videos looked at with the tool are then done from the copy in the cloud.
     if (wantsSpeech && serverPrepares) {

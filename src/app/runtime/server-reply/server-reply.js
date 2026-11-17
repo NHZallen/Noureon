@@ -2,6 +2,7 @@
 // request together (history, system instruction, model, tools, keys) and hands it to the server, which makes the reply and writes it
 // into the same message the app already syncs. This file is that hand-over and the following of the reply until it is done.
 
+import { sendMarks } from '../reply/send-marks.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { pictureOffsets } from '../../../data/picture-interleave.js';
 import { serverReplyText } from './server-reply-texts.js';
@@ -283,6 +284,7 @@ export function createServerReply({
     // The conversations the memory drew on are known once the request was put together.
     const historySourceIds = getHistorySourceIds();
     const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })), { pictures: Boolean(config?.toolModels?.image) });
+    sendMarks.mark('history');
     // A text model that may draw pictures by itself (the picture model the person chose in the settings): not for a deep research or a visual check, nor with Gemini's own search.
     const drawing = research || vision || webSearch === 'grounding' ? null : imageGenerationForReply({ config, modelInfo, getApiKeyForProvider });
     // The notes of the memory given to the model for this reply (the slip) stay with the message; what the model looks up and writes the server adds when the reply ends.
@@ -295,6 +297,8 @@ export function createServerReply({
       // A visual check asked for again: the reply it is about and the files to look at (no reply is made).
       ...(vision ? { kind: 'vision', source: vision.source } : {}),
       clientVersion: String(clientVersion || '0'),
+      // The time each part of sending took on the page (reply/send-marks.js): the server keeps them with the run.
+      clientMarks: sendMarks.snapshot(),
       conversationId: conversation.id,
       assistantMessageId,
       sequence,

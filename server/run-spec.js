@@ -22,7 +22,7 @@ const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const SEARCH_DEPTHS = ['basic', 'advanced'];
 // `documents`: the reading of files, the translating of documents and the reading of addresses are made here, not by the page (server/document-prep.js). It is a
 // field of its own, at the top, so that a server that does not know it refuses the request (and the page makes those steps itself) instead of dropping it.
-const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source', 'documents'];
+const TOP_LEVEL = ['protocol', 'clientVersion', 'clientMarks', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source', 'documents'];
 const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
 const COUNCIL_MODES = ['consensus', 'deliberation'];
 const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai'];
@@ -487,6 +487,12 @@ export function validateRunSpec(input) {
   for (const name of Object.keys(input)) if (!TOP_LEVEL.includes(name)) fail(name, 'is not a known field');
 
   if (!text(input.clientVersion, 40)) fail('clientVersion', 'must be a short text');
+  // The time each part of sending took on the page, in milliseconds (kept with the run to read a slow start; it changes nothing).
+  if (input.clientMarks !== undefined) {
+    const marks = input.clientMarks;
+    if (!isObject(marks) || Object.keys(marks).length > 8) fail('clientMarks', 'must be an object of at most 8 numbers');
+    else for (const [label, ms] of Object.entries(marks)) if (!/^[a-z_]{1,24}$/.test(label) || !Number.isFinite(ms) || ms < 0 || ms > 3_600_000) fail(`clientMarks.${label}`, 'must be a number of milliseconds');
+  }
   if (!UUID.test(String(input.conversationId || ''))) fail('conversationId', 'must be an id');
   if (!UUID.test(String(input.assistantMessageId || ''))) fail('assistantMessageId', 'must be an id');
   if (!Number.isInteger(input.sequence) || input.sequence < 0) fail('sequence', 'must be a whole number from 0');
@@ -682,6 +688,7 @@ export function validateRunSpec(input) {
       ...(input.kind === 'research' ? { kind: 'research', research: { topic: input.research.topic.trim() } } : {}),
       ...(input.kind === 'vision' ? { kind: 'vision', source: { messageId: input.source.messageId, text: input.source.text, parts: input.source.parts.map((part) => ({ sandboxFile: { id: part.sandboxFile.id, name: part.sandboxFile.name, data: part.sandboxFile.data } })), fileIds: [...new Set(input.source.fileIds)] } } : {}),
       clientVersion: input.clientVersion,
+      ...(isObject(input.clientMarks) && Object.keys(input.clientMarks).length ? { clientMarks: { ...input.clientMarks } } : {}),
       conversationId: input.conversationId,
       assistantMessageId: input.assistantMessageId,
       sequence: input.sequence,

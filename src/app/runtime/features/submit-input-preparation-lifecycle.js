@@ -1,3 +1,4 @@
+import { sendMarks } from '../reply/send-marks.js';
 import { shouldAutoEnableWebSearch } from './auto-web-search.js';
 import { extractLinkedUrls } from '../reply/linked-pages.js';
 import { clearCliSelection, getCliSelection } from '../cli/cli-bridge.js';
@@ -70,6 +71,7 @@ export function createSubmitInputPreparationLifecycle({
     preserveComposer = false
   } = {}) => {
     if (getAbortController()) return { shouldContinue: false, reason: 'already-generating' };
+    sendMarks.begin();
     const composerMessage = String(suppliedMessage ?? elements.messageInput.value).trim();
     const composerDisplayMessage = suppliedMessage == null
       ? String(elements.messageInput.displayValue || composerMessage).trim()
@@ -190,6 +192,7 @@ export function createSubmitInputPreparationLifecycle({
     // download), reading it first is a wait for nothing, and the model has the search and the page reading at hand if the work needs them.
     // The loading message is already on the screen, so the wait for the judgements (at most their time limit) is not a blank wait.
     const decisions = await decisionsPromise;
+    sendMarks.mark('decisions');
     rememberDecisions(userMessage, decisions);
     // What needs current facts is the Decisions model's judgement when there is one, the word lists when there is not.
     const needsCurrentFacts = verdictOf(decisions, 'search') ?? shouldAutoEnableWebSearch(userMessage);
@@ -214,6 +217,7 @@ export function createSubmitInputPreparationLifecycle({
       && canModelDecideWebSearch(conversation);
     try {
       if (initialSave) await initialSave;
+      sendMarks.mark('saved');
       if (startedTemporaryConversation) onConversationStarted(conversation);
     } catch (error) {
       delete conversation.__astraPendingResponse;
