@@ -2,8 +2,11 @@
 // The accounts of BROWSER_ADMINS can make as many as they like (for the first people). Nothing of the tables goes to the pages but the person's own codes and whether they have access.
 
 import { randomInt } from 'node:crypto';
+import { createRateLimiter } from './rate-limit.js';
 
 export const CODES_PER_PERSON = 2;
+// Wrong codes one person may try in an hour (a code has 32^8 possibilities: this is not about luck, it is about whoever tries a script).
+export const WRONG_CODES_PER_HOUR = 10;
 // No 0, 1, I, O: a code is read out and typed.
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const SHAPE = /^NRN-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
@@ -22,7 +25,8 @@ export const makeCode = (pick = (n) => randomInt(n)) => {
   return `NRN-${part()}-${part()}`;
 };
 
-export function createBrowserInvites({ db, now = () => new Date(), makeId = makeCode }) {
+export function createBrowserInvites({ db, now = () => new Date(), makeId = makeCode, wrongCodesPerHour = WRONG_CODES_PER_HOUR }) {
+  const wrong = createRateLimiter({ limit: wrongCodesPerHour, windowMs: 3_600_000, now: () => now().getTime() });
   const checkUser = (userId) => { if (!USER_ID.test(String(userId || ''))) throw new InviteError('bad_user', 'That is not a person.'); };
   const mine = async (userId) => {
     const rows = await db.select('browser_invites', { filters: { owner_id: `eq.${userId}` }, select: 'code,redeemed_by,redeemed_at,created_at', order: 'created_at.asc', limit: 200 });
@@ -62,6 +66,15 @@ export function createBrowserInvites({ db, now = () => new Date(), makeId = make
     /** A code is redeemed: access for this person and two codes of their own. */
     async redeem(userId, text) {
       checkUser(userId);
+      if (wrong.remaining(userId) === 0) throw new InviteError('too_many', 'Too many wrong codes. Try again in an hour.');
+      try {
+        return await this.redeemOnce(userId, text);
+      } catch (error) {
+        if (error instanceof InviteError && (error.code === 'invalid_code' || error.code === 'own_code')) wrong.take(userId);
+        throw error;
+      }
+    },
+    async redeemOnce(userId, text) {
       const code = String(text || '').trim().toUpperCase();
       if (!SHAPE.test(code)) throw new InviteError('invalid_code', 'That is not an invite code.');
       if (await this.hasAccess(userId)) throw new InviteError('already', 'You already have access.');

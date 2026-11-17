@@ -12,7 +12,7 @@ import { ERROR_CODES } from './protocol.js';
 import { InviteError } from './browser-invites.js';
 import { originOf } from './browser-logins.js';
 
-const KIND = { bad_user: 'bad_request', invalid_code: 'bad_request', own_code: 'bad_request', already: 'wrong_phase' };
+const KIND = { too_many: 'rate_limited', bad_user: 'bad_request', invalid_code: 'bad_request', own_code: 'bad_request', already: 'wrong_phase' };
 
 export function createBrowserAccountRoutes({ browser, limiter = null }) {
   const routes = [

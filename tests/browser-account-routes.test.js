@@ -15,7 +15,7 @@ function setup() {
     isAdmin: async (id) => id === ADMIN,
     invites: {
       codesOf: async (id, o) => { calls.push(['codesOf', id, o]); return [{ code: 'NRN-AAAA-BBBB', used: false }]; },
-      redeem: async (id, code) => { calls.push(['redeem', id, code]); if (code === 'bad') throw new InviteError('invalid_code', 'That code cannot be used.'); if (code === 'have') throw new InviteError('already', 'You already have access.'); access.add(id); return { ok: true }; },
+      redeem: async (id, code) => { calls.push(['redeem', id, code]); if (code === 'bad') throw new InviteError('invalid_code', 'That code cannot be used.'); if (code === 'have') throw new InviteError('already', 'You already have access.'); if (code === 'many') throw new InviteError('too_many', 'Too many wrong codes. Try again in an hour.'); access.add(id); return { ok: true }; },
       mintLoose: async (n) => { calls.push(['mint', n]); return ['NRN-CCCC-DDDD']; }
     },
     profiles: {
@@ -50,6 +50,7 @@ test('redeeming a code lets the person in at once; a wrong code is a plain error
   assert.deepEqual(t.calls.find((c) => c[0] === 'forget'), ['forget', 'newcomer']);
   assert.equal((await t.run('POST', '/v1/browser/redeem', { code: 'bad' }, { id: 'x' })).failed.code, 'bad_request');
   assert.equal((await t.run('POST', '/v1/browser/redeem', { code: 'have' }, { id: 'x' })).failed.code, 'wrong_phase');
+  assert.equal((await t.run('POST', '/v1/browser/redeem', { code: 'many' }, { id: 'x' })).failed.code, 'rate_limited', 'too many wrong codes is a 429, not a plain error');
 });
 
 test('the login state: look, log out of one site (only an https site), delete it all', async () => {
