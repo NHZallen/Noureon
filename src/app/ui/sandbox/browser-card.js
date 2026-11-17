@@ -46,6 +46,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
   const steps = [];
+  // The work list the model wrote for this reply (the server keeps its rules: a done task never changes); it takes the place of the steps in the list when there is one.
+  let plan = null;
   let phase = 'run'; // run, queued, done, failed, cancelled
   let view = 'front'; // front, back, pill
   let queuedLabel = '';
@@ -191,7 +193,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     screenSite.textContent = waitingFrame ? t('browserLoading') : (!live && phase === 'run') ? t('browserStarting') : domain;
     // Once it is over there is no task to cancel: only the shrink button stays (and a queue can be left, but not shrunk).
     cancelButton.hidden = phase === 'done' || phase === 'failed' || phase === 'cancelled';
-    list.replaceChildren(...steps.map((step) => {
+    list.replaceChildren(...(plan || steps).map((step) => {
       const row = make('li', `bcard-step is-${step.state}`);
       const tick = make('i', 'bcard-tick');
       if (step.state === 'done') tick.append(icon(document, 'check', 9, 3.2));
@@ -267,6 +269,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const cancel = () => {
     if (phase === 'done' || phase === 'failed' || phase === 'cancelled') return;
     steps.forEach((step) => { if (step.state === 'run') step.state = 'fail'; });
+    closePlan('fail');
     foldInto(() => {
       closeAsk();
       phase = 'cancelled';
@@ -281,6 +284,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
 
   const finishRunning = (state) => steps.forEach((step) => { if (step.state === 'run') step.state = state; });
+  // The reply is over: the task in hand is done (or stopped, when the work was); what was never begun stays as it is.
+  const closePlan = (state) => plan?.forEach((task) => { if (task.state === 'run') task.state = state; });
 
   // The work is over: the card folds into its tag. A second look is one press away.
   const closeAsk = () => {
@@ -340,8 +345,15 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       render();
       return;
     }
+    if (event?.event === 'plan') {
+      plan = (Array.isArray(event.tasks) ? event.tasks : []).filter((task) => task?.text).slice(0, 12).map((task) => ({ label: String(task.text), state: task.status === 'doing' ? 'run' : task.status === 'done' ? 'done' : 'todo' }));
+      if (!plan.length) plan = null;
+      render();
+      return;
+    }
     if (event?.event === 'failed') {
       finishRunning('fail');
+      closePlan('fail');
       over('failed');
       return;
     }
@@ -353,6 +365,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (event.domain) domain = event.domain;
     if (event.action === 'close') {
       finishRunning('done');
+      closePlan('done');
       steps.push({ key: 'close', label: event.label, state: 'done' });
       over('done');
       return;
@@ -371,7 +384,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   // The reply is over (the browser may not have been closed by the model): what ran is done.
   const complete = () => {
     if (phase !== 'run' && phase !== 'queued') return;
+    // A list was written but the browser never came into use: there is nothing to show.
+    if (!steps.length && !live) { phase = 'done'; root.hidden = true; return; }
     finishRunning('done');
+    closePlan('done');
     over('done');
   };
 

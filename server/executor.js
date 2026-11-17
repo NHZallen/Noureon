@@ -137,9 +137,12 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event?.type !== 'browser') return;
     if (event.event === 'call' && browserTrace.length < 80) browserTrace.push({ action: String(event.action || '').slice(0, 20), domain: String(event.domain || '').slice(0, 120), label: String(event.label || '').slice(0, 160) });
     if (event.event === 'failed') browserEnded = 'failed';
+    // The work list as it stands (the loader holds the rules: a done task never changes); the record keeps the latest.
+    if (event.event === 'plan' && Array.isArray(event.tasks)) browserPlan = event.tasks.slice(0, 12).map((task) => ({ text: String(task.text || '').slice(0, 120), status: ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo' }));
   };
+  let browserPlan = [];
   let browserFrame = '';
-  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
+  const browserRecord = () => (browserTrace.length ? { end: browserEnded || (signal?.aborted ? 'cancelled' : 'done'), steps: browserTrace.slice(), ...(browserPlan.length ? { plan: browserPlan.map((task) => ({ ...task })) } : {}), ...(browserFrame ? { frame: browserFrame } : {}) } : null);
   const record = (status, { downloads = status !== 'running' } = {}) => ({
     status,
     steps: downloads ? downloadSteps() : [],

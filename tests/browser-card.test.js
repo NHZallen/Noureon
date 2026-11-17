@@ -27,7 +27,7 @@ test('the capsule says what is being done, with the ring that turns; a press tur
     q('.bcard-capsule').click();
     assert.equal(card.view, 'back');
     assert.ok(q('.bcard-card').classList.contains('is-flipped'));
-    assert.equal(q('.bcard-back-head span').textContent, 'Task progress');
+    assert.equal(q('.bcard-back-head span').textContent, 'Work list');
     assert.equal(steps().length, 1);
     q('.bcard-back-close').click();
     assert.equal(card.view, 'front');
@@ -649,6 +649,79 @@ test('the card has the loading look (the flowing cream purple) while the browser
     assert.equal(q('.bcard-site').textContent, 'Starting the browser…', 'the browser is still starting');
     card.complete();
     assert.equal(q('.bcard-screen').classList.contains('is-loading'), false, 'the work is over: a quiet place holder');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+const planEvent = (...tasks) => ({ type: 'browser', event: 'plan', tasks: tasks.map(([text, status]) => ({ text, status })) });
+
+test('the work list takes the place of the steps in the list: done ticked, the one in hand turning, the rest dim; a new list from the model replaces what is not done', () => {
+  const { window, card, steps } = make();
+  try {
+    card.handle(planEvent(['Open the shop', 'doing'], ['Pick shoes', 'todo']));
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    assert.deepEqual(steps().map((row) => row.textContent), ['Open the shop', 'Pick shoes'], 'the steps of the browser are not listed when there is a list of tasks');
+    assert.deepEqual(steps().map((row) => row.className.replace('bcard-step ', '')), ['is-run', 'is-todo']);
+    card.handle(call('click', 'acme.com', 'Working the browser on acme.com'));
+    assert.equal(steps().length, 2, 'more steps of the browser do not turn the task in hand into a done one');
+    assert.ok(steps()[0].classList.contains('is-run'));
+    card.handle(planEvent(['Open the shop', 'done'], ['Compare two pairs', 'doing'], ['Tell the user', 'todo']));
+    assert.deepEqual(steps().map((row) => row.className.replace('bcard-step ', '')), ['is-done', 'is-run', 'is-todo']);
+    card.complete();
+    assert.deepEqual(steps().map((row) => row.className.replace('bcard-step ', '')), ['is-done', 'is-done', 'is-todo'], 'what was in hand is done at the end; what was never begun stays as it was');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('stopped: the task in hand is marked stopped, what was done stays done; with no list the steps are listed as before', () => {
+  const { window, card, steps } = make({ onCancel: () => {} });
+  try {
+    card.handle(planEvent(['Open the shop', 'done'], ['Pick shoes', 'doing'], ['Pay', 'todo']));
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.cancel();
+    assert.deepEqual(steps().map((row) => row.className.replace('bcard-step ', '')), ['is-done', 'is-fail', 'is-todo']);
+  } finally {
+    window.happyDOM.abort();
+  }
+  const plain = make();
+  try {
+    plain.card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    assert.deepEqual(plain.steps().map((row) => row.textContent), ['Browsing: acme.com']);
+  } finally {
+    plain.window.happyDOM.abort();
+  }
+});
+
+test('a list written but never followed by the browser leaves no card behind', () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(planEvent(['Look it up', 'doing']));
+    card.complete();
+    assert.equal(q('.bcard').hidden, true);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the record keeps the list (short, at most twelve, a known state each) and the saved tag shows it when it is opened', async () => {
+  const { normalizeBrowserRecord } = await import('../src/app/ui/sandbox/sandbox-run-block.js');
+  const steps = [{ action: 'open', domain: 'acme.com', label: 'Browsing: acme.com' }];
+  const plan = [{ text: 'Open the shop', status: 'done' }, { text: ` ${'x'.repeat(300)} `, status: 'weird' }, { text: '', status: 'done' }, ...Array.from({ length: 20 }, (_, index) => ({ text: `T${index}`, status: 'todo' }))];
+  const record = normalizeBrowserRecord({ end: 'done', steps, plan });
+  assert.equal(record.plan.length, 12);
+  assert.equal(record.plan[1].text.length, 120);
+  assert.equal(record.plan[1].status, 'todo');
+  assert.equal(normalizeBrowserRecord({ end: 'done', steps }).plan, undefined);
+  const { browserTagElement } = await import('../src/app/ui/sandbox/browser-tag.js');
+  const window = new Window();
+  const { document } = window;
+  try {
+    const host = browserTagElement(document, { end: 'done', steps, plan: [{ text: 'Open the shop', status: 'done' }, { text: 'Pick shoes', status: 'doing' }, { text: 'Pay', status: 'todo' }] }, { language: 'en' });
+    document.body.append(host);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual([...host.querySelectorAll('.bcard-step')].map((row) => row.className.replace('bcard-step ', '')), ['is-done', 'is-done', 'is-todo']);
   } finally {
     window.happyDOM.abort();
   }

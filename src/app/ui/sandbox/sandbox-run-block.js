@@ -164,6 +164,7 @@ export function normalizeConnectors(connectors) {
 
 // What the browser agent did in a reply (server/executor.js): the steps as the card showed them and how it ended. The message draws the tag "Done" from it.
 const BROWSER_ENDS = ['done', 'failed', 'cancelled'];
+const BROWSER_TASK_STATES = ['todo', 'doing', 'done'];
 const oneLine = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
 export function normalizeBrowserRecord(browser) {
   if (!browser || typeof browser !== 'object') return null;
@@ -172,7 +173,12 @@ export function normalizeBrowserRecord(browser) {
     .filter((step) => step.label);
   // The last picture of the browser: a small JPEG as a data address (server/browser-tools.js makes it), nothing else is taken.
   const frame = typeof browser.frame === 'string' && browser.frame.length <= 60_000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(browser.frame) ? browser.frame : '';
-  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps, ...(frame ? { frame } : {}) } : null;
+  // The work list of the reply (server/browser-plan.js): the tasks with where each one stood at the end.
+  const plan = (Array.isArray(browser.plan) ? browser.plan : [])
+    .map((task) => ({ text: oneLine(task?.text, 120), status: BROWSER_TASK_STATES.includes(task?.status) ? task.status : 'todo' }))
+    .filter((task) => task.text)
+    .slice(0, 12);
+  return steps.length ? { end: BROWSER_ENDS.includes(browser.end) ? browser.end : 'done', steps, ...(plan.length ? { plan } : {}), ...(frame ? { frame } : {}) } : null;
 }
 
 const COUNCIL_STAGES = ['translation', 'firstRound', 'deliberation', 'synthesis'];

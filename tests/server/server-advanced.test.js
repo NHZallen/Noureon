@@ -239,6 +239,38 @@ test('a reply with Python that only used the browser still keeps the record of t
   assert.match(lifted.text, /Opened it\./);
 });
 
+test('the work list the model wrote is kept in the record of the reply, with each task where it stood at the end', async () => {
+  let round = 0;
+  const browser = {
+    mayUse: async () => true,
+    maxActions: 0,
+    sessions: {
+      current: () => ({ sessionId: 'b00000001', conversationId: '123e4567-e89b-12d3-a456-426614174000' }),
+      open: async () => ({ sessionId: 'b00000001' }),
+      waitReady: async () => ({ state: 'ready' }),
+      action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+      close: async () => true
+    }
+  };
+  const result = await executeReply({
+    spec: specFor({ browser: true }),
+    secrets,
+    userId: USER,
+    sandboxHost: fakeHost([]),
+    files: fakeFiles(),
+    browser,
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('call_0', 'browser_plan', { tasks: [{ text: 'Open the shop', status: 'doing' }, { text: 'Read the price' }] })));
+      if (round === 2) return streamResponse(sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })));
+      if (round === 3) return streamResponse(sse(toolCall('call_2', 'browser_plan', { tasks: [{ text: 'Open the shop', status: 'done' }, { text: 'Read the price', status: 'doing' }] })));
+      return streamResponse(sse(content('Done.')));
+    }
+  });
+  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  assert.deepEqual(lifted.run.browser.plan, [{ text: 'Open the shop', status: 'done' }, { text: 'Read the price', status: 'doing' }]);
+});
+
 test('stopped while it thinks, with no answer yet: what it thought and what the browser did stay with the message, and the browser says it was stopped (a reply with Python or not)', async () => {
   for (const advanced of [true, false]) {
     let round = 0;
