@@ -292,10 +292,10 @@ export function createSingleModelResponseLifecycle({
     };
     if (steerSink) {
       replySteering.attach(steerSink);
-      // While the browser works the reply is not cut for a message: when it is taken, its bubble goes and the card shows it as a line of the work.
+      // While the browser works the reply is not cut for a message: when it is taken, its bubble stays under the reply (a message of the person once the reply is over) and the card shows it as a line of the work too.
       const showEvent = view.event;
       view.event = (event) => {
-        if (event?.type === 'browser' && event.event === 'steer' && event.id) replyCut.pending.remove([event.id]);
+        if (event?.type === 'browser' && event.event === 'steer' && event.id) replyCut.settle([event.id]);
         return showEvent(event);
       };
     }
@@ -304,7 +304,8 @@ export function createSingleModelResponseLifecycle({
         stop();
         const realtimeProgress = {
           ...latestProgress,
-          stage: 'streaming',
+          // (The line beside the dot says "waiting for the model" once the server has the reply: going back to "preparing" made the words come back a second time.)
+          stage: latestProgress.stage === 'waitingModel' ? 'waitingModel' : 'streaming',
           message: undefined,
           elapsedMs: now() - runStartedAt
         };

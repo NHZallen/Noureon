@@ -1076,6 +1076,34 @@ test('once the step list says the reply is working, the waiting dot under it goe
   assert.equal(dotsWhileWorking, 0);
 });
 
+test('the words beside the waiting dot do not go back to "preparing" once the server has the reply and the model is waited for', async () => {
+  const { Window } = await import('happy-dom');
+  const { document } = new Window({ url: 'https://example.test/' });
+  const message = document.createElement('div');
+  const target = document.createElement('div');
+  message.append(target);
+  document.body.append(message);
+  const stages = [];
+  const serverReply = serverReplyDouble({
+    follow: async ({ onText }) => { onText('Done'); return { text: 'Done', run: null, rewritten: false }; }
+  });
+  const { lifecycle, signal } = createHarness({
+    extraDependencies: {
+      serverReply,
+      getDocument: () => document,
+      renderSingleModelProgress: (progress) => { stages.push(progress.stage); return '<div class="reply-wait"><span class="reply-wait-dot"></span></div>'; },
+      streamMarkdownResponse: async (element, streamCall, receivedSignal, options) => {
+        element.innerHTML = options.placeholderHTML;
+        return streamCall(() => {});
+      }
+    }
+  });
+  await lifecycle.run({ targetElement: target, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' }, conversation: { id: 'c1', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1' });
+  const first = stages.indexOf('waitingModel');
+  assert.ok(first >= 0, 'the model is waited for');
+  assert.deepEqual(stages.slice(first).filter((stage) => stage !== 'waitingModel'), [], `no earlier stage after it: ${stages.join(',')}`);
+});
+
 // ----- the message's files and addresses, prepared by the server (docs/superpowers/specs/2026-10-20-server-document-prep-design.md)
 
 const PDF = { inlineData: { mimeType: 'application/pdf', name: 'a.pdf', data: 'TWFu' } };

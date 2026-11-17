@@ -8,6 +8,8 @@ const bubbleHTML = (text) => `<div class="message-stack message-stack-user"><div
 /** `place()`: the element the first bubble goes after (the message the reply is written in); it can be changed with `setPlace`. */
 export function createPendingSteers({ document, place = () => null }) {
   const pending = [];
+  // A message the reply took without being cut (the browser at work): its bubble stays where it is, as a message of the person, until the reply is over (`takeSettled`).
+  const settled = [];
   let where = place;
   return {
     setPlace(next) {
@@ -34,6 +36,22 @@ export function createPendingSteers({ document, place = () => null }) {
         pending.splice(index, 1);
       }
       return gone;
+    },
+    /** The reply took these messages and went on in the same message: the bubbles stay, no longer faded. */
+    settle(ids) {
+      for (let index = 0; index < pending.length; index += 1) {
+        if (!ids.includes(pending[index].id)) continue;
+        const [item] = pending.splice(index, 1);
+        index -= 1;
+        item.element.classList.remove('is-pending');
+        settled.push(item);
+      }
+    },
+    /** The reply is over: the settled bubbles are taken off (the messages that stand for them are made by the caller). Returns [{ id, text }]. */
+    takeSettled() {
+      const items = settled.splice(0);
+      items.forEach((item) => item.element.remove());
+      return items.map(({ id, text }) => ({ id, text }));
     },
     /** Takes all the bubbles away but keeps what they said: [{ id, text }], to be added again under the message the reply goes on in. */
     detach() {

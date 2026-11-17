@@ -9,6 +9,15 @@ const state = { document: null, addMessageToUI: null, now: () => new Date().toIS
 const pendingSteers = createPendingSteers({ document: { createElement: (...args) => state.document.createElement(...args) } });
 
 export const replyCut = {
+  /** The reply took these messages and was not cut: their bubbles stay under it for now. */
+  settle: (ids) => pendingSteers.settle(ids),
+  /** The reply is over: the messages it took without a cut become messages of the conversation, after its own. */
+  keepSettled({ conversation }) {
+    for (const user of pendingSteers.takeSettled()) {
+      if (conversation.messages.some((message) => message.id === user.id)) continue;
+      state.addMessageToUI({ id: user.id, role: 'user', parts: [{ text: user.text }], createdAt: state.now(), metadata: { steer: true } }, conversation.messages.length, true, true, { conversation });
+    }
+  },
   /** `document`; `addMessageToUI(message, index, shouldSave, shouldScroll, { conversation })` draws a message (and keeps it in the conversation when `shouldSave`). */
   configure({ document, addMessageToUI, now }) {
     state.document = document;

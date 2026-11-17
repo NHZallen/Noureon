@@ -576,6 +576,8 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
     } finally {
       // A reply that was cut went on in the next message, which has cleaned up.
       if (!continued) {
+        // What the person added while the browser worked (no cut) stays under the reply, as messages of the conversation.
+        replyCut.keepSettled({ conversation: conv });
         if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {
           delete conv.__astraPendingResponse;
         }

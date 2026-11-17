@@ -155,3 +155,30 @@ test('a message of a cut reply counts only the pages its own work found; the ear
     window.happyDOM.abort();
   }
 });
+
+test('a message the reply took without being cut stays under it as an ordinary bubble until the reply is over, and then becomes a message of the conversation after the reply (once)', async () => {
+  const { window, document, list, reply } = setup();
+  try {
+    const { replyCut } = await import('../src/app/runtime/reply/reply-cut.js');
+    const added = [];
+    replyCut.configure({ document, addMessageToUI: (message, index, save) => { added.push([message.id, message.parts[0].text, index, save]); return null; }, now: () => 'T' });
+    replyCut.pending.setPlace(() => reply);
+    replyCut.pending.add({ id: 'a', text: 'not that airline' });
+    replyCut.pending.add({ id: 'b', text: 'and cheaper' });
+    replyCut.settle(['a']);
+    const bubble = list.querySelector('[data-steer-id="a"]');
+    assert.ok(bubble, 'it stays');
+    assert.ok(!bubble.classList.contains('is-pending'), 'as the person\'s own message');
+    // The end of the reply takes away what was not taken (b), not what was settled.
+    assert.deepEqual(replyCut.pending.remove(), ['and cheaper']);
+    assert.ok(list.querySelector('[data-steer-id="a"]'));
+    const conversation = { messages: [{ id: 'm0' }, { id: 'm1' }] };
+    replyCut.keepSettled({ conversation });
+    assert.deepEqual(added, [['a', 'not that airline', 2, true]]);
+    assert.equal(list.querySelector('[data-steer-id="a"]'), null, 'the bubble gives way to the message');
+    replyCut.keepSettled({ conversation });
+    assert.equal(added.length, 1, 'once');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
