@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
-import { createEgressProxy, makeBlockList, parseTarget, parseCidr } from '../browser-host/egress-proxy.mjs';
+import { createEgressProxy, makeBlockList, makeHostBlock, parseTarget, parseCidr } from '../browser-host/egress-proxy.mjs';
 
 test('blocked addresses: private, reserved, metadata, loopback, multicast, and the extra list', () => {
   const blocked = makeBlockList(['203.0.114.7/32']);
@@ -86,6 +86,35 @@ test('refused: a name that points inside, a mixed answer, literals, other ports'
     assert.equal(t.logs.at(-1).why, why, target);
     socket.destroy(); await t.close();
   }
+});
+
+test('the names on the block list: the name itself, any subdomain, whatever the case, a trailing dot; not a name that only ends the same way', () => {
+  const blocked = makeHostBlock(['Abc123.supabase.co', ' other.example. ', '']);
+  for (const host of ['abc123.supabase.co', 'ABC123.Supabase.CO', 'abc123.supabase.co.', 'api.abc123.supabase.co', 'a.b.abc123.supabase.co', 'other.example']) assert.equal(blocked(host), true, host);
+  for (const host of ['supabase.co', 'xabc123.supabase.co', 'abc123.supabase.com', 'abc123.supabase.co.evil.test', 'example.com', '', undefined]) assert.equal(blocked(host), false, String(host));
+  assert.equal(makeHostBlock([])('anything.example'), false, 'an empty list blocks nothing');
+});
+
+test('a name on the block list is refused before any lookup, for https and plain http; the others still go through', async () => {
+  const looked = [];
+  const t = await setup({ options: { blockHosts: ['proj1.supabase.co'], lookup: async (host) => { looked.push(host); return ['93.184.216.34']; } } });
+  for (const target of ['proj1.supabase.co:443', 'API.Proj1.supabase.co:443', 'proj1.supabase.co.:443']) {
+    const { status, socket } = await connectRequest(t.port, target);
+    assert.equal(status, '403', target);
+    assert.equal(t.logs.at(-1).why, 'host not allowed', target);
+    socket.destroy();
+  }
+  const plain = await new Promise((resolve, reject) => {
+    const request = http.request({ host: '127.0.0.1', port: t.port, method: 'GET', path: 'http://proj1.supabase.co/', headers: { host: 'proj1.supabase.co' } }, (response) => { response.resume(); resolve(response.statusCode); });
+    request.on('error', reject); request.end();
+  });
+  assert.equal(plain, 403);
+  assert.deepEqual(looked, [], 'no name was looked up');
+  assert.equal(t.connectedTo.length, 0);
+  const ok = await connectRequest(t.port, 'example.com:443');
+  assert.equal(ok.status, '200');
+  ok.socket.destroy();
+  await t.close();
 });
 
 test('a name that does not exist is refused', async () => {

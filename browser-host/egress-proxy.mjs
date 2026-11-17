@@ -3,6 +3,8 @@
 //   - It resolves the name itself and refuses the request when ANY answer is private, reserved or one of this host's own addresses
 //     (so a name that points inside, a decimal "2130706433", an IPv6 literal or DNS rebinding cannot get through), then connects to the
 //     address it checked, never to the name again.
+//   - Names listed in EGRESS_BLOCK_HOSTS (and all their subdomains) are refused before any lookup: public services of our own (the Supabase projects)
+//     that no browser has a reason to reach. EGRESS_EXTRA_BLOCK is for addresses (IPv4 ranges) only.
 //   - Only the ports in EGRESS_ALLOW_PORTS (default 80 and 443) are allowed: a browser that can open any port is a port scanner.
 //   - The way out can be a SOCKS5 upstream (Cloudflare WARP in proxy mode on this host: EGRESS_UPSTREAM_SOCKS=127.0.0.1:40000) or direct.
 //   - The log has the name, the port and the verdict, and nothing else: no path, no query, no headers, no body.
@@ -88,13 +90,24 @@ export function socks5Connect({ proxyHost, proxyPort, ip, port, timeoutMs = 1500
 
 const lookupAll = (host) => new Promise((resolve, reject) => dns.lookup(host, { all: true, family: 4 }, (error, list) => (error ? reject(error) : resolve(list.map((entry) => entry.address)))));
 
+/** A name list ("a.example.com", "B.example.com.") -> a test: true for a name on the list or any subdomain of one (case and a trailing dot do not matter). */
+export function makeHostBlock(names = []) {
+  const clean = (name) => String(name || '').trim().toLowerCase().replace(/\.+$/, '');
+  const list = names.map(clean).filter(Boolean);
+  return (host) => {
+    const name = clean(host);
+    return Boolean(name) && list.some((entry) => name === entry || name.endsWith(`.${entry}`));
+  };
+}
+
 /**
- * options: bindHost, port, allowPorts [80, 443], extraBlock [cidr…], upstreamSocks 'host:port' | '', maxConnections, log(entry)
+ * options: bindHost, port, allowPorts [80, 443], extraBlock [cidr…], blockHosts [name…], upstreamSocks 'host:port' | '', maxConnections, log(entry)
  * Test hooks: lookup(host) -> [ip…], connect({ ip, port }) -> Promise<socket>
  */
 export function createEgressProxy(options = {}) {
   const allowPorts = new Set((options.allowPorts || [80, 443]).map(Number));
   const isBlocked = makeBlockList(options.extraBlock || []);
+  const isBlockedName = makeHostBlock(options.blockHosts || []);
   const maxConnections = options.maxConnections || 400;
   const log = options.log || (() => {});
   const lookup = options.lookup || lookupAll;
@@ -116,6 +129,7 @@ export function createEgressProxy(options = {}) {
   async function check(target) {
     if (!target) return { deny: 'bad target' };
     if (!allowPorts.has(target.port)) return { deny: 'port not allowed' };
+    if (isBlockedName(target.host)) return { deny: 'host not allowed' };
     if (net.isIP(target.host)) {
       if (isBlocked(target.host)) return { deny: 'address not allowed' };
       return { ip: target.host };
@@ -195,6 +209,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const server = createEgressProxy({
     allowPorts: (env.EGRESS_ALLOW_PORTS || '80,443').split(',').map((part) => Number(part.trim())).filter(Boolean),
     extraBlock: (env.EGRESS_EXTRA_BLOCK || '').split(',').map((part) => part.trim()).filter(Boolean),
+    blockHosts: (env.EGRESS_BLOCK_HOSTS || '').split(',').map((part) => part.trim()).filter(Boolean),
     upstreamSocks: (env.EGRESS_UPSTREAM_SOCKS || '').trim(),
     maxConnections: Number(env.EGRESS_MAX_CONNECTIONS || 400),
     log: (entry) => console.log(JSON.stringify({ t: new Date().toISOString(), ...entry }))
