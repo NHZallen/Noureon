@@ -3,7 +3,9 @@
 // screen, then, while the model works, empty room and two buttons (Stop, Take over). When the person has taken over the room becomes a trackpad, a row of
 // tools (keyboard, paste, refresh) is over it, and one button gives the browser back to the model. The menu holds back, a screenshot for the model, copying the
 // address, the downloaded files and the ratio of the screen. What it asks of the browser it asks of a `controller`; it draws from the `state` it is told.
-//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over, zoomed }
+//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }] }
+// Over the lower edge of the screen is the same row as the card has (the capsule that says what is done, the button that gives the card back, the cross that cancels the task); a press on the capsule
+// shows the steps over the screen. A press on the empty room (not while the browser is in the person's hands: there it is the trackpad) leaves the focus mode.
 // On a computer (`layout: 'panel'`) it is the side panel (and, with `zoomed`, the big one): the tabs are the top row with Enlarge, the menu and the cross beside them; there is no
 // trackpad: the person points and types on the screen itself (the mouse, the wheel, the keys); with the browser in their hands there is a row for the address, and under
 // the screen Paste and Screenshot are on the left and Give back on the right.
@@ -19,7 +21,7 @@ const PATHS = {
   x: 'M6 6l12 12M18 6L6 18',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   plus: 'M12 5v14M5 12h14',
-  expand: 'M4 10V4h6M20 14v6h-6M4 4l6 6M20 20l-6-6',
+  expand: 'M4 10V4h6M20 14v6h-6',
   hand: 'M8 13V6.5a1.5 1.5 0 013 0V12M11 11V4.5a1.5 1.5 0 013 0V12M14 11.5V6.5a1.5 1.5 0 013 0V14a6 6 0 01-6 6h-.5a5 5 0 01-4.2-2.3L4 14.5a1.6 1.6 0 012.5-2L8 14',
   keyboard: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
   paste: 'M9 4h6v3H9zM7 5.5H6a1 1 0 00-1 1V20a1 1 0 001 1h12a1 1 0 001-1V6.5a1 1 0 00-1-1h-1',
@@ -30,8 +32,9 @@ const PATHS = {
   file: 'M7 3h7l4 4v14H7zM14 3v4h4',
   stop: 'M7 7h10v10H7z',
   check: 'M5 12.5l4.5 4.5L19 7.5',
-  zoom: 'M4 10V4h6M20 14v6h-6M4 4l6 6M20 20l-6-6',
-  zoomOut: 'M10 4v6H4M14 20v-6h6M10 10L3.5 3.5M14 14l6.5 6.5'
+  warn: 'M12 4l9 16H3zM12 10v4.5M12 17.2h.01',
+  zoom: 'M4 10V4h6M20 14v6h-6',
+  zoomOut: 'M10 4v6H4M14 20v-6h6'
 };
 const icon = (document, name, size = 18) => {
   const svg = document.createElementNS(SVG, 'svg');
@@ -56,7 +59,7 @@ const KEYS = [['Escape', 'Esc'], ['Tab', 'Tab'], ['ArrowLeft', '←'], ['ArrowUp
 export function createFocusMode({ document, host = document.body, language = 'zh-TW', layout = 'phone', source = null, state: initial = {}, controller = {}, readClipboard = null }) {
   const panel = layout === 'panel';
   const t = (key) => sandboxText(language, key);
-  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, ...initial };
+  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, label: '', status: 'run', steps: [], ...initial };
   const ask = (name, ...args) => controller[name]?.(...args);
 
   const make = (tag, className, attrs = {}) => {
@@ -86,9 +89,36 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   // The screen.
   const screen = make('div', 'bf-screen');
   const view = createLiveView({ document, host: screen, ratio: state.ratio, source });
-  const expand = button('bf-expand', t('browserExpand'), () => ask(state.zoomed ? 'onZoom' : 'onExpand', false), icon(document, 'expand', 14), t('browserExpand'));
-  screen.append(expand);
-  const status = make('div', 'bf-status');
+  // The row over the lower edge of the screen (the same as the card's): the capsule opens the steps, the first round button gives the card back (on a computer in the big view it makes the view small), the cross cancels the task.
+  const row = make('div', 'bf-row');
+  const capsule = make('button', 'bf-cap', { type: 'button', 'aria-label': t('browserProgress') });
+  const capLead = make('span', 'bcard-lead');
+  const capText = make('span', 'bcard-text', { 'aria-live': 'polite' });
+  capsule.append(capLead, capText);
+  capsule.addEventListener('click', () => setSteps(!stepsOpen));
+  const expand = button('bf-round', t('browserExpand'), () => ask(state.zoomed ? 'onZoom' : 'onExpand', false), icon(document, 'expand', 20));
+  expand.dataset.act = 'expand';
+  const cancel = button('bf-round', t('browserCancel'), () => ask('onStop'), icon(document, 'x', 18));
+  cancel.dataset.act = 'stop';
+  const round = make('span', 'bf-round-box');
+  round.append(expand, cancel);
+  row.append(capsule, round);
+  // The steps, over the screen.
+  const stepsBox = make('div', 'bf-steps');
+  stepsBox.hidden = true;
+  const stepsHead = make('div', 'bf-steps-head');
+  const stepsTitle = make('span');
+  stepsTitle.textContent = t('browserProgress');
+  stepsHead.append(stepsTitle, button('bf-steps-close', t('browserBack'), () => setSteps(false), icon(document, 'x', 15)));
+  const stepsList = make('ul', 'bf-steps-list');
+  stepsBox.append(stepsHead, stepsList);
+  screen.append(stepsBox, row);
+  let stepsOpen = false;
+  const setSteps = (open) => {
+    stepsOpen = open;
+    stepsBox.hidden = !open;
+    stepsBox.inert = !open;
+  };
   const pad = make('div', 'bf-pad', { 'aria-label': t('browserPadHint') });
   pad.append(Object.assign(make('div', 'bf-pad-hint'), { textContent: t('browserPadHint') }));
   const tools = make('div', 'bf-tools');
@@ -106,10 +136,9 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   typing.append(field, send);
   keyboard.append(keyRow, typing);
   const actions = make('div', 'bf-actions');
-  const stopButton = button('bf-act', t('browserStop'), () => ask('onStop'), icon(document, 'stop', 15), t('browserStop'));
   const takeButton = button('bf-act is-primary', t('browserTakeOver'), () => ask('onTakeOver'), icon(document, 'hand', 17), t('browserTakeOver'));
   const giveButton = button('bf-act is-primary', t('browserGiveBack'), () => ask('onGiveBack'), icon(document, 'check', 17), t('browserGiveBack'));
-  actions.append(stopButton, takeButton, giveButton);
+  actions.append(takeButton, giveButton);
   // The side panel of a computer: the tabs are the top row, with Enlarge, the menu and the cross; the address row is there when the browser is in the person's hands.
   const zoomButton = button('bf-icon', t('browserZoom'), () => ask('onZoom', !state.zoomed), icon(document, 'zoom'));
   const closeButton = top.firstChild;
@@ -130,7 +159,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     bar.append(barTools, actions);
     root.append(head, urlRow, screen, bar);
   } else {
-    root.append(top, tabs, screen, status, pad, tools, keyboard, actions);
+    root.append(top, tabs, screen, pad, tools, keyboard, actions);
   }
   host.append(root);
 
@@ -244,6 +273,13 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     root.append(menu);
   };
   root.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMenu(); });
+  // A press on the empty room leaves the focus mode, as the cross does; when the browser is in the person's hands that room is the trackpad.
+  if (!panel) {
+    root.addEventListener('click', (event) => {
+      if (state.control === 'user' || menu) return;
+      if (event.target === root || event.target === actions || event.target === top || event.target === tabs) ask('onClose');
+    });
+  }
 
   const render = () => {
     const user = state.control === 'user';
@@ -251,11 +287,9 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     root.dataset.over = String(Boolean(state.over));
     site.textContent = state.domain || t('browserCardLabel');
     dot.classList.toggle('is-user', user);
-    status.textContent = state.over ? t('browserDone') : user ? t('browserYouDoing') : t('browserModelDoing');
     pad.hidden = !user;
     tools.hidden = !user;
     keyboard.hidden = !user || !keyboardOpen;
-    stopButton.hidden = user || state.over;
     takeButton.hidden = user || state.over;
     giveButton.hidden = !user;
     view.setRatio(state.ratio);
@@ -267,8 +301,25 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     urlRow.hidden = !(panel && user);
     if (panel && document.activeElement !== urlField) urlField.value = state.url || '';
     barTools.hidden = !user;
-    expand.querySelector('span').textContent = state.zoomed ? t('browserZoomOut') : t('browserExpand');
-    expand.setAttribute('aria-label', expand.querySelector('span').textContent);
+    expand.setAttribute('aria-label', state.zoomed ? t('browserZoomOut') : t('browserExpand'));
+    expand.title = expand.getAttribute('aria-label');
+    expand.replaceChildren(icon(document, state.zoomed ? 'zoomOut' : 'expand', 20));
+    cancel.hidden = Boolean(state.over);
+    capText.textContent = state.label || t('browserCardLabel');
+    const lead = make('span', `bcard-icon is-${state.status || 'run'}`);
+    if ((state.status || 'run') === 'run') lead.append(make('i', 'bcard-spin'));
+    else lead.append(icon(document, state.status === 'done' ? 'check' : state.status === 'help' ? 'warn' : 'x', 14));
+    capLead.replaceChildren(lead);
+    stepsList.replaceChildren(...(state.steps || []).map((step) => {
+      const item = make('li', `bf-step is-${step.state}`);
+      const tick = make('i', 'bf-step-tick');
+      if (step.state === 'done') tick.append(icon(document, 'check', 9));
+      else if (step.state === 'fail') tick.append(icon(document, 'x', 9));
+      const text = make('span');
+      text.textContent = step.label;
+      item.append(tick, text);
+      return item;
+    }));
     tabs.replaceChildren(...state.tabs.map((tab) => {
       const node = make('div', `bf-tab${tab.active ? ' is-active' : ''}`, { role: 'tab', 'aria-selected': String(Boolean(tab.active)) });
       const label = button('bf-tab-label', tab.title || state.domain, () => ask('onSwitchTab', tab.id), null, tab.title || state.domain);

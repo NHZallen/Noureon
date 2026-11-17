@@ -15,7 +15,7 @@ const ICONS = {
   check: 'M5 12.5l4.5 4.5L19 7.5',
   cross: 'M6 6l12 12M18 6L6 18',
   warn: 'M12 4l9 16H3zM12 10v4.5M12 17.2h.01',
-  shrink: 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7',
+  shrink: 'M4 14h6v6M20 10h-6V4',
   globe: 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.4 2.6 3.6 5.6 3.6 9S14.4 18.4 12 21c-2.4-2.6-3.6-5.6-3.6-9S9.6 5.6 12 3z'
 };
 
@@ -56,6 +56,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let ratio = DEFAULT_RATIO;
   let control = 'model';
   let zoomed = false;
+  // The card has no picture yet (the browser is starting, or the first frame has not come): it is drawn with the loading look.
+  let waitingFrame = false;
   // The question the person is asked now (a confirmation, a login…): its panel takes the place of the card.
   let asking = null;
   const watchers = [];
@@ -89,8 +91,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const capsuleLead = make('span', 'bcard-lead');
   const capsuleText = make('span', 'bcard-text', { 'aria-live': 'polite' });
   capsule.append(capsuleLead, capsuleText);
-  const shrinkButton = button('bcard-round', t('browserShrink'), () => setView('pill'), icon(document, 'shrink', 14));
-  const cancelButton = button('bcard-round', t('browserCancel'), () => askCancel(), icon(document, 'cross', 14));
+  const shrinkButton = button('bcard-round', t('browserShrink'), () => setView('pill'), icon(document, 'shrink', 20));
+  const cancelButton = button('bcard-round', t('browserCancel'), () => askCancel(), icon(document, 'cross', 18));
   const buttons = make('span', 'bcard-buttons');
   buttons.append(shrinkButton, cancelButton);
   // The last picture of the browser, kept with a saved message: it takes the place of the screen when the tag is opened.
@@ -151,6 +153,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     return steps.at(-1)?.label || t('browserCardLabel');
   };
 
+  // What the row over the screen of the focus mode says: the same words, state and steps as the capsule of the card.
+  const focusWords = () => ({ label: labelNow(), status: statusOf(), steps: steps.map((step) => ({ label: step.label, state: step.state })) });
   const render = () => {
     renderNow();
     notify();
@@ -178,7 +182,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     pillText.textContent = label;
     pill.classList.toggle('is-tag', phase === 'done' || phase === 'cancelled');
     pill.setAttribute('aria-label', label);
-    screenSite.textContent = screen.classList.contains('is-loading') ? t('browserLoading') : domain;
+    const busy = waitingFrame || (!live && (phase === 'run' || phase === 'queued'));
+    screen.classList.toggle('is-loading', busy);
+    screenSite.textContent = waitingFrame ? t('browserLoading') : domain;
     // Once it is over there is no task to cancel: only the shrink button stays (and a queue can be left, but not shrunk).
     cancelButton.hidden = phase === 'done' || phase === 'failed' || phase === 'cancelled';
     list.replaceChildren(...steps.map((step) => {
@@ -193,12 +199,22 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     }));
     // The last step is in view as the list grows.
     list.scrollTop = list.scrollHeight;
-    focus?.update({ domain, ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' });
+    focus?.update({ domain, ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords() });
   };
 
+  // The pill and the card change into each other (a short grow or shrink); `data-anim` says which, and goes when it is over.
+  let animTimer = null;
   const setView = (next) => {
     if (view === next) return;
+    const motion = (view === 'pill' && next === 'front') ? 'grow' : (view === 'front' && next === 'pill') ? 'shrink' : '';
     view = next;
+    clearTimeout(animTimer);
+    if (motion) {
+      root.dataset.anim = motion;
+      animTimer = setTimeout(() => { delete root.dataset.anim; }, 400);
+    } else {
+      delete root.dataset.anim;
+    }
     render();
   };
 
@@ -340,7 +356,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
   const focusController = () => {
     const own = {
-      onClose: () => { closeFocus(); setView('pill'); },
+      // Back to where it was opened from: a card stays a card, a pill stays a pill (the view is not touched while the focus mode is open).
+      onClose: () => { closeFocus(); },
       onExpand: () => { closeFocus(); setView('front'); },
       onZoom: (value) => { zoomed = Boolean(value); dock.setZoom(zoomed); focus?.update({ zoomed }); live?.controller?.onZoom?.(zoomed); },
       onStop: () => askCancel(),
@@ -355,7 +372,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (!live || focus) return;
     const panel = wide();
     if (panel) dock.open({ zoomed });
-    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled' }, controller: focusController(), readClipboard: live.readClipboard || null });
+    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords() }, controller: focusController(), readClipboard: live.readClipboard || null });
     if (panel) dock.mountHandle(focus.element, sandboxText(language, 'browserResize'));
     notify();
   };
@@ -369,6 +386,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     liveView?.destroy();
     liveView = null;
     if (!live) {
+      waitingFrame = false;
       screen.hidden = false;
       card.style.aspectRatio = '';
       return;
@@ -383,12 +401,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     const video = liveView.element.querySelector('video');
     if (video && video.readyState < 2) {
       screen.hidden = false;
-      screen.classList.add('is-loading');
-      screenSite.textContent = t('browserLoading');
-      const ready = () => { screen.hidden = true; screen.classList.remove('is-loading'); render(); };
+      waitingFrame = true;
+      const ready = () => { waitingFrame = false; screen.hidden = true; render(); };
       video.addEventListener('loadeddata', ready, { once: true });
       video.addEventListener('playing', ready, { once: true });
     } else {
+      waitingFrame = false;
       screen.hidden = true;
     }
   };
@@ -440,6 +458,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     get phase() { return phase; },
     get view() { return view; },
     remove() {
+      clearTimeout(animTimer);
       closeDialog();
       closeFocus();
       liveView?.destroy();

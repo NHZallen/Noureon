@@ -179,7 +179,7 @@ test('with a live picture the screen of the card is the picture and the circle; 
   }
 });
 
-test('with a live picture a press on the pill, or on the picture, opens the focus mode; its cross goes back to the pill and "Expand" to the card', () => {
+test('the focus mode goes back to where it was opened from: a card stays a card, a pill stays a pill; "Expand" gives the card back, and the pill grows into it', () => {
   const { window, card, q, document } = make();
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
@@ -188,12 +188,19 @@ test('with a live picture a press on the pill, or on the picture, opens the focu
     assert.ok(document.querySelector('.bf'), 'a press on the picture');
     document.querySelector('.bf-top .bf-icon:first-child').click();
     assert.equal(document.querySelector('.bf'), null);
+    assert.equal(card.view, 'front', 'opened from the card, the cross gives the card back (it is not shrunk)');
+    q('.bcard-round').click();
     assert.equal(card.view, 'pill');
+    assert.equal(q('.bcard').dataset.anim, 'shrink');
     q('.bcard-pill').click();
     assert.ok(document.querySelector('.bf'), 'a press on the pill');
-    document.querySelector('.bf-expand').click();
+    document.querySelector('.bf-top .bf-icon:first-child').click();
+    assert.equal(card.view, 'pill', 'opened from the pill, the cross gives the pill back');
+    q('.bcard-pill').click();
+    document.querySelector('.bf-round[data-act="expand"]').click();
     assert.equal(document.querySelector('.bf'), null);
     assert.equal(card.view, 'front');
+    assert.equal(q('.bcard').dataset.anim, 'grow', 'the pill changes into the card');
   } finally {
     window.happyDOM.abort();
   }
@@ -207,7 +214,7 @@ test('in the focus mode: Stop asks the same question as the cross of the card; t
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     card.setLive(live);
     card.openFocus();
-    document.querySelector('.bf-act:not(.is-primary)').click();
+    document.querySelector('.bf-round[data-act="stop"]').click();
     assert.equal(document.querySelector('.bcard-dialog-text').textContent, 'Cancel the task?');
     document.querySelector('.bcard-dialog-button:not(.is-danger)').click();
     document.querySelector('.bf-top .bf-icon:last-child').click();
@@ -224,7 +231,7 @@ test('in the focus mode: Stop asks the same question as the cross of the card; t
     card.setLive({ ...live, ratio: undefined });
     assert.equal(card.ratio, 'portrait', 'the ratio does not go back by itself');
     card.openFocus();
-    document.querySelector('.bf-act:not(.is-primary)').click();
+    document.querySelector('.bf-round[data-act="stop"]').click();
     document.querySelector('.bcard-dialog-button.is-danger').click();
     assert.equal(cancelled, 1);
     assert.equal(document.querySelector('.bf'), null, 'cancelling closes the focus mode');
@@ -251,13 +258,13 @@ test('on a computer the pill opens the side panel that takes its room from the c
     assert.match(root.style.getPropertyValue('--browser-panel-w'), /^calc\(100vw/);
     assert.equal(card.zoomed, true);
     assert.deepEqual(calls.at(-1), ['onZoom', true], 'the owner of the picture is told too');
-    document.querySelector('.bf-expand').click();
+    document.querySelector('.bf-round[data-act="expand"]').click();
     assert.equal(card.zoomed, false);
     assert.equal(root.getAttribute('data-browser-panel'), 'panel');
     document.querySelector('.bf-head > .bf-icon:last-child').click();
     assert.equal(root.getAttribute('data-browser-panel'), null);
     assert.equal(document.querySelector('.bf'), null);
-    assert.equal(card.view, 'pill');
+    assert.equal(card.view, 'front', 'opened from the card, the room is given back and the card stays');
   } finally {
     window.happyDOM.abort();
   }
@@ -558,6 +565,19 @@ test('the last picture of a saved message is the screen of the opened tag; a dat
     assert.equal(still.hidden, false);
     assert.equal(still.getAttribute('src'), frame);
     assert.equal(host.querySelector('.bcard-screen').hidden, true, 'the place holder goes');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the card has the loading look (the flowing cream purple) while the browser starts and until the first picture; a saved tag does not', () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    assert.ok(q('.bcard-screen').classList.contains('is-loading'), 'no picture yet');
+    assert.equal(q('.bcard-site').textContent, 'acme.com');
+    card.complete();
+    assert.equal(q('.bcard-screen').classList.contains('is-loading'), false, 'the work is over: a quiet place holder');
   } finally {
     window.happyDOM.abort();
   }

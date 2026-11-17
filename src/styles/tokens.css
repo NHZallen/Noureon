@@ -87,6 +87,12 @@
     /* the indigo of the logo: the glow of the home page */
     --brand-logo: #5b4fcf;
 
+    /* the loading look of the browser agent's card: a violet that glows, deep in one corner and bright and creamy in the other */
+    --loading-violet-deep: #5d48cc;
+    --loading-violet: #9a85ee;
+    --loading-violet-light: #d6c9ff;
+    --loading-glow: #fff3e6;
+
     /* code blocks and the track of a switch that is off */
     --code-bg: #f6f7f9;
     --code-block-bg: #111827;
@@ -163,6 +169,11 @@
 
 :root[data-theme="dark"] {
     color-scheme: dark;
+
+    --loading-violet-deep: #2b2172;
+    --loading-violet: #5846b8;
+    --loading-violet-light: #8d78e6;
+    --loading-glow: #f1e4ff;
 
     /* the file cards in the dark theme are lighter, so the logo of each kind of file reads on a dark ground */
     --file-default: #94a3b8;

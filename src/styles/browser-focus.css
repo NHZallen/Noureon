@@ -19,10 +19,27 @@
 .bf-tab-close, .bf-tab-new { display: grid; place-items: center; flex: none; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 0.5rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .bf-tab-new { width: 2rem; height: 2rem; }
 
+/* While the model works the tabs and the screen sit lower, in the middle of the room, not under the top; when the person has taken over the room below is the trackpad. */
+.bf[data-control="model"] .bf-tabs { margin-top: auto; }
 .bf-screen { position: relative; flex: none; margin: 0.25rem var(--page-gutter, 1rem) 0; border-radius: 0.9rem; overflow: hidden; border: 1px solid var(--border-color); }
-.bf-expand { position: absolute; right: 0.625rem; bottom: 0.625rem; z-index: 3; display: inline-flex; align-items: center; gap: 0.3rem; height: 1.9rem; padding: 0 0.7rem; border: 1px solid color-mix(in srgb, var(--on-color) 14%, transparent); border-radius: 999px; background: var(--media-black); color: var(--on-color); font: inherit; font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+/* The row over the lower edge of the screen: the same as the card's (the capsule, the round buttons), in the primary-action colours. */
+.bf-row { position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.75rem; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.bf-cap { display: inline-flex; align-items: center; gap: 0.55rem; height: 2.5rem; min-width: 0; max-width: calc(100% - 6rem); padding: 0 1rem 0 0.75rem; border: 1px solid color-mix(in srgb, var(--gpt-primary-action-text) 18%, transparent); border-radius: 999px; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); font: inherit; font-size: 0.9375rem; font-weight: 400; line-height: 1; cursor: pointer; }
+.bf-round-box { display: flex; gap: 0.375rem; flex: none; }
+.bf-round { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; padding: 0; border: 1px solid color-mix(in srgb, var(--gpt-primary-action-text) 18%, transparent); border-radius: 50%; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); cursor: pointer; }
+.bf-cap:active, .bf-round:active { transform: scale(0.97); }
+/* The steps over the screen (a press on the capsule). */
+.bf-steps { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; padding: 0.75rem 0.875rem 4.25rem; background: var(--chat-bg); color: var(--text-primary); }
+.bf-steps-head { display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 0.8125rem; letter-spacing: 0.02em; }
+.bf-steps-close { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.3rem -0.4rem 0 0; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.bf-steps-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; flex: 1; min-height: 0; overflow-y: auto; }
+.bf-step { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.8125rem; line-height: 1.35; }
+.bf-step > span { min-width: 0; overflow-wrap: anywhere; }
+.bf-step-tick { display: grid; place-items: center; flex: none; width: 0.95rem; height: 0.95rem; margin-top: 0.08rem; border-radius: 50%; border: 1.4px solid var(--text-tertiary); box-sizing: border-box; }
+.bf-step.is-done .bf-step-tick { background: var(--text-primary); border-color: var(--text-primary); color: var(--chat-bg); }
+.bf-step.is-fail .bf-step-tick { background: var(--state-danger); border-color: var(--state-danger); color: var(--on-color); }
+.bf-step.is-run .bf-step-tick { border-color: var(--text-secondary); border-top-color: transparent; animation: bcard-turn 0.9s linear infinite; }
 
-.bf-status { flex: none; padding: 0.75rem calc(var(--page-gutter, 1rem) + 0.25rem) 0; font-size: 0.8125rem; color: var(--text-secondary); }
 .bf-pad { position: relative; flex: 1; min-height: 0; margin: 0.75rem var(--page-gutter, 1rem) 0; border-radius: 1.4rem; background: var(--gpt-subtle); display: grid; place-items: center; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; background-image: radial-gradient(color-mix(in srgb, var(--text-primary) 14%, transparent) 1px, transparent 1.2px); background-size: 16px 16px; }
 .bf-pad-hint { padding: 0 1rem; color: var(--text-secondary); font-size: 0.8125rem; text-align: center; line-height: 1.55; }
 .bf-tools { flex: none; display: flex; gap: 0.5rem; padding: 0.6rem var(--page-gutter, 1rem) 0.25rem; }

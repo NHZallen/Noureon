@@ -24,17 +24,16 @@ const make = (options = {}) => {
   return { window, document, calls, input, mode, q, click, pointer };
 };
 
-test('while the model works: the site, the tabs, and two buttons (Stop, Take over); no pad, no tools', () => {
+test('while the model works: the site, the tabs, Take over below and the row over the screen (the capsule, Expand, the cross that cancels); no pad, no tools', () => {
   const { window, mode, q, calls, click } = make();
   try {
     assert.equal(q('.bf-site').textContent, 'acme.com');
-    assert.equal(q('.bf-status').textContent, 'The model is working');
+    assert.equal(q('.bf-status'), null, 'no line of words above the screen: it can sit lower');
     assert.equal(q('.bf-pad').hidden, true);
     assert.equal(q('.bf-tools').hidden, true);
     const buttons = [...document_buttons(q)].filter((node) => !node.hidden).map((node) => node.getAttribute('aria-label'));
-    assert.ok(buttons.includes('Stop') && buttons.includes('Take over'));
-    assert.ok(!buttons.includes('Give back to the model'));
-    click('.bf-act:not(.is-primary)');
+    assert.deepEqual(buttons, ['Take over'], 'the Stop below is gone: the cross of the row cancels');
+    click('.bf-round[data-act="stop"]');
     click('.bf-act.is-primary');
     assert.deepEqual(calls.map((c) => c[0]), ['onStop', 'onTakeOver']);
     assert.equal(mode.view.element.style.aspectRatio, '1024 / 768');
@@ -65,7 +64,6 @@ test('taking over: the pad, the tools and "Give back" appear, Stop and Take over
     mode.update({ control: 'user' });
     assert.equal(q('.bf-pad').hidden, false);
     assert.equal(q('.bf-tools').hidden, false);
-    assert.equal(q('.bf-status').textContent, 'You are in control');
     assert.ok(q('.bf-dot').classList.contains('is-user'));
     const visible = [...q('.bf-actions').querySelectorAll('button')].filter((node) => !node.hidden).map((node) => node.getAttribute('aria-label'));
     assert.deepEqual(visible, ['Give back to the model']);
@@ -147,15 +145,52 @@ test('the menu: back, screenshot for the model, copy address, downloaded files, 
   }
 });
 
-test('the cross goes back to the pill, "Expand" goes back to the card; when the work is over the buttons go', () => {
+test('the cross and "Expand" are told to the owner; when the work is over the buttons go (the cross of the row too)', () => {
   const { window, q, click, calls, mode } = make();
   try {
     click('.bf-top .bf-icon:first-child');
-    click('.bf-expand');
+    click('.bf-round[data-act="expand"]');
     assert.deepEqual(calls.map((c) => c[0]), ['onClose', 'onExpand']);
     mode.update({ over: true });
-    assert.equal(q('.bf-status').textContent, 'Done');
     assert.ok([...q('.bf-actions').querySelectorAll('button')].every((node) => node.hidden));
+    assert.equal(q('.bf-round[data-act="stop"]').hidden, true, 'nothing to cancel any more');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the row over the screen says what is done, with the state; a press on the capsule shows the steps over the screen and the cross hides them', () => {
+  const { window, q, mode } = make();
+  try {
+    mode.update({ label: 'Browsing: acme.com', status: 'run', steps: [{ label: 'Browsing: acme.com', state: 'done' }, { label: 'Working in acme.com', state: 'run' }] });
+    assert.equal(q('.bf-cap .bcard-text').textContent, 'Browsing: acme.com');
+    assert.ok(q('.bf-cap .bcard-spin'), 'the ring turns while it runs');
+    assert.equal(q('.bf-steps').hidden, true);
+    q('.bf-cap').click();
+    assert.equal(q('.bf-steps').hidden, false);
+    assert.equal([...q('.bf-steps').querySelectorAll('.bf-step')].length, 2);
+    q('.bf-steps-close').click();
+    assert.equal(q('.bf-steps').hidden, true);
+    mode.update({ status: 'done', label: 'Done', over: true });
+    assert.ok(q('.bf-cap .bcard-icon').classList.contains('is-done'));
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('a press on the empty room leaves the focus mode, as the cross does; not while the browser is in the person\'s hands (there it is the trackpad), and not on a button', () => {
+  const { window, q, calls, mode } = make();
+  try {
+    q('.bf').click();
+    assert.deepEqual(calls.map((c) => c[0]), ['onClose'], 'the room');
+    q('.bf-actions').click();
+    assert.equal(calls.length, 2);
+    q('.bf-site').click();
+    q('.bf-cap').click();
+    assert.equal(calls.length, 2, 'what is not empty does not leave');
+    mode.update({ control: 'user' });
+    q('.bf').click();
+    assert.equal(calls.length, 2, 'the person has the browser');
   } finally {
     window.happyDOM.abort();
   }
