@@ -8,6 +8,7 @@ import { createFocusMode } from '../browser-live/focus-mode.js';
 import { createLiveView } from '../browser-live/live-view.js';
 import { createPanelDock } from '../browser-live/panel-dock.js';
 import { keepInPlace } from './keep-in-place.js';
+import { measureCard, playMorph } from './card-morph.js';
 import { cssRatio, DEFAULT_RATIO } from '../browser-live/ratios.js';
 import { askWords, createAskPanel } from './browser-panels.js';
 
@@ -205,20 +206,25 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     focus?.update({ domain, ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords(), origin: focusFrom });
   };
 
-  // The pill and the card change into each other (a short grow or shrink); `data-anim` says which, and goes when it is over.
-  let animTimer = null;
+  // The pill and the card turn into each other as one thing (card-morph.js): `data-morph` says which way while it goes.
+  const morph = (direction, before) => {
+    root.dataset.morph = direction;
+    void playMorph({ direction, before, root, card, pill }).then(() => { if (root.dataset.morph === direction) delete root.dataset.morph; });
+  };
   const setView = (next) => {
     if (view === next) return;
-    const motion = (view === 'pill' && next === 'front') ? 'grow' : (view === 'front' && next === 'pill') ? 'shrink' : '';
+    const direction = (view === 'pill' && next === 'front') ? 'open' : (view === 'front' && next === 'pill') ? 'fold' : '';
+    const before = direction && root.isConnected ? measureCard({ root, card, pill }) : null;
     view = next;
-    clearTimeout(animTimer);
-    if (motion) {
-      root.dataset.anim = motion;
-      animTimer = setTimeout(() => { delete root.dataset.anim; }, 400);
-    } else {
-      delete root.dataset.anim;
-    }
     render();
+    if (before) morph(direction, before);
+  };
+  // The card finishes into its pill (done, stopped): the same fold as when the person folds it.
+  const foldInto = (apply) => {
+    const before = (view === 'front' || view === 'back') && root.isConnected ? measureCard({ root, card, pill }) : null;
+    apply();
+    render();
+    if (before) morph('fold', before);
   };
 
   const closeDialog = () => {
@@ -261,11 +267,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const cancel = () => {
     if (phase === 'done' || phase === 'failed' || phase === 'cancelled') return;
     steps.forEach((step) => { if (step.state === 'run') step.state = 'fail'; });
-    closeAsk();
-    phase = 'cancelled';
-    view = 'pill';
-    closeFocus();
-    render();
+    foldInto(() => {
+      closeAsk();
+      phase = 'cancelled';
+      view = 'pill';
+      closeFocus();
+    });
     try {
       onCancel?.();
     } catch {
@@ -284,14 +291,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   const over = (next) => {
     closeAsk();
-    phase = next;
-    if (next === 'done') {
-      // A card that is in the conversation folds into its pill the way it does when the person folds it (not a jump); one that is only being made does not move.
-      if (view === 'front' && root.isConnected) { clearTimeout(animTimer); root.dataset.anim = 'shrink'; animTimer = setTimeout(() => { delete root.dataset.anim; }, 400); }
-      view = 'pill';
-    }
-    render();
+    if (next === 'done') foldInto(() => { phase = next; view = 'pill'; });
+    else { phase = next; render(); }
   };
+
 
   // The answer of the person goes to the server; when it does not get there (or the reply is not running any more, e.g. the server was just updated), the panel
   // is made again with a line that says so, instead of staying locked for ever.
@@ -507,7 +510,6 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     get phase() { return phase; },
     get view() { return view; },
     remove() {
-      clearTimeout(animTimer);
       closeDialog();
       closeFocus();
       liveView?.destroy();

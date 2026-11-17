@@ -83,7 +83,7 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
   let actions = 0;
   let lastDomain = '';
   let announcedQueue = null;
@@ -422,6 +422,13 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     get files() { return keptFiles; },
     /** The last picture of the browser as a small JPEG data address (the message shows it when the tag of the work is opened), or '' when there is none. */
     async frame() {
+      // A reply that was stopped, or never took a look of its own (only opened pages), still gets a picture for its tag: one look now, given a few seconds at most.
+      const open = current();
+      if (open && !takesCard && (!lastShot || signal?.aborted)) {
+        let timer = null;
+        await Promise.race([picture(open), new Promise((resolve) => { timer = setTimeout(resolve, frameWaitMs); })]).catch(() => null);
+        clearTimeout(timer);
+      }
       if (!lastShot) return '';
       const small = await makeThumbnail(Buffer.from(lastShot.base64, 'base64'), lastShot.mime, { side: FRAME_SIDE, quality: FRAME_QUALITY });
       const url = small ? `data:${small.mimeType};base64,${small.data}` : '';

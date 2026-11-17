@@ -175,7 +175,7 @@ test('a card that comes into the conversation rises and fades in; one that finis
     assert.equal(q('.bcard').dataset.enter, '1');
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     card.complete();
-    assert.equal(q('.bcard').dataset.anim, 'shrink', 'folds into its pill by itself');
+    assert.equal(q('.bcard').dataset.morph, 'fold', 'folds into its pill by itself');
     assert.equal(card.view, 'pill');
     const quiet = make();
     quiet.card.handle(call('open', 'acme.com', 'x'));
@@ -231,7 +231,7 @@ test('the focus mode goes back to where it was opened from, and its round button
     document.querySelector('.bf-round[data-act="shrink"]').click();
     assert.equal(document.querySelector('.bf'), null);
     assert.equal(card.view, 'pill');
-    assert.equal(q('.bcard').dataset.anim, 'shrink');
+    assert.equal(q('.bcard').dataset.morph, 'fold');
     // The pill: a press opens the focus mode, whose button is Expand; the cross gives the pill back.
     q('.bcard-pill').click();
     assert.ok(document.querySelector('.bf'), 'a press on the pill');
@@ -244,7 +244,7 @@ test('the focus mode goes back to where it was opened from, and its round button
     document.querySelector('.bf-round[data-act="expand"]').click();
     assert.equal(document.querySelector('.bf'), null);
     assert.equal(card.view, 'front');
-    assert.equal(q('.bcard').dataset.anim, 'grow', 'the pill changes into the card');
+    assert.equal(q('.bcard').dataset.morph, 'open', 'the pill changes into the card');
   } finally {
     window.happyDOM.abort();
   }

@@ -2,8 +2,9 @@
    over to the steps, two round buttons at the lower right, and the pill or tag it folds into. Colours are the names of tokens.css only: the capsule and the
    buttons are the primary-action colours (black in the light theme, white in the dark one), larger so that they are easy to hit and feel sure. */
 
-.bcard { display: flex; flex-direction: column; align-items: flex-start; margin: 0.6rem 0; width: 100%; max-width: 26rem; }
+.bcard { position: relative; display: flex; flex-direction: column; align-items: flex-start; margin: 0.6rem 0; width: 100%; max-width: 26rem; }
 .bcard [hidden] { display: none; }
+.bcard > * { flex-shrink: 0; }
 .bcard svg { color: inherit; }
 
 .bcard-card { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 1.1rem; border: 1px solid var(--border-color); background: var(--surface-muted); overflow: hidden; perspective: 1200px; }
@@ -112,10 +113,6 @@
     .bpanel-button:hover:not(.is-primary), .bpanel-key:hover, .bpanel-method:hover { background: var(--hover-bg); }
 }
 
-.bcard[data-anim="grow"] .bcard-card { transform-origin: 0 100%; animation: bcard-grow var(--dur-modal, 0.3s) var(--ease-out, ease-out); }
-.bcard[data-anim="shrink"] .bcard-pill { transform-origin: 0 100%; animation: bcard-settle 0.22s var(--ease-out, ease-out); }
-@keyframes bcard-grow { from { opacity: 0.2; transform: scale(0.55, 0.3); } to { opacity: 1; transform: none; } }
-@keyframes bcard-settle { from { opacity: 0.2; transform: scale(1.6, 3); } to { opacity: 1; transform: none; } }
 
 /* The card comes in (it rises a little and fades in), and its loading look fades away when the first picture is there. */
 .bcard[data-enter] { animation: bcard-enter 0.28s var(--ease-out, ease-out); }
@@ -128,7 +125,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bcard[data-anim] .bcard-card, .bcard[data-anim] .bcard-pill, .bcard-screen.is-loading { animation: none; }
+    .bcard-screen.is-loading { animation: none; }
     .bcard-face { transition: none; }
     .bcard-spin, .bcard-step.is-run .bcard-tick { animation-duration: 2.4s; }
 }

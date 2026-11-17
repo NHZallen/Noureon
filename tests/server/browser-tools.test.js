@@ -7,7 +7,7 @@ import { BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowserLoader, snapshotText }
 
 const PAGE = { ok: true, tabId: 'T1', url: 'https://shop.example/items?q=secret-search', title: 'Shop', scroll: { y: 0, height: 2000, view: 700 }, elements: [{ ref: 3, role: 'searchbox', name: 'Search' }, { ref: 4, role: 'password field', name: 'Password' }, { ref: 5, role: 'button', name: 'Go', disabled: true }], text: 'Welcome to the shop', truncated: false };
 
-function setup({ readFileMs = undefined, current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null, keepLogin, inputFiles = null } = {}) {
+function setup({ signal = null, frameWaitMs = undefined, readFileMs = undefined, current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null, keepLogin, inputFiles = null } = {}) {
   const calls = [];
   const events = [];
   let open = current;
@@ -18,7 +18,7 @@ function setup({ readFileMs = undefined, current = null, actions = {}, language 
     action: async (id, userId, action) => { calls.push(['action', action]); const handler = actions[action.type]; if (handler) return handler(action); return action.type === 'screenshot' ? { ok: true, mime: 'image/jpeg', base64: 'AAAA' } : action.type === 'snapshot' ? PAGE : { ok: true, url: 'https://shop.example/', title: 'Shop' }; },
     close: async (id) => { calls.push(['close', id]); open = null; return true; }
   };
-  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, inputFiles, ...(readFileMs === undefined ? {} : { readFileMs }), ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
+  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, inputFiles, signal, ...(frameWaitMs === undefined ? {} : { frameWaitMs }), ...(readFileMs === undefined ? {} : { readFileMs }), ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
   return { loader, calls, events, sessions, setOpen: (value) => { open = value; } };
 }
 const call = (name, args = {}) => ({ id: 'x', name, args });
@@ -495,4 +495,21 @@ test('a page that asks for a card is kept too (the picture the model saw), but n
   await t.loader.run(call('browser_close'));
   assert.equal(t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length, before, 'what the person typed may show now');
   assert.match(await t.loader.frame(), /^data:image\/jpeg;base64,/);
+});
+
+test('a reply that was stopped still gets a picture for its tag: one fresh look at the open browser, and a look that hangs does not hold the reply', async () => {
+  const base64 = await realJpeg();
+  const stop = new AbortController();
+  const t = setup({ signal: stop.signal, actions: { screenshot: () => ({ ok: true, mime: 'image/jpeg', base64 }) } });
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  const before = t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length;
+  stop.abort();
+  assert.match(await t.loader.frame(), /^data:image\/jpeg;base64,/);
+  assert.equal(t.calls.filter((entry) => entry[0] === 'action' && entry[1].type === 'screenshot').length, before + 1, 'one look taken after the stop');
+
+  const hang = new AbortController();
+  const slow = setup({ signal: hang.signal, frameWaitMs: 30, actions: { screenshot: () => new Promise(() => {}) } });
+  await slow.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  hang.abort();
+  assert.equal(await slow.loader.frame(), '', 'no picture, but no wait for ever');
 });
