@@ -799,7 +799,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size || usedTools.length || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || usedTools.length || pictureSteps().length || browserTrace.length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };

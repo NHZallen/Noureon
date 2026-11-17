@@ -209,6 +209,36 @@ test('a reply that does not call Python is an ordinary reply, and no container i
   assert.deepEqual(result.parts, [{ text: 'Just words.' }]);
 });
 
+test('a reply with Python that only used the browser still keeps the record of the browser work (the tag of the saved message)', async () => {
+  let round = 0;
+  const browser = {
+    mayUse: async () => true,
+    maxActions: 0,
+    sessions: {
+      current: () => ({ sessionId: 'b00000001', conversationId: '123e4567-e89b-12d3-a456-426614174000' }),
+      open: async () => ({ sessionId: 'b00000001' }),
+      waitReady: async () => ({ state: 'ready' }),
+      action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+      close: async () => true
+    }
+  };
+  const result = await executeReply({
+    spec: specFor({ browser: true }),
+    secrets,
+    userId: USER,
+    sandboxHost: fakeHost([]),
+    files: fakeFiles(),
+    browser,
+    fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })) : sse(content('Opened it.'))); }
+  });
+  assert.equal(result.status, 'done');
+  assert.match(result.parts[0].text, /```noureon-run/);
+  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  assert.equal(lifted.run.browser.end, 'done');
+  assert.ok(lifted.run.browser.steps.some((step) => step.domain === 'shop.example'));
+  assert.match(lifted.text, /Opened it\./);
+});
+
 test('a sandbox that cannot start: the model finishes without it', async () => {
   let round = 0;
   const result = await executeReply({
