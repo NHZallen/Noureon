@@ -58,6 +58,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let zoomed = false;
   // The card has no picture yet (the browser is starting, or the first frame has not come): it is drawn with the loading look.
   let waitingFrame = false;
+  // Where the focus mode was opened from ('front': the card, 'pill': the pill): the round button of the focus mode is Shrink from the card and Expand from the pill.
+  let focusFrom = 'front';
   // The question the person is asked now (a confirmation, a login…): its panel takes the place of the card.
   let asking = null;
   const watchers = [];
@@ -199,7 +201,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     }));
     // The last step is in view as the list grows.
     list.scrollTop = list.scrollHeight;
-    focus?.update({ domain, ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords() });
+    focus?.update({ domain, ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords(), origin: focusFrom });
   };
 
   // The pill and the card change into each other (a short grow or shrink); `data-anim` says which, and goes when it is over.
@@ -359,6 +361,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       // Back to where it was opened from: a card stays a card, a pill stays a pill (the view is not touched while the focus mode is open).
       onClose: () => { closeFocus(); },
       onExpand: () => { closeFocus(); setView('front'); },
+      // Opened from the card: Shrink leaves the focus mode and the card becomes the pill.
+      onShrink: () => { closeFocus(); setView('pill'); },
       onZoom: (value) => { zoomed = Boolean(value); dock.setZoom(zoomed); focus?.update({ zoomed }); live?.controller?.onZoom?.(zoomed); },
       onStop: () => askCancel(),
       onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
@@ -370,9 +374,10 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   };
   const openFocus = () => {
     if (!live || focus) return;
+    focusFrom = view === 'pill' ? 'pill' : 'front';
     const panel = wide();
     if (panel) dock.open({ zoomed });
-    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords() }, controller: focusController(), readClipboard: live.readClipboard || null });
+    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords(), origin: focusFrom }, controller: focusController(), readClipboard: live.readClipboard || null });
     if (panel) dock.mountHandle(focus.element, sandboxText(language, 'browserResize'));
     notify();
   };

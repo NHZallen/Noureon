@@ -179,23 +179,33 @@ test('with a live picture the screen of the card is the picture and the circle; 
   }
 });
 
-test('the focus mode goes back to where it was opened from: a card stays a card, a pill stays a pill; "Expand" gives the card back, and the pill grows into it', () => {
+test('the focus mode goes back to where it was opened from, and its round button follows: Shrink from the card (it becomes the pill), Expand from the pill (the pill becomes the card)', () => {
   const { window, card, q, document } = make();
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     card.setLive(fakeLive().live);
+    // The card: a press on the picture, only the cross or the empty room: back to the card.
     q('.bl-view').click();
     assert.ok(document.querySelector('.bf'), 'a press on the picture');
+    assert.equal(document.querySelector('.bf-round[data-act="shrink"]').getAttribute('aria-label'), 'Shrink to a pill', 'from the card the button is Shrink');
+    assert.equal(document.querySelector('.bf-round[data-act="expand"]'), null);
     document.querySelector('.bf-top .bf-icon:first-child').click();
     assert.equal(document.querySelector('.bf'), null);
-    assert.equal(card.view, 'front', 'opened from the card, the cross gives the card back (it is not shrunk)');
-    q('.bcard-round').click();
+    assert.equal(card.view, 'front', 'only the cross: the card is not shrunk');
+    // The card: Shrink in the focus mode leaves it and the card becomes the pill.
+    q('.bl-view').click();
+    document.querySelector('.bf-round[data-act="shrink"]').click();
+    assert.equal(document.querySelector('.bf'), null);
     assert.equal(card.view, 'pill');
     assert.equal(q('.bcard').dataset.anim, 'shrink');
+    // The pill: a press opens the focus mode, whose button is Expand; the cross gives the pill back.
     q('.bcard-pill').click();
     assert.ok(document.querySelector('.bf'), 'a press on the pill');
+    assert.ok(document.querySelector('.bf-round[data-act="expand"]'), 'from the pill the button is Expand');
+    assert.equal(document.querySelector('.bf-round[data-act="shrink"]'), null);
     document.querySelector('.bf-top .bf-icon:first-child').click();
-    assert.equal(card.view, 'pill', 'opened from the pill, the cross gives the pill back');
+    assert.equal(card.view, 'pill', 'no Expand pressed: still the pill');
+    // Expand: the pill grows into the card.
     q('.bcard-pill').click();
     document.querySelector('.bf-round[data-act="expand"]').click();
     assert.equal(document.querySelector('.bf'), null);

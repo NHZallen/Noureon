@@ -3,7 +3,8 @@
 // screen, then, while the model works, empty room and two buttons (Stop, Take over). When the person has taken over the room becomes a trackpad, a row of
 // tools (keyboard, paste, refresh) is over it, and one button gives the browser back to the model. The menu holds back, a screenshot for the model, copying the
 // address, the downloaded files and the ratio of the screen. What it asks of the browser it asks of a `controller`; it draws from the `state` it is told.
-//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }] }
+//   state: { domain, url, tabs: [{ id, title, active }], control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
+// `origin` is where the focus mode was opened from: from the card the round button is Shrink (arrows inward: the card becomes the pill), from the pill it is Expand (arrows outward: the pill becomes the card).
 // Over the lower edge of the screen is the same row as the card has (the capsule that says what is done, the button that gives the card back, the cross that cancels the task); a press on the capsule
 // shows the steps over the screen. A press on the empty room (not while the browser is in the person's hands: there it is the trackpad) leaves the focus mode.
 // On a computer (`layout: 'panel'`) it is the side panel (and, with `zoomed`, the big one): the tabs are the top row with Enlarge, the menu and the cross beside them; there is no
@@ -22,6 +23,7 @@ const PATHS = {
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   plus: 'M12 5v14M5 12h14',
   expand: 'M4 10V4h6M20 14v6h-6',
+  shrink: 'M4 14h6v6M20 10h-6V4',
   hand: 'M8 13V6.5a1.5 1.5 0 013 0V12M11 11V4.5a1.5 1.5 0 013 0V12M14 11.5V6.5a1.5 1.5 0 013 0V14a6 6 0 01-6 6h-.5a5 5 0 01-4.2-2.3L4 14.5a1.6 1.6 0 012.5-2L8 14',
   keyboard: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
   paste: 'M9 4h6v3H9zM7 5.5H6a1 1 0 00-1 1V20a1 1 0 001 1h12a1 1 0 001-1V6.5a1 1 0 00-1-1h-1',
@@ -59,7 +61,7 @@ const KEYS = [['Escape', 'Esc'], ['Tab', 'Tab'], ['ArrowLeft', '←'], ['ArrowUp
 export function createFocusMode({ document, host = document.body, language = 'zh-TW', layout = 'phone', source = null, state: initial = {}, controller = {}, readClipboard = null }) {
   const panel = layout === 'panel';
   const t = (key) => sandboxText(language, key);
-  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, label: '', status: 'run', steps: [], ...initial };
+  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, label: '', status: 'run', steps: [], origin: 'pill', ...initial };
   const ask = (name, ...args) => controller[name]?.(...args);
 
   const make = (tag, className, attrs = {}) => {
@@ -96,7 +98,8 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   const capText = make('span', 'bcard-text', { 'aria-live': 'polite' });
   capsule.append(capLead, capText);
   capsule.addEventListener('click', () => setSteps(!stepsOpen));
-  const expand = button('bf-round', t('browserExpand'), () => ask(state.zoomed ? 'onZoom' : 'onExpand', false), icon(document, 'expand', 20));
+  const shrinks = () => !panel && !state.zoomed && state.origin === 'front';
+  const expand = button('bf-round', t('browserExpand'), () => { if (state.zoomed) ask('onZoom', false); else ask(shrinks() ? 'onShrink' : 'onExpand'); }, icon(document, 'expand', 20));
   expand.dataset.act = 'expand';
   const cancel = button('bf-round', t('browserCancel'), () => ask('onStop'), icon(document, 'x', 18));
   cancel.dataset.act = 'stop';
@@ -301,9 +304,10 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     urlRow.hidden = !(panel && user);
     if (panel && document.activeElement !== urlField) urlField.value = state.url || '';
     barTools.hidden = !user;
-    expand.setAttribute('aria-label', state.zoomed ? t('browserZoomOut') : t('browserExpand'));
+    expand.setAttribute('aria-label', state.zoomed ? t('browserZoomOut') : shrinks() ? t('browserShrink') : t('browserExpand'));
     expand.title = expand.getAttribute('aria-label');
-    expand.replaceChildren(icon(document, state.zoomed ? 'zoomOut' : 'expand', 20));
+    expand.dataset.act = shrinks() ? 'shrink' : 'expand';
+    expand.replaceChildren(icon(document, state.zoomed ? 'zoomOut' : shrinks() ? 'shrink' : 'expand', 20));
     cancel.hidden = Boolean(state.over);
     capText.textContent = state.label || t('browserCardLabel');
     const lead = make('span', `bcard-icon is-${state.status || 'run'}`);

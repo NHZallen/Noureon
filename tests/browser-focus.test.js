@@ -195,3 +195,22 @@ test('a press on the empty room leaves the focus mode, as the cross does; not wh
     window.happyDOM.abort();
   }
 });
+
+test('the round button is Shrink (arrows inward) when the focus mode was opened from the card and Expand (arrows outward) when it was opened from the pill; each asks the owner for its own', () => {
+  const { window, q, click, calls, mode } = make();
+  try {
+    assert.equal(q('.bf-round[data-act="expand"]').getAttribute('aria-label'), 'Expand', 'the pill is the default origin');
+    click('.bf-round[data-act="expand"]');
+    assert.deepEqual(calls.at(-1), ['onExpand']);
+    mode.update({ origin: 'front' });
+    assert.equal(q('.bf-round[data-act="expand"]'), null);
+    assert.equal(q('.bf-round[data-act="shrink"]').getAttribute('aria-label'), 'Shrink to a pill');
+    click('.bf-round[data-act="shrink"]');
+    assert.deepEqual(calls.at(-1), ['onShrink']);
+    const inward = q('.bf-round[data-act="shrink"] svg path').getAttribute('d');
+    mode.update({ origin: 'pill' });
+    assert.notEqual(q('.bf-round[data-act="expand"] svg path').getAttribute('d'), inward, 'another picture');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
