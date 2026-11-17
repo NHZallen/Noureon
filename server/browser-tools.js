@@ -349,6 +349,11 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         armLimit(ready.taskMsLeft);
       } else {
         sessionId = current();
+        if (!sessionId && !sessions.current(userId)) {
+          // The host closed it by itself (nothing done for an hour, or the time of the task ran out): the card says so, and the model is told to start it again.
+          const closed = sessions.closedReason?.(userId);
+          if (closed) emit({ type: 'browser', event: 'failed', label: sandboxText(language, closed === 'idle' ? 'browserIdleClosed' : 'browserTimeUp') });
+        }
         if (!sessionId) return sessions.current(userId) ? 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' : 'No browser is open. Call browser_open with an address first.';
       }
       // Once for each browser: the page may ask for the live screen of it (the viewer comes from the server's own routes; nothing of the host is in this event).

@@ -42,6 +42,9 @@ const icon = (document, name, size = 16, width = 2) => {
  * `host`: where the card goes (right under the line of the steps of the reply). `onCancel`: the person pressed the cross (the browser is ended; the reply goes on).
  * `handle(event)` takes the `browser` events of the server; `complete()` says the reply is over.
  */
+// How long the capsule keeps each of its two sentences once the time of the task is nearly up (half of about fifteen seconds).
+const NOTICE_TURN_MS = 7500;
+
 export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null, enter = false }) {
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
@@ -152,14 +155,20 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     return wrap;
   };
   // The notice that the time of the task is nearly up: on the capsule for a while, and kept in the list.
+  // From fifteen minutes before the end of the task the capsule says what is being done and how much time is left, by turns (about fifteen seconds for both).
   let timeNotice = '';
+  let noticeTurn = false;
+  let noticeTimer = null;
+  const stopNotice = () => { if (noticeTimer) { clearInterval(noticeTimer); noticeTimer = null; } noticeTurn = false; };
+  // The words of the failure when the server has its own (the browser was closed for sitting idle, the time of the task ran out).
+  let failedLabel = '';
   const labelNow = () => {
     if (phase === 'queued') return queuedLabel;
     if (asking && phase === 'run') return askWords(language, asking.kind).need;
     if (phase === 'done') return t('browserDone');
     if (phase === 'cancelled') return t(endReason === 'time' ? 'browserTimeUp' : 'browserCancelled');
-    if (phase === 'failed') return t('browserFailed');
-    if (timeNotice) return timeNotice;
+    if (phase === 'failed') return failedLabel || t('browserFailed');
+    if (timeNotice && noticeTurn) return timeNotice;
     return steps.at(-1)?.label || t('browserCardLabel');
   };
 
@@ -380,7 +389,15 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       const words = t('browserTimeLeft', { minutes });
       if (notes.length < 20) notes.push({ label: words, state: 'note' });
       timeNotice = words;
-      setTimeout(() => { if (timeNotice === words) { timeNotice = ''; render(); } }, 20_000);
+      noticeTurn = true;
+      if (!noticeTimer) {
+        noticeTimer = setInterval(() => {
+          if (phase !== 'run') { stopNotice(); render(); return; }
+          noticeTurn = !noticeTurn;
+          render();
+        }, NOTICE_TURN_MS);
+        noticeTimer.unref?.();
+      }
       render();
       return;
     }
@@ -390,6 +407,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       return;
     }
     if (event?.event === 'failed') {
+      failedLabel = typeof event.label === 'string' && event.label.length <= 80 ? event.label : '';
       finishRunning('fail');
       closePlan('fail');
       over('failed');
@@ -403,6 +421,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     // The browser was lost and the model opened another one (or went on): the card works again, with a picture to be connected afresh.
     if (phase === 'failed') {
       phase = 'run';
+      failedLabel = '';
       view = 'front';
       live = null;
       everLive = false;
@@ -535,6 +554,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     watch(fn) { watchers.push(fn); fn({ phase, view, focus: Boolean(focus) }); },
     /** The card is taken off the page (the page joined the reply again and draws it afresh, or the reply is over): what it holds of the live screen is let go, so that the next card can have it. */
     dispose() {
+      stopNotice();
       closeFocus();
       watchers.forEach((fn) => fn({ phase: 'disposed', view: 'pill', focus: false }));
       watchers.length = 0;

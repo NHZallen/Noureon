@@ -130,3 +130,16 @@ test('words that ask for a browser switch it on once for the conversation, with 
   assert.equal(temporary.notes.length, 0);
   temporary.window.happyDOM.abort();
 });
+
+test('the Decisions model decides whether a message asks for a browser; the phrase list only when there is no judgement', async () => {
+  const t = setup();
+  // A judgement of no beats a phrase that would have matched; a judgement of yes needs no phrase.
+  assert.equal(await t.menu.autoEnable('Open a browser tab for me in my editor', { id: 'c1' }, { browser: 0.1 }), false);
+  assert.equal(isBrowserOn('c1'), false);
+  assert.equal(await t.menu.autoEnable('go and see what the shop has', { id: 'c1' }, { browser: 0.9 }), true);
+  assert.equal(isBrowserOn('c1'), true);
+  t.window.happyDOM.abort();
+  const none = setup({ conversation: { id: 'c5' } });
+  assert.equal(await none.menu.autoEnable('Open a browser and find flights', { id: 'c5' }, { search: 0.9 }), true, 'no answer to the question: the phrase list');
+  none.window.happyDOM.abort();
+});

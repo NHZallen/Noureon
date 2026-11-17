@@ -7,6 +7,7 @@
 //   url     (only when the message holds a web address) does what is asked need the page at that address to be opened and read?
 //   exact   (only when the recall of past conversations is on) does the person want something from an earlier conversation back as it was?
 //   verbatim (same) ... and copied back word for word?
+//   browser (only when the browser agent could be switched on for the chat) does the person ask for a real web browser to be used for them (browser-agent-menu.js turns it on for the chat)?
 //   svg     does the person want a vector picture drawn (the model of the chat then writes it as an SVG, shown as a picture: images/svg-chat-route.js)?
 // What each answer is used for is in decision-use.js. Nothing here may stop a message: a missing key, a slow or failed call, an unexpected
 // reply all give `null`, and the page then does what it did before this existed (the word lists of auto-web-search.js and file-intent.js).
@@ -40,6 +41,7 @@ export const DECISION_QUESTIONS = Object.freeze({
   url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix.',
   exact: 'The person asks to get something back from an earlier conversation as it was: the same recipe, document, answer, code or list again, in full or unchanged (not a new answer about the same topic).',
   verbatim: 'The person wants a text from an earlier conversation copied back word for word, in its original wording, with nothing rewritten.',
+  browser: 'The person asks for a real web browser to be used for them: to open websites, look at pages, search or do something on a site (book, fill in, log in, buy, collect). It does not if they only mention a browser, ask about browsers, or ask something that needs no website to be worked.',
   svg: 'The person asks for a vector picture to be drawn: an SVG, a vector graphic, an icon, a logo or an illustration drawn in scalable lines and shapes (向量圖, 矢量圖, SVG, une image vectorielle, векторная графика, un gráfico vectorial), or to redraw an attached picture as one. A chart, a diagram of code, or a question about SVG does not count.'
 });
 
@@ -60,7 +62,7 @@ const textOf = (message) => (message?.parts || [])
  * ([{ name, description }]); the tool question is only asked when there are some, the address question only when the message holds an address, and the
  * two about earlier conversations only when `historyRecall` is on.
  */
-export function buildDecisionRequest({ message, history = [], tools = [], hasAttachment = false, conversationHasFile = false, historyRecall = false, model = DECISION_MODEL } = {}) {
+export function buildDecisionRequest({ message, history = [], tools = [], hasAttachment = false, conversationHasFile = false, historyRecall = false, browserCandidate = false, model = DECISION_MODEL } = {}) {
   const latest = clip(message, MESSAGE_CHARS);
   if (!latest) return null;
   const state = [`Latest message: ${latest}`];
@@ -75,6 +77,7 @@ export function buildDecisionRequest({ message, history = [], tools = [], hasAtt
     chart: { type: 'noul', instructions: DECISION_QUESTIONS.chart },
     svg: { type: 'noul', instructions: DECISION_QUESTIONS.svg }
   };
+  if (browserCandidate) questions.browser = { type: 'noul', instructions: DECISION_QUESTIONS.browser };
   if (HAS_ADDRESS.test(latest)) questions.url = { type: 'noul', instructions: DECISION_QUESTIONS.url };
   if (historyRecall) {
     questions.exact = { type: 'noul', instructions: DECISION_QUESTIONS.exact };
@@ -93,13 +96,13 @@ const probability = (answer) => {
   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
 };
 
-/** The answers of a reply as { search, file, chart, tool, url, exact, verbatim, svg } (a number from 0 to 1, or null for a question not asked or not answered), or null when there are none. */
+/** The answers of a reply as { search, file, chart, tool, url, exact, verbatim, svg, browser } (a number from 0 to 1, or null for a question not asked or not answered), or null when there are none. */
 export function parseDecisionResponse(body) {
   const answers = body?.answers;
   if (!answers || typeof answers !== 'object') return null;
   const result = {
     search: probability(answers.search), file: probability(answers.file), chart: probability(answers.chart), tool: probability(answers.tool),
-    url: probability(answers.url), exact: probability(answers.exact), verbatim: probability(answers.verbatim), svg: probability(answers.svg)
+    url: probability(answers.url), exact: probability(answers.exact), verbatim: probability(answers.verbatim), svg: probability(answers.svg), browser: probability(answers.browser)
   };
   return Object.values(result).some((value) => value !== null) ? result : null;
 }

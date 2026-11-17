@@ -43,6 +43,8 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
   let timer = null;
   let lastSweep = now();
 
+  // Why the host closed the last browser of a person by itself ('idle', 'task_max'): the card of the next reply says so instead of "not available" (`closedReason`).
+  const closedBy = new Map();
   const forget = (session) => { byId.delete(session.id); if (byUser.get(session.userId) === session.id) byUser.delete(session.userId); };
   const own = (id, userId) => {
     const session = byId.get(String(id || ''));
@@ -84,6 +86,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
       const session = { id, userId, keepLogin, conversationId: String(conversationId || ''), openedAt: now(), savedAt: now(), pendingClear: loaded?.pendingClear || [] };
       byId.set(id, session);
       byUser.set(userId, id);
+      closedBy.delete(userId);
       try {
         const answer = await host.create({ sessionId: id, userId, screen, hasProfile: Boolean(loaded) });
         if (loaded) await host.putProfile(id, loaded.archive);
@@ -169,6 +172,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
           const state = await host.get(session.id);
           if (DONE_STATES.has(state?.state)) {
             // The host stopped it (idle, time limit, or an error). It keeps the volume for ten minutes so the login state can still be collected.
+            if (state?.stoppedReason === 'idle' || state?.stoppedReason === 'task_max') closedBy.set(session.userId, { reason: state.stoppedReason, at: now() });
             await keep(session, () => host.collect(session.id), 'collect');
             forget(session);
           } else if (state?.state === 'ready' && now() - session.savedAt >= saveEveryMs) {
@@ -209,6 +213,11 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     },
     /** How many browsers are open (for the health view). */
     count: () => byId.size,
-    has: (userId) => byUser.has(userId)
+    has: (userId) => byUser.has(userId),
+    /** 'idle' or 'task_max' when the host closed the person's last browser by itself within the last day, else ''. */
+    closedReason(userId) {
+      const entry = closedBy.get(userId);
+      return entry && now() - entry.at < 24 * 3_600_000 ? entry.reason : '';
+    }
   };
 }

@@ -8,6 +8,7 @@ import { isBrowserOn, setBrowserOn } from '../../runtime/server-reply/browser-sw
 import { modelSupportsVision } from '../../runtime/shell/model-registry.js';
 import * as browserClient from '../../runtime/browser-agent/browser-agent-client.js';
 import { asksForBrowser } from '../../runtime/browser-agent/browser-intent.js';
+import { verdictOf } from '../../runtime/decisions/decision-store.js';
 
 export const BROWSER_MENU_BUTTON_ID = 'browser-agent-menu-btn';
 const ACCESS_KEPT_MS = 60_000;
@@ -78,10 +79,13 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
     showNotification(text(kept ? 'baMenuOn' : 'baMenuOff'), 'info');
   }
 
-  // A message that asks for a browser in words switches it on for its conversation, once, before the reply is made (browser-intent.js). A person who has no place yet, or a model that cannot see
-  // pictures, is told why not; the message is sent either way. Resolves whether the switch was turned on.
-  async function autoEnable(messageText, conversation = getActiveConversation()) {
-    if (!conversation || conversation.retentionMode === 'ephemeral' || !asksForBrowser(messageText) || isBrowserOn(conversation.id)) return false;
+  // Whether the message asks for a browser: the judgement of the Decisions model (the question `browser`, decision-client.js) when there is one, the short list of phrases (browser-intent.js) when not.
+  const wantsBrowser = (messageText, decisions) => verdictOf(decisions, 'browser') ?? asksForBrowser(messageText);
+
+  // A message that asks for a browser switches it on for its conversation, once, before the reply is made. A person who has no place yet, or a model that cannot see pictures, is told why not;
+  // the message is sent either way. Resolves whether the switch was turned on.
+  async function autoEnable(messageText, conversation = getActiveConversation(), decisions = null) {
+    if (!conversation || conversation.retentionMode === 'ephemeral' || isBrowserOn(conversation.id) || !wantsBrowser(messageText, decisions)) return false;
     if (!visionOf(conversation)) { showNotification(text('baMenuNoVision'), 'warning'); return false; }
     if (!access || now() - askedAt > ACCESS_KEPT_MS) {
       try { access = await client.getAccess(); askedAt = now(); } catch { access = { ok: false }; }
@@ -94,7 +98,7 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
     return kept;
   }
 
-  return { sync, toggle, autoEnable };
+  return { sync, toggle, autoEnable, wantsBrowser };
 }
 
 /** Starts the row: it is put up to date whenever the "＋" button is pressed (before the menu or the sheet reads it), and once now. Returns the menu. */
@@ -106,6 +110,6 @@ export function startBrowserAgentMenu({ document, configAccess, i18n, getActiveC
   document.addEventListener('click', (event) => { if (event.target?.closest?.('[id="add-file-btn"]')) menu.sync(); }, true);
   menu.sync();
   // (A promise only for a message that asks for a browser: any other message goes on without waiting.)
-  provideService(SERVICES.browserAutoOn, (messageText, conversation) => (asksForBrowser(messageText) ? menu.autoEnable(messageText, conversation) : null));
+  provideService(SERVICES.browserAutoOn, (messageText, conversation, decisions) => (conversation && !isBrowserOn(conversation.id) && menu.wantsBrowser(messageText, decisions) ? menu.autoEnable(messageText, conversation, decisions) : null));
   return menu;
 }

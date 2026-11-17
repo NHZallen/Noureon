@@ -114,9 +114,6 @@ export function createSubmitInputPreparationLifecycle({
       .filter(part => part?.text)
       .map(part => part.text)
       .join('\n');
-    // "Open a browser for me" said in words switches the browser agent on for this conversation (ui/browser-agent/browser-agent-menu.js).
-    const browserSwitch = getService(SERVICES.browserAutoOn)?.(userMessage, conversation);
-    if (browserSwitch) await browserSwitch.catch(() => {});
     const councilValidation = getCouncilValidation(conversation, uploadedFiles);
     if (!councilValidation.ok) {
       showNotification(councilValidation.message, 'warning');
@@ -198,6 +195,9 @@ export function createSubmitInputPreparationLifecycle({
     const decisions = await decisionsPromise;
     sendMarks.mark('decisions');
     rememberDecisions(userMessage, decisions);
+    // A message that asks for a browser switches the browser agent on for this conversation: the Decisions model's judgement (the word list when there is none), ui/browser-agent/browser-agent-menu.js.
+    const browserSwitch = getService(SERVICES.browserAutoOn)?.(userMessage, conversation, decisions);
+    if (browserSwitch) await browserSwitch.catch(() => {});
     // What needs current facts is the Decisions model's judgement when there is one, the word lists when there is not.
     const needsCurrentFacts = verdictOf(decisions, 'search') ?? shouldAutoEnableWebSearch(userMessage);
     const hasAddress = extractLinkedUrls(userMessage).urls.length > 0;

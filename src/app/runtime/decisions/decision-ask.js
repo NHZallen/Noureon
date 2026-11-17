@@ -1,5 +1,6 @@
 import { createDecisionService } from './decision-client.js';
 import { canModelUseCli, enabledCliTools } from '../cli/cli-state.js';
+import { isBrowserOn } from '../server-reply/browser-switch.js';
 
 const hasFilePart = (message) => (message?.parts || []).some((part) => part?.inlineData || part?.sandboxFile);
 
@@ -18,7 +19,9 @@ export function createAsk({ getApiKeyForProvider, getConfig, logger } = {}) {
       tools: enabledCliTools(config).filter((tool) => canModelUseCli(config, tool.id)).map((tool) => ({ name: tool.name, description: tool.description?.en || '' })),
       hasAttachment: uploadedFiles.length > 0,
       conversationHasFile: messages.some(hasFilePart),
-      historyRecall: config.historyRecallEnabled === true
+      historyRecall: config.historyRecallEnabled === true,
+      // Asked only where the browser agent could still be switched on for this chat (it is not on, and the chat is not a temporary one).
+      browserCandidate: Boolean(conversation?.id) && conversation.retentionMode !== 'ephemeral' && !isBrowserOn(conversation.id)
     }, { signal });
   };
   // The questions about a picture request (image-decisions.js): { message, limits, attached } in, the answers or null out.

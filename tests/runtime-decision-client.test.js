@@ -39,7 +39,7 @@ test('what is sent is short: the message, the last two earlier messages and no i
 });
 
 test('the answers are probabilities, anything else is no answer', () => {
-  assert.deepEqual(parseDecisionResponse({ answers }), { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null, svg: null });
+  assert.deepEqual(parseDecisionResponse({ answers }), { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null, svg: null, browser: null });
   assert.equal(parseDecisionResponse({ answers: { search: { type: 'noul', noul: 7 }, file: { noul: 'x' } } }), null);
   assert.equal(parseDecisionResponse({}), null);
   assert.equal(parseDecisionResponse(null), null);
@@ -62,7 +62,7 @@ test('the service calls OpenRouter with the key and returns the decisions', asyn
     fetchImpl: async (url, init) => { calls.push({ url, init }); return ok(answers); }
   });
   const decisions = await service.decide({ message: '今天台北天氣' });
-  assert.deepEqual(decisions, { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null, svg: null });
+  assert.deepEqual(decisions, { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null, svg: null, browser: null });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, DECISION_URL);
   assert.equal(calls[0].url, 'https://openrouter.ai/api/alpha/decisions');
@@ -171,7 +171,7 @@ test('the address question is asked only when the message has an address, the tw
   assert.deepEqual(names({ message: 'summarise https://example.com/post for me' }), ['search', 'file', 'chart', 'svg', 'url']);
   assert.deepEqual(names({ message: 'give me the recipe again', historyRecall: true }), ['search', 'file', 'chart', 'svg', 'exact', 'verbatim']);
   const all = parseDecisionResponse({ answers: { url: { noul: 0.9 }, exact: { noul: 0.2 }, verbatim: { noul: 0.1 } } });
-  assert.deepEqual(all, { search: null, file: null, chart: null, tool: null, url: 0.9, exact: 0.2, verbatim: 0.1, svg: null });
+  assert.deepEqual(all, { search: null, file: null, chart: null, tool: null, url: 0.9, exact: 0.2, verbatim: 0.1, svg: null, browser: null });
 });
 
 test('the decision model chosen in the settings is the one asked, with the key of its provider; a choice that is not offered is the default one', async () => {
@@ -244,4 +244,13 @@ test('an OpenRouter decision model still goes to OpenRouter with the bearer key 
   assert.equal(sent[0].headers.Authorization, 'Bearer sk-or-test');
   assert.ok(Array.isArray(sent[0].body.state));
   assert.equal(sent[0].body.input, undefined);
+});
+
+test('the question about a browser is put only where the browser agent could still be switched on, and its answer is read', () => {
+  assert.equal('browser' in buildDecisionRequest({ message: 'go and see what the shop has' }).questions, false);
+  const request = buildDecisionRequest({ message: 'go and see what the shop has', browserCandidate: true });
+  assert.equal(request.questions.browser.type, 'noul');
+  assert.match(request.questions.browser.instructions, /real web browser/);
+  assert.equal(parseDecisionResponse({ answers: { browser: { noul: 0.82 } } }).browser, 0.82);
+  assert.equal(verdictOf(parseDecisionResponse({ answers: { browser: { noul: 0.82 } } }), 'browser'), true);
 });

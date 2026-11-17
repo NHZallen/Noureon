@@ -196,3 +196,25 @@ test('the live screen calls reach the host only for the owner of the browser', a
   }
   assert.deepEqual(seen, []);
 });
+
+test('a browser the host closed by itself (idle, time of the task) is remembered as such for a day; opening a new one forgets it', async () => {
+  const w = world();
+  await w.sessions.open(A, {});
+  assert.equal(w.sessions.closedReason(A), '');
+  w.host.get = async () => ({ state: 'stopped', stoppedReason: 'idle' });
+  await w.sessions.tick();
+  assert.equal(w.sessions.current(A), null);
+  assert.equal(w.sessions.closedReason(A), 'idle');
+  assert.equal(w.sessions.closedReason(B), '');
+  w.clock.t += 25 * 3_600_000;
+  assert.equal(w.sessions.closedReason(A), '', 'after a day it is not said any more');
+  w.host.get = async () => ({ state: 'stopped', stoppedReason: 'task_max' });
+  const again = world();
+  await again.sessions.open(A, {});
+  again.host.get = async () => ({ state: 'stopped', stoppedReason: 'task_max' });
+  await again.sessions.tick();
+  assert.equal(again.sessions.closedReason(A), 'task_max');
+  again.host.get = async () => ({ state: 'ready' });
+  await again.sessions.open(A, {});
+  assert.equal(again.sessions.closedReason(A), '', 'a new browser forgets why the last one closed');
+});

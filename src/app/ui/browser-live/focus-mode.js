@@ -10,7 +10,7 @@
 // On a computer (`layout: 'panel'`) it is the side panel (and, with `zoomed`, the big one): the tabs are the top row with Enlarge, the menu and the cross beside them; there is no
 // trackpad: the person points and types on the screen itself (the mouse, the wheel, the keys); with the browser in their hands there is a row for the address, and under
 // the screen Paste and Screenshot are on the left and Give back on the right.
-//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onNewTab, onSwitchTab(id), onCloseTab(id), onBack, onScreenshot, onCopyUrl, onRefresh, onDownloads, onRatio(key), onZoom(bool), onNavigate(url) }
+//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onNewTab, onSwitchTab(id), onCloseTab(id), onBack, onScreenshot, onCopyUrl, onRefresh, onRatio(key), onZoom(bool), onNavigate(url) }
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLiveView } from './live-view.js';
@@ -263,7 +263,6 @@ export function createFocusMode({ document, host = document.body, language = 'zh
       item('back', t('browserBackPage'), () => ask('onBack')),
       item('shot', t('browserScreenshotToModel'), () => ask('onScreenshot')),
       item('link', t('browserCopyUrl'), () => ask('onCopyUrl')),
-      item('file', t('browserDownloads'), () => ask('onDownloads')),
       Object.assign(make('div', 'bf-menu-group'), { textContent: t('browserRatioTitle') })
     );
     const labels = { '4:3': t('browserRatio43'), '16:9': t('browserRatio169'), portrait: t('browserRatioPortrait') };

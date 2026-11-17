@@ -125,12 +125,12 @@ test('the keyboard: long text is written first and sent in one go; the key row s
   }
 });
 
-test('the menu: back, screenshot for the model, copy address, downloaded files, and the ratios with the chosen one marked', () => {
+test('the menu: back, screenshot for the model, copy address, and the ratios with the chosen one marked', () => {
   const { window, q, click, calls, document, mode } = make();
   try {
     click('.bf-top .bf-icon:last-child');
     const items = [...document.querySelectorAll('.bf-menu-item')].map((node) => node.getAttribute('aria-label'));
-    assert.deepEqual(items, ['Back', 'Screenshot to the model', 'Copy address', 'Downloaded files', '4:3', '16:9', 'Upright']);
+    assert.deepEqual(items, ['Back', 'Screenshot to the model', 'Copy address', '4:3', '16:9', 'Upright']);
     assert.equal(q('.bf-menu-ratio.is-on').getAttribute('aria-label'), '4:3');
     q('.bf-menu-item:nth-child(2)').click();
     assert.equal(q('.bf-menu'), null, 'the menu closes after a choice');

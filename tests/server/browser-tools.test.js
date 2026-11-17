@@ -684,3 +684,19 @@ test('a browser with less than fifteen minutes left gets only the end, and the h
   await loader.run(call('browser_open', { url: 'https://shop.example/' }));
   assert.deepEqual(timers, [600_000]);
 });
+
+test('a browser the host closed because it sat idle: the card says "Closed (idle for too long)", and the model is told to start it again', async () => {
+  const t = setup();
+  t.sessions.closedReason = () => 'idle';
+  const answer = await t.loader.run(call('browser_snapshot'));
+  assert.match(answer, /No browser is open/);
+  const failed = t.events.find((event) => event.event === 'failed');
+  assert.equal(failed?.label, 'Closed (idle for too long)');
+  const t2 = setup();
+  t2.sessions.closedReason = () => 'task_max';
+  await t2.loader.run(call('browser_snapshot'));
+  assert.equal(t2.events.find((event) => event.event === 'failed')?.label, 'Closed (time is up)');
+  const t3 = setup();
+  await t3.loader.run(call('browser_snapshot'));
+  assert.equal(t3.events.some((event) => event.event === 'failed'), false, 'a browser that was never open says nothing more');
+});

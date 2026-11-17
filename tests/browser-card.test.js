@@ -851,10 +851,47 @@ test('fifteen minutes before the time of the task is up the capsule says so for 
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     card.handle({ event: 'timeleft', minutes: 15 });
-    assert.match(q('.bcard-capsule .bcard-text').textContent, /15 minutes left/);
+    assert.match(q('.bcard-capsule .bcard-text').textContent, /15 min left/);
     card.handle({ event: 'timeup' });
     assert.equal(card.phase, 'cancelled');
     assert.equal(q('.bcard-pill .bcard-text').textContent, 'Closed (time is up)');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('a failure with words of its own (closed for sitting idle) shows them; when the model opens another browser the card works again with the usual words', () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.handle({ event: 'failed', label: 'Closed (idle for too long)' });
+    assert.equal(card.phase, 'failed');
+    assert.equal(q('.bcard-capsule .bcard-text').textContent, 'Closed (idle for too long)');
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    assert.equal(card.phase, 'run');
+    card.handle({ event: 'failed' });
+    assert.equal(q('.bcard-capsule .bcard-text').textContent, 'The browser is not available now');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('from fifteen minutes before the end the capsule says what is being done and how much time is left, by turns; it stops when the task is over', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.handle({ event: 'timeleft', minutes: 15 });
+    const text = () => q('.bcard-capsule .bcard-text').textContent;
+    assert.match(text(), /15 min left/);
+    t.mock.timers.tick(7500);
+    assert.equal(text(), 'Browsing: acme.com', 'then the step in hand');
+    t.mock.timers.tick(7500);
+    assert.match(text(), /15 min left/, 'then the time again: a round of fifteen seconds');
+    card.handle({ event: 'timeup' });
+    assert.equal(card.phase, 'cancelled');
+    t.mock.timers.tick(15000);
+    assert.equal(q('.bcard-pill .bcard-text').textContent, 'Closed (time is up)', 'the turns stopped');
   } finally {
     window.happyDOM.abort();
   }
