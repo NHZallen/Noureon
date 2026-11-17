@@ -101,7 +101,7 @@ test('cancelling asks first; "Keep going" leaves the work alone; "Cancel task" s
     document.body.querySelector('.bcard-dialog-button.is-danger').click();
     assert.equal(cancelled, 1);
     assert.equal(card.phase, 'cancelled');
-    assert.equal(q('.bcard-pill .bcard-text').textContent, 'Cancelled');
+    assert.equal(q('.bcard-pill .bcard-text').textContent, 'Stopped');
     assert.ok(q('.bcard-pill').classList.contains('is-tag'));
     card.handle(call('click', 'acme.com', 'Working the browser on acme.com'));
     assert.equal(card.phase, 'cancelled', 'a late event does not bring it back');

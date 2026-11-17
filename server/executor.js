@@ -799,9 +799,9 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size || usedTools.length || pictureSteps().length || browserTrace.length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || usedTools.length || pictureSteps().length || browserTrace.length || (stopped && thought.text) ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
-      if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
+      if (!advanced.text.trim() && !sources.length && !drawnParts.length && !(stopped && (browserTrace.length || thought.text))) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };
         throw new ReplyError('The model gave no answer.', 'provider_error');
       }
@@ -814,6 +814,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (usedWeb.length && !run.web?.length) run.web = usedWeb;
     if (pictureSteps().length) run.pictures = pictureSteps();
     if (browserTrace.length) run.browser = browserRecord();
+    // What it thought before it was stopped stays with the message.
+    if (thought.text && !run.thought) Object.assign(run, { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) });
     // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
     if (stepBase > 0) run.steps = run.steps.slice(stepBase);
     // The files the browser agent downloaded come after the steps of the code.
@@ -845,7 +847,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !usedTools.length && !drawnParts.length && !pictureSteps().length && !downloaded().length) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !usedTools.length && !browserTrace.length && !drawnParts.length && !pictureSteps().length && !downloaded().length) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }

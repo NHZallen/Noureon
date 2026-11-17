@@ -239,6 +239,90 @@ test('a reply with Python that only used the browser still keeps the record of t
   assert.match(lifted.text, /Opened it\./);
 });
 
+test('stopped while it thinks, with no answer yet: what it thought and what the browser did stay with the message, and the browser says it was stopped (a reply with Python or not)', async () => {
+  for (const advanced of [true, false]) {
+    let round = 0;
+    const controller = new AbortController();
+    const browser = {
+      mayUse: async () => true,
+      maxActions: 0,
+      sessions: {
+        current: () => ({ sessionId: 'b00000001', conversationId: '123e4567-e89b-12d3-a456-426614174000' }),
+        open: async () => ({ sessionId: 'b00000001' }),
+        waitReady: async () => ({ state: 'ready' }),
+        action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+        close: async () => true
+      }
+    };
+    const encoder = new TextEncoder();
+    const result = await executeReply({
+      spec: specFor({ browser: true, advanced }),
+      secrets,
+      userId: USER,
+      signal: controller.signal,
+      sandboxHost: fakeHost([]),
+      files: fakeFiles(),
+      browser,
+      fetchImpl: async () => {
+        round += 1;
+        if (round === 1) return streamResponse(sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })));
+        return new Response(new ReadableStream({
+          async start(stream) {
+            stream.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: 'I should look for the upload button' } }] })}\n\n`));
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            controller.abort();
+            stream.close();
+          }
+        }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+      }
+    });
+    assert.equal(result.status, 'stopped', `advanced ${advanced}`);
+    const lifted = liftSandboxRunBlock(result.parts[0].text);
+    assert.ok(lifted.run, `a record is kept (advanced ${advanced})`);
+    assert.equal(lifted.run.browser?.end, 'cancelled', `advanced ${advanced}`);
+    assert.match(lifted.run.thought || '', /upload button/, `advanced ${advanced}`);
+  }
+});
+
+test('stopped while the browser is still being opened: the record of the browser and the thinking so far stay', async () => {
+  let round = 0;
+  const controller = new AbortController();
+  const encoder = new TextEncoder();
+  const browser = {
+    mayUse: async () => true,
+    maxActions: 0,
+    sessions: {
+      current: () => null,
+      open: async () => ({ sessionId: 'b00000001' }),
+      waitReady: async (id, userId, options) => new Promise((resolve, reject) => { options?.signal?.addEventListener?.('abort', () => reject(Object.assign(new Error('stopped'), { name: 'BrowserSessionError', code: 'aborted' }))); setTimeout(() => controller.abort(), 20); }),
+      action: async () => ({ ok: true }),
+      close: async () => true
+    }
+  };
+  const result = await executeReply({
+    spec: specFor({ browser: true, advanced: false }),
+    secrets,
+    userId: USER,
+    signal: controller.signal,
+    browser,
+    fetchImpl: async () => {
+      round += 1;
+      return new Response(new ReadableStream({
+        start(stream) {
+          stream.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning: 'I will open the page' } }] })}\n\n`));
+          stream.enqueue(encoder.encode(`data: ${JSON.stringify(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' }))}\n\n`));
+          stream.close();
+        }
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }
+  });
+  assert.equal(result.status, 'stopped');
+  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  assert.ok(lifted.run, 'a record is kept');
+  assert.equal(lifted.run.browser?.end, 'cancelled');
+  assert.match(lifted.run.thought || '', /open the page/);
+});
+
 test('a sandbox that cannot start: the model finishes without it', async () => {
   let round = 0;
   const result = await executeReply({
