@@ -83,7 +83,7 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null }) {
   let actions = 0;
   let lastDomain = '';
   let announcedQueue = null;
@@ -290,7 +290,12 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
           if (answer !== 'confirm') return declined(answer);
         }
         let bytes;
-        try { bytes = Buffer.from(await file.bytes()); } catch { return 'The file could not be read now. Tell the user.'; }
+        // Reading the file from the cloud must not hold the reply for ever (the storage answers slowly now and then): after a while it is said and the reply goes on.
+        try {
+          let timer = null;
+          const read = Promise.race([file.bytes(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('slow')), readFileMs); })]);
+          try { bytes = Buffer.from(await read); } finally { clearTimeout(timer); }
+        } catch { return 'The file could not be read now. Tell the user.'; }
         if (bytes.length > MAX_UPLOAD_BYTES) return `That file is larger than ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB, which is too large to send from here. Tell the user.`;
         await act(sessionId, { type: 'upload', ref: args.ref, files: [{ name: file.name, mime: file.type || '', base64: bytes.toString('base64') }] });
         return `Put the file "${oneLine(file.name, 120)}" into the page. Look at the page, then click the button that sends it if the page needs one.`;

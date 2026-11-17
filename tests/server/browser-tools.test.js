@@ -7,7 +7,7 @@ import { BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowserLoader, snapshotText }
 
 const PAGE = { ok: true, tabId: 'T1', url: 'https://shop.example/items?q=secret-search', title: 'Shop', scroll: { y: 0, height: 2000, view: 700 }, elements: [{ ref: 3, role: 'searchbox', name: 'Search' }, { ref: 4, role: 'password field', name: 'Password' }, { ref: 5, role: 'button', name: 'Go', disabled: true }], text: 'Welcome to the shop', truncated: false };
 
-function setup({ current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null, keepLogin, inputFiles = null } = {}) {
+function setup({ readFileMs = undefined, current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null, keepLogin, inputFiles = null } = {}) {
   const calls = [];
   const events = [];
   let open = current;
@@ -18,7 +18,7 @@ function setup({ current = null, actions = {}, language = 'en', maxActions = 0, 
     action: async (id, userId, action) => { calls.push(['action', action]); const handler = actions[action.type]; if (handler) return handler(action); return action.type === 'screenshot' ? { ok: true, mime: 'image/jpeg', base64: 'AAAA' } : action.type === 'snapshot' ? PAGE : { ok: true, url: 'https://shop.example/', title: 'Shop' }; },
     close: async (id) => { calls.push(['close', id]); open = null; return true; }
   };
-  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, inputFiles, ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
+  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, inputFiles, ...(readFileMs === undefined ? {} : { readFileMs }), ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
   return { loader, calls, events, sessions, setOpen: (value) => { open = value; } };
 }
 const call = (name, args = {}) => ({ id: 'x', name, args });
@@ -368,6 +368,13 @@ test('the question before an upload is put in the language of the person', async
     assert.match(asked[0].summary, pattern, language);
     assert.match(asked[0].summary, /cv\.pdf/);
   }
+});
+
+test('a file that cannot be read in time does not hold the reply: it is said, and nothing is sent', async () => {
+  const slow = { name: 'cv.pdf', type: 'application/pdf', size: 5, bytes: () => new Promise(() => {}) };
+  const t = setup({ readFileMs: 20, current: { sessionId: 'b00000001', conversationId: 'c1' }, inputFiles: [slow], ask: async () => ({ decision: 'confirm' }), actions: { upload: () => ({ ok: true }) } });
+  assert.match(asText(await t.loader.run(call('browser_upload', { ref: 7, file: 'cv.pdf' }))), /could not be read/);
+  assert.equal(t.calls.some((c) => c[0] === 'action' && c[1].type === 'upload'), false);
 });
 
 test('without the confirmation nothing is sent; an unknown name lists the attached files; no files, too large or no number are said', async () => {
