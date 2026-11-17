@@ -22,7 +22,7 @@ test('the capsule says what is being done, with the ring that turns; a press tur
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     assert.equal(q('.bcard-capsule .bcard-text').textContent, 'Browsing: acme.com');
     assert.ok(q('.bcard-capsule .bcard-spin'), 'the ring turns while it runs');
-    assert.equal(q('.bcard-site').textContent, 'acme.com');
+    assert.equal(q('.bcard-site').textContent, 'Starting the browser…');
     assert.equal(card.view, 'front');
     q('.bcard-capsule').click();
     assert.equal(card.view, 'back');
@@ -548,7 +548,7 @@ test('until the first picture arrives the card says it is loading; with the firs
     card.setLive({ source, controller: {}, tabs: [] });
     assert.equal(q('.bcard-screen').hidden, false, 'not a black card');
     assert.ok(q('.bcard-screen').classList.contains('is-loading'));
-    assert.equal(q('.bcard-site').textContent, 'Loading the browser');
+    assert.equal(q('.bcard-site').textContent, 'Connecting the screen…');
     q('.bl-picture video').dispatchEvent(new window.Event('playing'));
     assert.equal(q('.bcard-screen').hidden, true);
     assert.equal(q('.bcard-screen').classList.contains('is-loading'), false);
@@ -609,7 +609,7 @@ test('the card has the loading look (the flowing cream purple) while the browser
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
     assert.ok(q('.bcard-screen').classList.contains('is-loading'), 'no picture yet');
-    assert.equal(q('.bcard-site').textContent, 'acme.com');
+    assert.equal(q('.bcard-site').textContent, 'Starting the browser…', 'the browser is still starting');
     card.complete();
     assert.equal(q('.bcard-screen').classList.contains('is-loading'), false, 'the work is over: a quiet place holder');
   } finally {

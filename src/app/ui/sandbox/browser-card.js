@@ -186,7 +186,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     pill.setAttribute('aria-label', label);
     const busy = waitingFrame || (!live && (phase === 'run' || phase === 'queued'));
     screen.classList.toggle('is-loading', busy);
-    screenSite.textContent = waitingFrame ? t('browserLoading') : domain;
+    // What the card is waiting for: the browser itself to start (nothing is connected yet), then the picture to come (the screen is being connected).
+    screenSite.textContent = waitingFrame ? t('browserLoading') : (!live && phase === 'run') ? t('browserStarting') : domain;
     // Once it is over there is no task to cancel: only the shrink button stays (and a queue can be left, but not shrunk).
     cancelButton.hidden = phase === 'done' || phase === 'failed' || phase === 'cancelled';
     list.replaceChildren(...steps.map((step) => {

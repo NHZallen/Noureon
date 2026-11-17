@@ -131,8 +131,58 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     }
   }
 
+  const announceQueue = (state) => {
+    if (state?.state === 'queued' && state.position !== announcedQueue) { announcedQueue = state.position; emit({ type: 'browser', event: 'queued', position: state.position, label: sandboxText(language, 'browserQueued', { count: state.position }) }); }
+  };
+
+  // The browser is started before the model has asked for it (it thinks for a while first, and that time is used): quietly, with no card, and never by taking a place in the queue.
+  // When the model asks for the browser, it joins what is already going on; a browser that was not asked for by the end of the reply is let go (`releaseUnused`).
+  let warming = null;
+  let warmedId = null;
+  let quiet = false;
+  let lastPoll = null;
+  let usedAny = false;
+  function prewarm() {
+    if (warming || sessions.current(userId)) return;
+    quiet = true;
+    const own = new AbortController();
+    const onStop = () => own.abort();
+    signal?.addEventListener?.('abort', onStop, { once: true });
+    warming = (async () => {
+      try {
+        const opened = await sessions.open(userId, { conversationId, keepLogin });
+        warmedId = opened.sessionId;
+        await sessions.waitReady(opened.sessionId, userId, {
+          timeoutMs: waitForSpaceMs,
+          signal: own.signal,
+          onPoll: (state) => {
+            lastPoll = state;
+            if (quiet && state?.state === 'queued') own.abort(); // no free place now: not worth waiting for before it is asked for
+            else if (!quiet) announceQueue(state);
+          }
+        });
+      } catch {
+        // Not started: the browser is opened the ordinary way when it is asked for (and a half-made one is let go).
+        if (warmedId) await sessions.discard?.(warmedId, userId).catch(() => {});
+        warmedId = null;
+      } finally {
+        signal?.removeEventListener?.('abort', onStop);
+      }
+    })();
+  }
+  async function releaseUnused() {
+    if (!warming) return;
+    await warming.catch(() => {});
+    if (warmedId && !usedAny && sessions.current(userId)?.sessionId === warmedId) await (sessions.discard ? sessions.discard(warmedId, userId) : sessions.close(warmedId, userId)).catch(() => {});
+  }
+
   // The browser of this person: the one that is open (it must be of this conversation), or a new one (it may have to wait for a free place).
   async function ensure() {
+    if (warming) {
+      quiet = false;
+      announceQueue(lastPoll);
+      await warming.catch(() => {});
+    }
     const here = sessions.current(userId);
     if (here) {
       if (here.conversationId && here.conversationId !== conversationId) return { problem: 'You already have a browser open in another conversation. Say so to the user; they can close it there first.' };
@@ -142,9 +192,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     await sessions.waitReady(opened.sessionId, userId, {
       timeoutMs: waitForSpaceMs,
       signal,
-      onPoll: (state) => {
-        if (state?.state === 'queued' && state.position !== announcedQueue) { announcedQueue = state.position; emit({ type: 'browser', event: 'queued', position: state.position, label: sandboxText(language, 'browserQueued', { count: state.position }) }); }
-      }
+      onPoll: announceQueue
     });
     return { sessionId: opened.sessionId };
   }
@@ -254,6 +302,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       // Once for each browser: the page may ask for the live screen of it (the viewer comes from the server's own routes; nothing of the host is in this event).
       if (announcedLive !== sessionId) { announcedLive = sessionId; emit({ type: 'browser', event: 'live', sessionId }); }
       actions += 1;
+      usedAny = true;
       onUsed?.({ action: ACTION_OF[call.name] });
       if (call.name === 'browser_fill_login') {
         if (!logins) return 'There is no password vault here. Ask the user to sign in themselves (they can take over the browser).';
@@ -365,6 +414,9 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     get list() { return []; },
     get instruction() { return BROWSER_INSTRUCTION; },
     get used() { return actions; },
+    /** Starts the browser before it is asked for (see above); and lets it go at the end of the reply when it was never used. */
+    prewarm,
+    releaseUnused,
     get tools() { return maxActions > 0 && actions >= maxActions ? [] : BROWSER_TOOLS; },
     /** The files the reply downloaded for the person ({ name, size, mimeType, data: the marker of the stored file }). */
     get files() { return keptFiles; },

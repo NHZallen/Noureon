@@ -293,7 +293,7 @@ test('stopped while the browser is still being opened: the record of the browser
     sessions: {
       current: () => null,
       open: async () => ({ sessionId: 'b00000001' }),
-      waitReady: async (id, userId, options) => new Promise((resolve, reject) => { options?.signal?.addEventListener?.('abort', () => reject(Object.assign(new Error('stopped'), { name: 'BrowserSessionError', code: 'aborted' }))); setTimeout(() => controller.abort(), 20); }),
+      waitReady: async (id, userId, options) => new Promise((resolve, reject) => { const stopped = () => reject(Object.assign(new Error('stopped'), { name: 'BrowserSessionError', code: 'aborted' })); if (options?.signal?.aborted) { stopped(); return; } options?.signal?.addEventListener?.('abort', stopped); setTimeout(() => controller.abort(), 20); }),
       action: async () => ({ ok: true }),
       close: async () => true
     }

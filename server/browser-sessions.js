@@ -95,7 +95,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
       }
     },
     /** Waits until the browser is ready (the host may queue it behind others); throws `failed` or `timeout`. */
-    async waitReady(id, userId, { timeoutMs = 150_000, pollMs = 1500, onPoll = null, signal = null } = {}) {
+    async waitReady(id, userId, { timeoutMs = 150_000, pollMs = 400, onPoll = null, signal = null } = {}) {
       const session = own(id, userId);
       const until = now() + timeoutMs;
       for (;;) {
@@ -108,6 +108,7 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
             try {
               await host.action(session.id, { type: 'clear-site', sites: session.pendingClear });
               session.pendingClear = [];
+              session.cleared = true;
               await profiles.clearPending(session.userId);
             } catch (error) {
               log('browser_clear_failed', { code: error?.code || '', status: error?.status || 0 });
@@ -152,6 +153,14 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
       }
       if (!archive && session.keepLogin) log('browser_close_no_login_state', {});
       return archive ? keep(session, async () => archive, 'close') : false;
+    },
+    /** Lets a browser go that was started before it was asked for and never used: nothing was done in it, so nothing is kept (unless sites were logged out in it, then it is closed the ordinary way). */
+    async discard(id, userId) {
+      const session = own(id, userId);
+      if (session.cleared) return this.close(id, userId);
+      forget(session);
+      await host.stop(session.id, { save: false }).catch(() => {});
+      return false;
     },
     /** One round of upkeep: periodic saves, browsers the host stopped by itself, and (once an hour) the login states nobody used for 14 days. */
     async tick() {

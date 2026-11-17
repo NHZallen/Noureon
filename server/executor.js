@@ -450,6 +450,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
           emit: (event) => { noteBrowser(event); emitEvent(event); }
         });
         // The rows of the steps come from the loader (what the card shows): the record keeps the same ones.
+        // The browser starts while the model thinks (its first tool call would otherwise be the start); one that is not asked for is let go at the end.
+        browserLoader.prewarm();
         const stepEventOf = browserLoader.stepEvent;
         browserLoader.stepEvent = (call, ...rest) => { const event = stepEventOf(call, ...rest); noteBrowser(event); return event; };
       }
@@ -793,6 +795,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (!signal?.aborted) throw new ReplyError(scrubMessage(error?.message, secrets), 'provider_error');
   } finally {
     await closeConnectors();
+    await browserLoader?.releaseUnused?.().catch(() => {});
   }
   // The last picture of the browser goes with the record (the tag of the message opens to it).
   if (browserTrace.length) browserFrame = await browserLoader?.frame?.().catch(() => '') || '';

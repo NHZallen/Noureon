@@ -105,6 +105,24 @@ test('waitReady polls until ready; a browser that failed, or never gets ready, i
   assert.equal(w3.sessions.has(A), false);
 });
 
+test('a browser started early and never used is let go without keeping anything; one that had sites logged out in it is closed the ordinary way', async () => {
+  const w = world();
+  const first = await w.sessions.open(A, {});
+  w.states.set(first.sessionId, 'ready');
+  await w.sessions.waitReady(first.sessionId, A);
+  assert.equal(await w.sessions.discard(first.sessionId, A), false);
+  assert.deepEqual(w.calls.filter((call) => call[0] === 'stop'), [['stop', first.sessionId, false]], 'stopped, nothing packed');
+  assert.equal(w.sessions.has(A), false, 'forgotten');
+  assert.equal(w.saved.length, 0);
+  const cleared = world({ stored: { archive: Buffer.from('x'), pendingClear: ['shop.example'] } });
+  cleared.profiles.clearPending = async () => {};
+  const second = await cleared.sessions.open(A, {});
+  cleared.states.set(second.sessionId, 'ready');
+  await cleared.sessions.waitReady(second.sessionId, A);
+  await cleared.sessions.discard(second.sessionId, A);
+  assert.deepEqual(cleared.calls.filter((call) => call[0] === 'stop'), [['stop', second.sessionId, true]], 'the logout is kept: closed with a save');
+});
+
 test('the upkeep keeps the login state every five minutes while the browser is ready, and not before', async () => {
   const w = world();
   const { sessionId } = await w.sessions.open(A, {});

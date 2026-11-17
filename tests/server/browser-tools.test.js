@@ -338,6 +338,75 @@ test('browser_download: a full space and a failed save are said, and nothing is 
   assert.equal(full.events.filter((e) => e.event === 'file').length, 0);
 });
 
+// A browser that is started before it is asked for (the model thinks first): quietly, never by waiting in a queue, and let go when it was not asked for.
+function warmWorld({ states = [{ state: 'ready' }] } = {}) {
+  const log = [];
+  const events = [];
+  let open = null;
+  let polls = 0;
+  const sessions = {
+    current: () => open,
+    open: async (userId, options) => { log.push('open'); open = { sessionId: 'b00000001', conversationId: options.conversationId }; return { sessionId: 'b00000001' }; },
+    waitReady: async (id, userId, options) => {
+      log.push('waitReady');
+      for (;;) {
+        if (options.signal?.aborted) { open = null; throw Object.assign(new Error('stopped'), { name: 'BrowserSessionError', code: 'aborted' }); }
+        const state = states[Math.min(polls, states.length - 1)];
+        polls += 1;
+        options.onPoll?.(state);
+        if (state.state === 'ready') return state;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    },
+    action: async (id, userId, action) => { log.push(`action ${action.type}`); return action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }; },
+    discard: async () => { log.push('discard'); open = null; },
+    close: async () => { log.push('close'); open = null; return true; }
+  };
+  const loader = createBrowserLoader({ sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: (event) => events.push(event), sleep: async () => {} });
+  return { loader, log, events };
+}
+
+test('started before it is asked for: the browser is opened at once, the model\'s first call joins it and opens nothing again', async () => {
+  const w = warmWorld();
+  w.loader.prewarm();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(w.log, ['open', 'waitReady'], 'started with no tool call');
+  assert.equal(w.events.length, 0, 'a card is not made for it');
+  await w.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.equal(w.log.filter((entry) => entry === 'open').length, 1, 'opened once');
+  assert.ok(w.log.includes('action navigate'));
+  await w.loader.releaseUnused();
+  assert.ok(!w.log.includes('discard'), 'it was used: it stays');
+});
+
+test('started before it is asked for but the model never asks: it is let go at the end of the reply', async () => {
+  const w = warmWorld();
+  w.loader.prewarm();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await w.loader.releaseUnused();
+  assert.ok(w.log.includes('discard'));
+});
+
+test('no place is free when it is started early: it does not wait in the queue, says nothing, and the ordinary start takes over when it is asked for', async () => {
+  const w = warmWorld({ states: [{ state: 'queued', position: 2 }, { state: 'queued', position: 1 }, { state: 'ready' }] });
+  w.loader.prewarm();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(w.events.filter((event) => event.event === 'queued').length, 0, 'no card for a queue nobody asked for');
+  assert.ok(w.log.includes('discard'), 'the early start was let go');
+  await w.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.equal(w.log.filter((entry) => entry === 'open').length, 2, 'opened the ordinary way when asked for');
+  assert.ok(w.log.includes('action navigate'));
+});
+
+test('a browser that is already open is not started again early', async () => {
+  const w = warmWorld();
+  await w.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  const opened = w.log.filter((entry) => entry === 'open').length;
+  w.loader.prewarm();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(w.log.filter((entry) => entry === 'open').length, opened);
+});
+
 test('a person who turned "keep me logged in" off gets a browser that keeps nothing', async () => {
   const t = setup({ keepLogin: false });
   await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));

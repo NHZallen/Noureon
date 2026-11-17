@@ -311,6 +311,39 @@ test('the browser: the model opens a page through its tool, the person is on the
   assert.ok(!JSON.stringify(rows).includes('private-words'), 'nothing of the address but the domain');
 });
 
+test('the browser is started while the model thinks: a reply that never uses it lets it go, one that uses it keeps it', async () => {
+  for (const uses of [false, true]) {
+    const log = [];
+    let round = 0;
+    let open = null;
+    const browser = {
+      mayUse: async () => true,
+      maxActions: 0,
+      sessions: {
+        current: () => open,
+        open: async (userId, options) => { log.push('open'); open = { sessionId: 'b00000001', conversationId: options.conversationId }; return { sessionId: 'b00000001' }; },
+        waitReady: async () => ({ state: 'ready' }),
+        action: async (id, userId, action) => (action.type === 'navigate' ? { ok: true, url: 'https://shop.example/', title: 'Shop' } : { ok: true }),
+        discard: async () => { log.push('discard'); open = null; },
+        close: async () => true
+      }
+    };
+    await executeReply({
+      spec: specFor({ tools: { webSearch: 'off', advanced: false, browser: true } }),
+      secrets,
+      userId: '123e4567-e89b-12d3-a456-426614174000',
+      browser,
+      fetchImpl: async () => {
+        round += 1;
+        assert.ok(log.includes('open'), 'the browser was started before the model answered');
+        return streamResponse(uses && round === 1 ? sse(toolCall('call_1', 'browser_open', { url: 'https://shop.example/' })) : sse(content('Done.')));
+      }
+    });
+    assert.equal(log.filter((entry) => entry === 'open').length, 1, `uses ${uses}`);
+    assert.equal(log.includes('discard'), !uses, `uses ${uses}`);
+  }
+});
+
 test('the browser is not offered when the person is not on the list, when the request did not ask for it, or when nothing is set up', async () => {
   for (const [name, options] of [['not on the list', { tools: { webSearch: 'off', advanced: false, browser: true }, browser: browserFor({ allowed: false }) }], ['not asked for', { tools: { webSearch: 'off', advanced: false }, browser: browserFor() }], ['nothing set up', { tools: { webSearch: 'off', advanced: false, browser: true }, browser: null }]]) {
     const requests = [];
