@@ -790,6 +790,39 @@ test('a screen that is told again is looked at through one connection: the one b
   }
 });
 
+test('a browser that is ready before the model uses it: the screen is joined out of sight, the card shows with the first step; when no step comes the card stays away and the screen is let go', async () => {
+  const window = new Window();
+  const { document } = window;
+  const log = [];
+  try {
+    const ledger = createSandboxLedger({ document, host: document.body, language: 'en', summary: true, onBrowserLive: async (card, sessionId) => { log.push(`connect ${sessionId}`); return { stop: () => { log.push('stop'); } }; } });
+    ledger.event({ type: 'browser', event: 'warm', sessionId: 'b1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.deepEqual(log, ['connect b1'], 'joined at once');
+    const root = () => document.body.querySelector('.bcard');
+    assert.ok(!root() || root().hidden, 'but nothing is on the screen');
+    ledger.event(call('open', 'acme.com', 'Browsing: acme.com'));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.ok(root() && !root().hidden, 'the first step shows the card');
+    assert.deepEqual(log, ['connect b1'], 'and the screen is not joined twice');
+  } finally {
+    window.happyDOM.abort();
+  }
+  const quiet = new Window();
+  const calm = [];
+  try {
+    const ledger = createSandboxLedger({ document: quiet.document, host: quiet.document.body, language: 'en', summary: true, onBrowserLive: async (card, sessionId) => { calm.push(`connect ${sessionId}`); return { stop: () => { calm.push('stop'); } }; } });
+    ledger.event({ type: 'browser', event: 'warm', sessionId: 'b1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    ledger.complete?.();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const root = quiet.document.body.querySelector('.bcard');
+    assert.ok(!root || root.hidden, 'the model never used it: no card');
+  } finally {
+    quiet.happyDOM.abort();
+  }
+});
+
 test('the server says the person ended the browser (another page, or this one): the card is the tag "Stopped", and the server is not told again', () => {
   let cancelled = 0;
   const { window, card, q } = make({ onCancel: () => { cancelled += 1; } });

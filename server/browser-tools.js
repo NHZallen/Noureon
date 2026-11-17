@@ -168,7 +168,10 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   // The work list of this reply (browser-plan.js): it lives as long as this loader, which is made for one reply.
   const plan = createBrowserPlan();
   function prewarm() {
-    if (warming || sessions.current(userId)) return;
+    // A browser this conversation already has open (the reply before left it): its screen is joined out of sight at once, too.
+    const open = !warming && sessions.current(userId);
+    if (open && (!open.conversationId || open.conversationId === conversationId) && !signal?.aborted) { announcedLive = open.sessionId; emit({ type: 'browser', event: 'warm', sessionId: open.sessionId }); }
+    if (warming || open) return;
     quiet = true;
     const own = new AbortController();
     const onStop = () => own.abort();
@@ -186,6 +189,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
             else if (!quiet) announceQueue(state);
           }
         });
+        // It is ready before the model asks for it: the page may join its screen now, out of sight, so that the picture is there the moment the card comes (the card does not show until the first step).
+        if (!signal?.aborted && !userEnded) { announcedLive = opened.sessionId; emit({ type: 'browser', event: 'warm', sessionId: opened.sessionId }); }
       } catch {
         // Not started: the browser is opened the ordinary way when it is asked for (and a half-made one is let go).
         if (warmedId) await sessions.discard?.(warmedId, userId).catch(() => {});

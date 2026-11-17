@@ -60,6 +60,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let dialog = null;
   // The live picture (phase 3): the source of it, what the person's buttons ask of the browser, and what is known of it (tabs, who has it, the ratio).
   let live = null;
+  // Joined to the screen of the browser before the model used it: the card stays out of sight until the server says something about the work (`prepare`).
+  let quiet = false;
   let liveView = null;
   let focus = null;
   let ratio = DEFAULT_RATIO;
@@ -346,6 +348,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   const handle = (event) => {
     if (phase === 'cancelled') return;
+    // The first thing the server says about the work shows the card (it was joined to the screen out of sight, `prepare`).
+    if (quiet) { quiet = false; root.hidden = false; }
     if (event?.event === 'ask') {
       closeAsk();
       if (phase === 'queued') phase = 'run';
@@ -450,8 +454,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   // The reply is over (the browser may not have been closed by the model): what ran is done.
   const complete = () => {
     if (phase !== 'run' && phase !== 'queued') return;
-    // A list was written but the browser never came into use: there is nothing to show.
-    if (!steps.length && !live) { phase = 'done'; root.hidden = true; return; }
+    // A list was written but the browser never came into use (or was only joined out of sight): there is nothing to show, and the screen is let go.
+    if (!steps.length && (!live || quiet)) { phase = 'done'; root.hidden = true; quiet = false; notify(); return; }
     finishRunning('done');
     closePlan('done');
     over('done');
@@ -561,6 +565,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     },
     complete,
     cancel,
+    /** The card is made and joined to the live screen out of sight; the first event of the work shows it. */
+    prepare() { if (!steps.length && phase === 'run') { quiet = true; root.hidden = true; } },
     /** The last picture (a data address of a JPEG) is the screen of the card; the card has the shape of the picture. */
     setStill(url) {
       if (typeof url !== 'string' || !url) return;

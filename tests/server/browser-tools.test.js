@@ -371,12 +371,23 @@ test('started before it is asked for: the browser is opened at once, the model\'
   w.loader.prewarm();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(w.log, ['open', 'waitReady'], 'started with no tool call');
-  assert.equal(w.events.length, 0, 'a card is not made for it');
+  assert.deepEqual(w.events.map((event) => event.event), ['warm'], 'only the quiet word that the screen may be joined: no step, no queue');
+  assert.ok(w.events[0].sessionId, 'it names the browser');
   await w.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.equal(w.events.filter((event) => event.event === 'live').length, 0, 'the screen is joined already: it is not announced again');
   assert.equal(w.log.filter((entry) => entry === 'open').length, 1, 'opened once');
   assert.ok(w.log.includes('action navigate'));
   await w.loader.releaseUnused();
   assert.ok(!w.log.includes('discard'), 'it was used: it stays');
+});
+
+test('the browser this conversation left open is joined out of sight at once, and the first call does not announce the screen again', async () => {
+  const t = setup({});
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  t.loader.prewarm();
+  assert.deepEqual(t.events.map((event) => [event.event, event.sessionId]), [['warm', 'b1']]);
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.equal(t.events.filter((event) => event.event === 'live').length, 0);
 });
 
 test('started before it is asked for but the model never asks: it is let go at the end of the reply', async () => {
@@ -385,6 +396,7 @@ test('started before it is asked for but the model never asks: it is let go at t
   await new Promise((resolve) => setTimeout(resolve, 20));
   await w.loader.releaseUnused();
   assert.ok(w.log.includes('discard'));
+  assert.ok(!w.events.some((event) => event.event !== 'warm'), 'nothing was said but the quiet word');
 });
 
 test('no place is free when it is started early: it does not wait in the queue, says nothing, and the ordinary start takes over when it is asked for', async () => {

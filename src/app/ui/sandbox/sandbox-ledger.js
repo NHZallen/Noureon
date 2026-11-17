@@ -105,9 +105,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
     // The live screen is not a step: the page connects to it (what the connector does is up to the owner of the reply).
     // The same screen may be told again (the page joined the reply again, or a step failed and the next one says where the screen is): the card has one connection to it, and the one before is let go
     // first. (Each one the host counts: three at once, and the next are refused.)
-    if (event.event === 'live') {
+    if (event.event === 'live' || event.event === 'warm') {
       const before = liveConnection;
       liveConnection = browserCard.then(async (card) => {
+        // `warm`: the browser is ready before the model uses it: the screen is joined out of sight, and the card shows with the first step.
+        if (event.event === 'warm') card.prepare?.();
         await before?.then((connection) => connection?.stop?.()).catch(() => {});
         return onBrowserLive?.(card, event.sessionId);
       }).catch(() => null);
