@@ -191,3 +191,27 @@ test('releasing a browser takes its ticket away', async () => {
   w.live.release(w.s);
   assert.equal((await w.live.fillCard({ pathToken: w.pathToken, ticket: w.ticket.ticket, card: CARD, run: w.run })).status, 404);
 });
+
+test('square pixels: set once when the browser is ready, and before and after every change of ratio; a failure is one line in the log and nothing else', async () => {
+  const calls = []; const logs = [];
+  let answer = { ok: true };
+  const neko = fakeNeko();
+  const live = createLive({ config: CONFIG, makeNeko: () => neko.api, containerIp: async () => '172.29.0.2', log: (e) => logs.push(e),
+    squarePixels: async (s, size) => { calls.push([size.w, size.h, neko.log.at(-1)?.[0]]); if (answer === 'throw') throw new Error('docker said https://example.com/secret'); return answer; } });
+  const s = session();
+  live.allocate(s); await live.ready(s);
+  assert.deepEqual(calls, [[1024, 768, 'settings']], 'at start, with the size of the screen');
+  await live.setRatio(s, 'portrait');
+  assert.deepEqual(calls.slice(1), [[768, 1024, 'settings'], [768, 1024, 'screen']], 'the millimetres for the new size go in before neko changes the screen, and again after');
+  assert.equal(logs.length, 0);
+  answer = { ok: false, why: 'read back 508x285 mm, wanted 203x271' };
+  assert.deepEqual(await live.setRatio(s, '16:9'), { ratio: '16:9', width: 1280, height: 720 }, 'the ratio still changes');
+  assert.equal(logs.filter((e) => e.ev === 'screen_mm_warning').length, 2);
+  answer = 'throw';
+  await live.setRatio(s, '4:3');
+  const last = logs.at(-1);
+  assert.deepEqual(Object.keys(last).sort(), ['ev', 'sessionId', 'when', 'why']);
+  assert.equal(last.why, 'failed', 'nothing of the error (which could name a page) goes in the log');
+  const s2 = session('sess-22222222'); live.allocate(s2); await live.ready(s2);
+  assert.ok(s2.live.neko, 'a browser whose screen could not be set still starts');
+});

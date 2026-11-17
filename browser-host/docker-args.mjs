@@ -26,10 +26,11 @@ export function checkScreen(screen = {}) {
 }
 // The live screen (design section 6, 12.2). Two H.264 pipelines the viewer chooses between, and only the one somebody watches is run (neko destroys the
 // others): `hq` for the focus mode (the size of the screen, 20 fps, 4 Mbps) and `lq` for the preview card (about 640 wide, 15 fps, 1.2 Mbps). `lq` gives only its
-// width and lets the height follow (a fixed 640x480 would stretch a 16:9 or an upright screen); that is still to be checked on the real host.
+// width and square pixels, so the height follows the ratio (640x480, 640x360, 640x853; checked on the real host 2026-11-17). Without pixel-aspect-ratio=1/1 videoscale keeps
+// the height and squeezes the pixels instead (640x768). It is only right when the source has square pixels too: see screenMmArgs.
 export const LIVE_PIPELINES = Object.freeze({
   hq: { fps: '20', gst_prefix: '! video/x-raw,format=I420', gst_encoder: 'x264enc', gst_params: { threads: '2', bitrate: '4000', 'key-int-max': '20', 'byte-stream': 'true', tune: 'zerolatency', 'speed-preset': 'veryfast' }, gst_suffix: '! video/x-h264,stream-format=byte-stream' },
-  lq: { fps: '15', gst_prefix: '! videoscale ! video/x-raw,width=640,format=I420', gst_encoder: 'x264enc', gst_params: { threads: '2', bitrate: '1200', 'key-int-max': '15', 'byte-stream': 'true', tune: 'zerolatency', 'speed-preset': 'ultrafast' }, gst_suffix: '! video/x-h264,stream-format=byte-stream' }
+  lq: { fps: '15', gst_prefix: '! videoscale ! video/x-raw,width=640,pixel-aspect-ratio=1/1,format=I420', gst_encoder: 'x264enc', gst_params: { threads: '2', bitrate: '1200', 'key-int-max': '15', 'byte-stream': 'true', tune: 'zerolatency', 'speed-preset': 'ultrafast' }, gst_suffix: '! video/x-h264,stream-format=byte-stream' }
 });
 const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
 /** What the live screen needs of one browser: `apiToken` (random, kept on this machine only), `udpPort` (one port for UDP and TCP, one per browser), `publicIp`, `bindIp` (where the port is published). */
@@ -147,6 +148,38 @@ export function sidecarArgs({ sessionId, scriptPath, action }) {
   if (json.length > (action?.type === 'upload' ? MAX_UPLOAD_ACTION : viaStdin ? MAX_STDIN_ACTION : 8192)) throw new Error('action too large');
   return ['run', '--rm', ...(viaStdin ? ['-i'] : []), '--network', `container:${containerName(sessionId)}`, '--cap-drop=ALL', '--security-opt', 'no-new-privileges', '--read-only',
     '--user', '65534:65534', '--memory', '256m', '--pids-limit', '64', '-v', `${scriptPath}:/app/cdp-actions.mjs:ro`, SIDECAR_IMAGE, 'node', '/app/cdp-actions.mjs', viaStdin ? '--stdin' : json];
+}
+
+// Square pixels on the virtual screen (P5, checked on the real host 2026-11-17). ximagesrc labels the picture with a pixel aspect ratio worked out from the screen's size in
+// millimetres, snapped to the nearest of 1/1, 16/15, 11/10, 54/59. neko's X screen keeps 508x285 mm whatever its size in pixels, so 1024x768 came out as 11/10 and the
+// viewer showed black bands around the picture. The size in millimetres is set to the pixels at 96 dpi when the browser is ready and around every change of ratio, before neko
+// builds a new pipeline (it works the ratio out once, when it builds one). A fixed script, run as the user of the image (never root), takes only two checked whole numbers.
+export const SCREEN_MM_SCRIPT = [
+  'import ctypes,os,sys',
+  'mw,mh=int(sys.argv[1]),int(sys.argv[2])',
+  'if not (50<=mw<=600 and 50<=mh<=600): sys.exit(2)',
+  "X=ctypes.CDLL('libX11.so.6'); R=ctypes.CDLL('libXrandr.so.2'); V=ctypes.c_void_p",
+  'X.XOpenDisplay.restype=V; X.XOpenDisplay.argtypes=[ctypes.c_char_p]; X.XDefaultRootWindow.restype=ctypes.c_ulong; X.XDefaultRootWindow.argtypes=[V]',
+  'X.XSync.argtypes=[V,ctypes.c_int]; X.XCloseDisplay.argtypes=[V]',
+  "for f in ('XDisplayWidth','XDisplayHeight','XDisplayWidthMM','XDisplayHeightMM'): getattr(X,f).argtypes=[V,ctypes.c_int]",
+  'R.XRRSetScreenSize.argtypes=[V,ctypes.c_ulong,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int]',
+  "name=os.environ.get('DISPLAY',':99.0').encode()",
+  'd=X.XOpenDisplay(name)',
+  'if not d: sys.exit(3)',
+  'R.XRRSetScreenSize(d,X.XDefaultRootWindow(d),X.XDisplayWidth(d,0),X.XDisplayHeight(d,0),mw,mh); X.XSync(d,0); X.XCloseDisplay(d)',
+  'd=X.XOpenDisplay(name)',
+  'if not d: sys.exit(3)',
+  'print(X.XDisplayWidth(d,0),X.XDisplayHeight(d,0),X.XDisplayWidthMM(d,0),X.XDisplayHeightMM(d,0))'
+].join('\n');
+/** The size in millimetres that makes the pixels of a screen of this size square (96 dpi). */
+export function squareMm(screen) {
+  const { w, h } = checkScreen(screen);
+  return { w: Math.round((w * 25.4) / 96), h: Math.round((h * 25.4) / 96) };
+}
+/** Sets the screen's size in millimetres for `screen` (keeping its pixels as they are now) and prints "width height widthMM heightMM" as read back. */
+export function screenMmArgs({ sessionId, screen }) {
+  const mm = squareMm(screen);
+  return ['exec', '-u', 'neko', containerName(sessionId), 'python3', '-c', SCREEN_MM_SCRIPT, String(mm.w), String(mm.h)];
 }
 
 /** The address of the browser container on the isolated network (what the live screen and its proxy talk to). */

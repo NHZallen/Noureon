@@ -32,13 +32,20 @@ export function checkCard(input) {
 /**
  * config: { publicIp, bindIp?, portBase, slots, host (the name of the viewer's address, e.g. live-staging.noureon.com), maxViewers, viewerWaitMs, viewerGoneMs }
  */
-export function createLive({ config, makeNeko = (baseUrl, apiToken) => createNekoApi({ baseUrl, apiToken }), containerIp, now = Date.now, log = () => {}, makeSecret = randomHex }) {
+export function createLive({ config, makeNeko = (baseUrl, apiToken) => createNekoApi({ baseUrl, apiToken }), containerIp, squarePixels = null, now = Date.now, log = () => {}, makeSecret = randomHex }) {
   const cfg = { maxViewers: 3, viewerWaitMs: 60_000, viewerGoneMs: 30_000, ...config };
   const used = new Set();
   const byPath = new Map(); // path token -> session
 
   const need = (s) => { if (!s?.live?.neko) throw new HostError(409, 'not_live', 'the live screen is not ready'); return s.live; };
   const forget = (s, viewer) => s.live.viewers.delete(viewer.memberId);
+  // Square pixels for the stream (docker-args.mjs, screenMmArgs). When it cannot be done the browser still works: one line in the log, nothing of the page in it.
+  const square = async (s, size, when) => {
+    if (!squarePixels) return;
+    let result;
+    try { result = await squarePixels(s, size); } catch { result = { ok: false, why: 'failed' }; }
+    if (!result?.ok) log({ ev: 'screen_mm_warning', sessionId: s.sessionId, when, why: String(result?.why || 'failed').slice(0, 80) });
+  };
 
   return {
     get config() { return cfg; },
@@ -59,6 +66,7 @@ export function createLive({ config, makeNeko = (baseUrl, apiToken) => createNek
       s.live.ip = await containerIp(s);
       s.live.neko = makeNeko(`http://${s.live.ip}:8080`, s.live.apiToken);
       await s.live.neko.settings({ locked_controls: true, private_mode: false });
+      await square(s, s.screen ?? RATIO_SIZES['4:3'], 'start'); // before anybody watches: the first pipeline is built with square pixels
     },
     release(s) {
       if (!s.live) return;
@@ -120,12 +128,16 @@ export function createLive({ config, makeNeko = (baseUrl, apiToken) => createNek
       }
       throw new HostError(400, 'bad_request', 'mode must be user or model');
     },
-    /** The size of the virtual screen (the browser window follows, nobody reconnects). */
+    /** The size of the virtual screen (the browser window follows, nobody reconnects; the pixels stay square). */
     async setRatio(s, ratio) {
       const live = need(s);
       const size = RATIO_SIZES[ratio];
       if (!size || !Object.prototype.hasOwnProperty.call(RATIO_SIZES, ratio)) throw new HostError(400, 'bad_request', 'unknown ratio');
+      // neko keeps the size in millimetres when it changes the pixels (seen on the real host), and a pipeline built after the change works its ratio out from them:
+      // so the millimetres for the new size go in first, and once more after (in case something reset them).
+      await square(s, size, 'before_ratio');
       await live.neko.setScreen({ width: size.w, height: size.h });
+      await square(s, size, 'after_ratio');
       s.screen = { w: size.w, h: size.h };
       s.lastActionAt = now();
       return { ratio, width: size.w, height: size.h };

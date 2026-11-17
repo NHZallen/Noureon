@@ -14,7 +14,7 @@ let config;
 try { config = loadConfig(process.env); } catch (error) { console.error(`browser-host cannot start: ${error.message}`); process.exit(78); }
 
 const adapter = createDockerAdapter({ paths: config.paths, options: config.docker });
-const live = config.live ? createLive({ config: config.live, containerIp: (s) => adapter.containerIp(s), log }) : null;
+const live = config.live ? createLive({ config: config.live, containerIp: (s) => adapter.containerIp(s), squarePixels: (s, screen) => adapter.squarePixels(s, screen), log }) : null;
 const manager = createSessionManager({ adapter, live, config: config.manager, log });
 // A program on this machine (the installer's health check, the acceptance scripts) shows as its source whichever address of the machine the kernel picks: the bridge address while
 // the bridge is up, the public address while no browser is running and the bridge has no carrier (seen on the real machine, 2026-11-16). So the machine's own addresses count as "this machine".

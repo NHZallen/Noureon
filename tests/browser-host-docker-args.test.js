@@ -1,7 +1,7 @@
 // The docker command lines of browser-host (browser-host/docker-args.mjs): every safety flag is pinned, and nothing from outside can add a flag.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
+import { SCREEN_MM_SCRIPT, screenMmArgs, squareMm, LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
 
 const GOOD = {
   sessionId: 'sess-12345678', screen: { w: 1024, h: 768 }, userPassword: 'a'.repeat(24), adminPassword: 'b'.repeat(24),
@@ -146,4 +146,22 @@ test('the live settings are checked: a token that is not hex, a port outside the
   assert.throws(() => checkLive({ ...LIVE, bindIp: '999.1.1.1' }), /bind ip/);
   assert.throws(() => browserRunArgs({ ...GOOD, live: { ...LIVE, apiToken: 'x' } }), /token/);
   assert.deepEqual(checkLive(LIVE), { ...LIVE, bindIp: '84.247.153.81' });
+});
+
+test('lq gives its width and square pixels, so the height follows the ratio; hq keeps the size of the screen', () => {
+  assert.match(LIVE_PIPELINES.lq.gst_prefix, /videoscale ! video\/x-raw,width=640,pixel-aspect-ratio=1\/1,format=I420$/);
+  assert.ok(!/height=/.test(LIVE_PIPELINES.lq.gst_prefix), 'no fixed height: it would stretch a 16:9 or upright screen');
+  assert.equal(LIVE_PIPELINES.hq.gst_prefix, '! video/x-raw,format=I420');
+});
+
+test('square pixels: a fixed script run as the image user, with two checked whole numbers (96 dpi) and nothing else', () => {
+  assert.deepEqual(squareMm({ w: 1024, h: 768 }), { w: 271, h: 203 });
+  assert.deepEqual(squareMm({ w: 1280, h: 720 }), { w: 339, h: 191 });
+  assert.deepEqual(squareMm({ w: 768, h: 1024 }), { w: 203, h: 271 });
+  const args = screenMmArgs({ sessionId: 'sess-12345678', screen: { w: 1024, h: 768 } });
+  assert.deepEqual(args, ['exec', '-u', 'neko', containerName('sess-12345678'), 'python3', '-c', SCREEN_MM_SCRIPT, '271', '203']);
+  assert.ok(!args.includes('--privileged') && !args.includes('root') && !args.includes('0'), 'never root, never privileged');
+  for (const bad of [{ w: 319, h: 768 }, { w: 1024, h: 1921 }, { w: '1024; rm -rf /', h: 768 }, { w: 1024.5, h: 768 }]) assert.throws(() => screenMmArgs({ sessionId: 'sess-12345678', screen: bad }), /bad screen size/);
+  assert.throws(() => screenMmArgs({ sessionId: '--privileged', screen: { w: 1024, h: 768 } }), /bad session id/);
+  assert.ok(!/subprocess|os\.system|eval|exec\(/.test(SCREEN_MM_SCRIPT), 'the script starts nothing else');
 });

@@ -81,3 +81,18 @@ test('the real runner: it never rejects, and a missing program is reported as a 
   assert.equal(typeof result.code, 'number');
   assert.ok(Buffer.isBuffer(result.stdout));
 });
+
+test('square pixels: ok when the millimetres read back are the ones wanted; any other answer is a short reason, never a throw', async () => {
+  const ok = setup(() => reply('1024 768 271 203\n'));
+  assert.deepEqual(await ok.adapter.squarePixels(S, { w: 1024, h: 768 }), { ok: true, px: { w: 1024, h: 768 }, mm: { w: 271, h: 203 } });
+  assert.deepEqual(ok.calls[0].args.slice(0, 3), ['exec', '-u', 'neko']);
+  assert.equal(ok.calls[0].opts.timeoutMs, 10_000);
+  const off = await setup(() => reply('1024 768 508 285')).adapter.squarePixels(S, { w: 1024, h: 768 });
+  assert.equal(off.ok, false); assert.match(off.why, /read back 508x285 mm, wanted 271x203/);
+  assert.deepEqual(await setup(() => reply('', 1, 'Traceback ... https://example.com')).adapter.squarePixels(S, { w: 1024, h: 768 }), { ok: false, why: 'exit 1' });
+  assert.deepEqual(await setup(() => reply('', -2)).adapter.squarePixels(S, { w: 1024, h: 768 }), { ok: false, why: 'no answer in 10 s' });
+  assert.deepEqual(await setup(() => reply('hello')).adapter.squarePixels(S, { w: 1024, h: 768 }), { ok: false, why: 'nothing read back' });
+  const bad = setup();
+  assert.deepEqual(await bad.adapter.squarePixels(S, { w: 10, h: 10 }), { ok: false, why: 'bad screen size' });
+  assert.equal(bad.calls.length, 0, 'a bad size never reaches docker');
+});

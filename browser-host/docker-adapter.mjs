@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { HostError } from './session-manager.mjs';
 import {
-  browserRunArgs, sidecarArgs, STDIN_ACTIONS, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, ipArgs, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
+  browserRunArgs, sidecarArgs, STDIN_ACTIONS, profileLoadArgs, profileSaveArgs, volumeCreateArgs, holderRunArgs, holderRemoveArgs, ipArgs, screenMmArgs, squareMm, stopArgs, removeArgs, volumeRemoveArgs, healthArgs, orphanContainersArgs, orphanVolumesArgs
 } from './docker-args.mjs';
 
 /** Runs `docker <args>`. Resolves { code, stdout: Buffer, stderr: string, truncated }; never rejects. code -1: output too large, -2: timed out, -3: could not run docker. */
@@ -65,6 +65,17 @@ export function createDockerAdapter({ run = dockerRun, paths, options = {}, slee
       const ip = r.stdout.toString('utf8').trim();
       if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) throw new Error('the browser has no address');
       return ip;
+    },
+    /** Square pixels on the screen (see screenMmArgs); never throws: { ok, why?, px?, mm? }, `why` a short fixed text with no page content. */
+    async squarePixels(s, screen) {
+      let args; let want;
+      try { args = screenMmArgs({ sessionId: s.sessionId, screen }); want = squareMm(screen); } catch { return { ok: false, why: 'bad screen size' }; }
+      const r = await run(args, { timeoutMs: 10_000 });
+      if (r.code !== 0) return { ok: false, why: r.code === -2 ? 'no answer in 10 s' : `exit ${r.code}` };
+      const n = r.stdout.toString('utf8').trim().split(/\s+/).map(Number);
+      if (n.length !== 4 || !n.every(Number.isInteger)) return { ok: false, why: 'nothing read back' };
+      const px = { w: n[0], h: n[1] }; const mm = { w: n[2], h: n[3] };
+      return mm.w === want.w && mm.h === want.h ? { ok: true, px, mm } : { ok: false, why: `read back ${mm.w}x${mm.h} mm, wanted ${want.w}x${want.h}`, px, mm };
     },
     async exportProfile(s) {
       const r = await run(profileSaveArgs({ sessionId: s.sessionId }), { timeoutMs: 120_000, maxBytes: options.maxProfileBytes ?? 150 * 1024 * 1024 });
