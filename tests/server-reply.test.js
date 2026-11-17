@@ -470,6 +470,17 @@ test('the times are the server\'s: how long the reply has gone on and how long i
   assert.deepEqual(lateEnds, [8800], 'a page that comes in after it stopped thinking is told how long it thought');
 });
 
+test('a page that joins late is given the steps first and the thinking after them: the thinking is a row under the line the first step makes', async () => {
+  const { reply } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: 'weighing flights', kind: 'model', ms: 3000, ended: false }, sources: [], elapsedMs: 9000, events: [{ type: 'browser', event: 'call', action: 'open', domain: 'a.example', label: 'Browsing: a.example' }] } }, { done: 'complete' }],
+    rows: [row('', 'complete')]
+  });
+  const { run } = await reply.start(startArgs());
+  const order = [];
+  await run.follow({ onText() {}, onEvent: (step) => order.push(`event:${step.type}`), onThought: (text) => order.push(`thought:${text}`) });
+  assert.deepEqual(order, ['event:browser', 'thought:weighing flights']);
+});
+
 test('a reply with Python is handed over with the Design menu\'s choices and the files of the message, and only then', async () => {
   const { reply, calls } = harness();
   const files = [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }];

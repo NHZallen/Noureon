@@ -562,3 +562,16 @@ test('the instruction and the tool say the list is for this reply and that a don
   assert.match(BROWSER_INSTRUCTION, /for this reply only/);
   assert.match(BROWSER_TOOLS.find((entry) => entry.name === 'browser_plan').description, /done cannot be changed/);
 });
+
+test('after a step failed the page is told where the live screen of the browser is once more (the card let go of it when it failed)', async () => {
+  let fail = false;
+  const t = setup({ actions: { click: () => { if (fail) throw Object.assign(new Error('gone'), { code: 'unreachable' }); return { ok: true }; } } });
+  await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
+  assert.equal(t.events.filter((event) => event.event === 'live').length, 1);
+  fail = true;
+  await t.loader.run(call('browser_click', { ref: 1 }));
+  assert.equal(t.events.filter((event) => event.event === 'failed').length, 1);
+  fail = false;
+  await t.loader.run(call('browser_click', { ref: 1 }));
+  assert.equal(t.events.filter((event) => event.event === 'live').length, 2, 'the screen is announced again with the next step');
+});

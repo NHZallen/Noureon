@@ -184,3 +184,55 @@ test('the tabs of the focus mode: asked for while it is open, what the person do
   await settle();
   assert.equal(w.repeats.cleared, 1, 'not asked for any more when the focus mode is closed');
 });
+
+test('a card that is taken off the page lets go of the live screen (the viewer and the stream), so that the card made when the page joins the reply again can have it', async () => {
+  const w = world();
+  await settle();
+  assert.ok(!names(w).includes('DELETE /viewer/v-1'));
+  w.card.dispose();
+  await settle();
+  assert.ok(w.sources[0].log.includes('destroy'), 'the stream ends');
+  assert.ok(names(w).includes('DELETE /viewer/v-1'), 'and the viewer is given back');
+});
+
+test('the card that had its picture and lost it says it is looking for the picture again, not that the browser is starting', async () => {
+  const w = world();
+  await settle();
+  const site = () => w.card.element.querySelector('.bcard-site').textContent;
+  w.card.setLive(null);
+  assert.match(site(), /連線畫面中|Connecting/i);
+  const fresh = createBrowserCard({ document: w.document, host: w.document.body, isWide: () => false });
+  assert.match(fresh.element.querySelector('.bcard-site').textContent, /啟動瀏覽器|Starting/i, 'one that never had a picture is starting');
+});
+
+test('the screenshot button of the focus mode puts the picture of the screen in the box of the message and leaves the focus mode for the preview', async () => {
+  const w = world();
+  await settle();
+  w.sources[0].snapshot = async () => new w.document.defaultView.Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' });
+  const attached = [];
+  w.document.addEventListener('noureon:attach-files', (event) => attached.push(...event.detail.files));
+  w.card.openFocus();
+  assert.ok(w.document.querySelector('.bf'), 'the focus mode is open');
+  // On a phone the button is in the menu of the focus mode.
+  [...w.document.querySelectorAll('.bf button')].find((b) => /更多|more/i.test(b.getAttribute('aria-label') || ''))?.click();
+  const shot = [...w.document.querySelectorAll('button')].find((b) => /截圖給模型|screenshot to the model/i.test(`${b.getAttribute('aria-label') || ''}${b.textContent}`));
+  assert.ok(shot, 'the button is there');
+  shot.click();
+  await settle();
+  await settle();
+  assert.equal(attached.length, 1);
+  assert.equal(attached[0].type, 'image/jpeg');
+  assert.match(attached[0].name, /^browser-.*\.jpg$/);
+  assert.equal(w.document.querySelector('.bf'), null, 'the focus mode is left');
+  assert.equal(w.card.view, 'front', 'for the preview');
+
+  // No picture yet (nothing is shown): nothing is attached and the focus mode stays.
+  const none = world();
+  await settle();
+  none.sources[0].snapshot = async () => null;
+  none.card.openFocus();
+  [...none.document.querySelectorAll('.bf button')].find((b) => /更多|more/i.test(b.getAttribute('aria-label') || ''))?.click();
+  [...none.document.querySelectorAll('button')].find((b) => /截圖給模型|screenshot to the model/i.test(`${b.getAttribute('aria-label') || ''}${b.textContent}`))?.click();
+  await settle();
+  assert.ok(none.document.querySelector('.bf'), 'it stays when there was nothing to take');
+});

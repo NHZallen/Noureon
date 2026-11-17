@@ -416,6 +416,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     } catch (error) {
       if (signal?.aborted) return 'The reply was stopped.';
       emit({ type: 'browser', event: 'failed', label: sandboxText(language, 'browserFailed') });
+      // The card lets go of its picture when it fails; if the browser is still there and the model goes on, the next step says where the picture is again.
+      announcedLive = null;
       return explain(error);
     }
   }

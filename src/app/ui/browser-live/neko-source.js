@@ -139,6 +139,18 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
     mount: mountIn,
     mountLens: mountIn,
     input,
+    /** The picture on the screen now, as a JPEG (a Blob), or null when nothing is shown yet. Drawn from the video of the stream, so it is exactly what the person sees. */
+    async snapshot({ quality = 0.9 } = {}) {
+      const video = [...videos].find((candidate) => candidate.videoWidth > 0 && candidate.videoHeight > 0);
+      if (!video) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (!context) return null;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return new Promise((resolve) => { try { canvas.toBlob((blob) => resolve(blob || null), 'image/jpeg', quality); } catch { resolve(null); } });
+    },
     /** 'lq' (the card) or 'hq' (the focus mode and taking over); changed on the live connection without reconnecting. */
     setQuality(id) {
       if (id !== 'lq' && id !== 'hq') return;

@@ -753,3 +753,18 @@ test('what the person adds while the browser works is a line of the list (under 
     view.happyDOM.abort();
   }
 });
+
+test('a card that failed works again when the model goes on (a browser lost, another opened, or a step that failed once): the picture is connected afresh and the work goes on in the same card', () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.handle({ type: 'browser', event: 'failed', label: 'The browser is not available' });
+    assert.equal(q('.bcard').dataset.phase, 'failed');
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    assert.equal(q('.bcard').dataset.phase, 'run');
+    assert.equal(card.view, 'front');
+    assert.equal(q('.bcard-capsule .bcard-text').textContent, 'Browsing: acme.com');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

@@ -64,6 +64,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let zoomed = false;
   // The card has no picture yet (the browser is starting, or the first frame has not come): it is drawn with the loading look.
   let waitingFrame = false;
+  // The picture was there once: when it is not there any more, the card is looking for it again (it is not starting the browser).
+  let everLive = false;
   // Where the focus mode was opened from ('front': the card, 'pill': the pill): the round button of the focus mode is Shrink from the card and Expand from the pill.
   let focusFrom = 'front';
   // The question the person is asked now (a confirmation, a login…): its panel takes the place of the card.
@@ -194,7 +196,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     const busy = waitingFrame || (!live && (phase === 'run' || phase === 'queued'));
     screen.classList.toggle('is-loading', busy);
     // What the card is waiting for: the browser itself to start (nothing is connected yet), then the picture to come (the screen is being connected).
-    screenSite.textContent = waitingFrame ? t('browserLoading') : (!live && phase === 'run') ? t('browserStarting') : domain;
+    screenSite.textContent = waitingFrame ? t('browserLoading') : (!live && phase === 'run') ? t(everLive ? 'browserLoading' : 'browserStarting') : domain;
     // Once it is over there is no task to cancel: only the shrink button stays (and a queue can be left, but not shrunk).
     cancelButton.hidden = phase === 'done' || phase === 'failed' || phase === 'cancelled';
     list.replaceChildren(...[...(plan || steps), ...notes].map((step) => {
@@ -372,6 +374,15 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       phase = 'run';
       view = 'front';
     }
+    // The browser was lost and the model opened another one (or went on): the card works again, with a picture to be connected afresh.
+    if (phase === 'failed') {
+      phase = 'run';
+      view = 'front';
+      live = null;
+      everLive = false;
+      closeFocus();
+      mountLive();
+    }
     if (event.domain) domain = event.domain;
     if (event.action === 'close') {
       finishRunning('done');
@@ -417,6 +428,13 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       // Opened from the card: Shrink leaves the focus mode and the card becomes the pill.
       onShrink: () => { closeFocus(); setView('pill'); },
       onZoom: (value) => { zoomed = Boolean(value); dock.setZoom(zoomed); focus?.update({ zoomed }); live?.controller?.onZoom?.(zoomed); },
+      // The picture goes to the box of the message; the focus mode is left for the preview, so that the person can write something (or pick a tool) and send it.
+      onScreenshot: async () => {
+        const done = await live?.controller?.onScreenshot?.();
+        if (done === false) return;
+        closeFocus();
+        if (view !== 'front') setView('front');
+      },
       onStop: () => askCancel(),
       onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
       onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); if (asking?.kind === 'takeover') asking.panel.finish?.('done'); },
@@ -489,6 +507,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     handle,
     /** `fn({ phase, view, focus })` after every change of what the card shows; also once at once. */
     watch(fn) { watchers.push(fn); fn({ phase, view, focus: Boolean(focus) }); },
+    /** The card is taken off the page (the page joined the reply again and draws it afresh, or the reply is over): what it holds of the live screen is let go, so that the next card can have it. */
+    dispose() {
+      closeFocus();
+      watchers.forEach((fn) => fn({ phase: 'disposed', view: 'pill', focus: false }));
+      watchers.length = 0;
+    },
     complete,
     cancel,
     /** The last picture (a data address of a JPEG) is the screen of the card; the card has the shape of the picture. */
@@ -509,6 +533,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */
     setLive(next) {
       live = next || null;
+      if (live) everLive = true;
       if (live?.ratio) ratio = live.ratio;
       if (!live) closeFocus();
       mountLive();

@@ -103,6 +103,16 @@ test('the live view tells once that the model searches by itself, and not for an
   assert.equal(view.thought.endedAt - view.thought.startedAt, 2000);
 });
 
+test('when the steps are told again (the channel was joined again), the thinking is told again whole: it is not kept twice and its rows are not left in the list that is gone', () => {
+  const view = createReplyLiveView({ targetElement: {}, getDocument: () => null, getConfig: () => ({}), language: 'en', now: () => 0, serverReply: null, serverRun: null, madeHere: false, getRunStartedAt: () => 0, onStepsShown() {} });
+  view.showThinking('Let me see', 'raw');
+  assert.equal(view.thought.text, 'Let me see');
+  view.resetSteps();
+  assert.equal(view.thought.text, '');
+  view.showThinking('Let me see more', 'raw');
+  assert.equal(view.thought.text, 'Let me see more');
+});
+
 test('made here without Python: the stream of words, after a skill loop the provider refused', async () => {
   const view = createReplyLiveView({ targetElement: {}, getDocument: () => null, getConfig: () => ({}), language: 'en', now: () => 0, serverReply: null, serverRun: null, madeHere: false, getRunStartedAt: () => 0, onStepsShown() {} });
   const reply = { requestParts: [{ text: 'Hi' }], searchSources: [], addSearchSources() {} };

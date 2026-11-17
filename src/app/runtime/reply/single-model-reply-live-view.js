@@ -144,6 +144,11 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
       liveRun?.remove();
       liveRun = null;
       drawStage.remove();
+      // The thinking is told again whole with the steps: its rows were in the list that is gone, and what was kept of it would be written twice.
+      thinkingBlocks.forEach((block) => block.remove());
+      thinkingBlocks.length = 0;
+      thinkingBlock = null;
+      thought = { text: '', kind: thought.kind, startedAt: null, endedAt: null };
     },
     setStartedAt: (startedAt) => liveRun?.setStartedAt?.(startedAt),
     get answered() { return answered; },

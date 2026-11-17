@@ -516,6 +516,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
       // Each list has its own clock: both are stopped.
       list.remove();
       outer?.remove();
+      // The live screen of the browser card is let go with it (a card made afterwards, when the page joins the reply again, connects to it afresh).
+      browserCard?.then((card) => card.dispose?.()).catch(() => {});
       askHost?.remove();
       urls.forEach((url) => document.defaultView.URL.revokeObjectURL(url));
     }

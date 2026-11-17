@@ -501,14 +501,15 @@ export function createServerReply({
             if (handOver?.(event.r.cs)) return 'handover';
             onCouncil(event.r.cs);
           }
-          if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind, event.r.thought.ms);
-          if (event.r.thought?.ended) onThoughtEnd(event.r.thought.ms);
           if (event.r.sources?.length > sourceCount) {
             sourceCount = event.r.sources.length;
             onRun({ sources: event.r.sources });
           }
-          // A page that joins late is given the steps so far, to draw the same list.
+          // A page that joins late is given the steps so far, to draw the same list. They come before the thinking: the thinking is a row under the line of the steps, which the first
+          // step makes (told first, it was drawn outside the list and was gone from it).
           if (Array.isArray(event.r.events) && !picturesFirst) for (const step of event.r.events) onEvent(withFileBytes(step));
+          if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind, event.r.thought.ms);
+          if (event.r.thought?.ended) onThoughtEnd(event.r.thought.ms);
         } else if (event.cs) {
           if (handOver?.(event.cs)) return 'handover';
           onCouncil(event.cs);

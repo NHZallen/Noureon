@@ -270,6 +270,13 @@ export function createAppBootstrapLifecycle({
         // Files from Google Drive (the picker of the projects: one sign-in for both); the files picked go the way of the files chosen from the device.
         const driveUpload = createDriveUpload({ document, getConfig, i18n, showNotification, handleFileSelection });
         ALL_ELEMENTS.uploadDriveBtn?.addEventListener('click', () => { ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible'); void driveUpload.pick(); });
+        // Files that other parts of the page hand to the box of the message (the picture of the browser agent's screen): they go the way of the files chosen from the device, and the box is ready to be typed in.
+        document.addEventListener('noureon:attach-files', (event) => {
+          const files = event.detail?.files;
+          if (!Array.isArray(files) || !files.length) return;
+          handleFileSelection({ target: { files, value: '' } });
+          ALL_ELEMENTS.messageInput?.focus?.();
+        });
         ALL_ELEMENTS.imageVideoInput.addEventListener('change', handleFileSelection);
         ALL_ELEMENTS.fileUploadInput.addEventListener('change', handleFileSelection);
         ALL_ELEMENTS.selectionModeBtn.addEventListener('click', toggleSelectionMode);

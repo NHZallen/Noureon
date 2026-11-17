@@ -51,6 +51,15 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     onCloseTab: (id) => doTab({ op: 'close', tabId: id }),
     onRefresh: () => doTab({ op: 'reload', tabId: frontTab()?.id }),
     onBack: () => doTab({ op: 'back', tabId: frontTab()?.id }),
+    // The picture on the screen goes to the box of the message as an attached file (the page puts it there: noureon:attach-files, app-bootstrap-lifecycle.js); true when there was a picture.
+    onScreenshot: async () => {
+      const blob = await source?.snapshot?.().catch(() => null);
+      const view = document.defaultView;
+      if (!blob || !view?.File || !view?.CustomEvent) return false;
+      const file = new view.File([blob], `browser-${new Date(now()).toISOString().replace(/[:.]/g, '-')}.jpg`, { type: 'image/jpeg' });
+      document.dispatchEvent(new view.CustomEvent('noureon:attach-files', { detail: { files: [file] } }));
+      return true;
+    },
     onNavigate: (url) => doTab({ op: 'navigate', url, tabId: frontTab()?.id }),
     onCopyUrl: () => { const text = frontTab()?.url || ''; const write = writeClipboard || (globalThis.navigator?.clipboard?.writeText ? (value) => globalThis.navigator.clipboard.writeText(value) : null); if (text && write) void Promise.resolve(write(text)).catch(() => {}); },
     onTakeOver: async () => {
@@ -97,7 +106,7 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     quality = state.focus ? 'hq' : 'lq';
     // The views of the card (the card, the focus mode, the glass circle) let their source go when they close; the stream is not theirs to end, so they get a hand that does not end it.
     const real = source;
-    const shared = { mount: (el) => real.mount(el), mountLens: (el) => real.mountLens(el), input: real.input, setQuality: (q) => real.setQuality(q), destroy: () => {} };
+    const shared = { mount: (el) => real.mount(el), mountLens: (el) => real.mountLens(el), input: real.input, snapshot: (options) => real.snapshot?.(options) ?? Promise.resolve(null), setQuality: (q) => real.setQuality(q), destroy: () => {} };
     card.setLive({ source: shared, controller, readClipboard });
   }
 
