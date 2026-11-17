@@ -81,8 +81,8 @@ test('in the loop of a reply a message added during a round is taken after the a
   const streamApiCall = async (parts, onChunk, signal, forced, options) => {
     requests.push({ steer: options.toolTurns.map((entry) => entry.steer) });
     const round = rounds[requests.length - 1];
-    round.during?.();
-    if (round.text) onChunk(round.text);
+    // (A message added once the answer is being written is too late for it: it is left.)
+    if (round.text) { onChunk(round.text); round.during?.(); } else round.during?.();
     options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [] });
   };
   const result = await runSkillsReply({
@@ -109,4 +109,54 @@ test('the messages one boundary takes are told once, together, with what the loo
   assert.equal(told.length, 1);
   queue.push('three', 'id-3');
   assert.deepEqual(queue.left().map((item) => item.id), ['id-3']);
+});
+
+test('a message added while the model is still working out its next step does not wait for that step: the round is given up, nothing it asked for is run, and the message goes after the answers before', async () => {
+  const requests = [];
+  const ran = [];
+  const queue = createSteerQueue();
+  const loader = createSkillLoader({ available: [{ name: 'notes', description: 'Notes.' }], lookup: async (name) => { ran.push(name); return { name, body: 'Notes text.' }; } });
+  const rounds = [
+    { calls: [{ id: 'c1', name: 'load_skill', args: { name: 'notes' } }] },
+    // The model is slow: while it works on its second step the person writes; the step it would have ended with must not run.
+    { wait: true, calls: [{ id: 'c2', name: 'load_skill', args: { name: 'other' } }] },
+    { text: 'Done in French.' }
+  ];
+  const streamApiCall = async (parts, onChunk, signal, forced, options) => {
+    requests.push(options.toolTurns.map((entry) => entry.steer));
+    const round = rounds[requests.length - 1];
+    if (round.wait) {
+      queue.push('use French');
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      if (signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    }
+    if (round.text) onChunk(round.text);
+    options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [] });
+  };
+  const result = await runSkillsReply({ streamApiCall, requestParts: [{ text: 'hello' }], loader, steer: queue });
+  assert.equal(result.text, 'Done in French.');
+  assert.deepEqual(ran, ['notes'], 'the call of the round that was given up was not run');
+  assert.deepEqual(requests, [[], [undefined], [['use French']]], 'the message is put after the answers of the first round when the third request is made');
+  assert.deepEqual(queue.taken().map((item) => item.text), ['use French']);
+});
+
+test('a message is not allowed to cut the first round (nothing to put it after), a round that already writes the answer, or a stop of the person', async () => {
+  const queue = createSteerQueue();
+  const loader = createSkillLoader({ available: [{ name: 'notes', description: 'Notes.' }], lookup: async (name) => ({ name, body: 'x' }) });
+  let seen = 0;
+  const first = await runSkillsReply({
+    streamApiCall: async (parts, onChunk, signal, forced, options) => {
+      seen += 1;
+      queue.push('early');
+      assert.equal(signal.aborted, false, 'the first round goes on');
+      onChunk('Answer.');
+      options.onResponseComplete({ text: 'Answer.', toolCalls: [] });
+    },
+    requestParts: [{ text: 'hello' }],
+    loader,
+    steer: queue
+  });
+  assert.equal(first.text, 'Answer.');
+  assert.equal(seen, 1);
+  assert.deepEqual(queue.left().map((item) => item.text), ['early']);
 });

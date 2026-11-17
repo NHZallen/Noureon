@@ -28,7 +28,9 @@
 .reply-wait-still {
     font-size: 0.95rem;
     color: var(--text-tertiary);
-    animation: reply-wait-in 0.4s ease;
+    /* The note comes in once, at 2 s (WAIT_NOTE_MS): the line is drawn again every second, so the fade is placed in time by the wait phase (a negative delay) and is over at the next draw. */
+    animation: reply-wait-in 0.4s ease both;
+    animation-delay: calc(var(--wait-phase, 0ms) + 2000ms);
 }
 
 @keyframes reply-wait-in { from { opacity: 0; } }

@@ -64,7 +64,7 @@ test('before the first word a reply shows only a breathing dot, a quiet line aft
   const { renderSingleModelError, renderSingleModelProgress } = createHarness({ uiLanguage: 'zh-TW' });
 
   const early = renderSingleModelProgress({ elapsedMs: 1100, message: '串流 <中>', modelName: '模型 A', receivedChars: 42, stage: 'preparing', translatorName: 'Translator <T>' });
-  assert.match(early, /class="reply-wait-dot" style="--wait-phase:-1100ms"/, 'the motion goes on from where it was when drawn again');
+  assert.match(early, /class="reply-wait"[^>]*style="--wait-phase:-1100ms"/, 'the motion goes on from where it was when drawn again (the phase is on the line, so the note does not fade in again either)');
   for (const hidden of ['模型 A', '串流', '42', 'Translator', '正在確認目標模型能力', 's<']) assert.ok(!early.includes(hidden), `${hidden} is not shown`);
   assert.doesNotMatch(early, /還在準備/);
   assert.match(renderSingleModelProgress({ elapsedMs: 15_000, stage: 'streaming' }), /reply-wait-still">還在準備…</);

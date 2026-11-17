@@ -185,6 +185,11 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       const snapshot = { rec: { ...record('done', { downloads: false }), segment: true }, answer, pictures: [...drawnParts], at: [...drawnAt] };
       if (steps) snapshot.rec.steps = steps;
       const finishing = (async () => {
+        // The browser goes on in the message after the cut, so this message's tag gets the picture of the page as it is now.
+        if (snapshot.rec.browser) {
+          const frame = await browserLoader?.frame?.().catch(() => '') || '';
+          if (frame) snapshot.rec.browser = { ...snapshot.rec.browser, frame };
+        }
         if (steps) {
           try {
             const finished = await finishAdvancedReply({ result: { text: snapshot.answer }, run: snapshot.rec, userId, files });

@@ -14,7 +14,13 @@ export function createSteerQueue({ onTaken = () => {}, now = Date.now } = {}) {
   const taken = [];
   let supported = false;
   let batchHandler = null;
+  const arrivals = new Set();
   return {
+    /** `fn()` is told whenever a message is kept (a loop that is waiting for the model uses it to give up that round). Returns the function that stops it. */
+    onArrive(fn) {
+      arrivals.add(fn);
+      return () => arrivals.delete(fn);
+    },
     setBatchHandler(handler) {
       batchHandler = typeof handler === 'function' ? handler : null;
     },
@@ -28,6 +34,9 @@ export function createSteerQueue({ onTaken = () => {}, now = Date.now } = {}) {
       const value = String(text ?? '').trim().slice(0, MAX_STEER_CHARS);
       if (!value || pending.length + taken.length >= MAX_STEERS) return false;
       pending.push({ text: value, at: now(), ...(id ? { id: String(id) } : {}) });
+      for (const fn of [...arrivals]) {
+        try { fn(); } catch { /* a listener never stops a message from being kept */ }
+      }
       return true;
     },
     has: () => pending.length > 0,
@@ -56,3 +65,37 @@ export const steerTurnFields = (steer, context = {}) => {
 
 /** What the model is told in the request after the answers of its tools. */
 export const steerNote = (texts) => `The user added ${texts.length > 1 ? 'these messages' : 'this message'} while you were working. Take ${texts.length > 1 ? 'them' : 'it'} into account from now on, and change what you do next if ${texts.length > 1 ? 'they ask' : 'it asks'} for that:\n${texts.map((text) => `- ${text}`).join('\n')}`;
+
+/**
+ * A round of a loop that waits for the model, which a message that arrives meanwhile may cut short (the model's words so far are thrown away, nothing it asked for has been run): the round
+ * is given `signal`, and `interrupted()` says afterwards that it was this and not the person's stop. `allowed()` is asked when the message arrives (a round that already writes the answer,
+ * or the first one, which has no tool answers to put the message after, is not cut). `dispose()` when the round is over.
+ */
+export function createRoundInterrupt({ signal = null, steer = null, allowed = () => true } = {}) {
+  const controller = new AbortController();
+  let cut = false;
+  const outer = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener?.('abort', outer, { once: true });
+  const off = steer?.onArrive?.(() => {
+    if (cut || controller.signal.aborted || !allowed()) return;
+    cut = true;
+    controller.abort();
+  });
+  return {
+    signal: controller.signal,
+    interrupted: () => cut && !signal?.aborted,
+    dispose() {
+      off?.();
+      signal?.removeEventListener?.('abort', outer);
+    }
+  };
+}
+
+/** The messages the loop takes after a round it cut short: they go after the answers of the round before (that round's `steer`), and `steer.take` cuts the reply there as at any boundary. */
+export function putSteerInPreviousTurn(steer, toolTurns, context = {}) {
+  const texts = steer?.take?.(context) ?? [];
+  const turn = toolTurns.at(-1);
+  if (texts.length && turn) turn.steer = [...(turn.steer || []), ...texts];
+  return texts;
+}

@@ -35,7 +35,8 @@ export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, get
     if (step) return `<div class="ledger reply-wait-step" role="status" ${phase}><div class="ledger-row is-running"><div class="ledger-row-head"><span class="ledger-mark" aria-hidden="true"></span><span class="ledger-label">${escapeHTML(step)}</span></div></div></div>`;
     const note = progress.stage === 'waitingModel' ? localized.waitModel : elapsed >= WAIT_STILL_MS ? localized.waitStill : localized.waitPreparing;
     const still = elapsed >= WAIT_NOTE_MS ? `<span class="reply-wait-still">${escapeHTML(note)}</span>` : '';
-    return `<div class="reply-wait" role="status" aria-label="${escapeHTML(localized.preparingRequest)}"><span class="reply-wait-dot" ${phase} aria-hidden="true"></span>${still}</div>`;
+    // The phase is on the whole line: the dot and the note both read it, so neither starts over at the redraw (the note's fade-in would play again every second).
+    return `<div class="reply-wait" role="status" aria-label="${escapeHTML(localized.preparingRequest)}" ${phase}><span class="reply-wait-dot" aria-hidden="true"></span>${still}</div>`;
   };
 
   const renderSingleModelError = (progress = {}, errorMessage = '') => {
