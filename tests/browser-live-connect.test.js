@@ -96,7 +96,7 @@ test('no viewer from the server: a try again later (quick at first, then every f
   assert.equal(names(w).filter((n) => n === 'POST /viewer').length, 4);
 });
 
-test('the stream goes (the phone left the page): the last picture stays on the card instead of the loading screen, and the new stream replaces it with its first picture', async () => {
+test('the stream goes (the phone left the page): the last picture stays on the card as an old one (dimmed, the card says it is reconnecting), and the new stream replaces it with its first picture', async () => {
   const w = world();
   await settle();
   const frame = 'data:image/jpeg;base64,/9j/AAAA';
@@ -108,6 +108,8 @@ test('the stream goes (the phone left the page): the last picture stays on the c
   assert.equal(root.querySelector('.bcard-still').hidden, false, 'the last picture is shown');
   assert.equal(root.querySelector('.bcard-still').getAttribute('src'), frame);
   assert.equal(root.querySelector('.bcard-screen').hidden, true, 'not the loading screen');
+  assert.ok(root.querySelector('.bcard-still').classList.contains('is-stale'), 'it is shown as old, dimmed');
+  assert.match(root.querySelector('.bcard-capsule .bcard-text').textContent, /重新連線/, 'and the card says the screen is lost');
   w.timers.at(-1)[0](); await settle();
   assert.equal(w.sources.length, 2);
 });

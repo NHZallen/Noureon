@@ -149,6 +149,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const labelNow = () => {
     if (phase === 'queued') return queuedLabel;
     if (asking && phase === 'run') return askWords(language, asking.kind).need;
+    if (held && phase === 'run') return t('browserReconnecting');
     if (phase === 'done') return t('browserDone');
     if (phase === 'cancelled') return t('browserCancelled');
     if (phase === 'failed') return t('browserFailed');
@@ -285,6 +286,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   const over = (next) => {
     closeAsk();
+    held = false;
+    still.classList.remove('is-stale');
     phase = next;
     if (next === 'done') view = 'pill';
     render();
@@ -428,7 +431,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (video && video.readyState < 2) {
       screen.hidden = held;
       waitingFrame = !held;
-      const ready = () => { waitingFrame = false; screen.hidden = true; if (held) { held = false; still.hidden = true; } render(); };
+      const ready = () => { waitingFrame = false; screen.hidden = true; if (held) { held = false; still.hidden = true; still.classList.remove('is-stale'); } render(); };
       video.addEventListener('loadeddata', ready, { once: true });
       video.addEventListener('playing', ready, { once: true });
     } else {
@@ -478,6 +481,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       held = true;
       card.style.aspectRatio = cssRatio(ratio);
       still.src = url;
+      still.classList.add('is-stale');
       still.hidden = false;
       screen.hidden = true;
       render();
