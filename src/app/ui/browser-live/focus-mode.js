@@ -197,6 +197,8 @@ export function createFocusMode({ document, host = document.body, language = 'zh
       input()?.wheel?.(-dx * width * PAD_GAIN, -dy * height * PAD_GAIN, cursor.x, cursor.y);
     }
   });
+  // A long press or a double tap on the pad starts a selection on a phone, and a long press the callout: neither is wanted here (the CSS says so too; this is for the browsers that ask the page).
+  for (const name of ['selectstart', 'contextmenu', 'dblclick']) pad.addEventListener(name, (event) => event.preventDefault());
   pad.addEventListener('pointerdown', (event) => { pad.setPointerCapture?.(event.pointerId); trackpad.down(event.pointerId, event.clientX, event.clientY, event.timeStamp); });
   pad.addEventListener('pointermove', (event) => trackpad.move(event.pointerId, event.clientX, event.clientY, event.timeStamp));
   pad.addEventListener('pointerup', (event) => trackpad.up(event.pointerId, event.timeStamp));

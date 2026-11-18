@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { readFileSync } from 'node:fs';
+
 import { Window } from 'happy-dom';
 
 import { createFocusMode } from '../src/app/ui/browser-live/focus-mode.js';
@@ -205,6 +207,37 @@ test('the round button is Shrink (arrows inward) when the focus mode was opened 
     const inward = q('.bf-round[data-act="shrink"] svg path').getAttribute('d');
     mode.update({ origin: 'pill' });
     assert.notEqual(q('.bf-round[data-act="expand"] svg path').getAttribute('d'), inward, 'another picture');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the trackpad: a long press, a double tap or a context menu on it start nothing (no selection, no callout)', () => {
+  const { window, document, mode } = make();
+  try {
+    mode.update({ control: 'user' });
+    const pad = document.querySelector('.bf-pad');
+    for (const name of ['selectstart', 'contextmenu', 'dblclick']) {
+      const event = new window.Event(name, { cancelable: true, bubbles: true });
+      pad.dispatchEvent(event);
+      assert.equal(event.defaultPrevented, true, name);
+    }
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('the styles: nothing in the focus mode is selectable but the fields; the row of the model\'s work goes away while the person has the browser, and comes back', () => {
+  const css = readFileSync(new URL('../src/styles/browser-focus.css', import.meta.url), 'utf8');
+  assert.match(css, /\.bf, \.bf \* \{[^}]*user-select: none[^}]*-webkit-touch-callout: none/);
+  assert.match(css, /\.bf input, \.bf textarea \{[^}]*user-select: text/);
+  assert.match(css, /\.bf\[data-control="user"\] \.bf-row \{[^}]*opacity: 0[^}]*visibility: hidden[^}]*pointer-events: none/);
+  const { window, document, mode } = make();
+  try {
+    mode.update({ control: 'user' });
+    assert.equal(document.querySelector('.bf').dataset.control, 'user');
+    mode.update({ control: 'model' });
+    assert.equal(document.querySelector('.bf').dataset.control, 'model', 'given back: the row is back');
   } finally {
     window.happyDOM.abort();
   }
