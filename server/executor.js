@@ -28,6 +28,7 @@ import { transcribeServerParts } from './transcribe-parts.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createBrowserLoader } from './browser-tools.js';
+import { withBrowserReading } from './browser-page-fallback.js';
 import { createBrowserAsk } from './browser-ask.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
@@ -759,7 +760,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
             ...(tool.kind === 'pip' ? { pip: { package: tool.pip.package, version: tool.pip.version, command: tool.pip.command, commands: cliPipCommands(tool) }, install: cliInstallCommand(tool) } : tool.kind === 'image' ? { image: { command: tool.image.command } } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size, ...(tool.artifacts[CLI_PLATFORM].archive ? { archive: tool.artifacts[CLI_PLATFORM].archive } : {}) } }),
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
-          research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
+          research: tools ? { searchWeb: tools.searchWeb, openPage: withBrowserReading(tools.fetchPageContents, browserLoader), onSources: addSources } : null,
           skills: makeSkillLoader({ lookup: lookupSkill }),
           askCredentials: credentials ? ({ toolId }) => askCredentials(toolId) : null,
           onEvent: stepEvents.event
@@ -783,7 +784,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         signal,
         requestOptions,
         searchWeb: tools.searchWeb,
-        openPage: tools.fetchPageContents,
+        openPage: withBrowserReading(tools.fetchPageContents, browserLoader),
         language,
         onSources: addSources,
         skills: makeSkillLoader(),

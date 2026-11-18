@@ -596,6 +596,31 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     /** Starts the browser before it is asked for (see above); and lets it go at the end of the reply when it was never used. */
     prewarm,
     releaseUnused,
+    /**
+     * The text of a page read by this reply's own browser, in a tab of its own that is closed again (server/browser-page-fallback.js asks for it when the page readers get nothing):
+     * { url, finalUrl, title, text }, or null. It does nothing when no browser of this reply is open (a browser is not started to read a page), when the person ended it, or on any failure.
+     */
+    async readPage(url, { maxChars = 8000 } = {}) {
+      if (userEnded || signal?.aborted) return null;
+      if (warming) await warming.catch(() => {});
+      const sessionId = current();
+      if (!sessionId) return null;
+      usedAny = true;
+      let tabId = '';
+      try {
+        const tab = await act(sessionId, { type: 'tabs', op: 'new' });
+        tabId = typeof tab?.tabId === 'string' ? tab.tabId : '';
+        if (!tabId) return null;
+        await act(sessionId, { type: 'navigate', url: String(url), tabId });
+        const here = await act(sessionId, { type: 'text', tabId, maxChars });
+        const text = String(here?.text || '').trim();
+        return text ? { url: String(url), finalUrl: here.url || String(url), title: here.title || '', text } : null;
+      } catch {
+        return null;
+      } finally {
+        if (tabId) await act(sessionId, { type: 'tabs', op: 'close', tabId }, 1).catch(() => {});
+      }
+    },
     get tools() { return maxActions > 0 && actions >= maxActions ? [] : BROWSER_TOOLS; },
     /** The files the reply downloaded for the person ({ name, size, mimeType, data: the marker of the stored file }). */
     get files() { return keptFiles; },

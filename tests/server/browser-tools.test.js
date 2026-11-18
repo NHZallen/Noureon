@@ -872,3 +872,23 @@ test('"go on without a browser", a question that was not answered, or no way to 
   noAsk.setOpen({ sessionId: 'b-other', conversationId: 'other-conversation' });
   assert.match(await noAsk.loader.run(call('browser_open', { url: 'https://shop.example/' })), /already have a browser open in another conversation/);
 });
+
+test('readPage reads a page in a tab of its own and closes the tab; it never starts a browser, and gives nothing when the person ended it or the page is empty', async () => {
+  const t = setup({ actions: { tabs: (action) => (action.op === 'new' ? { ok: true, tabId: 'TAB-2' } : { ok: true }), text: () => ({ ok: true, url: 'https://spa.example/after', title: 'Spa', text: '  Real words of the page  ' }) } });
+  assert.equal(await t.loader.readPage('https://spa.example/'), null, 'no browser is open, so none is started to read a page');
+  assert.ok(!t.calls.some((entry) => entry[0] === 'open'));
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const page = await t.loader.readPage('https://spa.example/', { maxChars: 5000 });
+  assert.deepEqual(page, { url: 'https://spa.example/', finalUrl: 'https://spa.example/after', title: 'Spa', text: 'Real words of the page' });
+  const steps = t.calls.filter((entry) => entry[0] === 'action').map((entry) => entry[1]);
+  assert.deepEqual(steps.map((a) => [a.type, a.op || '', a.tabId || '']), [['tabs', 'new', ''], ['navigate', '', 'TAB-2'], ['text', '', 'TAB-2'], ['tabs', 'close', 'TAB-2']]);
+  assert.equal(steps[2].maxChars, 5000);
+  const other = setup({ current: { sessionId: 'b9', conversationId: 'another' } });
+  assert.equal(await other.loader.readPage('https://spa.example/'), null, 'the browser of another conversation is not used');
+  const blank = setup({ current: { sessionId: 'b1', conversationId: 'c1' }, actions: { tabs: (action) => (action.op === 'new' ? { ok: true, tabId: 'T3' } : { ok: true }), text: () => ({ ok: true, text: '   ' }) } });
+  assert.equal(await blank.loader.readPage('https://spa.example/'), null);
+  assert.equal(blank.calls.filter((entry) => entry[0] === 'action').at(-1)[1].op, 'close', 'the tab is closed even when the page was empty');
+  const broken = setup({ current: { sessionId: 'b1', conversationId: 'c1' }, actions: { tabs: (action) => (action.op === 'new' ? { ok: true, tabId: 'T4' } : { ok: true }), navigate: () => { throw new BrowserSessionError('bad', 'failed'); } } });
+  assert.equal(await broken.loader.readPage('https://spa.example/'), null);
+  assert.equal(broken.calls.filter((entry) => entry[0] === 'action').at(-1)[1].op, 'close');
+});
