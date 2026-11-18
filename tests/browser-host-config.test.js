@@ -51,8 +51,11 @@ test('the live screen is off by default and checked when on', () => {
 
 test('the browser policy: the new tab page is a blank page, not an error page of the block list; chrome:// pages stay blocked', async () => {
   const { readFile } = await import('node:fs/promises');
+  const { readFileSync } = await import('node:fs');
   const policy = JSON.parse(await readFile(new URL('../browser-host/policies.json', import.meta.url), 'utf8'));
   assert.equal(policy.NewTabPageLocation, 'about:blank');
   assert.equal(policy.AIModeSettings, 1, 'no AI mode in the address bar: its pop-up is a chrome-untrusted page, which the block list turns into an English error page');
   assert.ok(policy.URLBlocklist.includes('chrome://*'));
+  assert.equal(policy.ApplicationLocaleValue, 'zh-TW', 'the pages of the browser itself in Chinese (with the language files in the image)');
+  assert.match(readFileSync(new URL('../browser-host/chromium.conf.template', import.meta.url), 'utf8'), /LANGUAGE="zh_TW:zh"/, 'on Linux the language of Chromium\'s pages comes from this variable');
 });

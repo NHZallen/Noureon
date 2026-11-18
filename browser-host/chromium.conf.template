@@ -7,7 +7,8 @@
 ;   - a fixed language and time zone (some sites tie a login to them), --password-store=basic (no keyring in the container: cookies are encrypted with a fixed key,
 ;     so a saved login still opens on another machine), and the background activity switched off (round eight: it costs CPU and goes nowhere anyway).
 [program:chromium]
-environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s",TZ="Asia/Taipei"
+; LANGUAGE: on Linux Chromium takes the language of its own pages from this variable (gettext style); --lang alone left them in English (seen on the real machine).
+environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s",TZ="Asia/Taipei",LANGUAGE="zh_TW:zh"
 command=/usr/bin/chromium
   --proxy-server=@@PROXY@@
   --window-position=0,0

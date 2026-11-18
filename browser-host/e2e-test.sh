@@ -77,7 +77,11 @@ caps=$(docker inspect -f '{{range .HostConfig.CapAdd}}{{.}} {{end}}' "$NAME_A" |
 [ "$(docker inspect -f '{{.HostConfig.Privileged}}' "$NAME_A")" = false ] && pass "not privileged" || bad "the container is privileged"
 docker inspect -f '{{.HostConfig.SecurityOpt}}' "$NAME_A" | grep -q no-new-privileges && pass "no-new-privileges is on" || bad "no-new-privileges is missing"
 [ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$NAME_A")" = noureon-browser ] && pass "it is on the isolated network" || bad "wrong network"
-[ "$(docker inspect -f '{{len .HostConfig.PortBindings}}' "$NAME_A")" = 0 ] && pass "no port is published" || bad "a port is published"
+# Nothing is published, or (the live screen, P3) only the one UDP and TCP port of that browser, on the address of the live screen and never on every address.
+published=$(docker inspect -f '{{range $p, $b := .HostConfig.PortBindings}}{{$p}}@{{range $b}}{{.HostIp}}{{end}} {{end}}' "$NAME_A")
+if [ -z "$published" ]; then pass "no port is published"
+elif [ -n "${BROWSER_LIVE_PUBLIC_IP:-}" ] && [ "$(echo "$published" | tr ' ' '\n' | grep -v '^$' | grep -vc '@0\.0\.0\.0$\|@$')" = "$(echo "$published" | tr ' ' '\n' | grep -vc '^$')" ] && [ "$(echo "$published" | tr ' ' '\n' | grep -vc '^$')" = 2 ]; then pass "only the live screen port is published (UDP and TCP, one address): $published"
+else bad "ports are published: $published"; fi
 [ "$(docker inspect -f '{{.HostConfig.Memory}}' "$NAME_A")" -gt 0 ] && pass "memory is limited ($(docker inspect -f '{{.HostConfig.Memory}}' "$NAME_A") bytes)" || bad "no memory limit"
 mounts=$(docker inspect -f '{{range .Mounts}}{{.Destination}}{{" "}}{{end}}' "$NAME_A" | tr ' ' '\n' | grep -v '^$' | sort | tr '\n' ' ')
 echo "$mounts" | grep -q "docker.sock" && bad "the docker socket is mounted" || pass "no docker socket; mounts: $mounts"

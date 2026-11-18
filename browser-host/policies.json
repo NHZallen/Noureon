@@ -20,6 +20,7 @@
   "BookmarkBarEnabled": false,
   "NewTabPageLocation": "about:blank",
   "AIModeSettings": 1,
+  "ApplicationLocaleValue": "zh-TW",
   "PasswordManagerEnabled": false,
   "BrowserLabsEnabled": false,
   "CommandLineFlagSecurityWarningsEnabled": false,
