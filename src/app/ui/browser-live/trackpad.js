@@ -34,7 +34,12 @@ export function createTrackpad({ onMove = () => {}, onClick = () => {}, onDragSt
       const before = fingers.size > 1 ? centre() : { x: finger.x, y: finger.y };
       finger.x = x;
       finger.y = y;
-      if (Math.hypot(x - finger.startX, y - finger.startY) > TAP_SLOP) finger.moved = true;
+      if (!finger.moved && Math.hypot(x - finger.startX, y - finger.startY) > TAP_SLOP) {
+        finger.moved = true;
+        // Held still until now, and only now moving: the finger takes hold. Decided at this moment only: a finger that slid from the start and has been down for a long time is a slide, not a drag
+        // (it was a drag, with the button down in the page, and the page selected text all over).
+        finger.heldBeforeMove = at - finger.startAt >= HOLD_MS;
+      }
       if (fingers.size > 1) {
         // Two fingers: the middle of them is what scrolls.
         const now = centre();
@@ -43,7 +48,7 @@ export function createTrackpad({ onMove = () => {}, onClick = () => {}, onDragSt
       }
       if (!finger.moved) return;
       // A finger that was held still before it moved takes the thing under the circle with it.
-      if (!dragging && at - finger.startAt >= HOLD_MS && !finger.dragStarted) {
+      if (!dragging && finger.heldBeforeMove && !finger.dragStarted) {
         finger.dragStarted = true;
         dragging = true;
         onDragStart();

@@ -54,6 +54,26 @@ test('a finger held still and then moved drags; letting go ends the drag and is 
   assert.equal(pad.dragging, false);
 });
 
+test('a slide that goes on for longer than the hold time is still a slide: only a finger that was held still before it moved drags (it selected text all over the page)', () => {
+  const { pad, log } = make();
+  pad.down(1, 50, 50, 0);
+  // slides at once, and goes on well past the time it takes to take hold
+  for (let at = 20; at <= HOLD_MS * 3; at += 20) pad.move(1, 50 + at / 4, 50, at);
+  pad.up(1, HOLD_MS * 3 + 20);
+  assert.ok(!log.some(([name]) => name === 'dragStart' || name === 'dragEnd'), 'no button was pressed in the page');
+  assert.ok(log.filter(([name]) => name === 'move').length > 10, 'the circle moved');
+  assert.ok(!log.some(([name]) => name === 'click'));
+  // held still first: that is a drag
+  const held = make();
+  held.pad.down(1, 50, 50, 0);
+  held.pad.move(1, 50, 50, HOLD_MS - 20);
+  held.pad.move(1, 70, 50, HOLD_MS + 40);
+  held.pad.move(1, 90, 50, HOLD_MS + 80);
+  held.pad.up(1, HOLD_MS + 120);
+  assert.deepEqual(held.log.filter(([name]) => name !== 'move').map(([name]) => name), ['dragStart', 'dragEnd']);
+  assert.equal(held.log.filter(([name]) => name === 'dragStart').length, 1, 'once');
+});
+
 test('two fingers sliding scroll by the middle of them; lifting them is not a click', () => {
   const { pad, log } = make();
   pad.down(1, 20, 20, 0);
