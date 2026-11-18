@@ -73,7 +73,7 @@ const where = (page) => `${page.title ? `"${oneLine(page.title, 120)}" ` : ''}($
 /** The page as the model reads it: what can be acted on, then the text. */
 export function snapshotText(page) {
   const lines = (page.elements || []).map((element) => {
-    const flags = [element.checked !== undefined ? `checked=${element.checked}` : '', element.expanded !== undefined ? `expanded=${element.expanded}` : '', element.disabled ? 'disabled' : '', element.required ? 'required' : '', element.readonly ? 'read-only' : '', element.focused ? 'focused' : ''].filter(Boolean).join(', ');
+    const flags = [element.checked !== undefined ? `checked=${element.checked}` : '', element.expanded !== undefined ? `expanded=${element.expanded}` : '', element.disabled ? 'disabled' : '', element.filled ? 'filled, shown to you as dots' : '', element.required ? 'required' : '', element.readonly ? 'read-only' : '', element.focused ? 'focused' : ''].filter(Boolean).join(', ');
     return `[${element.ref}] ${element.role}${element.level ? ` ${element.level}` : ''}${element.name ? ` "${oneLine(element.name, 160)}"` : ''}${element.value ? ` value="${oneLine(element.value, 160)}"` : ''}${flags ? ` (${flags})` : ''}${element.href ? ` -> ${oneLine(element.href, 200)}` : ''}`;
   });
   const scroll = page.scroll ? `Scrolled to ${page.scroll.y} of ${page.scroll.height} (the window is ${page.scroll.view} high).` : '';
@@ -385,7 +385,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
           if (stopped(card)) return stopped(card);
           if (!card.done) return 'The user did not give a card. Ask them in the conversation what they want.';
           const gaps = card.missing.length ? ` These fields were not found on the page: ${card.missing.join(', ')}. Look at the page; if something is missing, call browser_request_handover so the user can finish it.` : '';
-          return `The user gave the card and it was typed into the page (you cannot see it, and it is not kept).${gaps} Check the page with browser_snapshot. Before the button that pays, ask for a confirmation with browser_request_confirmation.`;
+          return `The user gave the card and it was typed into the page (you cannot see it: the card fields show only dots to you, and it is not kept).${gaps} Check the page with browser_snapshot. Before the button that pays, ask for a confirmation with browser_request_confirmation.`;
         }
         if (call.name === 'browser_request_handover') {
           const result = await ask('takeover', { domain: lastDomain, reason: oneLine(args.reason, 200) });

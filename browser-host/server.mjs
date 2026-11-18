@@ -39,7 +39,7 @@ function liveRoutes(manager, live) {
 
 export function createServer({ manager, verifier, live = null, maxProfileBytes = 150 * 1024 * 1024, log = () => {}, tls = null, load = () => os.loadavg()[0] }) {
   const routes = [
-    { method: 'GET', re: /^\/v1\/health$/, run: async () => ({ status: 200, body: { ok: true, ...manager.summary(), load1: Number(load().toFixed(2)) } }) },
+    { method: 'GET', re: /^\/v1\/health$/, run: async () => ({ status: 200, body: { ok: true, ...manager.summary(), load1: Number(load().toFixed(2)), cpus: os.cpus().length } }) },
     { method: 'POST', re: /^\/v1\/sessions$/, run: async ({ body }) => ({ status: 202, body: manager.create(json(body)) }) },
     { method: 'PUT', re: new RegExp(`^/v1/sessions/${ID}/profile$`), big: true, run: async ({ match, body }) => ({ status: 202, body: manager.putProfile(match[1], body) }) },
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}/profile$`), run: async ({ match }) => ({ status: 200, binary: await manager.collectProfile(match[1]) }) },

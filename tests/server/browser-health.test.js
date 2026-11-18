@@ -38,18 +38,65 @@ test('a host that stays silent for three looks is mailed about once an hour, and
   assert.match(t.mails[1].subject, /well again/);
 });
 
-test('people waiting and a heavy load each have their own mail, with only numbers', async () => {
-  const t = setup({ states: [{ ...ok, queued: 6, load1: 7.5 }, { ...ok, queued: 6, load1: 7.5 }] });
-  const first = await t.health.look();
-  assert.deepEqual(first.found.sort(), ['load', 'queue']);
-  assert.equal(t.mails.length, 2);
-  assert.match(t.mails.map((m) => m.subject).join('|'), /6 people are waiting/);
-  assert.ok(!/session|user|http|domain/i.test(t.mails.map((m) => m.text).join(' ').replace(/browsers are running/g, '')), 'nothing of what anybody does');
+test('people waiting and a heavy load that last each have their own mail, with only numbers, and are not repeated for hours', async () => {
+  const busy = { ...ok, queued: 6, load1: 7.5 };
+  const t = setup({ states: Array.from({ length: 12 }, () => busy) });
+  for (let i = 0; i < 2; i += 1) await t.health.look();
+  assert.equal(t.mails.length, 0, 'two looks are a moment, not a trouble');
   await t.health.look();
-  assert.equal(t.mails.length, 2, 'once an hour for each');
+  assert.equal(t.mails.length, 1, 'a queue of three looks is told');
+  assert.match(t.mails[0].subject, /6 people are waiting/);
+  for (let i = 0; i < 2; i += 1) await t.health.look();
+  assert.equal(t.mails.length, 2, 'a load of five looks is told');
+  assert.match(t.mails.map((m) => m.subject).join('|'), /heavily loaded/);
+  assert.ok(!/session|user|http|domain/i.test(t.mails.map((m) => m.text).join(' ').replace(/browsers are running/g, '')), 'nothing of what anybody does');
+  for (let i = 0; i < 5; i += 1) await t.health.look();
+  assert.equal(t.mails.length, 2, 'not again soon');
   t.tick(61 * 60_000);
   await t.health.look();
-  assert.equal(t.mails.length, 4, 'an hour later they are said again while they last');
+  assert.equal(t.mails.length, 2, 'an hour later is still too soon for a queue (three hours) and a load (six hours)');
+  t.tick(3 * 60 * 60_000);
+  await t.health.look();
+  assert.equal(t.mails.length, 3, 'a queue that lasts three hours is said again');
+  t.tick(3 * 60 * 60_000);
+  await t.health.look();
+  assert.equal(t.mails.length, 5, 'and so is the load after six hours');
+});
+
+test('a load that goes up and down around its limit is not a trouble, and a trouble that was not told is not told to be over', async () => {
+  const states = [];
+  for (let i = 0; i < 30; i += 1) states.push({ ...ok, load1: i % 2 ? 7.1 : 4.9 });
+  const t = setup({ states });
+  for (let i = 0; i < 30; i += 1) await t.health.look();
+  assert.equal(t.mails.length, 0, 'it never stays over for five looks');
+  const lasting = setup({ states: [...Array.from({ length: 4 }, () => ({ ...ok, load1: 7 })), ok, ok, ok, ok, ok, ok] });
+  for (let i = 0; i < 10; i += 1) await lasting.health.look();
+  assert.equal(lasting.mails.length, 0, 'four looks over the limit were never told, so nothing is "well again" either');
+});
+
+test('a load that lasts is told once, and "well again" comes only after it has been gone for a while, once', async () => {
+  const states = [...Array.from({ length: 5 }, () => ({ ...ok, load1: 8 })), { ...ok, load1: 2 }, { ...ok, load1: 9 }, { ...ok, load1: 2 }, { ...ok, load1: 2 }, { ...ok, load1: 2 }, { ...ok, load1: 2 }, { ...ok, load1: 2 }, { ...ok, load1: 2 }];
+  const t = setup({ states });
+  for (let i = 0; i < 5; i += 1) await t.health.look();
+  assert.equal(t.mails.length, 1);
+  await t.health.look(); // calm for one look
+  await t.health.look(); // over again: the calm count starts anew, and it is not told again (it is the same trouble)
+  assert.equal(t.mails.length, 1);
+  for (let i = 0; i < 4; i += 1) await t.health.look();
+  assert.equal(t.mails.length, 1, 'four calm looks are not enough');
+  await t.health.look();
+  assert.equal(t.mails.length, 2);
+  assert.match(t.mails[1].subject, /well again/);
+});
+
+test('the load is judged by the cores of the machine: 7.5 on eight cores is no trouble, 13 is', async () => {
+  const calmEight = setup({ states: Array.from({ length: 8 }, () => ({ ...ok, load1: 7.5, cpus: 8 })) });
+  for (let i = 0; i < 8; i += 1) await calmEight.health.look();
+  assert.equal(calmEight.mails.length, 0);
+  const heavy = setup({ states: Array.from({ length: 6 }, () => ({ ...ok, load1: 13, cpus: 8 })) });
+  for (let i = 0; i < 5; i += 1) await heavy.health.look();
+  assert.equal(heavy.mails.length, 1);
+  assert.match(heavy.mails[0].text, /12\.0 or more.*8 cores/);
 });
 
 test('without an address or a mail key nothing is sent, and it is logged; a mail that fails does not stop the looks', async () => {

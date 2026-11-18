@@ -153,10 +153,12 @@ async function centerOf(cdp, sessionId, ref) {
   return { x: (quad[0] + quad[2] + quad[4] + quad[6]) / 4, y: (quad[1] + quad[3] + quad[5] + quad[7]) / 4 };
 }
 
+// What kind of field it is, by the page itself: 'password', 'card', 'code', 'bank', 'login' (the user name or e-mail of a login) or '' (an ordinary field); the fields of a kind are drawn as dots and given to a model without their value.
 async function isPasswordField(cdp, sessionId, ref) {
   const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: ref }, sessionId).catch(() => { throw new Error('that element is not on the page any more: take a new snapshot'); });
-  const answer = await cdp.send('Runtime.callFunctionOn', { objectId: object.objectId, functionDeclaration: 'function () { return this instanceof HTMLInputElement && this.type === "password"; }', returnByValue: true }, sessionId);
-  return { objectId: object.objectId, password: answer.result?.value === true };
+  const answer = await cdp.send('Runtime.callFunctionOn', { objectId: object.objectId, functionDeclaration: FIELD_KIND_FN, returnByValue: true }, sessionId);
+  const kind = String(answer.result?.value || '');
+  return { objectId: object.objectId, password: kind === 'password', kind };
 }
 
 // After an action: what it did gets a moment to start. A page that starts to load (a click on a link, a form sent) is waited for until it has loaded (at most 10 s); a page that stays
@@ -193,6 +195,87 @@ async function settle(cdp, sessionId) {
 }
 
 
+// ---- Fields that hold a secret are drawn as dots, whoever looks (design doc §7): the page itself shows them so, so the model's pictures, the picture kept with the message and the live screen all
+// show dots. A password field is dots in any browser; the others are the card (number, expiry, security code, name on the card), a code of a message or an app, an identifier of a bank or a state, and the user name or e-mail of a login (a field of
+// a form that holds a password, or one the page itself calls a user name or an e-mail). They get `data-nb-secret` and `-webkit-text-security: disc`; a snapshot gives them without their value (only that they are filled).
+// Done with a constructed style sheet and the style of the element (a page's content security policy does not stop either), in the page and in its frames of the same site; the frames of a payment provider are done one by one.
+const FIELD_KIND_SRC = `(() => {
+  const CARD = /card.?number|cardnumber|credit.?card|cc-?num|cvc|cvv|csc|security.?code|expir|exp.?date|mm ?\\/ ?yy|name on card|card.?holder|卡號|信用卡|安全碼|有效期|持卡人|numéro de carte|номер карты|número de tarjeta/i;
+  const CODE = /otp|one.?time|verification.?code|驗證碼|验证码|2fa/i;
+  const BANK = /iban|account.?number|routing|sort.?code|swift|身分證|身份证|銀行帳|帳戶號|ssn|social.?security/i;
+  return (el) => {
+    if (!el || el.tagName !== 'INPUT') return ''; // (no instanceof test: an element of a frame is of the frame own class)
+    if (el.type === 'password') return 'password';
+    if (el.hasAttribute('data-nb-secret')) return el.getAttribute('data-nb-secret') || 'filled'; // a field a tool filled, or one that was marked before
+    const type = (el.getAttribute('type') || 'text').toLowerCase();
+    if (!['text', 'email', 'tel', 'search', 'number', 'url', ''].includes(type)) return '';
+    const ac = (el.autocomplete || '').toLowerCase();
+    const text = [el.name, el.id, el.getAttribute('aria-label'), el.placeholder, el.labels && el.labels[0] && el.labels[0].textContent].join(' ');
+    if (/(^|\\s)cc-/.test(ac) || CARD.test(text)) return 'card';
+    if (/one-time-code/.test(ac) || CODE.test(text)) return 'code';
+    if (BANK.test(text)) return 'bank';
+    if (/(^|\\s)(username|email|tel)(\\s|$)/.test(ac) || /(^|\\s)(current|new)-password/.test(ac)) return 'login';
+    if (el.form && el.form.querySelector('input[type=password]')) return 'login';
+    return '';
+  };
+})()`;
+const SECRET_SHEET_SRC = `(d) => {
+  if (d.__nbSecretSheet) return;
+  const win = d.defaultView;
+  if (!win || typeof win.CSSStyleSheet !== 'function') return;
+  const sheet = new win.CSSStyleSheet();
+  sheet.replaceSync('[data-nb-secret] { -webkit-text-security: disc !important; }');
+  d.adoptedStyleSheets = [...d.adoptedStyleSheets, sheet];
+  d.__nbSecretSheet = true;
+}`;
+// The whole page (and the frames of the same site in it): every field that holds a secret is marked. Gives how many fields there are of each kind.
+const MASK_PAGE_SRC = `(() => {
+  const kindOf = ${FIELD_KIND_SRC};
+  const sheetFor = ${SECRET_SHEET_SRC};
+  const docs = [];
+  const walk = (d, depth) => { docs.push(d); if (depth > 4) return; for (const f of d.querySelectorAll('iframe')) { try { if (f.contentDocument) walk(f.contentDocument, depth + 1); } catch (e) { /* another site */ } } };
+  walk(document, 0);
+  const found = {};
+  for (const d of docs) {
+    for (const el of d.querySelectorAll('input')) {
+      const kind = kindOf(el);
+      if (!kind) continue;
+      found[kind] = (found[kind] || 0) + 1;
+      if (kind === 'password') continue;
+      sheetFor(d);
+      el.setAttribute('data-nb-secret', kind);
+      el.style.setProperty('-webkit-text-security', 'disc', 'important');
+    }
+  }
+  return JSON.stringify(found);
+})()`;
+// One element a tool is about to type a secret into: marked first, so that what is typed is never seen in the clear.
+const MARK_SECRET_FN = `function () {
+  const sheetFor = ${SECRET_SHEET_SRC};
+  sheetFor(this.ownerDocument);
+  this.setAttribute('data-nb-secret', 'filled');
+  this.style.setProperty('-webkit-text-security', 'disc', 'important');
+  return true;
+}`;
+const FIELD_KIND_FN = `function () { const kindOf = ${FIELD_KIND_SRC}; return kindOf(this); }`;
+
+async function markSecret(cdp, sessionId, objectId) {
+  await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: MARK_SECRET_FN, returnByValue: true }, sessionId).catch(() => {});
+}
+/** Marks the fields of the page that hold a secret, in the page and in the frames of the payment providers (a frame of another site is its own target). */
+export async function maskPage(cdp, sessionId) {
+  await cdp.send('Runtime.evaluate', { expression: MASK_PAGE_SRC, returnByValue: true }, sessionId, 5000).catch(() => {});
+  for (const frame of await paymentFrames(cdp).catch(() => [])) {
+    let frameSession;
+    try {
+      frameSession = await attach(cdp, frame.targetId);
+      await cdp.send('Runtime.evaluate', { expression: MASK_PAGE_SRC, returnByValue: true }, frameSession, 5000);
+    } catch { /* a frame that cannot be reached is left */ } finally {
+      if (frameSession) await cdp.send('Target.detachFromTarget', { sessionId: frameSession }).catch(() => {});
+    }
+  }
+}
+
 // ---- The password vault: the login fields of the page, filled with what the server handed over (design doc §7). Nothing that is typed here is ever given back. ----
 const FIELD_FINDER = `(() => {
   const visible = (el) => { const box = el.getBoundingClientRect(); const style = getComputedStyle(el); return box.width > 4 && box.height > 4 && style.visibility !== 'hidden' && style.display !== 'none' && !el.disabled && !el.readOnly; };
@@ -227,6 +310,7 @@ async function fillLogin(cdp, action, targetId, sessionId) {
   const filled = [];
   for (const [kind, text, element] of [['username', username, of('user')], ['password', password, of('password')]]) {
     if (!text || !element?.objectId) continue;
+    await markSecret(cdp, sessionId, element.objectId);
     const focused = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
     if (focused.result?.value !== true) continue;
     await cdp.send('Input.insertText', { text }, sessionId);
@@ -260,6 +344,7 @@ async function fillCode(cdp, action, targetId, sessionId) {
   const list = top.result.find((p) => p.name === 'boxes')?.value;
   const boxes = list?.objectId ? (await cdp.send('Runtime.getProperties', { objectId: list.objectId, ownProperties: true }, sessionId)).result.filter((p) => /^\d+$/.test(p.name)).map((p) => p.value) : [];
   if (!boxes.length) throw new Error('no code field can be seen on this page');
+  for (const box of boxes) await markSecret(cdp, sessionId, box.objectId);
   const focus = (objectId) => cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
   if (boxes.length === 1) {
     if ((await focus(boxes[0].objectId)).result?.value !== true) throw new Error('the code field cannot take text');
@@ -331,6 +416,8 @@ async function typeCardFields(cdp, frameSession, of, values, keys, filled, missi
       const chosen = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function (wanted) { const w = String(wanted).toLowerCase(); const o = [...this.options].find((x) => x.value.toLowerCase() === w || x.text.trim().toLowerCase() === w || (w.length <= 2 && x.value.replace(/^0+/, "") === w.replace(/^0+/, ""))); if (!o) return false; this.value = o.value; this.dispatchEvent(new Event("input", { bubbles: true })); this.dispatchEvent(new Event("change", { bubbles: true })); return true; }', arguments: [{ value }], returnByValue: true }, frameSession);
       (chosen.result?.value === true ? filled : missing).push(key);
     } else {
+      // The card itself is drawn as dots; the address that goes with it is an ordinary field.
+      if (['number', 'exp', 'expMonth', 'expYear', 'cvc', 'name'].includes(key)) await markSecret(cdp, frameSession, element.objectId);
       const focused = await cdp.send('Runtime.callFunctionOn', { objectId: element.objectId, functionDeclaration: 'function () { this.scrollIntoView({ block: "center" }); this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, frameSession);
       if (focused.result?.value !== true) { missing.push(key); continue; }
       await cdp.send('Input.insertText', { text: String(value) }, frameSession);
@@ -488,6 +575,7 @@ async function downloadFile(cdp, action, targetId, sessionId) {
 async function pageAction(cdp, action, targetId, sessionId) {
   cdp.mark = cdp.events.length;
   if (action.type === 'snapshot') {
+    await maskPage(cdp, sessionId);
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
     const { nodes } = await cdp.send('Accessibility.getFullAXTree', {}, sessionId, 30_000);
     const elements = elementsOfTree(nodes);
@@ -495,8 +583,8 @@ async function pageAction(cdp, action, targetId, sessionId) {
     // DOM says which ones they are; a text box that cannot be checked is given without its value.
     // All of them are asked at once (the questions go to the browser together, not one after the other).
     await Promise.all(elements.filter((e) => TEXT_ROLES.has(e.role) && e.value !== undefined).slice(0, 80).map(async (element) => {
-      const checked = await isPasswordField(cdp, sessionId, element.ref).catch(() => ({ password: true }));
-      if (checked.password) { delete element.value; element.role = 'password field'; }
+      const checked = await isPasswordField(cdp, sessionId, element.ref).catch(() => ({ password: true, kind: 'password' }));
+      if (checked.password) { delete element.value; element.role = 'password field'; } else if (checked.kind) { delete element.value; element.filled = true; element.secret = checked.kind; }
     }));
     for (const element of elements.filter((e) => TEXT_ROLES.has(e.role) && e.value !== undefined).slice(80)) delete element.value;
     const limit = Math.min(20_000, Math.max(200, Math.floor(Number(action.maxChars)) || 4000));
@@ -521,8 +609,9 @@ async function pageAction(cdp, action, targetId, sessionId) {
   if (action.type === 'type') {
     const ref = checkRef(action.ref);
     if (typeof action.text !== 'string' || action.text.length > 2000) throw new Error('text must be a string of at most 2000 characters');
-    const { objectId, password } = await isPasswordField(cdp, sessionId, ref);
+    const { objectId, password, kind } = await isPasswordField(cdp, sessionId, ref);
     if (password) throw new Error('a password field is filled with the login tool, not typed into');
+    if (['card', 'code', 'bank'].includes(kind)) throw new Error('a field for a card, a code or a bank number is filled by the user (browser_request_payment, browser_request_code, or taking over), not typed into');
     const focused = await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: 'function () { this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
     if (focused.result?.value !== true) throw new Error('that element cannot take text');
     if (action.text) await cdp.send('Input.insertText', { text: action.text }, sessionId); else await pressKey(cdp, sessionId, 'Delete');
@@ -635,6 +724,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       const sessionId = await attach(cdp, targetId);
       // A tab that is not in front draws no frames, and a picture is a frame.
       await cdp.send('Target.activateTarget', { targetId }).catch(() => {});
+      await maskPage(cdp, sessionId);
       const format = action.format === 'jpeg' ? 'jpeg' : 'png';
       const shot = await cdp.send('Page.captureScreenshot', { format, ...(format === 'jpeg' ? { quality: Math.min(95, Math.max(30, Number(action.quality) || 70)) } : {}) }, sessionId, 30_000);
       return { ok: true, tabId: targetId, mime: `image/${format}`, base64: shot.data };
@@ -650,6 +740,14 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
     }
     if (action.type === 'wait') {
       await wait(Math.min(10_000, Math.max(0, Math.floor(Number(action.ms)) || 1000)));
+      return { ok: true };
+    }
+    // The guard of the long-lived sidecar (cdp-service.mjs) asks for this now and then: the fields that hold a secret of every tab are drawn as dots, also in what the person sees on the live screen.
+    if (action.type === 'mask') {
+      for (const page of (await pagesOf(cdp)).slice(0, 6)) {
+        let session;
+        try { session = await attach(cdp, page.targetId); await maskPage(cdp, session); } catch { /* a tab that cannot be reached is left */ } finally { if (session) await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {}); }
+      }
       return { ok: true };
     }
     if (['snapshot', 'click', 'type', 'press', 'scroll', 'back', 'fill-login', 'fill-code', 'fill-card', 'download', 'upload'].includes(action.type)) {

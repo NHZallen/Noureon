@@ -11,6 +11,18 @@ const MAX_PARALLEL = 6;
 const ACTION_LIMIT_MS = 50_000;
 const devtools = process.env.DEVTOOLS || 'http://127.0.0.1:9222';
 
+// The guard: every few seconds the fields that hold a secret (a card, a code, a login) of every tab are drawn as dots, so that the live screen of the person and the pictures of the model show dots whoever typed.
+// BROWSER_MASK_MS=0 switches it off (the tools still mark the fields they fill, and every look of the model marks the page before it takes its picture).
+const MASK_EVERY_MS = Number.isFinite(Number(process.env.BROWSER_MASK_MS)) && process.env.BROWSER_MASK_MS !== undefined && process.env.BROWSER_MASK_MS !== '' ? Math.max(0, Number(process.env.BROWSER_MASK_MS)) : 2000;
+let guarding = false;
+if (MASK_EVERY_MS > 0) {
+  setInterval(() => {
+    if (guarding) return;
+    guarding = true;
+    runAction({ type: 'mask' }, devtools).catch(() => {}).finally(() => { guarding = false; });
+  }, MASK_EVERY_MS).unref();
+}
+
 const queue = [];
 let running = 0;
 

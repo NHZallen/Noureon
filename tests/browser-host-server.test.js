@@ -42,7 +42,7 @@ test('the whole life of a browser through the routes: health, start, status, act
   const t = await start();
   try {
     const health = await t.call('GET', '/v1/health');
-    assert.equal(health.status, 200); assert.deepEqual(health.json, { ok: true, sessions: 0, queued: 0, maxSessions: 2, load1: 0.5 });
+    assert.equal(health.status, 200); const { cpus, ...rest } = health.json; assert.deepEqual(rest, { ok: true, sessions: 0, queued: 0, maxSessions: 2, load1: 0.5 }); assert.ok(Number.isInteger(cpus) && cpus > 0, 'the host says how many cores it has (the load is judged by them)');
     const made = await t.call('POST', '/v1/sessions', { body: { sessionId: SID, userId: 'user-1', screen: { w: 1024, h: 768 } } });
     assert.equal(made.status, 202); assert.equal(made.json.state, 'starting');
     await settle();

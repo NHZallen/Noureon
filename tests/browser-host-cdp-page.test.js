@@ -9,7 +9,15 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { chromium as playwrightChromium } from 'playwright-core';
+
 import { elementsOfTree, runAction } from '../browser-host/cdp-actions.mjs';
+
+// What is really in the page (the snapshot no longer gives the value of a field that holds a secret).
+const readPage = async (devtools, fn) => {
+  const connected = await playwrightChromium.connectOverCDP(devtools);
+  try { return await connected.contexts()[0].pages().find((p) => /^https?:/.test(p.url())).evaluate(fn); } finally { await connected.close().catch(() => {}); }
+};
 
 const node = (id, role, name, extra = {}) => ({ nodeId: String(id), backendDOMNodeId: id, role: { value: role }, name: { value: name }, ...extra });
 
@@ -156,7 +164,10 @@ test('the login fields of a real page are filled only on a site of the login, in
   assert.deepEqual(done.filled, ['username', 'password']);
   assert.ok(!JSON.stringify(done).includes('S3cret') && !JSON.stringify(done).includes('who@example'));
   const look = await act({ type: 'snapshot' });
-  assert.equal(look.elements.find((e) => e.name === 'Email').value, 'who@example.com', 'the user name is an ordinary field');
+  const email = look.elements.find((e) => e.name === 'Email');
+  assert.equal(email.value, undefined, 'the user name of a login is drawn as dots and is not given to a model: the snapshot says only that it is filled');
+  assert.equal(email.filled, true);
+  assert.equal(await readPage(devtools, () => document.querySelector('input[aria-label="Email"]').value), 'who@example.com', 'and it was typed');
   assert.ok(!JSON.stringify(look).includes('S3cret'), 'the password is nowhere in what a model gets');
   const typed = await act({ type: 'tabs', op: 'list' });
   assert.equal(typed.ok, true);
@@ -197,12 +208,15 @@ test('a code is typed into one box or into a box for each digit, only on a site 
   await assert.rejects(act({ type: 'fill-code', origins: [origin], code: '12ab56' }), /no code to type/);
   const one = await act({ type: 'fill-code', origins: [origin], code: '123456' });
   assert.equal(one.boxes, 1); assert.ok(!JSON.stringify(one).includes('123456'));
-  assert.equal((await act({ type: 'snapshot' })).elements.find((e) => e.name === 'Code').value, '123456');
+  const codeBox = (await act({ type: 'snapshot' })).elements.find((e) => e.name === 'Code');
+  assert.equal(codeBox.value, undefined); assert.equal(codeBox.filled, true);
+  assert.equal(await readPage(devtools, () => document.querySelector('input[aria-label="Code"]').value), '123456');
   await act({ type: 'navigate', url: `${origin}/six` });
   const six = await act({ type: 'fill-code', origins: [origin], code: '654321' });
   assert.equal(six.boxes, 6);
-  const values = (await act({ type: 'snapshot' })).elements.filter((e) => /^Digit/.test(e.name)).map((e) => e.value);
-  assert.deepEqual(values, ['6', '5', '4', '3', '2', '1']);
+  const digits = (await act({ type: 'snapshot' })).elements.filter((e) => /^Digit/.test(e.name));
+  assert.ok(digits.length === 6 && digits.every((e) => e.value === undefined && e.filled === true), 'a code is not given back in the snapshot');
+  assert.deepEqual(await readPage(devtools, () => [...document.querySelectorAll('input.d')].map((e) => e.value)), ['6', '5', '4', '3', '2', '1']);
 });
 
 const CARD_PAGE = `<!doctype html><title>Pay</title><form onsubmit="return false">
@@ -245,7 +259,10 @@ test('a card is typed into the fields of the page, only on the site it is for; t
   assert.ok(!JSON.stringify(done).includes('4242'));
   const look = await act({ type: 'snapshot' });
   const value = (name) => look.elements.find((e) => e.name === name)?.value;
-  assert.equal(value('Card number'), '4242424242424242'); assert.equal(value('Expiry'), '08/29'); assert.equal(value('Name on card'), 'Chen Da-Ming'); assert.equal(value('ZIP'), '100');
+  for (const name of ['Card number', 'Expiry', 'CVC', 'Name on card']) assert.equal(value(name), undefined, `${name} is not given to a model`);
+  assert.equal(value('ZIP'), '100', 'an address field is an ordinary field');
+  const typedCard = await readPage(devtools, () => Object.fromEntries([...document.querySelectorAll('input')].map((e) => [e.getAttribute('aria-label'), e.value])));
+  assert.equal(typedCard['Card number'], '4242424242424242'); assert.equal(typedCard.Expiry, '08/29'); assert.equal(typedCard['Name on card'], 'Chen Da-Ming');
   assert.ok(look.text.length >= 0);
   // A month and a year in two boxes (selects); a page with no name or address field says which required ones it did not find.
   await act({ type: 'navigate', url: `${origin}/split` });
