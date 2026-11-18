@@ -7,7 +7,7 @@ import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { MAX_RESULT_IMAGE_CHARS } from '../src/data/tool-result.js';
 import { makeThumbnail } from './picture-thumb.js';
 import { LoginError, originOf } from './browser-logins.js';
-import { EXECUTABLE_FILE, pageTakesCard, tripwireFor } from './browser-tripwire.js';
+import { EXECUTABLE_FILE, pageSubject, pageTakesCard, tripwireFor } from './browser-tripwire.js';
 import { createBrowserPlan, planText, MAX_PLAN_TASKS, MAX_TASK_CHARS } from './browser-plan.js';
 
 const tool = (name, description, properties = {}, required = []) => Object.freeze({ name, description, parameters: Object.freeze({ type: 'object', properties, ...(required.length ? { required } : {}) }) });
@@ -115,6 +115,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   let lastShot = null;
   let lastElements = new Map();
   let takesCard = false;
+  let subject = null;
   let confirmed = { domain: '', at: 0 };
   const CONFIRMED_FOR_MS = 2 * 60_000;
   const confirm = async (action, summary) => {
@@ -486,7 +487,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       }
       if (call.name === 'browser_click' && ask) {
         const element = lastElements.get(args.ref);
-        const kind = tripwireFor(element, { takesCard });
+        const kind = tripwireFor(element, { takesCard, subject });
         if (kind && !(confirmed.domain === lastDomain && Date.now() - confirmed.at < CONFIRMED_FOR_MS)) {
           const answer = await confirm(kind, oneLine(element.name, 120));
           if (answer !== 'confirm') return declined(answer);
@@ -509,6 +510,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       if (call.name === 'browser_snapshot') {
         lastElements = new Map((result.elements || []).map((element) => [element.ref, element]));
         takesCard = pageTakesCard(result.elements);
+        subject = pageSubject(result);
         const image = await picture(sessionId);
         return { content: snapshotText(result), images: image ? [image] : [] };
       }

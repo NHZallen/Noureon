@@ -218,6 +218,21 @@ test('the tripwire: a click on a button named like paying is asked about first; 
   assert.equal(asked.length, 2, 'the second click after a confirmation is not asked again');
 });
 
+test('the tripwire: a button named only Submit on a page about deleting is asked about; on an ordinary page it is not', async () => {
+  const page = (text) => ({ ok: true, tabId: 'T1', url: 'https://shop.example/order', title: 'Order', text, scroll: { y: 0, height: 900, view: 700 }, elements: [{ ref: 3, role: 'button', name: '送出' }] });
+  const asked = [];
+  let shown = page('訂單 #1001：這筆訂單可以取消並刪除。');
+  const t = setup({ ask: async (kind, info) => { asked.push(info); return { decision: 'cancel' }; }, actions: { snapshot: () => shown } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  await t.loader.run(call('browser_snapshot'));
+  assert.match(await t.loader.run(call('browser_click', { ref: 3 })), /did not confirm/);
+  assert.equal(asked[0].action, 'delete'); assert.equal(asked[0].summary, '送出');
+  shown = page('Write us a message.');
+  await t.loader.run(call('browser_snapshot'));
+  assert.match(await t.loader.run(call('browser_click', { ref: 3 })), /Done/);
+  assert.equal(asked.length, 1, 'an ordinary page is not asked');
+});
+
 function loginWorld({ answers }) {
   const added = [];
   const sent = [];

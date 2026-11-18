@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createBrowserAsk } from '../../server/browser-ask.js';
-import { tripwireFor, pageTakesCard } from '../../server/browser-tripwire.js';
+import { tripwireFor, pageSubject, pageTakesCard } from '../../server/browser-tripwire.js';
 
 function setup(options = {}) {
   const events = [];
@@ -83,6 +83,22 @@ test('on a page that takes a card, a button that sends the form counts as paying
   assert.equal(tripwireFor({ role: 'button', name: 'Continue' }, { takesCard: true }), 'payment');
   assert.equal(tripwireFor({ role: 'button', name: 'Continue' }, { takesCard: false }), null);
   assert.equal(tripwireFor({ role: 'link', name: 'Continue' }, { takesCard: true }), null);
+});
+
+test('a button with a general name counts as what the page is about: deleting or paying; elsewhere it is an ordinary click', () => {
+  const page = (title, text) => ({ title, text });
+  assert.equal(pageSubject(page('測試商店', '訂單 #1001：這筆訂單可以取消並刪除。')), 'delete');
+  assert.equal(pageSubject(page('Account', 'Delete your account? This cannot be undone.')), 'delete');
+  assert.equal(pageSubject(page('Cart', 'Order total $20. Checkout')), 'payment');
+  assert.equal(pageSubject(page('Contact us', 'Write us a message and we will answer.')), null);
+  assert.equal(pageSubject(null), null);
+  for (const name of ['送出', 'Submit', 'Confirm', 'OK', '確認', 'Envoyer', 'Отправить', 'Enviar', 'Continue.']) {
+    assert.equal(tripwireFor({ role: 'button', name }, { subject: 'delete' }), 'delete', name);
+    assert.equal(tripwireFor({ role: 'button', name }, { subject: null }), null, `${name} on an ordinary page`);
+  }
+  assert.equal(tripwireFor({ role: 'button', name: 'Send message to support' }, { subject: 'delete' }), null, 'only a name that is just a general word');
+  assert.equal(tripwireFor({ role: 'link', name: 'Submit' }, { subject: 'delete' }), null, 'a button, not a link');
+  assert.equal(tripwireFor({ role: 'button', name: 'Add to cart' }, { subject: 'payment' }), null);
 });
 
 test('a hand-over to the person is answered done or cancelled', async () => {
