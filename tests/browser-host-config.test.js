@@ -56,6 +56,7 @@ test('the browser policy: the new tab page is a blank page, not an error page of
   assert.equal(policy.NewTabPageLocation, 'about:blank');
   assert.equal(policy.AIModeSettings, 1, 'no AI mode in the address bar: its pop-up is a chrome-untrusted page, which the block list turns into an English error page');
   assert.ok(policy.URLBlocklist.includes('chrome://*'));
+  assert.deepEqual(policy.URLAllowlist, ['chrome://sandbox', 'chrome://omnibox-popup.top-chrome'], 'the only chrome:// pages let through: the sandbox report, and the drop-down of the address bar (a chrome:// page that the person sees when they type; blocked it showed an error panel instead of the suggestions)');
   assert.equal(policy.ApplicationLocaleValue, 'zh-TW', 'the pages of the browser itself in Chinese (with the language files in the image)');
   assert.match(readFileSync(new URL('../browser-host/chromium.conf.template', import.meta.url), 'utf8'), /LANGUAGE="zh_TW:zh"/, 'on Linux the language of Chromium\'s pages comes from this variable');
 });

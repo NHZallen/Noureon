@@ -25,7 +25,8 @@
   "BrowserLabsEnabled": false,
   "CommandLineFlagSecurityWarningsEnabled": false,
   "URLAllowlist": [
-    "chrome://sandbox"
+    "chrome://sandbox",
+    "chrome://omnibox-popup.top-chrome"
   ],
   "URLBlocklist": [
     "file://*",
