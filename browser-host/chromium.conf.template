@@ -4,6 +4,7 @@
 ;   - NO --bwsi: guest mode throws the cookies away when the browser closes, which would make a saved login impossible (design §8.1);
 ;   - NO --remote-allow-origins: our controller sends no Origin, and a page in the browser must not be able to talk to DevTools (design §10.2 item 12);
 ;   - --proxy-server: every request goes through the egress proxy, the only way out of the browser network (@@PROXY@@ is filled in by install.sh);
+;   - our one very small extension (image/tab-order: it only tells the host in which order the tabs stand; the image has it in /opt, an image without it starts all the same);
 ;   - a fixed language and time zone (some sites tie a login to them), --password-store=basic (no keyring in the container: cookies are encrypted with a fixed key,
 ;     so a saved login still opens on another machine), and the background activity switched off (round eight: it costs CPU and goes nowhere anyway).
 [program:chromium]
@@ -16,6 +17,8 @@ command=/usr/bin/chromium
   --no-first-run
   --start-maximized
   --lang=zh-TW
+  --load-extension=/opt/noureon-tab-order
+  --disable-extensions-except=/opt/noureon-tab-order
   --password-store=basic
   --force-dark-mode
   --disable-file-system

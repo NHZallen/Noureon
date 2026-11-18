@@ -35,5 +35,12 @@
   ],
   "ExtensionInstallBlocklist": [
     "*"
-  ]
+  ],
+  "ExtensionInstallAllowlist": [
+    "einpcabpdadafpdbegpcfbmnhaemkhcd"
+  ],
+  "DefaultSearchProviderEnabled": true,
+  "DefaultSearchProviderName": "Google",
+  "DefaultSearchProviderKeyword": "google.com",
+  "DefaultSearchProviderSearchURL": "https://www.google.com/search?q={searchTerms}&hl=zh-TW"
 }
