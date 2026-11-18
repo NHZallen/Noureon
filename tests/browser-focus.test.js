@@ -97,6 +97,14 @@ test('the keyboard: long text is written first and sent in one go; the key row s
   try {
     mode.update({ control: 'user' });
     assert.equal(q('.bf-kb').hidden, true);
+    assert.equal(q('.bf-tool:nth-child(1)').textContent, 'Keyboard');
+    click('.bf-tool:nth-child(1)');
+    assert.equal(q('.bf-kb').hidden, false);
+    assert.equal(q('.bf-tool:nth-child(1)').textContent, 'Trackpad', 'with the keyboard open the button goes back to the trackpad, and says so');
+    assert.equal(q('.bf-tool:nth-child(1)').getAttribute('aria-label'), 'Trackpad');
+    click('.bf-tool:nth-child(1)');
+    assert.equal(q('.bf-kb').hidden, true);
+    assert.equal(q('.bf-tool:nth-child(1)').textContent, 'Keyboard');
     click('.bf-tool:nth-child(1)');
     assert.equal(q('.bf-kb').hidden, false);
     q('.bf-kb-field').value = '你好，世界';

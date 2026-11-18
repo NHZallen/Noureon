@@ -26,6 +26,7 @@ const PATHS = {
   shrink: 'M4 14h6v6M20 10h-6V4',
   hand: 'M8 13V6.5a1.5 1.5 0 013 0V12M11 11V4.5a1.5 1.5 0 013 0V12M14 11.5V6.5a1.5 1.5 0 013 0V14a6 6 0 01-6 6h-.5a5 5 0 01-4.2-2.3L4 14.5a1.6 1.6 0 012.5-2L8 14',
   keyboard: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
+  trackpad: 'M4 5h16v14H4zM4 15h16M12 15v4',
   paste: 'M9 4h6v3H9zM7 5.5H6a1 1 0 00-1 1V20a1 1 0 001 1h12a1 1 0 001-1V6.5a1 1 0 00-1-1h-1',
   refresh: 'M20 12a8 8 0 11-2.6-5.9M20 4v5h-5',
   back: 'M15 5l-7 7 7 7',
@@ -125,6 +126,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   const pad = make('div', 'bf-pad', { 'aria-label': t('browserPadHint') });
   pad.append(Object.assign(make('div', 'bf-pad-hint'), { textContent: t('browserPadHint') }));
   const tools = make('div', 'bf-tools');
+  // While the keyboard is open the same button goes back to the trackpad, and says so (it said "Keyboard" over the keyboard, and read as if it were the way to open what was open).
   const keyboardButton = button('bf-tool', t('browserKeyboard'), () => setKeyboard(!keyboardOpen), icon(document, 'keyboard', 17), t('browserKeyboard'));
   const pasteButton = button('bf-tool', t('browserPaste'), () => void paste(), icon(document, 'paste', 17), t('browserPaste'));
   const refreshButton = button('bf-tool', t('browserRefresh'), () => ask('onRefresh'), icon(document, 'refresh', 17), t('browserRefresh'));
@@ -227,6 +229,10 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     keyboardOpen = open;
     keyboard.hidden = !open;
     keyboardButton.classList.toggle('is-on', open);
+    const word = t(open ? 'browserTrackpad' : 'browserKeyboard');
+    keyboardButton.setAttribute('aria-label', word);
+    keyboardButton.title = word;
+    keyboardButton.replaceChildren(icon(document, open ? 'trackpad' : 'keyboard', 17), Object.assign(make('span'), { textContent: word }));
     if (open) field.focus?.();
   };
   const sendText = () => {
