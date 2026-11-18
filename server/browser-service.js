@@ -28,6 +28,7 @@ export function createBrowserService({ config, db, vault, url, serviceKey, log =
     mayUse,
     isAdmin,
     maxActions: config.maxActions,
+    autoLook: config.autoLook,
     /** Said once at the start, so a host that cannot be reached shows in the log at once and not as replies that cannot open a browser. */
     check: () => host.health().then((state) => log('browser_host_ok', { running: state?.sessions, max: state?.maxSessions })).catch((error) => log('browser_host_failed', { code: error?.code || '', status: error?.status || 0 })),
     start: () => { sessions.start(); health.start(); },

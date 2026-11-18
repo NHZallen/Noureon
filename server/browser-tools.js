@@ -55,6 +55,9 @@ export const BROWSER_INSTRUCTION = [
   'The user can end the browser themselves at any time (a cross on its card); a tool result then says so. When it does, the reply is not over: stop using the browser and answer with what you have, saying plainly that they ended it.'
 ].join('\n');
 
+/** The instruction for a loader that does not answer with the look after an action (BROWSER_AUTO_LOOK=off): the model looks with browser_snapshot itself. */
+export const BROWSER_INSTRUCTION_WITHOUT_AUTO_LOOK = BROWSER_INSTRUCTION.replace('Open a page with browser_open: the answer already is the look at the page (what you can act on, each with a number, the text of the page and a picture). So are the answers of browser_click, browser_press, browser_back, browser_scroll, browser_wait and browser_type with submit: they show the page as it is after the action, with new numbers, so do not call browser_snapshot after them; the numbers of an earlier look are not good any more. Use browser_snapshot after browser_type without submit, or when you want to look again. Act with that number (browser_click, browser_type).', 'Open a page with browser_open, then look with browser_snapshot: it lists the things you can act on, each with a number, gives the text of the page and a picture. Act with that number (browser_click, browser_type), and look again before you rely on the numbers: a page changes after most actions.');
+
 // What the model is told when the person ends the browser (the cross of its card): not an error, and the reply goes on. Nothing in it is about one kind of task.
 export const BROWSER_ENDED_BY_USER = 'The user ended the browser themselves (they pressed the cross on its card), so it is closed and cannot be opened again in this reply. This is not an error and the browser did not fail: do not call any browser tool again. Answer the user now: say plainly that they ended the browser, tell them what you did and found before it ended (use whatever the pages you saw told you), say what is still missing, and offer how to go on (for example, they can ask you to start the browser again).';
 
@@ -90,7 +93,7 @@ const retryable = (error) => ['timeout', 'unreachable'].includes(error?.code) ||
  * `sessions` (server/browser-sessions.js): current(userId), open(userId, { conversationId }), waitReady(id, userId, { onPoll, signal }), action(id, userId, action), close(id, userId).
  * `emit(event)` sends a step event; `signal` is the stop of the reply. `maxActions` 0 is no limit.
  */
-export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, waitForOtherMs = 35 * 60_000, holdWaitMs = 10 * 60_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 0, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function createBrowserLoader({ sessions, logins = null, ask = null, files = null, userId, conversationId, language = 'zh-TW', signal = null, emit = () => {}, maxActions = 0, autoLook = true, keepLogin = true, inputFiles = null, waitForSpaceMs = 120_000, readFileMs = 30_000, waitForOtherMs = 35 * 60_000, holdWaitMs = 10 * 60_000, frameWaitMs = 7_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), onUsed = null, taskMaxMs = 7_200_000, warnBeforeMs = 0, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let actions = 0;
   // The person pressed the cross of the card: the browser is closed for this reply, and every call says so (BROWSER_ENDED_BY_USER).
   let userEnded = false;
@@ -275,7 +278,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
 
   // What an action that changes the page answers with: the look at the page as it is now (the model would call browser_snapshot next anyway; this saves it a turn). The things it lists are what the
   // tripwire reads, as for a look of the model's own. A look that fails is not told: the action was done, and the plain answer is given.
-  const looksAfter = (call, args) => ['browser_open', 'browser_click', 'browser_press', 'browser_back', 'browser_scroll', 'browser_wait'].includes(call.name) || (call.name === 'browser_type' && args.submit === true);
+  const looksAfter = (call, args) => autoLook && (['browser_open', 'browser_click', 'browser_press', 'browser_back', 'browser_scroll', 'browser_wait'].includes(call.name) || (call.name === 'browser_type' && args.submit === true));
   async function lookAfter(sessionId, did) {
     try {
       // A picture that does not come in time is left out (the page is what matters), as for the picture of the tag of a stopped reply.
@@ -562,7 +565,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
 
   return {
     get list() { return []; },
-    get instruction() { return BROWSER_INSTRUCTION; },
+    get instruction() { return autoLook ? BROWSER_INSTRUCTION : BROWSER_INSTRUCTION_WITHOUT_AUTO_LOOK; },
     get used() { return actions; },
     /** The browser of this reply is open and has been used: a message the person adds goes into the same reply (no cut), so the card and the browser stay where they are. */
     get active() { return usedAny && !userEnded && Boolean(current()); },

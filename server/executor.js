@@ -470,7 +470,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         const browserAsker = createBrowserAsk({ emit: (event) => emitEvent(event), signal, now, onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); } });
         if (browserControl) browserControl.answer = browserAsker.answer;
         browserLoader = createBrowserLoader({
-          sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, files, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions, keepLogin: spec.tools.browserKeepLogin !== false, inputFiles: () => collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
+          sessions: browser.sessions, logins: browser.logins, ask: browserAsker.ask, files, userId, conversationId: spec.conversationId, language, signal, maxActions: browser.maxActions, autoLook: browser.autoLook !== false, keepLogin: spec.tools.browserKeepLogin !== false, inputFiles: () => collectInputFiles({ history: spec.request.history, current: parts, sent: spec.tools.inputs || [], userId, files }),
           emit: (event) => { noteBrowser(event); emitEvent(event); }
         });
         // The person pressed the cross of the browser card: the browser ends, the reply goes on (the model is told by what its next browser call answers).

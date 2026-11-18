@@ -176,7 +176,15 @@ export function createResearchCalls({
   };
 
   const NO_READER = 'No page reader is set up: reading a page needs a Tavily or TinyFish API key in Settings. Tell the user.';
-  const UNREADABLE = 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try another page.';
+  const UNREADABLE = 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try a page of another site.';
+  // A page that came back with no text is built by JavaScript in the browser: the reader cannot see it, and nor will it see the other pages of that site (the weather office of a country, a web app).
+  const EMPTY_PAGE = 'The page opened but a reader gets no text from it: it is built by JavaScript in the browser, so other pages of the same site will be empty too. Do not open more pages of this site: use another source (a search result, another site, a data service that answers in plain text) or tell the user what could not be read.';
+  const GIVEN_UP_ON = (host) => `Pages of ${host} could not be read twice already in this reply, so no more are tried. Use another source or tell the user what could not be read.`;
+  // The sites whose pages did not come back (no text, or not at all), counted: from the second one on, a page of that site is not fetched at all.
+  const unreadable = new Map();
+  const SITE_FAILURES_BEFORE_GIVING_UP = 2;
+  const givenUp = (url) => (unreadable.get(hostOf(url)) || 0) >= SITE_FAILURES_BEFORE_GIVING_UP;
+  const noteUnreadable = (url) => { const host = hostOf(url); if (host) unreadable.set(host, (unreadable.get(host) || 0) + 1); };
   // The pages asked for, whole, by address; `settled` has the ones that are done, `shown` the ones the model was already
   // given (a page it has read needs no new row; one only fetched ahead of its turn does).
   const pagePromises = new Map();
@@ -191,8 +199,10 @@ export function createResearchCalls({
       for (const entry of batch) {
         const raw = pages.find((page) => page.url === entry.url || page.finalUrl === entry.url);
         const text = raw ? absoluteLinks(raw.text, raw.finalUrl || raw.url) : '';
-        if (text) entry.resolve({ page: { ...raw, text } });
-        else entry.resolve({ error: failed.find((item) => item.url === entry.url)?.reason === 'noReader' ? NO_READER : UNREADABLE });
+        if (text) { entry.resolve({ page: { ...raw, text } }); continue; }
+        const reason = failed.find((item) => item.url === entry.url)?.reason;
+        if (reason !== 'noReader') noteUnreadable(entry.url);
+        entry.resolve({ error: reason === 'noReader' ? NO_READER : raw ? EMPTY_PAGE : UNREADABLE });
       }
     } catch (error) {
       for (const entry of batch) {
@@ -238,6 +248,7 @@ export function createResearchCalls({
 
   const load = async (url) => {
     if (shown.has(url) && settled.has(url)) return settled.get(url);
+    if (!pagePromises.has(url) && givenUp(url)) return { error: GIVEN_UP_ON(hostOf(url)) };
     onEvent({ type: 'searching', kind: 'page', target: hostOf(url), label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }), doneLabel: sandboxText(language, 'webOpened', { host: hostOf(url) }) });
     try {
       const outcome = await pageOnce(url);
@@ -295,7 +306,7 @@ export function createResearchCalls({
           if (query) searchOnce(query, call.args?.topic === 'news' ? 'news' : 'general');
         } else {
           const url = addressOf(call.args?.url);
-          if (url && !shown.has(url)) pageOnce(url);
+          if (url && !shown.has(url) && !givenUp(url)) pageOnce(url);
         }
       }
     },

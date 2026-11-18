@@ -27,7 +27,8 @@ test('what holds the search back: a refusal; a task for the browser agent only w
   assert.deepEqual(searchHeldBack('不要用連網搜尋，只用你知道的', 'c1', null, { isOn: off }), { refused: true, browserDoesIt: false });
   assert.deepEqual(searchHeldBack('打開瀏覽器去看 https://x.example', 'c1', true, { isOn: on }), { refused: false, browserDoesIt: true }, 'the judgement says it is a task for the browser');
   assert.equal(searchHeldBack('hello', 'c1', true, { isOn: off }).browserDoesIt, false, 'the agent is not on: nothing opens the page, so the search is not held back');
-  assert.equal(searchHeldBack('hello', 'c1', false, { isOn: on }).browserDoesIt, false, 'judged not a task for the browser');
+  assert.equal(searchHeldBack('hello', 'c1', false, { isOn: on, asks: () => false }).browserDoesIt, false, 'judged not a task for the browser');
+  assert.equal(searchHeldBack('用瀏覽器代理打開 https://news.ycombinator.com', 'c1', false, { isOn: on }).browserDoesIt, true, 'the judgement said no (the address looked like a page to read), but the words name the browser agent');
   assert.equal(searchHeldBack('幫我開瀏覽器查機票', 'c1', null, { isOn: on, asks: () => true }).browserDoesIt, true, 'no judgement: the short list of phrases decides');
   assert.equal(searchHeldBack('hello', 'c1', null, { isOn: on, asks: () => false }).browserDoesIt, false);
 });
@@ -36,7 +37,8 @@ test('the questions tell the judging model about refusals and browser tasks, and
   const request = buildDecisionRequest({ message: '用瀏覽器代理（不要用連網搜尋）打開 https://duckduckgo.com/?q=Noureon', browserCandidate: true });
   assert.match(request.questions.search.instructions, /says not to search the web/);
   assert.match(request.questions.search.instructions, /real web browser to be used/);
-  assert.match(request.questions.url.instructions, /opened in a real web browser/);
+  assert.match(request.questions.url.instructions, /use a browser or the browser agent/);
+  assert.match(request.questions.browser.instructions, /even if the message holds an address to open/);
   assert.ok(!buildDecisionRequest({ message: 'no address here', browserCandidate: true }).questions.url);
 });
 

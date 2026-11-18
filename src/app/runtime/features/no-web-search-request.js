@@ -29,8 +29,8 @@ export const forbidsWebSearch = (text) => {
 
 /**
  * What keeps the search from being turned on for a message: { refused } the person said not to search the web; { browserDoesIt } the browser agent is on for this conversation and the message is
- * a task for it (the Decisions model's `browser` answer, the short list of phrases when there is none): it opens the addresses and does the looking itself.
+ * a task for it (the Decisions model's `browser` answer, or the short list of phrases that name a browser outright: the model sometimes takes an address in the message for a page to read and says no): it opens the addresses and does the looking itself.
  */
 export function searchHeldBack(text, conversationId, browserVerdict, { isOn = isBrowserOn, asks = asksForBrowser } = {}) {
-  return { refused: forbidsWebSearch(text), browserDoesIt: Boolean(isOn(conversationId)) && (browserVerdict ?? asks(text)) };
+  return { refused: forbidsWebSearch(text), browserDoesIt: Boolean(isOn(conversationId)) && (browserVerdict === true || asks(text)) };
 }

@@ -38,6 +38,9 @@ test('the list works by account id and by email (any case); the number of action
   assert.equal(browserAllows(config, {}), false);
   assert.equal(config.maxActions, 0);
   assert.equal(readBrowserConfig({ ...base, BROWSER_MAX_ACTIONS: '50' }).maxActions, 50);
+  assert.equal(config.autoLook, true, 'the look after an action is on unless BROWSER_AUTO_LOOK is off');
+  assert.equal(readBrowserConfig({ ...base, BROWSER_AUTO_LOOK: 'off' }).autoLook, false);
+  assert.equal(readBrowserConfig({ ...base, BROWSER_AUTO_LOOK: 'on' }).autoLook, true);
 });
 
 test('the replies know only the account id: the email is looked up only when the list has an email, kept for a while, and a failure is "no"', async () => {

@@ -4,6 +4,7 @@
 // The key is read from the environment and is never printed.
 //
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs
+//   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --wording all     (old, v1 of 2026-11-18 morning, and the words now)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --wording both     (2026-11-18: the questions `search` and `url` before and after they were told about "don't search the web" and browser tasks)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model typesafe/jev-1.14 --compare openai/gpt-6-luna-decisions
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model google/gemini-decision-1 --compare typesafe/jev-1.14     (2026-11-13: the new Google one, against the one the app has)
@@ -26,12 +27,20 @@ if (!key || (models.some((model) => providerOf(model) === 'gemini') && !geminiKe
   process.exit(1);
 }
 // How the questions `search` and `url` were worded before 2026-11-18 (--wording old), to put the new words beside them (--wording both). The new ones are those of decision-client.js.
-const OLD_WORDING = {
+const WORDING_OLD = {
+  browser: 'The person asks for a real web browser to be used for them: to open websites and work them, step by step, the way a person would (search a shop or a booking site, compare offers, fill in a form, log in, book, buy, collect results from several sites). It does not if they only mention or ask about a browser, ask something that needs no website, or just want a page at an address in the message read, summarised, translated or checked (that page is read for them without a browser).',
   search: 'The latest message needs up-to-date facts from the web: news, today\'s weather, prices, scores, recent events, anything that may have changed after a language model was trained. It does not if the model\'s own knowledge or the conversation is enough.',
   url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix.'
 };
+// ... and as they were in a050d66c (2026-11-18, the first version that knew about refusals and browser tasks; the question `browser` was still the old one).
+const WORDING_V1 = {
+  browser: 'The person asks for a real web browser to be used for them: to open websites and work them, step by step, the way a person would (search a shop or a booking site, compare offers, fill in a form, log in, book, buy, collect results from several sites). It does not if they only mention or ask about a browser, ask something that needs no website, or just want a page at an address in the message read, summarised, translated or checked (that page is read for them without a browser).',
+  search: 'The latest message needs up-to-date facts from the web: news, today\'s weather, prices, scores, recent events, anything that may have changed after a language model was trained. It does not if the model\'s own knowledge or the conversation is enough, if the person says not to search the web or the internet (in any language: 不要用連網搜尋, don\'t search the web, sans chercher sur le web), or if the person asks for a real web browser to be used (the browser does the looking).',
+  url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix, or if the person asks for the address to be opened in a real web browser (the browser opens it).'
+};
+const WORDINGS_BY_NAME = { old: WORDING_OLD, v1: WORDING_V1 };
 const wordingOption = option('--wording') || 'new';
-const WORDINGS = wordingOption === 'both' ? ['old', 'new'] : [wordingOption === 'old' ? 'old' : 'new'];
+const WORDINGS = wordingOption === 'all' ? ['old', 'v1', 'new'] : wordingOption === 'both' ? ['old', 'new'] : [WORDINGS_BY_NAME[wordingOption] ? wordingOption : 'new'];
 const tools = [{ name: 'yt-dlp', description: 'download video or audio from a web page' }, { name: 'ffmpeg', description: 'convert audio and video files' }];
 
 // message, and what the page should conclude (search, file, chart, tool, url, exact, verbatim, browser): true / false
@@ -78,7 +87,13 @@ const CASES = [
   { message: '用瀏覽器代理打開 https://news.ycombinator.com ，點進第一則新聞，告訴我標題和前兩段', expect: { url: false, browser: true } },
   { message: 'Use the browser agent (do not use web search) to open https://news.ycombinator.com and tell me the top 3 titles.', expect: { search: false, url: false, browser: true } },
   { message: 'Ouvre le navigateur, va sur https://www.lemonde.fr et donne-moi les trois premiers titres.', expect: { url: false, browser: true } },
+  { message: '打開瀏覽器去 https://www.apple.com/tw/ 看 iPhone 現在多少錢', expect: { url: false, browser: true } },
+  { message: 'Open https://example.com in the browser agent and click "More information".', expect: { url: false, browser: true } },
+  { message: 'Go to https://github.com/NHZallen/Noureon in a real browser and tell me how many stars it has.', expect: { url: false, browser: true } },
+  { message: 'Используй браузерного агента: открой https://www.wikipedia.org и выбери русский язык.', expect: { url: false, browser: true } },
+  { message: 'Usa el navegador para abrir https://www.wikipedia.org y elegir el idioma español.', expect: { url: false, browser: true } },
   // the page itself is what is asked about: the address is read (a control)
+  { message: 'What does https://github.com/NHZallen/Noureon say in its README? Summarise it.', expect: { url: true, browser: false } },
   { message: 'Summarise this page for me: https://news.ycombinator.com', expect: { url: true, browser: false } },
   // the words of the browser asks that were mistaken for a search (printed, no expectation)
   { message: '搜尋 Noureon，打開前三個結果，各回報一句標題', expect: {} }
@@ -90,7 +105,8 @@ const show = (value) => (value === null || value === undefined ? '-' : value.toF
 
 async function ask(model, testCase, wording = 'new') {
   const request = buildDecisionRequest({ message: testCase.message, tools, model, historyRecall: true, browserCandidate: true });
-  if (wording === 'old') for (const name of Object.keys(OLD_WORDING)) if (request.questions[name]) request.questions[name].instructions = OLD_WORDING[name];
+  const set = WORDINGS_BY_NAME[wording];
+  if (set) for (const name of Object.keys(set)) if (request.questions[name]) request.questions[name].instructions = set[name];
   const provider = DECISION_PROVIDERS[providerOf(model)];
   const started = Date.now();
   let response;

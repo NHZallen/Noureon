@@ -7,7 +7,7 @@ import { BROWSER_ENDED_BY_USER, BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowse
 
 const PAGE = { ok: true, tabId: 'T1', url: 'https://shop.example/items?q=secret-search', title: 'Shop', scroll: { y: 0, height: 2000, view: 700 }, elements: [{ ref: 3, role: 'searchbox', name: 'Search' }, { ref: 4, role: 'password field', name: 'Password' }, { ref: 5, role: 'button', name: 'Go', disabled: true }], text: 'Welcome to the shop', truncated: false };
 
-function setup({ signal = null, frameWaitMs = undefined, readFileMs = undefined, current = null, actions = {}, language = 'en', maxActions = 0, logins = null, ask = null, files = null, keepLogin, inputFiles = null } = {}) {
+function setup({ signal = null, frameWaitMs = undefined, readFileMs = undefined, current = null, actions = {}, language = 'en', maxActions = 0, autoLook = undefined, logins = null, ask = null, files = null, keepLogin, inputFiles = null } = {}) {
   const calls = [];
   const events = [];
   let open = current;
@@ -18,7 +18,7 @@ function setup({ signal = null, frameWaitMs = undefined, readFileMs = undefined,
     action: async (id, userId, action) => { calls.push(['action', action]); const handler = actions[action.type]; if (handler) return handler(action); return action.type === 'screenshot' ? { ok: true, mime: 'image/jpeg', base64: 'AAAA' } : action.type === 'snapshot' ? PAGE : { ok: true, url: 'https://shop.example/', title: 'Shop' }; },
     close: async (id) => { calls.push(['close', id]); open = null; return true; }
   };
-  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, inputFiles, signal, ...(frameWaitMs === undefined ? {} : { frameWaitMs }), ...(readFileMs === undefined ? {} : { readFileMs }), ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
+  const loader = createBrowserLoader({ sessions, logins, ask, files, userId: 'u1', conversationId: 'c1', language, emit: (event) => events.push(event), maxActions, ...(autoLook === undefined ? {} : { autoLook }), inputFiles, signal, ...(frameWaitMs === undefined ? {} : { frameWaitMs }), ...(readFileMs === undefined ? {} : { readFileMs }), ...(keepLogin === undefined ? {} : { keepLogin }), sleep: async () => {} });
   return { loader, calls, events, sessions, setOpen: (value) => { open = value; } };
 }
 const call = (name, args = {}) => ({ id: 'x', name, args });
@@ -120,6 +120,18 @@ test('an action that changes the page answers with the look at the page after it
   assert.equal(asked[0].summary, 'Pay now');
   failLook = true;
   assert.match(asText(await t.loader.run(call('browser_click', { ref: 22 }))), /Done\. The tab shows this/, 'the look failed: the plain answer');
+});
+
+test('with BROWSER_AUTO_LOOK off an action answers as before and the model is told to look itself', async () => {
+  const t = setup({ autoLook: false });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const answer = await t.loader.run(call('browser_click', { ref: 3 }));
+  assert.equal(typeof answer, 'string');
+  assert.match(answer, /Done\. The tab shows this/);
+  assert.deepEqual(t.calls.filter((entry) => entry[0] === 'action').map((entry) => entry[1].type), ['click'], 'no look, no picture');
+  assert.match(t.loader.instruction, /then look with browser_snapshot/);
+  assert.doesNotMatch(t.loader.instruction, /do not call browser_snapshot after them/);
+  assert.match(setup().loader.instruction, /do not call browser_snapshot after them/);
 });
 
 test('a failed action is tried once more only when the browser did not answer; what the page said is not trusted, and failures are told plainly', async () => {

@@ -6,6 +6,7 @@
 //                        this reaches out to any website on behalf of a person. Later the invite codes of the design take its place.
 //   BROWSER_ADMINS       the accounts that run it (account ids or emails): they may use it, make invite codes and stop all the browsers. They count as allowed.
 //   BROWSER_MAX_ACTIONS  a limit of actions for one reply; 0 or not set means no limit (Allen, 2026-11-16).
+//   BROWSER_AUTO_LOOK    `off`: an action does not answer with the look at the page after it (the model calls browser_snapshot itself, as before 2026-11-18); anything else: it does. For measuring one against the other.
 
 const EMAIL = /^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -44,7 +45,8 @@ export function readBrowserConfig(env = {}, problems = []) {
     secret,
     allowed: Object.freeze(allowed),
     admins: Object.freeze(admins),
-    maxActions: Number.isInteger(maxActions) && maxActions > 0 ? maxActions : 0
+    maxActions: Number.isInteger(maxActions) && maxActions > 0 ? maxActions : 0,
+    autoLook: String(env.BROWSER_AUTO_LOOK || '').trim().toLowerCase() !== 'off'
   });
 }
 
