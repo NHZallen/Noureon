@@ -92,3 +92,32 @@ test('a ratio set on the view changes its shape and is kept', () => {
     window.happyDOM.abort();
   }
 });
+
+test('the circle of the model glides to a point and is hidden by its own name only: hiding the model\'s leaves the person\'s', async () => {
+  const window = new Window();
+  try {
+    const { document } = window;
+    const view = createLiveView({ document, host: document.body, source: fakeSource() });
+    const lens = document.querySelector('.bl-lens');
+    // The first point shows it where it is (no glide from nowhere); the next one is reached after the glide.
+    view.moveCursor(0.2, 0.2, 'model', { glide: true });
+    assert.equal(lens.style.left, '20%');
+    view.moveCursor(0.8, 0.6, 'model', { glide: true });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(lens.style.left, '80%');
+    assert.equal(lens.style.top, '60%');
+    view.hideCursor('user');
+    assert.equal(lens.hidden, false, 'it is not the person\'s circle');
+    view.hideCursor('model');
+    assert.equal(lens.hidden, true);
+    view.moveCursor(0.5, 0.5, 'user');
+    view.hideCursor('model');
+    assert.equal(lens.hidden, false, 'the person\'s circle stays when the model\'s is hidden');
+    view.hideCursor('user');
+    assert.equal(lens.hidden, true);
+    // The click of the model does nothing to a circle that is not there.
+    assert.doesNotThrow(() => view.pulse());
+  } finally {
+    window.happyDOM.abort();
+  }
+});

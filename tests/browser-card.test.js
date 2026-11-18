@@ -958,3 +958,38 @@ test('the longest wait is not known: the panel says it is not certain', () => {
     w.window.happyDOM.abort();
   }
 });
+
+test('the model\'s circle comes at the point the host gave for a click, goes after a moment, and is out of the way while the person holds the browser', async () => {
+  const { window, card, q } = make();
+  try {
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive(fakeLive().live);
+    const lens = q('.bl-lens');
+    card.handle({ type: 'browser', event: 'point', action: 'click', x: 0.3, y: 0.7 });
+    assert.equal(lens.hidden, false);
+    assert.equal(lens.style.left, '30%');
+    assert.equal(lens.style.top, '70%');
+    assert.equal(lens.classList.contains('is-user'), false);
+    // A point that is not on the screen is not drawn.
+    card.handle({ type: 'browser', event: 'point', action: 'click', x: 2, y: 0.7 });
+    assert.equal(lens.style.left, '30%');
+    // The person takes the browser over: the model's circle goes, and a point of the model does not bring it back.
+    card.liveState({ control: 'user' });
+    assert.equal(lens.hidden, true);
+    card.handle({ type: 'browser', event: 'point', action: 'click', x: 0.5, y: 0.5 });
+    assert.equal(lens.hidden, true);
+    // Their circle is on the screen while they point; given back, it goes, and the model's comes with its next step.
+    card.moveCursor(0.4, 0.4, 'user');
+    assert.equal(lens.hidden, false);
+    assert.equal(lens.classList.contains('is-user'), true);
+    card.liveState({ control: 'model' });
+    assert.equal(lens.hidden, true);
+    card.handle({ type: 'browser', event: 'point', action: 'type', x: 0.6, y: 0.2 });
+    assert.equal(lens.hidden, false);
+    assert.equal(lens.classList.contains('is-user'), false);
+    await new Promise((resolve) => setTimeout(resolve, 2700));
+    assert.equal(lens.hidden, true, 'the model\'s circle goes after a moment');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

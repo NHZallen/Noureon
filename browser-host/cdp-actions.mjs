@@ -153,6 +153,22 @@ async function centerOf(cdp, sessionId, ref) {
   return { x: (quad[0] + quad[2] + quad[4] + quad[6]) / 4, y: (quad[1] + quad[3] + quad[5] + quad[7]) / 4 };
 }
 
+// Where a point of the page is on the live screen, as 0 to 1 of the whole screen: the picture the person sees has the tabs and the address bar over the page, so their height is added
+// (measured with outerHeight - innerHeight, never written in). Gives null when it cannot be measured; it only tells the screen where the model's circle goes.
+async function screenPointOf(cdp, sessionId, x, y) {
+  try {
+    const here = await cdp.send('Runtime.evaluate', { expression: 'JSON.stringify({ iw: innerWidth, ih: innerHeight, ow: outerWidth, oh: outerHeight, sx: screenX, sy: screenY, sw: screen.width, sh: screen.height })', returnByValue: true }, sessionId);
+    const m = JSON.parse(here.result?.value || '{}');
+    const width = m.sw || m.ow;
+    const height = m.sh || m.oh;
+    if (!(width > 0 && height > 0) || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const left = (m.sx || 0) + Math.max(0, ((m.ow || m.iw) - m.iw) / 2);
+    const top = (m.sy || 0) + Math.max(0, (m.oh || m.ih) - m.ih);
+    const unit = (value) => Math.round(Math.min(1, Math.max(0, value)) * 10_000) / 10_000;
+    return { x: unit((left + x) / width), y: unit((top + y) / height) };
+  } catch { return null; }
+}
+
 // What kind of field it is, by the page itself: 'password', 'card', 'code', 'bank', 'login' (the user name or e-mail of a login) or '' (an ordinary field); the fields of a kind are drawn as dots and given to a model without their value.
 async function isPasswordField(cdp, sessionId, ref) {
   const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: ref }, sessionId).catch(() => { throw new Error('that element is not on the page any more: take a new snapshot'); });
@@ -609,7 +625,8 @@ async function pageAction(cdp, action, targetId, sessionId) {
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId);
     await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }, sessionId);
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }, sessionId);
-    return { ok: true, tabId: targetId, ...(await settle(cdp, sessionId)) };
+    const at = await screenPointOf(cdp, sessionId, x, y);
+    return { ok: true, tabId: targetId, ...(at ? { at } : {}), ...(await settle(cdp, sessionId)) };
   }
   if (action.type === 'type') {
     const ref = checkRef(action.ref);
@@ -617,11 +634,13 @@ async function pageAction(cdp, action, targetId, sessionId) {
     const { objectId, password, kind } = await isPasswordField(cdp, sessionId, ref);
     if (password) throw new Error('a password field is filled with the login tool, not typed into');
     if (['card', 'code', 'bank'].includes(kind)) throw new Error('a field for a card, a code or a bank number is filled by the user (browser_request_payment, browser_request_code, or taking over), not typed into');
+    // Where the field is (the circle of the model goes there); a field that cannot be measured only has no circle.
+    const at = await centerOf(cdp, sessionId, ref).then((point) => screenPointOf(cdp, sessionId, point.x, point.y), () => null);
     const focused = await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: 'function () { this.focus(); if (typeof this.select === "function") this.select(); return document.activeElement === this; }', returnByValue: true }, sessionId);
     if (focused.result?.value !== true) throw new Error('that element cannot take text');
     if (action.text) await cdp.send('Input.insertText', { text: action.text }, sessionId); else await pressKey(cdp, sessionId, 'Delete');
     if (action.submit) await pressKey(cdp, sessionId, 'Enter');
-    return { ok: true, tabId: targetId, ...(await settle(cdp, sessionId)) };
+    return { ok: true, tabId: targetId, ...(at ? { at } : {}), ...(await settle(cdp, sessionId)) };
   }
   if (action.type === 'press') {
     await pressKey(cdp, sessionId, String(action.key));

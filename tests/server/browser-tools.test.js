@@ -892,3 +892,16 @@ test('readPage reads a page in a tab of its own and closes the tab; it never sta
   assert.equal(await broken.loader.readPage('https://spa.example/'), null);
   assert.equal(broken.calls.filter((entry) => entry[0] === 'action').at(-1)[1].op, 'close');
 });
+
+test('a click or typing that the host answers with a point on the screen tells the page where the circle of the model goes; a point that cannot be right is not told', async () => {
+  const t = setup({ actions: { click: () => ({ ...PAGE, at: { x: 0.31, y: 0.72 } }), type: () => ({ ...PAGE, at: { x: 0.5, y: 0.4 } }), press: () => ({ ...PAGE, at: { x: 7, y: 0.4 } }), scroll: () => PAGE } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  await t.loader.run(call('browser_click', { ref: 3 }));
+  await t.loader.run(call('browser_type', { ref: 3, text: 'red' }));
+  await t.loader.run(call('browser_press', { key: 'Enter' }));
+  await t.loader.run(call('browser_scroll', { direction: 'down' }));
+  assert.deepEqual(t.events.filter((event) => event.event === 'point'), [
+    { type: 'browser', event: 'point', action: 'click', x: 0.31, y: 0.72 },
+    { type: 'browser', event: 'point', action: 'type', x: 0.5, y: 0.4 }
+  ]);
+});

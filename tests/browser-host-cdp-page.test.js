@@ -104,7 +104,13 @@ test('a real page: look, type, submit, click, scroll, go back; a password is nev
   await act({ type: 'type', ref: search.ref, text: 'red shoes', submit: true });
   assert.match((await act({ type: 'snapshot' })).text, /submitted:red shoes/);
 
-  await act({ type: 'click', ref: find('checkbox', 'I agree').ref });
+  // A click and a typing tell where they were on the live screen (0 to 1 of the whole screen, the height of the tabs and the address bar included), for the circle of the model.
+  const typed = await act({ type: 'type', ref: search.ref, text: 'red shoes' });
+  assert.ok(typed.at && typed.at.x > 0 && typed.at.x < 1 && typed.at.y > 0 && typed.at.y < 1, 'typing tells where the field is');
+  const checkbox = find('checkbox', 'I agree');
+  const clicked = await act({ type: 'click', ref: checkbox.ref });
+  assert.ok(clicked.at && clicked.at.x >= 0 && clicked.at.x <= 1 && clicked.at.y >= 0 && clicked.at.y <= 1, 'a click tells where it was');
+  assert.ok(!JSON.stringify(typed.at).includes('red'), 'only two numbers');
   assert.equal((await act({ type: 'snapshot' })).elements.find((e) => e.role === 'checkbox').checked, 'true');
   const count = find('button', 'Count');
   await act({ type: 'click', ref: count.ref });

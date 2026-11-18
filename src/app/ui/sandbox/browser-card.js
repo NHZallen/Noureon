@@ -349,8 +349,27 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     }, () => failed(t('browserAnswerFailed')));
   };
 
+  // The circle of the model: it appears where the model clicked or typed (the host says where), slides there, shrinks a little on a click and goes after a moment. While the person holds the
+  // browser only their circle is on the screen; when they give it back, theirs goes and the model's comes again with its next step.
+  const MODEL_CIRCLE_MS = 2500;
+  let modelCircleTimer = null;
+  let pulseTimer = null;
+  const circleViews = () => [liveView, focus?.view].filter((entry) => entry?.lensMounted);
+  const hideModelCircle = () => { clearTimeout(modelCircleTimer); clearTimeout(pulseTimer); circleViews().forEach((entry) => entry.hideCursor('model')); };
+  const showModelPoint = (event) => {
+    if (control === 'user' || !(event.x >= 0 && event.x <= 1 && event.y >= 0 && event.y <= 1)) return;
+    const views = circleViews();
+    if (!views.length) return;
+    views.forEach((entry) => entry.moveCursor(event.x, event.y, 'model', { glide: true }));
+    clearTimeout(pulseTimer);
+    if (event.action === 'click') pulseTimer = setTimeout(() => circleViews().forEach((entry) => entry.pulse()), 300);
+    clearTimeout(modelCircleTimer);
+    modelCircleTimer = setTimeout(hideModelCircle, MODEL_CIRCLE_MS);
+  };
+
   const handle = (event) => {
     if (phase === 'cancelled') return;
+    if (event?.event === 'point') { showModelPoint(event); return; }
     // The first thing the server says about the work shows the card (it was joined to the screen out of sight, `prepare`).
     if (quiet) { quiet = false; root.hidden = false; }
     if (event?.event === 'ask') {
@@ -488,8 +507,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
         if (view !== 'front') setView('front');
       },
       onStop: () => askCancel(),
-      onTakeOver: () => { control = 'user'; render(); live?.controller?.onTakeOver?.(); },
-      onGiveBack: () => { control = 'model'; render(); live?.controller?.onGiveBack?.(); if (asking?.kind === 'takeover') asking.panel.finish?.('done'); },
+      onTakeOver: () => { control = 'user'; hideModelCircle(); render(); live?.controller?.onTakeOver?.(); },
+      onGiveBack: () => { control = 'model'; circleViews().forEach((entry) => entry.hideCursor('user')); render(); live?.controller?.onGiveBack?.(); if (asking?.kind === 'takeover') asking.panel.finish?.('done'); },
       onRatio: (key) => { setRatio(key); live?.controller?.onRatio?.(key); }
     };
     // Whatever the card does not answer itself goes to the owner of the live picture (looked up when it is asked, so a later owner is the one).
@@ -599,12 +618,17 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     /** The tabs or who has the browser changed (the parts that are given). */
     liveState(next = {}) {
             if (live && typeof next.url === 'string') live.url = next.url;
+      if (next.control && next.control !== control) {
+        // Who holds the browser changed: the circle of the one who let go is hidden.
+        if (next.control === 'user') hideModelCircle(); else circleViews().forEach((entry) => entry.hideCursor('user'));
+      }
       if (next.control) control = next.control;
       focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control });
       render();
     },
     /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */
     moveCursor(x, y, who) {
+      if (who === 'user') hideModelCircle();
       liveView?.moveCursor(x, y, who);
       focus?.view.moveCursor(x, y, who);
     },
@@ -617,6 +641,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     get phase() { return phase; },
     get view() { return view; },
     remove() {
+      clearTimeout(modelCircleTimer);
+      clearTimeout(pulseTimer);
       closeDialog();
       closeFocus();
       liveView?.destroy();

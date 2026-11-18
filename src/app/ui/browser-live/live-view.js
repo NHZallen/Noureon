@@ -13,6 +13,7 @@ import { cssRatio, DEFAULT_RATIO, ratioOf } from './ratios.js';
 export const LENS_ZOOM = 1.6;
 export const LENS_SIZE = 0.13; // of the width of the screen
 
+const GLIDE_MS = 300;
 const clamp = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
 
 export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source = null }) {
@@ -42,6 +43,8 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   let by = 'model';
   let pressed = false;
   let lensMounted = false;
+  let glideId = 0;
+  const reducedMotion = () => Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
   // The inside is sized from the width of the screen in the page (the circle is 13% of it, the picture inside is the screen times 1.6).
   const place = () => {
@@ -85,19 +88,45 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
       place();
     },
     /** The circle goes to a point of the screen (x and y in 0 to 1). `who`: 'model' or 'user'. */
-    moveCursor(x, y, who = 'model') {
+    moveCursor(x, y, who = 'model', { glide = false } = {}) {
+      const from = point;
+      const wasShown = !lens.hidden && by === (who === 'user' ? 'user' : 'model');
       point = { x: clamp(x), y: clamp(y) };
       by = who === 'user' ? 'user' : 'model';
       lens.hidden = false;
       lens.classList.toggle('is-user', by === 'user');
-      place();
+      glideId += 1;
+      if (!glide || !wasShown || reducedMotion() || (from.x === point.x && from.y === point.y)) { place(); return; }
+      // The circle of the model slides to where it works (about 0.3 s, fast at the start); the person's circle follows the finger and never slides.
+      const id = glideId;
+      const to = point;
+      const frame = (callback) => (document.defaultView?.requestAnimationFrame ? document.defaultView.requestAnimationFrame(callback) : setTimeout(() => callback(Date.now()), 16));
+      let started = 0;
+      const step = (now) => {
+        if (id !== glideId) return;
+        if (!started) started = now;
+        const k = Math.min(1, (now - started) / GLIDE_MS);
+        const e = 1 - (1 - k) ** 3;
+        point = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
+        place();
+        if (k < 1) frame(step);
+      };
+      frame(step);
+    },
+    /** The click of the model: the circle shrinks a little and comes back (0.34 s). */
+    pulse() {
+      if (lens.hidden || reducedMotion() || typeof lens.animate !== 'function') return;
+      lens.animate([{ transform: 'scale(1)' }, { transform: 'scale(0.82)', offset: 0.35 }, { transform: 'scale(1)' }], { duration: 340, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
     },
     /** The finger or the button is down (the circle shrinks a little). */
     press(down) {
       pressed = Boolean(down);
       lens.classList.toggle('is-pressed', pressed);
     },
-    hideCursor() {
+    /** Hides the circle; with `who` only when it is that one's (the person takes the browser over: the model's goes; they give it back: theirs goes). */
+    hideCursor(who) {
+      if (who && by !== who) return;
+      glideId += 1;
       lens.hidden = true;
     },
     /** The size of the screen changed (the card was drawn in a place of another size). */

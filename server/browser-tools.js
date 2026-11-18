@@ -532,6 +532,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       const earlyPicture = call.name === 'browser_snapshot' ? picture(sessionId).catch(() => null) : null;
       const result = await act(sessionId, request).catch((error) => { earlyPicture?.catch(() => {}); throw error; });
       if (result?.url) lastDomain = domainOf(result.url) || lastDomain;
+      // Where the click or the typing was on the screen: the page draws the circle of the model there (a point that is not two numbers of 0 to 1 is not told).
+      if (result?.at && result.at.x >= 0 && result.at.x <= 1 && result.at.y >= 0 && result.at.y <= 1) emit({ type: 'browser', event: 'point', action: call.name === 'browser_type' ? 'type' : 'click', x: result.at.x, y: result.at.y });
       if (call.name === 'browser_snapshot') {
         lastElements = new Map((result.elements || []).map((element) => [element.ref, element]));
         takesCard = pageTakesCard(result.elements);
