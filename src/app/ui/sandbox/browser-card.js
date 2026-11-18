@@ -45,7 +45,7 @@ const icon = (document, name, size = 16, width = 2) => {
 // How long the capsule keeps each of its two sentences once the time of the task is nearly up (half of about fifteen seconds).
 const NOTICE_TURN_MS = 7500;
 
-export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null, enter = false }) {
+export function createBrowserCard({ document, host, language = 'zh-TW', onCancel = null, onAnswer = null, isWide = null, storage = null, fetchImpl = null, enter = false, restoring = false }) {
   const t = (key, values) => sandboxText(language, key, values);
   // The steps: the same kind of step on the same site is one step that goes on, so thirty clicks are not thirty lines.
   const steps = [];
@@ -179,9 +179,12 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let shownView = null;
   // `morphs`: the change is played as a morph (card-morph.js), where the height of the whole changes a little at a time, and the page follows it by itself (at the end of a page, the
   // bottom stays and the top comes down): keeping the card in place by force would hold the room back and give it up at the end in one jump.
+  // A card made again from a saved message (browser-tag.js) is built in its final shape, in one go: no fold, no keeping in place, while `restoring` (until `restored()`), even though it is already on the page.
+  let restoringNow = restoring;
+  const placed = () => !restoringNow && root.isConnected;
   const render = ({ morphs = false } = {}) => {
     // Any other change of the card keeps the card where it is on the screen.
-    if (!morphs && shownView !== null && shownView !== view && root.isConnected) keepInPlace(root, renderNow, { release: view !== 'pill' });
+    if (!morphs && shownView !== null && shownView !== view && placed()) keepInPlace(root, renderNow, { release: view !== 'pill' });
     else renderNow();
     shownView = view;
     notify();
@@ -236,14 +239,14 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const setView = (next) => {
     if (view === next) return;
     const direction = (view === 'pill' && next === 'front') ? 'open' : (view === 'front' && next === 'pill') ? 'fold' : '';
-    const before = direction && root.isConnected ? measureCard({ root, card, pill }) : null;
+    const before = direction && placed() ? measureCard({ root, card, pill }) : null;
     view = next;
     render({ morphs: Boolean(before) });
     if (before) morph(direction, before);
   };
   // The card finishes into its pill (done, stopped): the same fold as when the person folds it.
   const foldInto = (apply) => {
-    const before = (view === 'front' || view === 'back') && root.isConnected ? measureCard({ root, card, pill }) : null;
+    const before = (view === 'front' || view === 'back') && placed() ? measureCard({ root, card, pill }) : null;
     apply();
     render({ morphs: Boolean(before) });
     if (before) morph('fold', before);
@@ -582,6 +585,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     },
     /** Folds the card into its pill or tag (a saved message draws it so). */
     fold() { setView('pill'); },
+    /** The card made from a saved message is complete: from now on it moves as any card does. */
+    restored() { restoringNow = false; },
     /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */
     setLive(next) {
       live = next || null;

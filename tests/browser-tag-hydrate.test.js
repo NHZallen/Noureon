@@ -44,6 +44,25 @@ test('the tag drawn in a document that is turned into text comes back in the pag
   assert.equal(again.querySelectorAll('.bcard-pill').length, 1);
 });
 
+// Opening a conversation: the tag is made when its place holder is already in the page. It must come in its final shape, not as the card that then folds (that was a flash and
+// everything under it moving up: the card is taller than the tag).
+test('a saved tag made in the page does not fold: it never has the card shape, and nothing is measured or played', async () => {
+  const seen = [];
+  const watcher = new page.MutationObserver((changes) => { for (const change of changes) seen.push([change.attributeName, change.target.dataset?.morph, change.target.className]); });
+  const message = page.document.createElement('div');
+  page.document.body.append(message);
+  watcher.observe(message, { attributes: true, subtree: true, attributeFilter: ['data-morph'] });
+  const drawing = new Window().document;
+  const holder = drawing.createElement('div');
+  holder.append(browserTagElement(drawing, { end: 'cancelled', steps: [STEP, { ...STEP, label: 'Browsing: b.com', domain: 'b.com' }] }, { language: 'en' }));
+  message.innerHTML = holder.innerHTML;
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  watcher.disconnect();
+  assert.ok(message.querySelector('.bcard-pill'));
+  assert.deepEqual(seen.filter(([name]) => name === 'data-morph'), [], 'no fold was played');
+  assert.equal(message.querySelector('.bcard-card')?.hidden ?? true, true, 'the card shape is hidden');
+});
+
 // A page that comes back to a reply still running must not draw "Done": the record says "running", so the card stays in its run phase.
 test('a record of a reply still running keeps the card running, not "Done"', async () => {
   const record = normalizeBrowserRecord({ end: 'running', steps: [STEP] });

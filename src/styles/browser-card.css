@@ -151,3 +151,6 @@
 
 /* The live picture as the screen of the card: it fills the card, and the capsule and the buttons are over it. */
 .bcard-live { position: absolute; inset: 0; height: 100%; }
+
+/* The place of a saved tag, before its card is made (the card comes a moment later, from a file loaded on demand): its height is kept, so that what is under it does not move when it comes. */
+.bcard-saved:empty { min-height: 2.5rem; }

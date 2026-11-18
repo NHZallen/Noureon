@@ -18,7 +18,7 @@ function fill(host) {
   const { record, language } = entry;
   import('./browser-card.js').then(({ createBrowserCard }) => {
     const document = host.ownerDocument;
-    const card = createBrowserCard({ document, host, language });
+    const card = createBrowserCard({ document, host, language, restoring: true });
     if (record.plan?.length) card.handle({ event: 'plan', tasks: record.plan });
     (record.steers || []).forEach((entry) => card.handle({ event: 'steer', text: entry.text }));
     record.steps.forEach((step) => card.handle({ event: 'call', action: step.action, domain: step.domain, label: step.label }));
@@ -29,6 +29,7 @@ function fill(host) {
     else if (record.end !== 'running') card.complete();
     if (record.frame) card.setStill(record.frame);
     card.fold();
+    card.restored();
   }).catch(() => { host.dataset.browserReady = ''; });
 }
 
