@@ -959,7 +959,7 @@ test('the longest wait is not known: the panel says it is not certain', () => {
   }
 });
 
-test('the model\'s circle comes at the point the host gave for a click, goes after a moment, and is out of the way while the person holds the browser', async () => {
+test('the model\'s circle comes at the point the host gave for a click, stays where the model last worked, and is out of the way while the person holds the browser', async () => {
   const { window, card, q } = make();
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
@@ -987,8 +987,7 @@ test('the model\'s circle comes at the point the host gave for a click, goes aft
     card.handle({ type: 'browser', event: 'point', action: 'type', x: 0.6, y: 0.2 });
     assert.equal(lens.hidden, false);
     assert.equal(lens.classList.contains('is-user'), false);
-    await new Promise((resolve) => setTimeout(resolve, 2700));
-    assert.equal(lens.hidden, true, 'the model\'s circle goes after a moment');
+    assert.equal(lens.hidden, false, 'the model\'s circle stays where the model last worked');
   } finally {
     window.happyDOM.abort();
   }

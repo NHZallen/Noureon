@@ -349,13 +349,11 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     }, () => failed(t('browserAnswerFailed')));
   };
 
-  // The circle of the model: it appears where the model clicked or typed (the host says where), slides there, shrinks a little on a click and goes after a moment. While the person holds the
+  // The circle of the model: it appears where the model clicked or typed (the host says where), slides there and shrinks a little on a click; it stays where the model last worked until the person takes the browser over. While the person holds the
   // browser only their circle is on the screen; when they give it back, theirs goes and the model's comes again with its next step.
-  const MODEL_CIRCLE_MS = 2500;
-  let modelCircleTimer = null;
   let pulseTimer = null;
   const circleViews = () => [liveView, focus?.view].filter((entry) => entry?.lensMounted);
-  const hideModelCircle = () => { clearTimeout(modelCircleTimer); clearTimeout(pulseTimer); circleViews().forEach((entry) => entry.hideCursor('model')); };
+  const hideModelCircle = () => { clearTimeout(pulseTimer); circleViews().forEach((entry) => entry.hideCursor('model')); };
   const showModelPoint = (event) => {
     if (control === 'user' || !(event.x >= 0 && event.x <= 1 && event.y >= 0 && event.y <= 1)) return;
     const views = circleViews();
@@ -363,8 +361,6 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     views.forEach((entry) => entry.moveCursor(event.x, event.y, 'model', { glide: true }));
     clearTimeout(pulseTimer);
     if (event.action === 'click') pulseTimer = setTimeout(() => circleViews().forEach((entry) => entry.pulse()), 300);
-    clearTimeout(modelCircleTimer);
-    modelCircleTimer = setTimeout(hideModelCircle, MODEL_CIRCLE_MS);
   };
 
   const handle = (event) => {
@@ -641,7 +637,6 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     get phase() { return phase; },
     get view() { return view; },
     remove() {
-      clearTimeout(modelCircleTimer);
       clearTimeout(pulseTimer);
       closeDialog();
       closeFocus();
