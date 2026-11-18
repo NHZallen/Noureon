@@ -505,13 +505,15 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         browser_tabs: () => ({ type: 'tabs', op: String(args.op || ''), ...(args.tab_id ? { tabId: String(args.tab_id) } : {}), ...(args.url ? { url: String(args.url) } : {}) })
       }[call.name]?.();
       if (!request) return 'That is not a browser tool.';
-      const result = await act(sessionId, request);
+      // The picture of a look is taken while the page is read (they do not wait for each other).
+      const earlyPicture = call.name === 'browser_snapshot' ? picture(sessionId).catch(() => null) : null;
+      const result = await act(sessionId, request).catch((error) => { earlyPicture?.catch(() => {}); throw error; });
       if (result?.url) lastDomain = domainOf(result.url) || lastDomain;
       if (call.name === 'browser_snapshot') {
         lastElements = new Map((result.elements || []).map((element) => [element.ref, element]));
         takesCard = pageTakesCard(result.elements);
         subject = pageSubject(result);
-        const image = await picture(sessionId);
+        const image = await earlyPicture;
         return { content: snapshotText(result), images: image ? [image] : [] };
       }
       if (call.name === 'browser_tabs') {

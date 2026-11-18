@@ -57,6 +57,19 @@ test('a snapshot gives the elements, the text and one picture, inside a block a 
   assert.equal((hostile.match(/<\/browser-page>/g) || []).length, 1, 'only our own closing tag closes the block');
 });
 
+test('a look takes the picture while the page is read: the picture is asked for before the reading is done', async () => {
+  let readingDone = false;
+  let pictureAskedWhileReading = null;
+  const t = setup({ actions: {
+    snapshot: async () => { await new Promise((resolve) => setTimeout(resolve, 30)); readingDone = true; return PAGE; },
+    screenshot: () => { pictureAskedWhileReading = !readingDone; return { ok: true, mime: 'image/jpeg', base64: 'AAAA' }; }
+  } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const answer = await t.loader.run(call('browser_snapshot'));
+  assert.equal(pictureAskedWhileReading, true);
+  assert.equal(answer.images.length, 1);
+});
+
 test('without a browser nothing but browser_open works; a browser of another conversation is not touched or closed', async () => {
   const t = setup();
   assert.match(await t.loader.run(call('browser_click', { ref: 3 })), /Call browser_open/);

@@ -159,13 +159,35 @@ async function isPasswordField(cdp, sessionId, ref) {
   return { objectId: object.objectId, password: answer.result?.value === true };
 }
 
-// After an action: a moment for the page to start doing what was asked, then until it has finished loading (at most 10 s), then where it is.
+// After an action: what it did gets a moment to start. A page that starts to load (a click on a link, a form sent) is waited for until it has loaded (at most 10 s); a page that stays
+// where it is is waited for until it has stopped changing (at most about a second); then where it is. This takes about 0.2 s on a page that does nothing, where a fixed wait of 0.4 s
+// plus a look every 0.25 s took twice that for every action. `cdp.mark` is how many events there were before the action, so that only what the action started is looked at.
+const NAVIGATION_WINDOW_MS = 75;
+const QUIET_PROBE = `new Promise((resolve) => {
+  const start = performance.now(); let last = start;
+  const observer = new MutationObserver(() => { last = performance.now(); });
+  observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+  const tick = () => { const now = performance.now(); if (now - last >= 120 || now - start >= 1200) { observer.disconnect(); resolve(true); } else setTimeout(tick, 40); };
+  setTimeout(tick, 120);
+})`;
 async function settle(cdp, sessionId) {
-  await wait(400);
-  for (let i = 0; i < 40; i += 1) {
-    const state = await cdp.send('Runtime.evaluate', { expression: 'document.readyState', returnByValue: true }, sessionId).then((r) => r.result?.value).catch(() => null);
-    if (state === 'complete') break;
-    await wait(250);
+  const since = (method) => cdp.events.slice(cdp.mark || 0).some((e) => e.sessionId === sessionId && e.method === method);
+  let loading = false;
+  for (let waited = 0; waited < NAVIGATION_WINDOW_MS && !loading; waited += 25) {
+    loading = since('Page.frameStartedLoading');
+    if (!loading) await wait(25);
+  }
+  loading = loading || since('Page.frameStartedLoading');
+  if (loading) {
+    for (let i = 0; i < 200 && !since('Page.frameStoppedLoading'); i += 1) await wait(50);
+    await wait(60);
+  } else {
+    await cdp.send('Runtime.evaluate', { expression: QUIET_PROBE, awaitPromise: true, returnByValue: true }, sessionId, 4000).catch(() => null);
+    // The page may have started to load while it was being looked at (the old document answers until the new one arrives).
+    if (since('Page.frameStartedLoading')) {
+      for (let i = 0; i < 200 && !since('Page.frameStoppedLoading'); i += 1) await wait(50);
+      await wait(60);
+    }
   }
   return describeHere(cdp, sessionId).catch(() => ({}));
 }
@@ -464,16 +486,18 @@ async function downloadFile(cdp, action, targetId, sessionId) {
 }
 
 async function pageAction(cdp, action, targetId, sessionId) {
+  cdp.mark = cdp.events.length;
   if (action.type === 'snapshot') {
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
     const { nodes } = await cdp.send('Accessibility.getFullAXTree', {}, sessionId, 30_000);
     const elements = elementsOfTree(nodes);
     // The accessibility tree gives a password field as a plain text box whose value is one dot for each character (that already tells how long the password is), so the
     // DOM says which ones they are; a text box that cannot be checked is given without its value.
-    for (const element of elements.filter((e) => TEXT_ROLES.has(e.role) && e.value !== undefined).slice(0, 80)) {
+    // All of them are asked at once (the questions go to the browser together, not one after the other).
+    await Promise.all(elements.filter((e) => TEXT_ROLES.has(e.role) && e.value !== undefined).slice(0, 80).map(async (element) => {
       const checked = await isPasswordField(cdp, sessionId, element.ref).catch(() => ({ password: true }));
       if (checked.password) { delete element.value; element.role = 'password field'; }
-    }
+    }));
     for (const element of elements.filter((e) => TEXT_ROLES.has(e.role) && e.value !== undefined).slice(80)) delete element.value;
     const limit = Math.min(20_000, Math.max(200, Math.floor(Number(action.maxChars)) || 4000));
     const here = await cdp.send('Runtime.evaluate', { expression: 'JSON.stringify({ url: location.href, title: document.title, text: document.body ? document.body.innerText : "", scrollY: Math.round(scrollY), height: document.documentElement.scrollHeight, view: innerHeight })', returnByValue: true }, sessionId);
@@ -642,6 +666,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let result;
+  const startedAt = Date.now();
   // Whatever happens, one line of JSON comes out within 50 s (the host gives up at 60 s and then knows nothing).
   const watchdog = new Promise((resolve) => { setTimeout(() => resolve({ ok: false, error: 'the action took more than 50 s' }), 50_000).unref?.(); });
   try {
@@ -654,6 +679,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     } else request = JSON.parse(process.argv[2] || '{}');
     result = await Promise.race([runAction(request, process.env.DEVTOOLS || 'http://127.0.0.1:9222'), watchdog]);
   } catch (error) { result = { ok: false, error: String(error?.message || error).slice(0, 300) }; }
+  if (result && typeof result === 'object') result.scriptMs = Date.now() - startedAt;
   // The answer of a screenshot is large; leaving at once cut it off when stdout was a pipe (seen on the real machine: exit 0 and an answer that was not JSON).
   process.exitCode = result.ok ? 0 : 1;
   process.stdout.write(`${JSON.stringify(result)}\n`, () => process.exit());

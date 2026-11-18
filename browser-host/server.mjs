@@ -44,7 +44,7 @@ export function createServer({ manager, verifier, live = null, maxProfileBytes =
     { method: 'PUT', re: new RegExp(`^/v1/sessions/${ID}/profile$`), big: true, run: async ({ match, body }) => ({ status: 202, body: manager.putProfile(match[1], body) }) },
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}/profile$`), run: async ({ match }) => ({ status: 200, binary: await manager.collectProfile(match[1]) }) },
     { method: 'GET', re: new RegExp(`^/v1/sessions/${ID}$`), run: async ({ match }) => ({ status: 200, body: manager.get(match[1]) }) },
-    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/actions$`), limit: 13 * 1024 * 1024, run: async ({ match, body }) => ({ status: 200, body: await manager.action(match[1], json(body)) }) },
+    { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/actions$`), limit: 13 * 1024 * 1024, run: async ({ match, body }) => { const request = json(body); const started = Date.now(); const result = await manager.action(match[1], request); log({ ev: 'action', type: String(request?.type || '').slice(0, 20), ms: Date.now() - started, scriptMs: result?.scriptMs }); return { status: 200, body: result }; } },
     ...(live ? liveRoutes(manager, live) : []),
     { method: 'POST', re: new RegExp(`^/v1/sessions/${ID}/save$`), run: async ({ match }) => ({ status: 200, binary: await manager.save(match[1]) }) },
     {
