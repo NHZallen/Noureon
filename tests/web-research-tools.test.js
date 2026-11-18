@@ -105,3 +105,13 @@ test('the date of a result is read from what the sources call it, and shown in t
   assert.match(packet, /\[1\] A\nURL: https:\/\/a\.example\/\nPublished: 2026-09-29\nContent: s/);
   assert.match(packet, /\[2\] B\nURL: https:\/\/b\.example\/\nContent: t/);
 });
+
+test('a page a reader reached but got no text from is tried with the other reader, and is told apart from a page that could not be read at all', async () => {
+  let calls = 0;
+  const h = harness({ pages: () => { calls += 1; return calls === 1 ? { results: [{ url: 'https://js.example/a', text: '' }, { url: 'https://real.example/b', text: 'real text' }] } : { results: [{ url: 'https://js.example/a', text: '' }] }; } });
+  const read = await h.tools.fetchPageContents(['https://js.example/a', 'https://real.example/b', 'https://gone.example/c'], null, { maxChars: 1000 });
+  assert.deepEqual(read.pages.map((page) => page.url), ['https://real.example/b']);
+  assert.deepEqual(read.failed, [{ url: 'https://js.example/a', reason: 'empty' }, { url: 'https://gone.example/c', reason: 'failed' }]);
+  assert.equal(calls, 2, 'the second reader was asked for what the first left unread');
+  assert.deepEqual(sources(h.asked).filter((url) => /extract|fetch/.test(url)).sort(), ['/api/tavily-extract', '/api/tinyfish-fetch']);
+});

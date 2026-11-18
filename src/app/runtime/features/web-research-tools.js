@@ -140,7 +140,7 @@ export function createWebResearchTools({
 
   /**
    * Reads whole pages (up to ten at a time). Returns { pages, failed, reader }, with `failed` as [{ url, reason }]
-   * ('noReader' when there is no key at all, 'failed' when the pages could not be read). Only a stop by the person throws.
+   * ('noReader' when there is no key at all, 'empty' when a reader reached the page but got no text from it, 'failed' when the pages could not be read). Only a stop by the person throws.
    */
   const fetchPageContents = async (urls, signal, options = {}) => {
     const requested = [...new Set((urls || []).map((url) => String(url || '').trim()).filter((url) => /^https?:\/\//i.test(url)))].slice(0, MAX_PAGES_AT_ONCE);
@@ -161,12 +161,16 @@ export function createWebResearchTools({
       return { pages: fromMemory, failed: toFetch.map((url) => ({ url, reason: 'noReader' })), reader: null };
     }
     const pages = [];
+    const blank = new Set(); // pages a reader answered for with no text at all (drawn by JavaScript in the browser, most likely), against pages it could not get
     let unread = toFetch;
     let used = null;
     for (const reader of readers) {
       if (unread.length === 0) break;
       try {
         const data = await PAGE_READERS[reader](unread, getApiKeyForProvider(reader), signal);
+        for (const item of Array.isArray(data?.results) ? data.results : []) {
+          if (item?.url && !String(item.text || item.markdown || item.raw_content || item.content || '').trim()) blank.add(String(item.url).trim());
+        }
         const read = normalizePageReads(data, { requested: unread, maxChars });
         if (read.pages.length > 0) used ??= reader;
         pages.push(...read.pages);
@@ -180,7 +184,7 @@ export function createWebResearchTools({
         if (address) remember(pagesRead, `${address}|${maxChars}`, { at: now(), page }, MAX_CACHED_PAGES * 2);
       }
     }
-    return { pages: [...fromMemory, ...pages], failed: unread.map((url) => ({ url, reason: 'failed' })), reader: used };
+    return { pages: [...fromMemory, ...pages], failed: unread.map((url) => ({ url, reason: blank.has(url) ? 'empty' : 'failed' })), reader: used };
   };
 
   return { fetchPageContents, hasKey, searchWeb };

@@ -126,29 +126,31 @@ test('a search or a page that fails is told to the model, which goes on', async 
   assert.deepEqual(result.events.filter((event) => event.type === 'sources').map((event) => event.sources), [[], []], 'a call that found nothing leaves no row');
 });
 
-test('a page that comes back with no text is said to be built by JavaScript; after two such pages of a site no more of it are fetched, and other sites still are', async () => {
+test('a page that is reached with no text says what that probably is and what to do; after three of a site no more of it are fetched, and other sites still are', async () => {
   const opened = [];
   const helper = {
     searchWeb: async () => ({ results: [] }),
     openPage: async (urls) => {
       opened.push(...urls);
-      return { pages: urls.map((url) => ({ url, title: '', text: url.includes('cwa.gov.tw') ? '' : 'text of the other site' })), failed: [] };
+      return { pages: [], failed: urls.map((url) => ({ url, reason: url.includes('cwa.gov.tw') ? 'empty' : 'failed' })) };
     }
   };
   const model = scriptedModel([
     { calls: [open('1', 'https://www.cwa.gov.tw/V8/C/W/Town/Town.html')] },
     { calls: [open('2', 'https://www.cwa.gov.tw/V8/C/W/County/County.html')] },
-    { calls: [open('3', 'https://www.cwa.gov.tw/V8/C/W/OBS_Station.html'), open('4', 'https://open-meteo.com/en/docs')] },
+    { calls: [open('3', 'https://www.cwa.gov.tw/V8/C/W/OBS_Station.html')] },
+    { calls: [open('4', 'https://www.cwa.gov.tw/V8/C/W/Observe/Radar.html'), open('5', 'https://open-meteo.com/en/docs')] },
     { text: 'Done.' }
   ]);
   await run(model, helper);
   const answers = model.requests.at(-1).toolTurns.flatMap((turn) => turn.results || []).map((r) => String(r.content ?? r.output ?? r.text ?? JSON.stringify(r)));
-  assert.match(answers[0], /built by JavaScript/);
-  assert.match(answers[0], /Do not open more pages of this site/);
-  assert.match(answers[1], /built by JavaScript/);
-  assert.match(answers[2], /could not be read twice already.*no more are tried/, 'the third page of the site is not fetched');
-  assert.match(answers[3], /text of the other site/, 'another site is read as before');
-  assert.deepEqual(opened, ['https://www.cwa.gov.tw/V8/C/W/Town/Town.html', 'https://www.cwa.gov.tw/V8/C/W/County/County.html', 'https://open-meteo.com/en/docs']);
+  for (const answer of answers.slice(0, 3)) {
+    assert.match(answer, /most likely drawn by JavaScript/);
+    assert.match(answer, /give them its address so they can open it themselves/, 'the model may say the page could not be read, rather than being forbidden the site');
+  }
+  assert.match(answers[3], /could not be read 3 times.*no more are fetched/, 'the fourth page of the site is not fetched');
+  assert.match(answers[4], /could not be read \(it may block/, 'another site is tried as before, and a page that could not be read at all is not called empty');
+  assert.deepEqual(opened, ['https://www.cwa.gov.tw/V8/C/W/Town/Town.html', 'https://www.cwa.gov.tw/V8/C/W/County/County.html', 'https://www.cwa.gov.tw/V8/C/W/OBS_Station.html', 'https://open-meteo.com/en/docs']);
 });
 
 test('no page reader key is said so, and a repeated page or a bad address is not fetched again', async () => {

@@ -177,12 +177,13 @@ export function createResearchCalls({
 
   const NO_READER = 'No page reader is set up: reading a page needs a Tavily or TinyFish API key in Settings. Tell the user.';
   const UNREADABLE = 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try a page of another site.';
-  // A page that came back with no text is built by JavaScript in the browser: the reader cannot see it, and nor will it see the other pages of that site (the weather office of a country, a web app).
-  const EMPTY_PAGE = 'The page opened but a reader gets no text from it: it is built by JavaScript in the browser, so other pages of the same site will be empty too. Do not open more pages of this site: use another source (a search result, another site, a data service that answers in plain text) or tell the user what could not be read.';
-  const GIVEN_UP_ON = (host) => `Pages of ${host} could not be read twice already in this reply, so no more are tried. Use another source or tell the user what could not be read.`;
+  // A page that was reached but gave no text is most likely drawn by JavaScript in the browser: the readers (both of them, when both have a key) cannot see it, and the other pages of that site are probably the same.
+  // The model is not forbidden the site: it is told what happened, and what to do when the page matters (say so, with the address, so that the person can open it themselves).
+  const EMPTY_PAGE = 'The page was reached but the readers get no text from it: it is most likely drawn by JavaScript in the browser, so other pages of the same site are probably empty too. Look for the same facts elsewhere (a search result, another site, a data service that answers in plain text). If this page is what the user needs, say plainly that it could not be read and give them its address so they can open it themselves.';
+  const GIVEN_UP_ON = (host) => `Pages of ${host} could not be read ${SITE_FAILURES_BEFORE_GIVING_UP} times in this reply, so no more are fetched. Use another source; if a page of this site is what the user needs, say that it could not be read and give them its address.`;
   // The sites whose pages did not come back (no text, or not at all), counted: from the second one on, a page of that site is not fetched at all.
+  const SITE_FAILURES_BEFORE_GIVING_UP = 3;
   const unreadable = new Map();
-  const SITE_FAILURES_BEFORE_GIVING_UP = 2;
   const givenUp = (url) => (unreadable.get(hostOf(url)) || 0) >= SITE_FAILURES_BEFORE_GIVING_UP;
   const noteUnreadable = (url) => { const host = hostOf(url); if (host) unreadable.set(host, (unreadable.get(host) || 0) + 1); };
   // The pages asked for, whole, by address; `settled` has the ones that are done, `shown` the ones the model was already
@@ -202,7 +203,7 @@ export function createResearchCalls({
         if (text) { entry.resolve({ page: { ...raw, text } }); continue; }
         const reason = failed.find((item) => item.url === entry.url)?.reason;
         if (reason !== 'noReader') noteUnreadable(entry.url);
-        entry.resolve({ error: reason === 'noReader' ? NO_READER : raw ? EMPTY_PAGE : UNREADABLE });
+        entry.resolve({ error: reason === 'noReader' ? NO_READER : reason === 'empty' || raw ? EMPTY_PAGE : UNREADABLE });
       }
     } catch (error) {
       for (const entry of batch) {
