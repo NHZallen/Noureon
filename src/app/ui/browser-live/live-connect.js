@@ -30,9 +30,7 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   // It goes when the task is over, is cancelled, or fails.
   const wanted = () => !over && state.phase === 'run';
 
-  // A tab with nothing in it (the browser's own new tab, or a blank page): the strip names it "New tab" instead of the name of the site in front.
-  const BLANK_TAB = /^(about:blank|chrome:\/\/(newtab|new-tab-page(-third-party)?)(\/|$))/;
-  // The tabs (the strip of the focus mode): asked for while the focus mode is open, and after what the person does with them.
+  // The tabs: only to know which address is in front (the name of the site over the screen); there is no strip of our own, the screen shows the browser's.
   let tabs = [];
   let poll = null;
   const refreshTabs = async () => {
@@ -40,7 +38,7 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     if (!answer?.ok || !Array.isArray(answer.data?.tabs)) return;
     tabs = answer.data.tabs.map((tab) => ({ id: tab.tabId, title: tab.title || '', url: tab.url || '', active: tab.active === true }));
     const front = tabs.find((tab) => tab.active) || tabs[0];
-    card.liveState({ tabs: tabs.map(({ id, title, active, url }) => ({ id, title, active, blank: BLANK_TAB.test(url) })), url: front?.url || '' });
+    card.liveState({ url: front?.url || '' });
   };
   const doTab = async (body) => { await api('POST', `${base}/tabs`, body).catch(() => null); await refreshTabs(); };
   const frontTab = () => tabs.find((tab) => tab.active) || tabs[0];
@@ -48,9 +46,6 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   const startPolling = () => { if (!poll) { void refreshTabs(); poll = setRepeat(() => { void refreshTabs(); }, 3000); } };
 
   const controller = {
-    onNewTab: () => doTab({ op: 'new' }),
-    onSwitchTab: (id) => doTab({ op: 'activate', tabId: id }),
-    onCloseTab: (id) => doTab({ op: 'close', tabId: id }),
     onRefresh: () => doTab({ op: 'reload', tabId: frontTab()?.id }),
     onBack: () => doTab({ op: 'back', tabId: frontTab()?.id }),
     // The picture on the screen goes to the box of the message as an attached file (the page puts it there: noureon:attach-files, app-bootstrap-lifecycle.js); true when there was a picture.

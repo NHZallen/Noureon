@@ -1,16 +1,16 @@
 // The focus mode of the browser agent on a phone (design section 16): the page is the browser. At the top: a cross (back to the pill), the site, a menu. Under it
-// the tabs, like a real browser's (a press switches, the cross of a tab closes it, the plus opens one; the person and the model can both do it). Then the
+// (no tab strip: the screen has the browser's own). Then the
 // screen, then, while the model works, empty room and two buttons (Stop, Take over). When the person has taken over the room becomes a trackpad, a row of
 // tools (keyboard, paste, refresh) is over it, and one button gives the browser back to the model. The menu holds back, a screenshot for the model, copying the
 // address, the downloaded files and the ratio of the screen. What it asks of the browser it asks of a `controller`; it draws from the `state` it is told.
-//   state: { domain, url, tabs: [{ id, title, active, blank? }], control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
+//   state: { domain, url, control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
 // `origin` is where the focus mode was opened from: from the card the round button is Shrink (arrows inward: the card becomes the pill), from the pill it is Expand (arrows outward: the pill becomes the card).
 // Over the lower edge of the screen is the same row as the card has (the capsule that says what is done, the button that gives the card back, the cross that cancels the task); a press on the capsule
 // shows the steps over the screen. A press on the empty room (not while the browser is in the person's hands: there it is the trackpad) leaves the focus mode.
 // On a computer (`layout: 'panel'`) it is the side panel (and, with `zoomed`, the big one): the tabs are the top row with Enlarge, the menu and the cross beside them; there is no
 // trackpad: the person points and types on the screen itself (the mouse, the wheel, the keys); with the browser in their hands there is a row for the address, and under
 // the screen Paste and Screenshot are on the left and Give back on the right.
-//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onNewTab, onSwitchTab(id), onCloseTab(id), onBack, onScreenshot, onCopyUrl, onRefresh, onRatio(key), onZoom(bool), onNavigate(url) }
+//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onBack, onScreenshot, onCopyUrl, onRefresh, onRatio(key), onZoom(bool), onNavigate(url) }
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLiveView } from './live-view.js';
@@ -61,7 +61,7 @@ const KEYS = [['Escape', 'Esc'], ['Tab', 'Tab'], ['ArrowLeft', '←'], ['ArrowUp
 export function createFocusMode({ document, host = document.body, language = 'zh-TW', layout = 'phone', source = null, state: initial = {}, controller = {}, readClipboard = null }) {
   const panel = layout === 'panel';
   const t = (key) => sandboxText(language, key);
-  let state = { domain: '', url: '', tabs: [], control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, label: '', status: 'run', steps: [], origin: 'pill', ...initial };
+  let state = { domain: '', url: '', control: 'model', ratio: DEFAULT_RATIO, over: false, zoomed: false, label: '', status: 'run', steps: [], origin: 'pill', ...initial };
   const ask = (name, ...args) => controller[name]?.(...args);
 
   const make = (tag, className, attrs = {}) => {
@@ -86,8 +86,8 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   const menuButton = button('bf-icon', t('browserMore'), () => toggleMenu(), icon(document, 'more'));
   top.append(button('bf-icon', t('browserFocusClose'), () => ask('onClose'), icon(document, 'x')), Object.assign(make('div', 'bf-domain'), {}), menuButton);
   top.querySelector('.bf-domain').append(dot, site);
-  // The tabs.
-  const tabs = make('div', 'bf-tabs', { role: 'tablist', 'aria-label': t('browserTabs') });
+  // No tab strip of our own: the screen shows the browser's own. The empty row only keeps the layout (it pushes the screen down while the model works; on a computer it fills the head).
+  const tabs = make('div', 'bf-tabs');
   // The screen.
   const screen = make('div', 'bf-screen');
   const view = createLiveView({ document, host: screen, ratio: state.ratio, source });
@@ -323,13 +323,6 @@ export function createFocusMode({ document, host = document.body, language = 'zh
       item.append(tick, text);
       return item;
     }));
-    tabs.replaceChildren(...state.tabs.map((tab) => {
-      const node = make('div', `bf-tab${tab.active ? ' is-active' : ''}`, { role: 'tab', 'aria-selected': String(Boolean(tab.active)) });
-      const name = tab.blank ? t('browserNewTab') : (tab.title || state.domain);
-      const label = button('bf-tab-label', name, () => ask('onSwitchTab', tab.id), null, name);
-      node.append(label, button('bf-tab-close', t('browserCloseTab'), () => ask('onCloseTab', tab.id), icon(document, 'x', 12)));
-      return node;
-    }), button('bf-tab-new', t('browserNewTab'), () => ask('onNewTab'), icon(document, 'plus', 16)));
   };
   render();
 

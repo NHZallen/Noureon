@@ -497,7 +497,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     focusFrom = view === 'pill' ? 'pill' : 'front';
     const panel = wide();
     if (panel) dock.open({ zoomed });
-    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', tabs: live.tabs || [], ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords(), origin: focusFrom }, controller: focusController(), readClipboard: live.readClipboard || null });
+    focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords(), origin: focusFrom }, controller: focusController(), readClipboard: live.readClipboard || null });
     if (panel) dock.mountHandle(focus.element, sandboxText(language, 'browserResize'));
     notify();
   };
@@ -593,10 +593,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     },
     /** The tabs or who has the browser changed (the parts that are given). */
     liveState(next = {}) {
-      if (live && next.tabs) live.tabs = next.tabs;
-      if (live && typeof next.url === 'string') live.url = next.url;
+            if (live && typeof next.url === 'string') live.url = next.url;
       if (next.control) control = next.control;
-      focus?.update({ ...(next.tabs ? { tabs: next.tabs } : {}), ...(typeof next.url === 'string' ? { url: next.url } : {}), control });
+      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control });
       render();
     },
     /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */

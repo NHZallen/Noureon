@@ -160,7 +160,7 @@ test('a stream that ends within seconds is not brought back at once and without 
 });
 
 
-test('the tabs of the focus mode: asked for while it is open, what the person does goes to the server, and the strip is drawn from the answer', async () => {
+test('the tabs are asked for while the focus mode is open (only to know which address is in front), not for any more when it is closed; there is no strip of our own', async () => {
   const w = world();
   await settle();
   assert.equal(w.repeats.length, 0, 'not asked for while only the card is there');
@@ -168,18 +168,7 @@ test('the tabs of the focus mode: asked for while it is open, what the person do
   await settle();
   assert.deepEqual(names(w).filter((n) => n.endsWith('/tabs')), ['POST /tabs']);
   assert.equal(w.repeats.length, 1); assert.equal(w.repeats[0][1], 3000);
-  const labels = () => [...w.card.element.ownerDocument.querySelectorAll('.bf-tab-label')].map((b) => b.textContent);
-  assert.deepEqual(labels(), ['Shop', 'Docs']);
-  const press = (selector, index = 0) => w.card.element.ownerDocument.querySelectorAll(selector)[index].click();
-  press('.bf-tab-label', 1);
-  await settle();
-  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/tabs')).at(-2)[2], { op: 'activate', tabId: 'T2' });
-  press('.bf-tab-new');
-  await settle();
-  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/tabs')).at(-2)[2], { op: 'new' });
-  press('.bf-tab-close', 0);
-  await settle();
-  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/tabs')).at(-2)[2], { op: 'close', tabId: 'T1' });
+  assert.equal(w.card.element.ownerDocument.querySelectorAll('.bf-tab').length, 0);
   w.card.closeFocus();
   await settle();
   assert.equal(w.repeats.cleared, 1, 'not asked for any more when the focus mode is closed');

@@ -1,9 +1,0 @@
-{
-  "manifest_version": 3,
-  "name": "Noureon tab order",
-  "description": "Tells the browser host in which order the tabs stand in the tab strip. Nothing else: no page access, no messages from pages.",
-  "version": "1.0.0",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnIIRcOpXukUnxEVVBjtiTC5s9aspaOsQSB8A8O9fWzAcSeJP8fhRXrXPzxhDO0L9CJH+SUkXvLDtKK7ZirE5Mo508wYPzto3QsO6OabXFiYsQlkg+q/cRWVKIp67kvUh5WdTjYjF6Wqm8MDZCM35NDlanCHjsjsvtUzfXowR2i9JjAeLTog7qHaYrHhuyZkSA1BhEEIx1BI17WZvhJ6rdwjn5YNSuzf6fK5Kg7atMkA5UhhGJ7VebFIZGXeXvsrI4mx0AerTLEjQO/YD9C5my+YhyZG0V82dao+nXTvJtU6Kh0LubRruNyxVMi8DhyJ8nKcKX99c/1rEtFdDUIK7HwIDAQAB",
-  "permissions": ["tabs"],
-  "background": { "service_worker": "background.js" }
-}

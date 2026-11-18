@@ -7,5 +7,5 @@ BASE="${BROWSER_IMAGE_BASE:-ghcr.io/m1k1o/neko/chromium:latest}"
 TAG="${1:-noureon-browser-chromium:$(date +%Y%m%d)}"
 docker build --build-arg "BASE=$BASE" -t "$TAG" .
 echo "built $TAG from $BASE"
-docker run --rm --entrypoint sh "$TAG" -c 'ls /usr/lib/chromium/locales | tr "\n" " "; echo; ls /opt/noureon-tab-order'
+docker run --rm --entrypoint sh "$TAG" -c 'ls /usr/lib/chromium/locales | tr "\n" " "; echo'
 echo "set BROWSER_IMAGE=$TAG in /etc/noureon-browser/host.env, then restart noureon-browser-host (browsers that run now keep the old image)"

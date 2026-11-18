@@ -12,7 +12,7 @@ const make = (options = {}) => {
   const controller = new Proxy({}, { get: (_, name) => (...args) => calls.push([name, ...args]) });
   const input = { log: [], pointer(...a) { this.log.push(['pointer', ...a]); }, wheel(...a) { this.log.push(['wheel', ...a]); }, key(...a) { this.log.push(['key', ...a]); }, text(...a) { this.log.push(['text', ...a]); } };
   const source = { input, mount() {}, mountLens() {}, destroy() {} };
-  const mode = createFocusMode({ document, language: 'en', source, controller, state: { domain: 'acme.com', tabs: [{ id: 'a', title: 'Acme', active: true }, { id: 'b', title: 'Google', active: false }] }, ...options });
+  const mode = createFocusMode({ document, language: 'en', source, controller, state: { domain: 'acme.com' }, ...options });
   const q = (selector) => document.querySelector(selector);
   const click = (selector) => q(selector).click();
   const pointer = (type, id, x, y, at) => {
@@ -43,27 +43,11 @@ test('while the model works: the site, the tabs, Take over below and the row ove
 });
 const document_buttons = (q) => q('.bf-actions').querySelectorAll('button');
 
-test('a tab with nothing in it is named "New tab", not with the name of the site in front', () => {
-  const { window, mode, document } = make();
+test('there is no tab strip of our own: the screen shows the browser\'s', () => {
+  const { window, document } = make();
   try {
-    mode.update({ tabs: [{ id: 'a', title: 'Acme', active: true }, { id: 'b', title: 'chrome://new-tab-page', active: false, blank: true }] });
-    const names = [...document.querySelectorAll('.bf-tab-label')].map((node) => node.textContent);
-    assert.deepEqual(names, ['Acme', 'New tab']);
-  } finally {
-    window.happyDOM.abort();
-  }
-});
-
-test('the tabs: a press switches, the cross closes, the plus opens a new one; the active one is marked', () => {
-  const { window, q, calls, document } = make();
-  try {
-    const tabs = [...document.querySelectorAll('.bf-tab')];
-    assert.equal(tabs.length, 2);
-    assert.ok(tabs[0].classList.contains('is-active'));
-    tabs[1].querySelector('.bf-tab-label').click();
-    tabs[1].querySelector('.bf-tab-close').click();
-    q('.bf-tab-new').click();
-    assert.deepEqual(calls, [['onSwitchTab', 'b'], ['onCloseTab', 'b'], ['onNewTab']]);
+    assert.equal(document.querySelectorAll('.bf-tab').length, 0);
+    assert.equal(document.querySelectorAll('.bf-tab-new').length, 0);
   } finally {
     window.happyDOM.abort();
   }

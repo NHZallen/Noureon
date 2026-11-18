@@ -62,28 +62,11 @@ export function isUserPage(info) {
 }
 const pagesOf = async (cdp) => (await cdp.send('Target.getTargets')).targetInfos.filter(isUserPage);
 
-// ---- The order of the tabs: the one of the tab strip of the browser, so that the strip of the page is the same as the one on the screen ----
-// Target.getTargets lists the tabs in no order that means anything (seen on the real machine: not the order they were made in, not the one of the strip), and /json/list lists them newest first.
-// The truth is in the extension API (the index of a tab in its window): a very small extension of ours (image/tab-order, the id comes from the key in its manifest) answers it, through
-// the DevTools target of its service worker. Without it (an image that does not have it, a worker that is asleep) the order is worked out: the order the tabs were made in, with a tab
-// that another tab opened right after that one, as the browser does it.
-export const TAB_ORDER_EXTENSION = 'einpcabpdadafpdbegpcfbmnhaemkhcd';
+// ---- The order of the tabs ----
+// Target.getTargets lists the tabs in no order that means anything (seen on the real machine: not the order they were made in, not the one of the tab strip), and /json/list lists them newest
+// first. DevTools has no index of a tab in the strip (only the extension API has, and we decided not to put an extension in the browser for it: the screen has the real strip anyway).
+// So the order is worked out: the order the tabs were made in, with a tab that another tab opened standing right after that one, as the browser does it.
 
-/** Pages in the order of the strip. `strip`: [{ windowId, index, url, title }] from the extension; a page is matched to its entry by its address (then by its title); the ones not found stay at the end, in the order they were given. */
-export function sortByStrip(pages, strip) {
-  const entries = [...strip].sort((a, b) => (a.windowId - b.windowId) || (a.index - b.index));
-  const left = [...pages];
-  const ordered = [];
-  for (const entry of entries) {
-    let at = left.findIndex((page) => page.url === entry.url && page.title === entry.title);
-    if (at < 0) at = left.findIndex((page) => page.url === entry.url);
-    if (at < 0) at = left.findIndex((page) => page.title === entry.title && entry.title);
-    if (at >= 0) ordered.push(left.splice(at, 1)[0]);
-  }
-  return [...ordered, ...left];
-}
-
-/** Pages in the order they were made in (`newestFirst`: the ids as /json/list gives them), a tab opened by another tab (`openerId`) standing right after its opener and the tabs that opener opened before it. */
 export function orderByCreation(pages, newestFirst) {
   const rank = new Map([...newestFirst].reverse().map((id, i) => [id, i]));
   const made = [...pages].sort((a, b) => (rank.has(a.targetId) ? rank.get(a.targetId) : Infinity) - (rank.has(b.targetId) ? rank.get(b.targetId) : Infinity));
@@ -98,22 +81,7 @@ export function orderByCreation(pages, newestFirst) {
   return out;
 }
 
-async function stripFromExtension(cdp) {
-  try {
-    const { targetInfos } = await cdp.send('Target.getTargets');
-    const worker = targetInfos.find((info) => info.type === 'service_worker' && String(info.url).startsWith(`chrome-extension://${TAB_ORDER_EXTENSION}/`));
-    if (!worker) return null;
-    const session = (await cdp.send('Target.attachToTarget', { targetId: worker.targetId, flatten: true })).sessionId;
-    try {
-      const answer = await cdp.send('Runtime.evaluate', { expression: 'self.noureonTabs()', awaitPromise: true, returnByValue: true }, session, 5000);
-      return Array.isArray(answer.result?.value) ? answer.result.value : null;
-    } finally { await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {}); }
-  } catch { return null; }
-}
-
-async function inStripOrder(cdp, pages) {
-  const strip = await stripFromExtension(cdp);
-  if (strip && strip.length) return sortByStrip(pages, strip);
+async function inTabOrder(cdp, pages) {
   try {
     const listed = await (await fetch(`${cdp.devtools}/json/list`)).json();
     return orderByCreation(pages, listed.map((item) => item.id));
@@ -587,7 +555,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
     if (action.type === 'clear-site') return await clearSites(cdp, action);
     if (action.type === 'tabs') {
       if (action.op === 'list') {
-        const pages = (await inStripOrder(cdp, await pagesOf(cdp))).slice(0, 12);
+        const pages = (await inTabOrder(cdp, await pagesOf(cdp))).slice(0, 12);
         // The tab in front is the one that is visible (a tab that is not in front draws nothing).
         const visible = await Promise.all(pages.map(async (p) => {
           try {
