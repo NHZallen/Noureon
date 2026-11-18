@@ -176,7 +176,7 @@ export function createResearchCalls({
   };
 
   const NO_READER = 'No page reader is set up: reading a page needs a Tavily or TinyFish API key in Settings. Tell the user.';
-  const UNREADABLE = 'The page could not be read (it may block automated reading, need a login, or be down). Tell the user, or try a page of another site.';
+  const UNREADABLE = 'The page could not be read (it may block automated reading, need a login, be down, or be drawn by JavaScript in the browser, which the readers cannot see). Look for the same facts elsewhere (another page, a search result, another site); if this page is what the user needs, say plainly that it could not be read and give them its address so they can open it themselves.';
   // A page that was reached but gave no text is most likely drawn by JavaScript in the browser: the readers (both of them, when both have a key) cannot see it, and the other pages of that site are probably the same.
   // The model is not forbidden the site: it is told what happened, and what to do when the page matters (say so, with the address, so that the person can open it themselves).
   const EMPTY_PAGE = 'The page was reached but the readers get no text from it: it is most likely drawn by JavaScript in the browser, so other pages of the same site are probably empty too. Look for the same facts elsewhere (a search result, another site, a data service that answers in plain text). If this page is what the user needs, say plainly that it could not be read and give them its address so they can open it themselves.';

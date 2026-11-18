@@ -881,7 +881,7 @@ test('readPage reads a page in a tab of its own and closes the tab; it never sta
   const page = await t.loader.readPage('https://spa.example/', { maxChars: 5000 });
   assert.deepEqual(page, { url: 'https://spa.example/', finalUrl: 'https://spa.example/after', title: 'Spa', text: 'Real words of the page' });
   const steps = t.calls.filter((entry) => entry[0] === 'action').map((entry) => entry[1]);
-  assert.deepEqual(steps.map((a) => [a.type, a.op || '', a.tabId || '']), [['tabs', 'new', ''], ['navigate', '', 'TAB-2'], ['text', '', 'TAB-2'], ['tabs', 'close', 'TAB-2']]);
+  assert.deepEqual(steps.map((a) => [a.type, a.op || '', a.tabId || '']), [['tabs', 'new', ''], ['navigate', '', 'TAB-2'], ['text', '', 'TAB-2'], ['text', '', 'TAB-2'], ['tabs', 'close', 'TAB-2']]);
   assert.equal(steps[2].maxChars, 5000);
   const other = setup({ current: { sessionId: 'b9', conversationId: 'another' } });
   assert.equal(await other.loader.readPage('https://spa.example/'), null, 'the browser of another conversation is not used');
@@ -904,4 +904,17 @@ test('a click or typing that the host answers with a point on the screen tells t
     { type: 'browser', event: 'point', action: 'click', x: 0.31, y: 0.72 },
     { type: 'browser', event: 'point', action: 'type', x: 0.5, y: 0.4 }
   ]);
+});
+
+test('readPage waits for a page that draws its words late: it reads again until there is text that has stopped growing, and gives nothing for a page that stays empty', async () => {
+  let reads = 0;
+  const late = setup({ current: { sessionId: 'b1', conversationId: 'c1' }, actions: { tabs: (action) => (action.op === 'new' ? { ok: true, tabId: 'L1' } : { ok: true }), text: () => { reads += 1; return { ok: true, url: 'https://spa.example/', title: 'Spa', text: reads < 3 ? '' : 'The words came' }; } } });
+  const page = await late.loader.readPage('https://spa.example/');
+  assert.equal(page.text, 'The words came');
+  assert.equal(reads, 4, 'empty, empty, the words, the same words again: done');
+  let more = 0;
+  const empty = setup({ current: { sessionId: 'b1', conversationId: 'c1' }, actions: { tabs: (action) => (action.op === 'new' ? { ok: true, tabId: 'L2' } : { ok: true }), text: () => { more += 1; return { ok: true, text: '' }; } } });
+  assert.equal(await empty.loader.readPage('https://spa.example/'), null);
+  assert.equal(more, 5, 'five reads at most');
+  assert.equal(empty.calls.filter((entry) => entry[0] === 'action').at(-1)[1].op, 'close');
 });

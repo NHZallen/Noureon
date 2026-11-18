@@ -614,9 +614,19 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         tabId = typeof tab?.tabId === 'string' ? tab.tabId : '';
         if (!tabId) return null;
         await act(sessionId, { type: 'navigate', url: String(url), tabId });
-        const here = await act(sessionId, { type: 'text', tabId, maxChars });
-        const text = String(here?.text || '').trim();
-        return text ? { url: String(url), finalUrl: here.url || String(url), title: here.title || '', text } : null;
+        // A page drawn by JavaScript has no text when it has just loaded: read again (up to five times, about 0.8 s apart) until there is some, and it has stopped growing or is long.
+        let here = null;
+        let text = '';
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          if (attempt > 0) await sleep(800);
+          if (userEnded || signal?.aborted) return null;
+          here = await act(sessionId, { type: 'text', tabId, maxChars });
+          const now = String(here?.text || '').trim();
+          const settled = now && (now === text || now.length >= 300);
+          text = now;
+          if (settled) break;
+        }
+        return text ? { url: String(url), finalUrl: here?.url || String(url), title: here?.title || '', text } : null;
       } catch {
         return null;
       } finally {
