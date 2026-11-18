@@ -38,9 +38,15 @@ const WORDING_V1 = {
   search: 'The latest message needs up-to-date facts from the web: news, today\'s weather, prices, scores, recent events, anything that may have changed after a language model was trained. It does not if the model\'s own knowledge or the conversation is enough, if the person says not to search the web or the internet (in any language: 不要用連網搜尋, don\'t search the web, sans chercher sur le web), or if the person asks for a real web browser to be used (the browser does the looking).',
   url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix, or if the person asks for the address to be opened in a real web browser (the browser opens it).'
 };
-const WORDINGS_BY_NAME = { old: WORDING_OLD, v1: WORDING_V1 };
+// ... and as they were in fae208d0 (the wording that Hark measured on 2026-11-18 in the evening: search and url as now, `browser` with the address sentence only).
+const WORDING_V2 = {
+  browser: 'The person asks for a real web browser to be used for them: to open websites and work them, step by step, the way a person would (search a shop or a booking site, compare offers, fill in a form, log in, book, buy, collect results from several sites). It does not if they only mention or ask about a browser, ask something that needs no website, or just want a page at an address in the message read, summarised, translated or checked (that page is read for them without a browser). It does when they say to use a browser or the browser agent, even if the message holds an address to open: "use the browser agent to open https://… and click the first result" is a task for the browser.',
+  search: 'The latest message needs up-to-date facts from the web: news, today\'s weather, prices, scores, recent events, anything that may have changed after a language model was trained. It does not if the model\'s own knowledge or the conversation is enough, if the person says not to search the web or the internet (in any language: 不要用連網搜尋, don\'t search the web, sans chercher sur le web), or if the person asks for a real web browser to be used (the browser does the looking).',
+  url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix, or if the person says to use a browser or the browser agent (the browser opens the address and works the page itself, whatever else the message asks it to do there).'
+};
+const WORDINGS_BY_NAME = { old: WORDING_OLD, v1: WORDING_V1, v2: WORDING_V2 };
 const wordingOption = option('--wording') || 'new';
-const WORDINGS = wordingOption === 'all' ? ['old', 'v1', 'new'] : wordingOption === 'both' ? ['old', 'new'] : [WORDINGS_BY_NAME[wordingOption] ? wordingOption : 'new'];
+const WORDINGS = wordingOption === 'all' ? ['old', 'v1', 'v2', 'new'] : wordingOption === 'both' ? ['old', 'new'] : [WORDINGS_BY_NAME[wordingOption] ? wordingOption : 'new'];
 const tools = [{ name: 'yt-dlp', description: 'download video or audio from a web page' }, { name: 'ffmpeg', description: 'convert audio and video files' }];
 
 // message, and what the page should conclude (search, file, chart, tool, url, exact, verbatim, browser): true / false
