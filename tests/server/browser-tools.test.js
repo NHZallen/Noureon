@@ -39,7 +39,7 @@ test('the first open starts the browser for this conversation, waits for a place
   assert.deepEqual(t.calls.find((entry) => entry[0] === 'action')[1], { type: 'navigate', url: 'https://shop.example/' });
   assert.equal(t.events.filter((event) => event.event === 'queued').length, 1, 'the same place in the queue is said once');
   assert.equal(t.events[0].position, 2);
-  assert.match(answer, /Done\./);
+  assert.match(asText(answer), /Done\./);
 });
 
 test('a snapshot gives the elements, the text and one picture, inside a block a page cannot close; a password field has no value', async () => {
@@ -90,17 +90,43 @@ test('each action reaches the browser as the one action it is; closing says the 
   await t.loader.run(call('browser_back'));
   await t.loader.run(call('browser_wait', { ms: 500 }));
   await t.loader.run(call('browser_tabs', { op: 'new', url: 'https://b.example/' }));
-  assert.deepEqual(t.calls.filter((entry) => entry[0] === 'action').map((entry) => entry[1]), [
+  // (the actions that change the page are each followed by a look and a picture of the page: see the test of the look after an action)
+  assert.deepEqual(t.calls.filter((entry) => entry[0] === 'action' && !['snapshot', 'screenshot'].includes(entry[1].type)).map((entry) => entry[1]), [
     { type: 'click', ref: 3 }, { type: 'type', ref: 3, text: 'red shoes', submit: true }, { type: 'press', key: 'Enter' }, { type: 'scroll', direction: 'down' }, { type: 'back' }, { type: 'wait', ms: 500 }, { type: 'tabs', op: 'new', url: 'https://b.example/' }
   ]);
   assert.match(await t.loader.run(call('browser_close')), /logins are kept/);
+});
+
+test('an action that changes the page answers with the look at the page after it (new numbers, the text, a picture); the others do not; the tripwire reads what that look listed; a look that fails is not told', async () => {
+  const shop = { ...PAGE, elements: [{ ref: 21, role: 'button', name: 'Pay now' }, { ref: 22, role: 'button', name: 'Add to cart' }] };
+  const asked = [];
+  let failLook = false;
+  const t = setup({ ask: async (kind, info) => { asked.push(info); return { decision: 'cancel' }; }, actions: { snapshot: () => { if (failLook) throw new Error('gone'); return shop; } } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const types = () => t.calls.filter((entry) => entry[0] === 'action').map((entry) => entry[1].type);
+  for (const [name, args, lead] of [['browser_open', { url: 'https://shop.example/' }, /Done\. Here is the page now/], ['browser_click', { ref: 3 }, /Done/], ['browser_press', { key: 'Enter' }, /Done/], ['browser_back', {}, /Done/], ['browser_scroll', { direction: 'down' }, /Scrolled/], ['browser_wait', { ms: 100 }, /Waited/], ['browser_type', { ref: 3, text: 'x', submit: true }, /Done/]]) {
+    const before = types().length;
+    const answer = await t.loader.run(call(name, args));
+    assert.match(answer.content, lead, name);
+    assert.match(answer.content, /\[21\] button "Pay now"/, `${name} lists what can be acted on`);
+    assert.equal(answer.images.length, 1, `${name} gives a picture`);
+    assert.deepEqual(types().slice(before).sort(), [name === 'browser_open' ? 'navigate' : name.replace('browser_', ''), 'screenshot', 'snapshot'].sort(), name);
+  }
+  const quiet = await t.loader.run(call('browser_type', { ref: 3, text: 'x' }));
+  assert.equal(typeof quiet, 'string', 'typing without submit is told as before');
+  assert.deepEqual(types().slice(-1), ['type']);
+  // The click that follows is judged by what the look after the last action listed (the old numbers are not what is clicked any more).
+  assert.match(await t.loader.run(call('browser_click', { ref: 21 })).then(asText), /did not confirm/);
+  assert.equal(asked[0].summary, 'Pay now');
+  failLook = true;
+  assert.match(asText(await t.loader.run(call('browser_click', { ref: 22 }))), /Done\. The tab shows this/, 'the look failed: the plain answer');
 });
 
 test('a failed action is tried once more only when the browser did not answer; what the page said is not trusted, and failures are told plainly', async () => {
   let n = 0;
   const flaky = setup({ actions: { click: () => { n += 1; if (n === 1) throw new BrowserHostError('x', { status: 502, code: 'action_failed' }); return { ok: true, url: 'https://shop.example/', title: 'Shop' }; } } });
   flaky.setOpen({ sessionId: 'b1', conversationId: 'c1' });
-  assert.match(await flaky.loader.run(call('browser_click', { ref: 3 })), /Done\./);
+  assert.match(asText(await flaky.loader.run(call('browser_click', { ref: 3 }))), /Done\./);
   assert.equal(n, 2);
   let m = 0;
   const semantic = setup({ actions: { click: () => { m += 1; throw new BrowserHostError('that element is not on the page any more: take a new snapshot', { status: 400, code: 'action_failed' }); } } });
@@ -226,8 +252,8 @@ test('the tripwire: a click on a button named like paying is asked about first; 
   assert.equal(asked[0].action, 'payment'); assert.equal(asked[0].summary, 'Pay now'); assert.equal(asked[0].domain, 'shop.example');
   assert.equal(t.calls.filter((c) => c[0] === 'action' && c[1].type === 'click').length, 1, 'only the ordinary click reached the browser');
   answer = { decision: 'confirm' };
-  assert.match(await t.loader.run(call('browser_click', { ref: 7 })), /Done/);
-  assert.match(await t.loader.run(call('browser_click', { ref: 7 })), /Done/);
+  assert.match(asText(await t.loader.run(call('browser_click', { ref: 7 }))), /Done/);
+  assert.match(asText(await t.loader.run(call('browser_click', { ref: 7 }))), /Done/);
   assert.equal(asked.length, 2, 'the second click after a confirmation is not asked again');
 });
 
@@ -242,7 +268,7 @@ test('the tripwire: a button named only Submit on a page about deleting is asked
   assert.equal(asked[0].action, 'delete'); assert.equal(asked[0].summary, '送出');
   shown = page('Write us a message.');
   await t.loader.run(call('browser_snapshot'));
-  assert.match(await t.loader.run(call('browser_click', { ref: 3 })), /Done/);
+  assert.match(asText(await t.loader.run(call('browser_click', { ref: 3 }))), /Done/);
   assert.equal(asked.length, 1, 'an ordinary page is not asked');
 });
 
@@ -813,7 +839,7 @@ test('the browser is in another conversation: the person is asked, with the long
   const result = await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
   assert.deepEqual(t.asked, [['busy', { minutes: 13 }]]);
   assert.deepEqual(t.calls, [['close', 'b-other'], ['open']]);
-  assert.match(result, /Done\./);
+  assert.match(asText(result), /Done\./);
 });
 
 test('"wait for it": nothing is opened until the other browser is gone, and the card says it waits; when it does not go in time the model is told', async () => {
@@ -821,7 +847,7 @@ test('"wait for it": nothing is opened until the other browser is gone, and the 
   const result = await t.loader.run(call('browser_open', { url: 'https://shop.example/' }));
   assert.deepEqual(t.calls, [['open']], 'the other one was not closed');
   assert.equal(t.events.find((event) => event.event === 'queued')?.label, 'Waiting for the other conversation\'s browser');
-  assert.match(result, /Done\./);
+  assert.match(asText(result), /Done\./);
 });
 
 test('"go on without a browser", a question that was not answered, or no way to ask: nothing is opened and the model is told what to do', async () => {

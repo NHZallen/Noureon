@@ -4,6 +4,7 @@
 // The key is read from the environment and is never printed.
 //
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs
+//   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --wording both     (2026-11-18: the questions `search` and `url` before and after they were told about "don't search the web" and browser tasks)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model typesafe/jev-1.14 --compare openai/gpt-6-luna-decisions
 //   OPENROUTER_API_KEY=sk-or-... node scripts/decisions-probe.mjs --model google/gemini-decision-1 --compare typesafe/jev-1.14     (2026-11-13: the new Google one, against the one the app has)
 //   OPENROUTER_API_KEY=sk-or-... GEMINI_API_KEY=... node scripts/decisions-probe.mjs --model gemini-decision-1 --compare google/gemini-decision-1     (Google's own address, with the Gemini key, as the settings offer it)
@@ -24,6 +25,13 @@ if (!key || (models.some((model) => providerOf(model) === 'gemini') && !geminiKe
   console.error('Set OPENROUTER_API_KEY (and GEMINI_API_KEY for a model of Google Gemini) first:  OPENROUTER_API_KEY=sk-or-... GEMINI_API_KEY=... node scripts/decisions-probe.mjs');
   process.exit(1);
 }
+// How the questions `search` and `url` were worded before 2026-11-18 (--wording old), to put the new words beside them (--wording both). The new ones are those of decision-client.js.
+const OLD_WORDING = {
+  search: 'The latest message needs up-to-date facts from the web: news, today\'s weather, prices, scores, recent events, anything that may have changed after a language model was trained. It does not if the model\'s own knowledge or the conversation is enough.',
+  url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix.'
+};
+const wordingOption = option('--wording') || 'new';
+const WORDINGS = wordingOption === 'both' ? ['old', 'new'] : [wordingOption === 'old' ? 'old' : 'new'];
 const tools = [{ name: 'yt-dlp', description: 'download video or audio from a web page' }, { name: 'ffmpeg', description: 'convert audio and video files' }];
 
 // message, and what the page should conclude (search, file, chart, tool, url, exact, verbatim, browser): true / false
@@ -53,15 +61,36 @@ const CASES = [
   { message: 'How do I clear the cache in my browser?', expect: { browser: false } },
   { message: '用 JavaScript 寫一個在瀏覽器裡顯示時鐘的網頁', expect: { browser: false } },
   { message: '請用三句話解釋什麼是遞迴', expect: { browser: false } },
-  { message: '幫我查三家從台北到大阪的便宜機票，比一下價錢和時間', expect: { browser: true } }
+  { message: '幫我查三家從台北到大阪的便宜機票，比一下價錢和時間', expect: { browser: true } },
+  // 2026-11-18: a person who says not to search the web, in the five languages, about something that would otherwise be searched
+  { message: '不要連網搜尋，只用你知道的告訴我：2024 年諾貝爾物理學獎是誰？', expect: { search: false } },
+  { message: '不要上網查，直接告訴我今天台北的天氣通常怎麼判斷', expect: { search: false } },
+  { message: 'Don\'t search the web. Who won the Nobel Prize in Physics in 2024? Just tell me what you remember.', expect: { search: false } },
+  { message: 'Without looking anything up online, what is the latest version of Python you know about?', expect: { search: false } },
+  { message: 'Sans chercher sur le web, dis-moi qui a gagné la Coupe du monde en 2018.', expect: { search: false } },
+  { message: 'Не ищи в интернете: назови последнюю версию Python, которую ты знаешь.', expect: { search: false } },
+  { message: 'No busques en internet; dime lo que recuerdes sobre el último iPhone que conoces.', expect: { search: false } },
+  // the same asks without the refusal still search
+  { message: '請上網查一下 2024 年諾貝爾物理學獎是誰', expect: { search: true } },
+  { message: 'Look up the latest stable version of Python online and tell me.', expect: { search: true } },
+  // a task for the browser agent that holds an address: the browser opens it and does the looking, so nothing is to be searched or read beforehand
+  { message: '用瀏覽器代理（不要用連網搜尋）打開 https://duckduckgo.com/?q=Noureon ，在瀏覽器裡依序點開前三個搜尋結果，各回報一句頁面標題', expect: { search: false, url: false, browser: true } },
+  { message: '用瀏覽器代理打開 https://news.ycombinator.com ，點進第一則新聞，告訴我標題和前兩段', expect: { url: false, browser: true } },
+  { message: 'Use the browser agent (do not use web search) to open https://news.ycombinator.com and tell me the top 3 titles.', expect: { search: false, url: false, browser: true } },
+  { message: 'Ouvre le navigateur, va sur https://www.lemonde.fr et donne-moi les trois premiers titres.', expect: { url: false, browser: true } },
+  // the page itself is what is asked about: the address is read (a control)
+  { message: 'Summarise this page for me: https://news.ycombinator.com', expect: { url: true, browser: false } },
+  // the words of the browser asks that were mistaken for a search (printed, no expectation)
+  { message: '搜尋 Noureon，打開前三個結果，各回報一句標題', expect: {} }
 ];
 const QUESTIONS = ['search', 'file', 'chart', 'tool', 'url', 'exact', 'verbatim', 'browser'];
 
 const redact = (text) => [key, geminiKey].filter(Boolean).reduce((value, secret) => value.split(secret).join('***'), String(text));
 const show = (value) => (value === null || value === undefined ? '-' : value.toFixed(2));
 
-async function ask(model, testCase) {
+async function ask(model, testCase, wording = 'new') {
   const request = buildDecisionRequest({ message: testCase.message, tools, model, historyRecall: true, browserCandidate: true });
+  if (wording === 'old') for (const name of Object.keys(OLD_WORDING)) if (request.questions[name]) request.questions[name].instructions = OLD_WORDING[name];
   const provider = DECISION_PROVIDERS[providerOf(model)];
   const started = Date.now();
   let response;
@@ -98,13 +127,13 @@ try {
   console.log(`The list of decision models could not be read (${error?.message || error}).`);
 }
 
-for (const model of models) {
-  console.log(`\n=== ${model} (${providerOf(model)}) ===  (the page waits ${DECISION_TIMEOUT_MS} ms at most; a probability of ${DECISION_THRESHOLD} or more is "yes")`);
+for (const model of models) for (const wording of WORDINGS) {
+  console.log(`\n=== ${model} (${providerOf(model)}) wording: ${wording} ===  (the page waits ${DECISION_TIMEOUT_MS} ms at most; a probability of ${DECISION_THRESHOLD} or more is "yes")`);
   let right = 0;
   let total = 0;
   let slow = 0;
   for (const testCase of CASES) {
-    const result = await ask(model, testCase);
+    const result = await ask(model, testCase, wording);
     if (!result.ok) {
       console.log(`✗ ${testCase.message.slice(0, 40)}…  HTTP ${result.status ?? '-'}  ${result.ms} ms  ${result.detail || result.raw}`);
       continue;

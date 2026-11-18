@@ -1,6 +1,7 @@
 import { sendMarks } from '../reply/send-marks.js';
 import { SERVICES, getService } from '../services.js';
 import { shouldAutoEnableWebSearch } from './auto-web-search.js';
+import { searchHeldBack } from './no-web-search-request.js';
 import { extractLinkedUrls } from '../reply/linked-pages.js';
 import { clearCliSelection, getCliSelection } from '../cli/cli-bridge.js';
 import { clearSkillSelection, getSkillSelection } from '../skill/skill-bridge.js';
@@ -204,11 +205,13 @@ export function createSubmitInputPreparationLifecycle({
     const addressIsForTool = hasAddress && cliIdsOfParts(userParts).length > 0 && canModelDecideWebSearch(conversation);
     // An address the page does not have to be read from (an example, code being discussed) does not turn the search on: the Decisions model's judgement,
     // when there is one; without one, an address always does, as before.
-    const addressNeedsReading = hasAddress && !addressIsForTool && (verdictOf(decisions, 'url') ?? true);
+    // A person who says not to search the web is not given a search, and a message for the browser agent (it opens the addresses and does the looking) turns no search on either.
+    const held = searchHeldBack(userMessage, conversation.id, verdictOf(decisions, 'browser'));
+    const addressNeedsReading = hasAddress && !addressIsForTool && !held.browserDoesIt && (verdictOf(decisions, 'url') ?? true);
     const autoWebSearchEnabled = !conversation.isWebSearchEnabled
       && canAutoEnableWebSearch(conversation)
       && (addressNeedsReading
-        || (getAutoWebSearchEnabled() && needsCurrentFacts));
+        || (getAutoWebSearchEnabled() && needsCurrentFacts && !held.refused && !held.browserDoesIt));
     if (autoWebSearchEnabled) {
       showNotification(getAutoSearchNotice(), 'warning');
     }
@@ -217,6 +220,7 @@ export function createSubmitInputPreparationLifecycle({
     // facts are only what turns the search on for the other models.
     const searchOfferedToModel = !conversation.isWebSearchEnabled
       && !autoWebSearchEnabled
+      && !held.refused
       && (getAutoWebSearchEnabled() || addressIsForTool)
       && canModelDecideWebSearch(conversation);
     try {
