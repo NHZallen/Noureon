@@ -52,7 +52,7 @@ export function loadConfig(env = process.env) {
       taskMaxMs: int(env, 'BROWSER_TASK_MAX_MINUTES', 120, { min: 1, max: 1440 }) * 60_000,
       maxProfileBytes: int(env, 'BROWSER_MAX_PROFILE_MB', 150, { min: 1, max: 1024 }) * 1024 * 1024
     },
-    paths: { conf: path.join(app, 'chromium.conf'), policies: path.join(app, 'policies.json'), seccomp: path.join(app, 'chromium-seccomp.json'), cdpScript: path.join(app, 'service', 'cdp-actions.mjs') },
-    docker: { network: env.BROWSER_NET_NAME || 'noureon-browser', image: env.BROWSER_IMAGE || undefined, memory: env.BROWSER_MEMORY || '2g', shmSize: env.BROWSER_SHM || '1g', pidsLimit: int(env, 'BROWSER_PIDS', 1024, { min: 64, max: 4096 }), cgroupParent: env.BROWSER_CGROUP_PARENT || undefined, volumeMb: int(env, 'BROWSER_PROFILE_VOLUME_MB', 512, { min: 16, max: 1024 }), maxProfileBytes: int(env, 'BROWSER_MAX_PROFILE_MB', 150, { min: 1, max: 1024 }) * 1024 * 1024 }
+    paths: { conf: path.join(app, 'chromium.conf'), policies: path.join(app, 'policies.json'), seccomp: path.join(app, 'chromium-seccomp.json'), cdpScript: path.join(app, 'service', 'cdp-actions.mjs'), cdpService: path.join(app, 'service', 'cdp-service.mjs') },
+    docker: { persistentSidecar: env.BROWSER_SIDECAR_MODE !== 'oneshot', network: env.BROWSER_NET_NAME || 'noureon-browser', image: env.BROWSER_IMAGE || undefined, memory: env.BROWSER_MEMORY || '2g', shmSize: env.BROWSER_SHM || '1g', pidsLimit: int(env, 'BROWSER_PIDS', 1024, { min: 64, max: 4096 }), cgroupParent: env.BROWSER_CGROUP_PARENT || undefined, volumeMb: int(env, 'BROWSER_PROFILE_VOLUME_MB', 512, { min: 16, max: 1024 }), maxProfileBytes: int(env, 'BROWSER_MAX_PROFILE_MB', 150, { min: 1, max: 1024 }) * 1024 * 1024 }
   };
 }

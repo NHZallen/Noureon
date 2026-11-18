@@ -142,15 +142,32 @@ const MAX_STDIN_ACTION = 32 * 1024;
 export const STDIN_ACTIONS = Object.freeze([...SECRET_ACTIONS, 'upload']);
 export const MAX_UPLOAD_ACTION = 12 * 1024 * 1024;
 
-/** One DevTools action, run in a throw-away container that joins the browser's network (the DevTools port is never published). */
-export function sidecarArgs({ sessionId, scriptPath, action }) {
-  if (typeof scriptPath !== 'string' || !scriptPath.startsWith('/') || /[\s,:=]/.test(scriptPath)) throw new Error('bad script path');
+/** The size an action may have: a body of an upload is large, one with a secret is small, the rest are short. Throws when it is too large. */
+export function checkActionSize(action) {
   const json = JSON.stringify(action ?? {});
   const viaStdin = STDIN_ACTIONS.includes(action?.type);
   if (json.length > (action?.type === 'upload' ? MAX_UPLOAD_ACTION : viaStdin ? MAX_STDIN_ACTION : 8192)) throw new Error('action too large');
-  return ['run', '--rm', ...(viaStdin ? ['-i'] : []), '--network', `container:${containerName(sessionId)}`, '--cap-drop=ALL', '--security-opt', 'no-new-privileges', '--read-only',
-    '--user', '65534:65534', '--memory', '256m', '--pids-limit', '64', '-v', `${scriptPath}:/app/cdp-actions.mjs:ro`, SIDECAR_IMAGE, 'node', '/app/cdp-actions.mjs', viaStdin ? '--stdin' : json];
+  return json;
 }
+const safeScriptPath = (value) => { if (typeof value !== 'string' || !value.startsWith('/') || /[\s,:=]/.test(value)) throw new Error('bad script path'); return value; };
+const SIDECAR_LIMITS = ['--cap-drop=ALL', '--security-opt', 'no-new-privileges', '--read-only', '--user', '65534:65534', '--memory', '256m', '--pids-limit', '64'];
+
+/** One DevTools action, run in a throw-away container that joins the browser's network (the DevTools port is never published). */
+export function sidecarArgs({ sessionId, scriptPath, action }) {
+  safeScriptPath(scriptPath);
+  const json = checkActionSize(action);
+  const viaStdin = STDIN_ACTIONS.includes(action?.type);
+  return ['run', '--rm', ...(viaStdin ? ['-i'] : []), '--network', `container:${containerName(sessionId)}`, ...SIDECAR_LIMITS, '-v', `${scriptPath}:/app/cdp-actions.mjs:ro`, SIDECAR_IMAGE, 'node', '/app/cdp-actions.mjs', viaStdin ? '--stdin' : json];
+}
+
+/** The long-lived sidecar of one browser: the same limits and the same network as the one-action container, kept for the whole session; the actions come in on standard input (cdp-service.mjs). It ends by itself when standard input does. */
+export const sidecarServiceName = (sessionId) => `noureon-sidecar-${checkSessionId(sessionId)}`;
+export function sidecarServiceArgs({ sessionId, actionsPath, servicePath }) {
+  safeScriptPath(actionsPath); safeScriptPath(servicePath);
+  return ['run', '--rm', '-i', '--name', sidecarServiceName(sessionId), '--label', `noureon.sidecar=${checkSessionId(sessionId)}`, '--network', `container:${containerName(sessionId)}`, ...SIDECAR_LIMITS,
+    '-v', `${actionsPath}:/app/cdp-actions.mjs:ro`, '-v', `${servicePath}:/app/cdp-service.mjs:ro`, SIDECAR_IMAGE, 'node', '/app/cdp-service.mjs'];
+}
+export const sidecarRemoveArgs = (sessionId) => ['rm', '-f', sidecarServiceName(sessionId)];
 
 // Square pixels on the virtual screen (P5, checked on the real host 2026-11-17). ximagesrc labels the picture with a pixel aspect ratio worked out from the screen's size in
 // millimetres, snapped to the nearest of 1/1, 16/15, 11/10, 54/59. neko's X screen keeps 508x285 mm whatever its size in pixels, so 1024x768 came out as 11/10 and the

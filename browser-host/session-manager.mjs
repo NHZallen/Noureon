@@ -64,6 +64,7 @@ export function createSessionManager({ adapter, live = null, config = {}, now = 
       live?.allocate(s); // a port for the live screen (none free: the browser does not start)
       await adapter.startContainer(s);
       await adapter.waitReady(s, cfg.startTimeoutMs);
+      adapter.prepareActions?.(s); // the sidecar for the actions starts while the live screen is made ready
       if (s.state !== 'starting') throw new Error('stopped while starting');
       await live?.ready(s);
       s.state = 'ready'; s.startedAt = now(); s.lastActionAt = s.startedAt;

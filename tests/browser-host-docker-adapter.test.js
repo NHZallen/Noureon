@@ -1,7 +1,10 @@
 // The adapter that runs docker (browser-host/docker-adapter.mjs), with a fake `run`: which command lines, in which order, and what it does with the answers.
 import test from 'node:test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import assert from 'node:assert/strict';
-import { createDockerAdapter, dockerRun } from '../browser-host/docker-adapter.mjs';
+import { createDockerAdapter, dockerRun, dockerService } from '../browser-host/docker-adapter.mjs';
 import { HostError } from '../browser-host/session-manager.mjs';
 
 const PATHS = { conf: '/opt/x/chromium.conf', policies: '/opt/x/policies.json', seccomp: '/opt/x/seccomp.json', cdpScript: '/opt/x/cdp-actions.mjs' };
@@ -95,4 +98,109 @@ test('square pixels: ok when the millimetres read back are the ones wanted; any 
   const bad = setup();
   assert.deepEqual(await bad.adapter.squarePixels(S, { w: 10, h: 10 }), { ok: false, why: 'bad screen size' });
   assert.equal(bad.calls.length, 0, 'a bad size never reaches docker');
+});
+
+// ---- The long-lived sidecar for the actions of a browser ----
+const SERVICE_PATHS = { ...PATHS, cdpService: '/opt/x/cdp-service.mjs' };
+function fakeService() {
+  const made = [];
+  const startService = (args) => {
+    const handle = { args, written: [], killed: false, line: () => {}, exit: () => {},
+      write(text) { handle.written.push(text); return true; }, onLine(cb) { handle.line = cb; }, onExit(cb) { handle.exit = cb; },
+      kill() { handle.killed = true; queueMicrotask(() => handle.exit(137, '')); },
+      answer(id, result) { handle.line(JSON.stringify({ id, result })); } };
+    made.push(handle);
+    return handle;
+  };
+  return { made, startService };
+}
+const persistent = (script, extra = {}) => { const f = fakeService(); return { ...setup(script, { paths: SERVICE_PATHS, options: { persistentSidecar: true }, startService: f.startService, ...extra }), ...f }; };
+const nextTick = () => new Promise((resolve) => setImmediate(resolve));
+
+test('the sidecar: one container for all the actions of a browser, an answer for each by its number, and a secret goes in on the pipe, never on a command line', async () => {
+  const t = persistent();
+  const first = t.adapter.action(S, { type: 'snapshot' });
+  const second = t.adapter.action(S, { type: 'screenshot' });
+  const secret = t.adapter.action(S, { type: 'fill-login', username: 'who', password: 'S3cret-pw' });
+  await nextTick();
+  assert.equal(t.made.length, 1, 'one container, not one for each action');
+  assert.equal(t.calls.length, 0, 'no `docker run` for the actions themselves');
+  assert.ok(t.made[0].args.includes('--read-only') && t.made[0].args.includes('--cap-drop=ALL') && t.made[0].args.includes(`container:noureon-browser-${S.sessionId}`));
+  assert.ok(!t.made[0].args.join(' ').includes('S3cret'), 'no secret on a command line');
+  const sent = t.made[0].written.map((line) => JSON.parse(line));
+  assert.deepEqual(sent.map((m) => m.action.type), ['snapshot', 'screenshot', 'fill-login']);
+  assert.equal(sent[2].action.password, 'S3cret-pw', 'the secret travels on standard input');
+  t.made[0].answer(sent[1].id, { ok: true, base64: 'PIC' });
+  t.made[0].answer(sent[0].id, { ok: true, elements: [] });
+  t.made[0].answer(sent[2].id, { ok: false, error: 'not here' });
+  assert.deepEqual(await second, { ok: true, base64: 'PIC' });
+  assert.deepEqual(await first, { ok: true, elements: [] });
+  await assert.rejects(secret, (error) => error instanceof HostError && error.status === 400 && /not here/.test(error.message));
+});
+
+test('the sidecar: started when the browser is ready; it ends with the browser; a dead one is started again by the next action', async () => {
+  const t = persistent();
+  t.adapter.prepareActions(S);
+  assert.equal(t.made.length, 1, 'ready before the first action');
+  const pending = t.adapter.action(S, { type: 'snapshot' });
+  await nextTick();
+  t.made[0].exit(1, 'docker: Error response from daemon: boom');
+  await assert.rejects(pending, (error) => error instanceof HostError && error.status === 502 && /exit 1.*boom/.test(error.message));
+  const again = t.adapter.action(S, { type: 'wait', ms: 1 });
+  await nextTick();
+  assert.equal(t.made.length, 2, 'the next action starts a new one');
+  t.made[1].answer(JSON.parse(t.made[1].written[0]).id, { ok: true });
+  await again;
+  await t.adapter.stopContainer(S);
+  assert.equal(t.made[1].killed, true);
+  assert.ok(t.calls.some((c) => c.args[0] === 'rm' && c.args.includes(`noureon-sidecar-${S.sessionId}`)), 'its container is removed too');
+  t.adapter.prepareActions(S);
+  assert.equal(t.made.length, 3);
+  await t.adapter.removeContainer(S);
+  assert.equal(t.made[2].killed, true);
+});
+
+test('the sidecar: an action with no answer in time says so and ends the sidecar; an oversized action is refused before it is sent; the other mode keeps a container for each action', async () => {
+  const t = persistent();
+  const realSetTimeout = global.setTimeout;
+  global.setTimeout = (fn, ms, ...rest) => realSetTimeout(fn, ms === 60_000 ? 5 : ms, ...rest);
+  try { await assert.rejects(t.adapter.action(S, { type: 'snapshot' }), (error) => error instanceof HostError && /no answer in 60 s/.test(error.message)); } finally { global.setTimeout = realSetTimeout; }
+  assert.equal(t.made[0].killed, true);
+  await assert.rejects(t.adapter.action(S, { type: 'navigate', url: `https://x.example/${'a'.repeat(9000)}` }), /too large/);
+  const oneshot = setup(() => reply('{"ok":true,"title":"T"}'), { paths: SERVICE_PATHS, options: { persistentSidecar: false } });
+  assert.equal((await oneshot.adapter.action(S, { type: 'snapshot' })).title, 'T');
+  assert.equal(oneshot.calls.length, 1, 'a container run for the action');
+  const noPath = setup(() => reply('{"ok":true}'), { options: { persistentSidecar: true } });
+  await noPath.adapter.action(S, { type: 'snapshot' });
+  assert.equal(noPath.calls.length, 1, 'without the path of the service it is the old way');
+});
+
+test('dockerService: lines in, whole lines out (also a very long one that arrives in pieces), one exit, kill, and a line that is too large ends it', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fake-docker-'));
+  fs.writeFileSync(path.join(dir, 'docker'), '#!/usr/bin/env node\nconst rl = require("node:readline").createInterface({ input: process.stdin });\nrl.on("line", (l) => { process.stdout.write(l + "\\n"); });\nrl.on("close", () => process.exit(7));\n', { mode: 0o755 });
+  const oldPath = process.env.PATH;
+  process.env.PATH = `${dir}:${oldPath}`;
+  const started = [];
+  try {
+    const lines = []; const exits = [];
+    const service = dockerService(['run', 'x']);
+    started.push(service);
+    service.onLine((line) => lines.push(line)); service.onExit((code) => exits.push(code));
+    const long = 'x'.repeat(300_000);
+    service.write('one\n'); service.write(`${long}\n`); service.write('three\n');
+    for (let i = 0; i < 100 && lines.length < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(lines, ['one', long, 'three']);
+    service.kill();
+    for (let i = 0; i < 100 && !exits.length; i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(exits.length, 1, 'told once');
+    const small = dockerService(['run', 'x'], { maxLineBytes: 1000 }); const codes = [];
+    started.push(small);
+    small.onLine(() => {}); small.onExit((code) => codes.push(code));
+    small.write(`${'y'.repeat(5000)}\n`);
+    for (let i = 0; i < 100 && !codes.length; i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual(codes, [-1], 'an answer that is too large ends it');
+    const none = dockerService(['run', 'x']);
+    started.push(none);
+    none.kill();
+  } finally { for (const handle of started) handle.kill(); process.env.PATH = oldPath; fs.rmSync(dir, { recursive: true, force: true }); }
 });

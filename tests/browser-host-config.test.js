@@ -60,3 +60,11 @@ test('the browser policy: the new tab page is a blank page, not an error page of
   assert.equal(policy.ApplicationLocaleValue, 'zh-TW', 'the pages of the browser itself in Chinese (with the language files in the image)');
   assert.match(readFileSync(new URL('../browser-host/chromium.conf.template', import.meta.url), 'utf8'), /LANGUAGE="zh_TW:zh"/, 'on Linux the language of Chromium\'s pages comes from this variable');
 });
+
+test('the actions of a browser go through one long-lived sidecar unless BROWSER_SIDECAR_MODE is oneshot', () => {
+  const c = loadConfig(GOOD);
+  assert.equal(c.docker.persistentSidecar, true);
+  assert.equal(c.paths.cdpService, '/opt/noureon-browser/service/cdp-service.mjs');
+  assert.equal(loadConfig({ ...GOOD, BROWSER_SIDECAR_MODE: 'oneshot' }).docker.persistentSidecar, false);
+  assert.equal(loadConfig({ ...GOOD, BROWSER_SIDECAR_MODE: '' }).docker.persistentSidecar, true);
+});

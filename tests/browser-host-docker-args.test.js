@@ -1,7 +1,7 @@
 // The docker command lines of browser-host (browser-host/docker-args.mjs): every safety flag is pinned, and nothing from outside can add a flag.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCREEN_MM_SCRIPT, screenMmArgs, squareMm, LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
+import { SCREEN_MM_SCRIPT, screenMmArgs, squareMm, LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, sidecarServiceArgs, sidecarRemoveArgs, sidecarServiceName, checkActionSize, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
 
 const GOOD = {
   sessionId: 'sess-12345678', screen: { w: 1024, h: 768 }, userPassword: 'a'.repeat(24), adminPassword: 'b'.repeat(24),
@@ -170,4 +170,19 @@ test('square pixels: a fixed script run as the image user, with two checked whol
   for (const bad of [{ w: 319, h: 768 }, { w: 1024, h: 1921 }, { w: '1024; rm -rf /', h: 768 }, { w: 1024.5, h: 768 }]) assert.throws(() => screenMmArgs({ sessionId: 'sess-12345678', screen: bad }), /bad screen size/);
   assert.throws(() => screenMmArgs({ sessionId: '--privileged', screen: { w: 1024, h: 768 } }), /bad session id/);
   assert.ok(!/subprocess|os\.system|eval|exec\(/.test(SCREEN_MM_SCRIPT), 'the script starts nothing else');
+});
+
+test('the long-lived sidecar has the limits of the one-action sidecar, its own name and label, and standard input; nothing from outside adds a flag', () => {
+  const args = sidecarServiceArgs({ sessionId: 'sess-12345678', actionsPath: '/opt/s/cdp-actions.mjs', servicePath: '/opt/s/cdp-service.mjs' });
+  const one = sidecarArgs({ sessionId: 'sess-12345678', scriptPath: '/opt/s/cdp-actions.mjs', action: { type: 'snapshot' } });
+  for (const flag of ['--cap-drop=ALL', '--read-only', 'no-new-privileges', '65534:65534', '256m', '64']) assert.ok(args.includes(flag) && one.includes(flag), flag);
+  assert.ok(args.includes('-i') && args.includes('--rm'));
+  assert.ok(args.includes('container:noureon-browser-sess-12345678') && args.includes(sidecarServiceName('sess-12345678')));
+  assert.ok(!args.includes('--privileged') && !args.includes('-p') && !args.includes('--publish'), 'no port is published');
+  assert.deepEqual(args.slice(-3), ['node:22-alpine', 'node', '/app/cdp-service.mjs']);
+  assert.deepEqual(sidecarRemoveArgs('sess-12345678'), ['rm', '-f', 'noureon-sidecar-sess-12345678']);
+  assert.throws(() => sidecarServiceArgs({ sessionId: 'sess-12345678', actionsPath: '/opt/s/a.mjs:rw', servicePath: '/opt/s/b.mjs' }), /bad script path/);
+  assert.throws(() => sidecarServiceArgs({ sessionId: 'x; rm -rf /', actionsPath: '/a.mjs', servicePath: '/b.mjs' }));
+  assert.throws(() => checkActionSize({ type: 'navigate', url: 'a'.repeat(9000) }), /too large/);
+  assert.ok(checkActionSize({ type: 'fill-login', password: 'p'.repeat(20_000) }), 'a secret may be larger, it goes on the pipe');
 });
