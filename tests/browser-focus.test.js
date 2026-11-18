@@ -250,3 +250,38 @@ test('the styles: nothing in the focus mode is selectable but the fields; the ro
     window.happyDOM.abort();
   }
 });
+
+test('the eye: while the browser is in the person\'s hands they can show what they type into the fields that are dots; it asks the owner, says what it does, and goes back to dots when the browser is given back', () => {
+  const { window, mode, q, calls, document } = make();
+  try {
+    const eyes = () => [...document.querySelectorAll('.bf-tool')].filter((node) => /what I type/.test(node.getAttribute('aria-label')));
+    assert.equal(eyes().length, 1, 'one, on the tools of the phone');
+    assert.equal(q('.bf-tools').hidden, true, 'not while the model works');
+    mode.update({ control: 'user' });
+    assert.equal(q('.bf-tools').hidden, false);
+    const eye = q('.bf-tools').querySelector('.bf-tool[aria-label="Show what I type"]');
+    assert.ok(eye, 'it says what it does');
+    assert.equal(eye.getAttribute('aria-pressed'), 'false');
+    eye.click();
+    assert.deepEqual(calls.at(-1), ['onReveal', true]);
+    mode.update({ reveal: true });
+    const shown = q('.bf-tools').querySelector('.bf-tool[aria-label="Hide what I type"]');
+    assert.ok(shown, 'now it offers to hide');
+    assert.equal(shown.getAttribute('aria-pressed'), 'true');
+    shown.click();
+    assert.deepEqual(calls.at(-1), ['onReveal', false]);
+    mode.update({ reveal: true });
+    mode.update({ control: 'model' });
+    assert.equal(mode.state.reveal, false, 'given back: the dots are back');
+    mode.update({ control: 'user' });
+    assert.ok(q('.bf-tools').querySelector('.bf-tool[aria-label="Show what I type"]'), 'a new takeover starts with the dots');
+  } finally { mode.destroy(); window.close(); }
+  const side = make({ layout: 'panel' });
+  try {
+    side.mode.update({ control: 'user' });
+    const eye = side.q('.bf-bar-tools').querySelector('.bf-tool[aria-label="Show what I type"]');
+    assert.ok(eye, 'on the side panel of a computer it is on the bar');
+    eye.click();
+    assert.deepEqual(side.calls.at(-1), ['onReveal', true]);
+  } finally { side.mode.destroy(); side.window.close(); }
+});

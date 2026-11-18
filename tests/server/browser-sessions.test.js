@@ -248,3 +248,23 @@ test('the person takes the browser over from the screen: it is held until they g
   await w.sessions.closeViewer(sessionId, A, 'v1');
   assert.equal(w.sessions.heldByUser(A), false, 'the one that held it left');
 });
+
+test('the eye shows what is typed only while the person holds the browser, and the dots come back when they give it back or leave', async () => {
+  const w = world();
+  w.host.control = async (id, request) => ({ control: request.mode });
+  w.host.closeViewer = async () => ({});
+  const { sessionId } = await w.sessions.open(A, {});
+  const reveals = () => w.calls.filter((call) => call[0] === 'action' && call[2].type === 'reveal').map((call) => call[2].on);
+  assert.deepEqual(await w.sessions.reveal(sessionId, A, true), { ok: true, on: false }, 'the model holds it: nothing is shown');
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v1' });
+  assert.deepEqual(await w.sessions.reveal(sessionId, A, true), { ok: true, on: true });
+  await w.sessions.control(sessionId, A, { mode: 'model' });
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v1' });
+  await w.sessions.closeViewer(sessionId, A, 'v2');
+  const before = reveals().length;
+  await w.sessions.closeViewer(sessionId, A, 'v1');
+  assert.equal(reveals().length, before + 1, 'the viewer that held it left: dots again');
+  assert.equal(reveals().at(-1), false);
+  assert.deepEqual(reveals().slice(0, 3), [false, true, false], 'asked, shown, given back');
+  await assert.rejects(() => w.sessions.reveal(sessionId, B, true), (error) => error instanceof BrowserSessionError);
+});

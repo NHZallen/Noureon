@@ -82,6 +82,22 @@ test('taking over and giving back, and the size of the screen, reach the server;
   assert.deepEqual(w.calls.at(-1), ['POST', `/v1/browser/${SID}/control`, { mode: 'model' }]);
 });
 
+test('the eye reaches the server only as the person\'s choice, and giving the browser back puts the dots back on the screen of the card', async () => {
+  const w = await (async () => { const x = world(); await settle(); return x; })();
+  w.card.openFocus();
+  const buttons = () => [...w.card.element.ownerDocument.querySelectorAll('button')];
+  buttons().find((b) => /接管|take/i.test(b.getAttribute('aria-label') || '')).click();
+  await settle();
+  const eye = buttons().find((b) => /顯示輸入|show what/i.test(b.getAttribute('aria-label') || ''));
+  assert.ok(eye, 'the eye is there while the browser is in the person\'s hands');
+  eye.click();
+  await settle();
+  assert.deepEqual(w.calls.find((c) => c[1] === `/v1/browser/${SID}/reveal`), ['POST', `/v1/browser/${SID}/reveal`, { on: true }]);
+  buttons().find((b) => /歸還|give/i.test(b.getAttribute('aria-label') || '')).click();
+  await settle();
+  assert.deepEqual(w.calls.at(-1), ['POST', `/v1/browser/${SID}/control`, { mode: 'model' }]);
+});
+
 test('no viewer from the server: a try again later (quick at first, then every fifteen seconds), and the card stays as it was', async () => {
   const w = world({ viewerOk: false });
   await settle();

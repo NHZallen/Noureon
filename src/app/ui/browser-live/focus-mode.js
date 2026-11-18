@@ -3,14 +3,14 @@
 // screen, then, while the model works, empty room and two buttons (Stop, Take over). When the person has taken over the room becomes a trackpad, a row of
 // tools (keyboard, paste, refresh) is over it, and one button gives the browser back to the model. The menu holds back, a screenshot for the model, copying the
 // address, the downloaded files and the ratio of the screen. What it asks of the browser it asks of a `controller`; it draws from the `state` it is told.
-//   state: { domain, url, control: 'model' | 'user', ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
+//   state: { domain, url, control: 'model' | 'user', reveal (the eye: what is typed into a field that holds a secret is shown as typed, while the person holds the browser), ratio, over, zoomed, label, status: 'run' | 'done' | 'help' | 'fail', steps: [{ label, state }], origin: 'front' | 'pill' }
 // `origin` is where the focus mode was opened from: from the card the round button is Shrink (arrows inward: the card becomes the pill), from the pill it is Expand (arrows outward: the pill becomes the card).
 // Over the lower edge of the screen is the same row as the card has (the capsule that says what is done, the button that gives the card back, the cross that cancels the task); a press on the capsule
 // shows the steps over the screen. A press on the empty room (not while the browser is in the person's hands: there it is the trackpad) leaves the focus mode.
 // On a computer (`layout: 'panel'`) it is the side panel (and, with `zoomed`, the big one): the tabs are the top row with Enlarge, the menu and the cross beside them; there is no
 // trackpad: the person points and types on the screen itself (the mouse, the wheel, the keys); with the browser in their hands there is a row for the address, and under
 // the screen Paste and Screenshot are on the left and Give back on the right.
-//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onBack, onScreenshot, onCopyUrl, onRefresh, onRatio(key), onZoom(bool), onNavigate(url) }
+//   controller: { onClose, onExpand, onStop, onTakeOver, onGiveBack, onReveal(bool), onBack, onScreenshot, onCopyUrl, onRefresh, onRatio(key), onZoom(bool), onNavigate(url) }
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLiveView } from './live-view.js';
@@ -27,6 +27,8 @@ const PATHS = {
   hand: 'M8 13V6.5a1.5 1.5 0 013 0V12M11 11V4.5a1.5 1.5 0 013 0V12M14 11.5V6.5a1.5 1.5 0 013 0V14a6 6 0 01-6 6h-.5a5 5 0 01-4.2-2.3L4 14.5a1.6 1.6 0 012.5-2L8 14',
   keyboard: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
   trackpad: 'M4 5h16v14H4zM4 15h16M12 15v4',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
+  eyeOff: 'M3 3l18 18M10.6 6.2A9.8 9.8 0 0112 6c6 0 10 6 10 6a17 17 0 01-3.2 3.9M6.6 6.7C3.9 8.4 2 12 2 12s4 6 10 6c1.4 0 2.7-.3 3.8-.8M9.9 9.9a3 3 0 004.2 4.2',
   paste: 'M9 4h6v3H9zM7 5.5H6a1 1 0 00-1 1V20a1 1 0 001 1h12a1 1 0 001-1V6.5a1 1 0 00-1-1h-1',
   refresh: 'M20 12a8 8 0 11-2.6-5.9M20 4v5h-5',
   back: 'M15 5l-7 7 7 7',
@@ -130,7 +132,10 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   const keyboardButton = button('bf-tool', t('browserKeyboard'), () => setKeyboard(!keyboardOpen), icon(document, 'keyboard', 17), t('browserKeyboard'));
   const pasteButton = button('bf-tool', t('browserPaste'), () => void paste(), icon(document, 'paste', 17), t('browserPaste'));
   const refreshButton = button('bf-tool', t('browserRefresh'), () => ask('onRefresh'), icon(document, 'refresh', 17), t('browserRefresh'));
-  tools.append(keyboardButton, pasteButton, refreshButton);
+  // The eye: the fields that hold a secret are dots (so that nobody who looks over a shoulder, and no model, reads them); while the browser is in the person's hands they can show what they type, as on any password field.
+  const revealTool = () => button('bf-tool', t('browserReveal'), () => ask('onReveal', !state.reveal), icon(document, 'eye', 17), t('browserReveal'));
+  const revealButtons = [revealTool(), revealTool()];
+  tools.append(keyboardButton, pasteButton, refreshButton, revealButtons[0]);
   // The keyboard of the person: long text is written here first and sent in one go; the keys that a phone keyboard does not have are in a row over it.
   const keyboard = make('div', 'bf-kb');
   const keyRow = make('div', 'bf-kb-keys');
@@ -159,6 +164,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     button('bf-tool', t('browserPaste'), () => void paste(), icon(document, 'paste', 17), t('browserPaste')),
     button('bf-tool', t('browserScreenshotToModel'), () => ask('onScreenshot'), icon(document, 'shot', 17), t('browserScreenshotToModel'))
   );
+  barTools.append(revealButtons[1]);
   if (panel) {
     head.append(tabs, zoomButton, menuButton, closeButton);
     bar.append(barTools, actions);
@@ -311,6 +317,16 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     urlRow.hidden = !(panel && user);
     if (panel && document.activeElement !== urlField) urlField.value = state.url || '';
     barTools.hidden = !user;
+    for (const eye of revealButtons) {
+      const label = state.reveal && user ? t('browserHide') : t('browserReveal');
+      eye.setAttribute('aria-label', label);
+      eye.setAttribute('aria-pressed', String(Boolean(state.reveal && user)));
+      eye.title = label;
+      eye.classList.toggle('is-on', Boolean(state.reveal && user));
+      const word = eye.querySelector('span');
+      if (word) word.textContent = label;
+      eye.querySelector('svg')?.replaceWith(icon(document, state.reveal && user ? 'eyeOff' : 'eye', 17));
+    }
     expand.setAttribute('aria-label', state.zoomed ? t('browserZoomOut') : shrinks() ? t('browserShrink') : t('browserExpand'));
     expand.title = expand.getAttribute('aria-label');
     expand.dataset.act = shrinks() ? 'shrink' : 'expand';
@@ -341,7 +357,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     /** Draws again from a new state (the parts of it that are given). */
     update(next) {
       state = { ...state, ...next };
-      if (state.control !== 'user') setKeyboard(false);
+      if (state.control !== 'user') { setKeyboard(false); state.reveal = false; }
       render();
     },
     destroy() {

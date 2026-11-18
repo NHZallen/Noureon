@@ -107,5 +107,20 @@ test('secret fields are dots in the page and have no value in a snapshot; ordina
   let marked = 'none';
   for (let i = 0; i < 40 && marked !== 'disc'; i += 1) { await new Promise((resolve) => setTimeout(resolve, 100)); marked = await computed(page, '#late'); }
   assert.equal(marked, 'disc', 'the guard drew the new field as dots by itself');
+
+  // The eye: while the person holds the browser, what they typed is shown as typed; the guard keeps it so, a look of the model puts the dots back first, and asking again for the dots does too.
+  const until = async (selector, wanted) => { let now = null; for (let i = 0; i < 40 && now !== wanted; i += 1) { now = await computed(page, selector); if (now !== wanted) await new Promise((resolve) => setTimeout(resolve, 100)); } return now; };
+  service.stdin.write(`${JSON.stringify({ id: 101, action: { type: 'reveal', on: true } })}\n`);
+  assert.equal(await until('#card', 'none'), 'none', 'the eye shows the card field as typed');
+  assert.equal(await until('frame:#fcard', 'none'), 'none', 'and the one in a frame');
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  assert.equal(await computed(page, '#card'), 'none', 'the guard does not hide it again while the eye is open');
+  await act({ type: 'snapshot' });
+  assert.equal(await computed(page, '#card'), 'disc', 'a look of the model puts the dots back before it looks');
+  service.stdin.write(`${JSON.stringify({ id: 102, action: { type: 'reveal', on: true } })}\n`);
+  assert.equal(await until('#card', 'none'), 'none');
+  service.stdin.write(`${JSON.stringify({ id: 103, action: { type: 'reveal', on: false } })}\n`);
+  assert.equal(await until('#card', 'disc'), 'disc', 'the dots come back when the eye is closed');
+  assert.equal(await computed(page, '#search'), 'none', 'an ordinary field is never touched by the eye');
   await connected.close().catch(() => {});
 });

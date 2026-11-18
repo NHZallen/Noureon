@@ -14,6 +14,7 @@ function setup({ allowed = true, sessions = {} } = {}) {
       viewer: async (...a) => { calls.push(['viewer', ...a]); return sessions.viewer ? sessions.viewer() : { viewerId: 'v-1', token: 'tok', host: 'live.example.com', wsPath: '/s/x/api/ws' }; },
       closeViewer: async (...a) => { calls.push(['closeViewer', ...a]); },
       control: async (...a) => { calls.push(['control', ...a]); return { control: a[2].mode }; },
+      reveal: async (...a) => { calls.push(['reveal', ...a]); return { ok: true, on: a[2] }; },
       screen: async (...a) => { calls.push(['screen', ...a]); return { ratio: a[2], width: 1280, height: 720 }; },
       tabAction: async (...a) => { calls.push(['tabs', ...a]); if (a[2]?.op === 'bad') { const e = new BrowserSessionError('That is not something to do with the tabs.', 'bad_request'); throw e; } return { ok: true, tabs: [{ tabId: 'T1', title: 'Shop', url: 'https://shop.example/', active: true, secret: 'x' }], text: 'must not leak' }; }
     }
@@ -101,4 +102,13 @@ test('what the person may do with the tabs is a short list, each one checked', a
   assert.deepEqual(tabActionOf({ op: 'navigate', url: 'https://a.example/', tabId: 'T1' }), { type: 'navigate', url: 'https://a.example/', tabId: 'T1' });
   assert.deepEqual(tabActionOf({ op: 'back' }), { type: 'back' });
   for (const bad of [{ op: 'close' }, { op: 'activate', tabId: '../x' }, { op: 'navigate' }, { op: 'snapshot' }, { op: 'eval' }, {}, null]) assert.throws(() => tabActionOf(bad), (e) => e.name === 'BrowserSessionError', JSON.stringify(bad));
+});
+
+test('the eye: only a true or false is taken, and it goes to the owner\'s session', async () => {
+  const t = setup();
+  assert.equal((await t.run('POST', `/v1/browser/${SID}/reveal`, { on: true })).sent.payload.on, true);
+  assert.deepEqual(t.calls[0], ['reveal', SID, 'user-1', true]);
+  assert.equal((await t.run('POST', `/v1/browser/${SID}/reveal`, { on: 'yes' })).failed.code, 'bad_request');
+  assert.equal((await t.run('POST', `/v1/browser/${SID}/reveal`, {})).failed.code, 'bad_request');
+  assert.equal(t.calls.length, 1);
 });

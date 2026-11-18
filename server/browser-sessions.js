@@ -46,6 +46,8 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
   // Why the host closed the last browser of a person by itself ('idle', 'task_max'): the card of the next reply says so instead of "not available" (`closedReason`).
   const closedBy = new Map();
   const forget = (session) => { byId.delete(session.id); if (byUser.get(session.userId) === session.id) byUser.delete(session.userId); };
+  // The dots are put back on the page (the host is told; nothing waits for the answer).
+  const hide = (session) => { try { Promise.resolve(host.action?.(session.id, { type: 'reveal', on: false }, { wait: 15_000 })).catch(() => {}); } catch { /* the dots come back with the next look of the model anyway */ } };
   const own = (id, userId) => {
     const session = byId.get(String(id || ''));
     if (!session || session.userId !== userId) throw new BrowserSessionError('There is no such browser.', 'not_found');
@@ -133,14 +135,23 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     async closeViewer(id, userId, viewerId) {
       const session = own(id, userId);
       // The person who held the browser left the screen: the host takes the input back, and so does the model.
-      if (session.holder && session.holder === viewerId) session.holder = null;
+      if (session.holder && session.holder === viewerId) { session.holder = null; hide(session); }
       return host.closeViewer(session.id, viewerId);
     },
     async control(id, userId, request) {
       const session = own(id, userId);
       const answer = await host.control(session.id, request);
       session.holder = request?.mode === 'user' ? String(request.viewerId || 'viewer') : null;
+      // Given back to the model: what was shown as typed is dots again (a look of the model puts them back first anyway).
+      if (!session.holder) hide(session);
       return answer;
+    },
+    /** The eye of the live screen: shows what is typed into fields that hold a secret as it is typed, and only while the person holds the browser (they ask for the dots again, or give the browser back). */
+    async reveal(id, userId, on) {
+      const session = own(id, userId);
+      const show = on === true && Boolean(session.holder);
+      await host.action(session.id, { type: 'reveal', on: show }, { wait: 15_000 });
+      return { ok: true, on: show };
     },
     /** True while the person has taken the browser over from the screen (the model waits until it is given back). */
     heldByUser(userId) {

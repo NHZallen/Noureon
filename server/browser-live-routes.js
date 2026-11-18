@@ -2,6 +2,7 @@
 //   POST   /v1/browser/:sessionId/viewer             -> { viewerId, token, host, wsPath, ratioSizes }  (a temporary member of the browser's neko; the page then opens wss://host + wsPath)
 //   DELETE /v1/browser/:sessionId/viewer/:viewerId   -> { ok }
 //   POST   /v1/browser/:sessionId/control            { mode: 'user' | 'model', viewerId? } -> { control }
+//   POST   /v1/browser/:sessionId/reveal            { on: boolean } -> { ok, on }  (the eye: what the person types into a field that holds a secret is shown as typed, only while they hold the browser; the model never sees it)
 //   POST   /v1/browser/:sessionId/tabs               { op: 'list' | 'new' | 'close' | 'activate' | 'reload' | 'back' | 'navigate', tabId?, url? } -> { tabs?, tabId?, url? }
 //   POST   /v1/browser/:sessionId/screen             { ratio: '4:3' | '16:9' | 'portrait' } -> { ratio, width, height }
 // Only the owner of a browser reaches it (browser-sessions.js checks that); a person who may not use the browser agent gets nothing. The host's address, its secret and the passwords of the
@@ -27,6 +28,13 @@ export function createBrowserLiveRoutes({ browser, limiter = null, log = () => {
         if (body?.mode !== 'user' && body?.mode !== 'model') problem('bad_request', 'mode must be user or model.');
         if (body.mode === 'user' && typeof body.viewerId !== 'string') problem('bad_request', 'viewerId is needed to give control to a person.');
         return [200, await browser.sessions.control(match[1], user.id, { mode: body.mode, viewerId: body.viewerId })];
+      }
+    },
+    {
+      method: 'POST', re: new RegExp(`^/v1/browser/${ID}/reveal$`), body: 128,
+      run: async ({ user, match, body, problem }) => {
+        if (typeof body?.on !== 'boolean') problem('bad_request', 'on must be true or false.');
+        return [200, await browser.sessions.reveal(match[1], user.id, body.on)];
       }
     },
     {

@@ -224,12 +224,13 @@ const SECRET_SHEET_SRC = `(d) => {
   const win = d.defaultView;
   if (!win || typeof win.CSSStyleSheet !== 'function') return;
   const sheet = new win.CSSStyleSheet();
-  sheet.replaceSync('[data-nb-secret] { -webkit-text-security: disc !important; }');
+  sheet.replaceSync('html:not([data-nb-reveal]) [data-nb-secret] { -webkit-text-security: disc !important; }');
   d.adoptedStyleSheets = [...d.adoptedStyleSheets, sheet];
   d.__nbSecretSheet = true;
 }`;
 // The whole page (and the frames of the same site in it): every field that holds a secret is marked. Gives how many fields there are of each kind.
-const MASK_PAGE_SRC = `(() => {
+const maskPageSrc = (reveal) => `(() => {
+  const REVEAL = ${reveal ? 'true' : 'false'};
   const kindOf = ${FIELD_KIND_SRC};
   const sheetFor = ${SECRET_SHEET_SRC};
   const docs = [];
@@ -237,6 +238,7 @@ const MASK_PAGE_SRC = `(() => {
   walk(document, 0);
   const found = {};
   for (const d of docs) {
+    if (d.documentElement) d.documentElement.toggleAttribute('data-nb-reveal', REVEAL);
     for (const el of d.querySelectorAll('input')) {
       const kind = kindOf(el);
       if (!kind) continue;
@@ -244,7 +246,6 @@ const MASK_PAGE_SRC = `(() => {
       if (kind === 'password') continue;
       sheetFor(d);
       el.setAttribute('data-nb-secret', kind);
-      el.style.setProperty('-webkit-text-security', 'disc', 'important');
     }
   }
   return JSON.stringify(found);
@@ -254,7 +255,6 @@ const MARK_SECRET_FN = `function () {
   const sheetFor = ${SECRET_SHEET_SRC};
   sheetFor(this.ownerDocument);
   this.setAttribute('data-nb-secret', 'filled');
-  this.style.setProperty('-webkit-text-security', 'disc', 'important');
   return true;
 }`;
 const FIELD_KIND_FN = `function () { const kindOf = ${FIELD_KIND_SRC}; return kindOf(this); }`;
@@ -262,19 +262,24 @@ const FIELD_KIND_FN = `function () { const kindOf = ${FIELD_KIND_SRC}; return ki
 async function markSecret(cdp, sessionId, objectId) {
   await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: MARK_SECRET_FN, returnByValue: true }, sessionId).catch(() => {});
 }
-/** Marks the fields of the page that hold a secret, in the page and in the frames of the payment providers (a frame of another site is its own target). */
-export async function maskPage(cdp, sessionId) {
-  await cdp.send('Runtime.evaluate', { expression: MASK_PAGE_SRC, returnByValue: true }, sessionId, 5000).catch(() => {});
+// While the person holds the browser from the live screen and pressed the eye, the fields are shown as typed (the model waits and looks at nothing then); every look of the model puts the dots back first.
+let revealing = false;
+/** Marks the fields of the page that hold a secret, in the page and in the frames of the payment providers (a frame of another site is its own target). `reveal` shows them as typed instead of as dots. */
+export async function maskPage(cdp, sessionId, { reveal = false } = {}) {
+  const expression = maskPageSrc(reveal);
+  await cdp.send('Runtime.evaluate', { expression, returnByValue: true }, sessionId, 5000).catch(() => {});
   for (const frame of await paymentFrames(cdp).catch(() => [])) {
     let frameSession;
     try {
       frameSession = await attach(cdp, frame.targetId);
-      await cdp.send('Runtime.evaluate', { expression: MASK_PAGE_SRC, returnByValue: true }, frameSession, 5000);
+      await cdp.send('Runtime.evaluate', { expression, returnByValue: true }, frameSession, 5000);
     } catch { /* a frame that cannot be reached is left */ } finally {
       if (frameSession) await cdp.send('Target.detachFromTarget', { sessionId: frameSession }).catch(() => {});
     }
   }
 }
+// What a look of the model does first: the dots are back, and they stay (the eye is off) until the person asks again.
+const maskForModel = (cdp, sessionId) => { revealing = false; return maskPage(cdp, sessionId); };
 
 // ---- The password vault: the login fields of the page, filled with what the server handed over (design doc §7). Nothing that is typed here is ever given back. ----
 const FIELD_FINDER = `(() => {
@@ -575,7 +580,7 @@ async function downloadFile(cdp, action, targetId, sessionId) {
 async function pageAction(cdp, action, targetId, sessionId) {
   cdp.mark = cdp.events.length;
   if (action.type === 'snapshot') {
-    await maskPage(cdp, sessionId);
+    await maskForModel(cdp, sessionId);
     await cdp.send('Accessibility.enable', {}, sessionId).catch(() => {});
     const { nodes } = await cdp.send('Accessibility.getFullAXTree', {}, sessionId, 30_000);
     const elements = elementsOfTree(nodes);
@@ -724,7 +729,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       const sessionId = await attach(cdp, targetId);
       // A tab that is not in front draws no frames, and a picture is a frame.
       await cdp.send('Target.activateTarget', { targetId }).catch(() => {});
-      await maskPage(cdp, sessionId);
+      await maskForModel(cdp, sessionId);
       const format = action.format === 'jpeg' ? 'jpeg' : 'png';
       const shot = await cdp.send('Page.captureScreenshot', { format, ...(format === 'jpeg' ? { quality: Math.min(95, Math.max(30, Number(action.quality) || 70)) } : {}) }, sessionId, 30_000);
       return { ok: true, tabId: targetId, mime: `image/${format}`, base64: shot.data };
@@ -743,10 +748,12 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       return { ok: true };
     }
     // The guard of the long-lived sidecar (cdp-service.mjs) asks for this now and then: the fields that hold a secret of every tab are drawn as dots, also in what the person sees on the live screen.
-    if (action.type === 'mask') {
+    if (action.type === 'mask' || action.type === 'reveal') {
+      // `reveal` is the eye of the live screen (the server asks only for the person who holds the browser): shown as typed until it is asked again or a look of the model puts the dots back.
+      if (action.type === 'reveal') revealing = action.on === true;
       for (const page of (await pagesOf(cdp)).slice(0, 6)) {
         let session;
-        try { session = await attach(cdp, page.targetId); await maskPage(cdp, session); } catch { /* a tab that cannot be reached is left */ } finally { if (session) await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {}); }
+        try { session = await attach(cdp, page.targetId); await maskPage(cdp, session, { reveal: revealing }); } catch { /* a tab that cannot be reached is left */ } finally { if (session) await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {}); }
       }
       return { ok: true };
     }

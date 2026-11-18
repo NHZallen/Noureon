@@ -63,7 +63,13 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
       const answer = await api('POST', `${base}/control`, { mode: 'user', viewerId: viewer?.viewerId }).catch(() => ({ ok: false }));
       if (!answer.ok) card.liveState({ control: 'model' });
     },
-    onGiveBack: () => { void api('POST', `${base}/control`, { mode: 'model' }).catch(() => {}); },
+    onGiveBack: () => { card.liveState({ reveal: false }); void api('POST', `${base}/control`, { mode: 'model' }).catch(() => {}); },
+    // The eye: shows what is typed into the fields that hold a secret (the page shows them as dots), only while the person holds the browser; asked of the server, which asks the browser.
+    onReveal: async (on) => {
+      card.liveState({ reveal: Boolean(on) });
+      const answer = await api('POST', `${base}/reveal`, { on: Boolean(on) }).catch(() => ({ ok: false }));
+      card.liveState({ reveal: Boolean(answer?.ok && answer.on) });
+    },
     onRatio: (key) => { void api('POST', `${base}/screen`, { ratio: key }).catch(() => {}); }
   };
 
