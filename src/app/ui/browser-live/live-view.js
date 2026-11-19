@@ -44,6 +44,7 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   frozenPicture.alt = '';
   const frozenNote = document.createElement('div');
   frozenNote.className = 'bl-frozen-note';
+  frozenNote.setAttribute('role', 'status');
   frozen.append(frozenPicture, frozenNote);
   root.append(picture, frozen, lens);
   host.append(root);

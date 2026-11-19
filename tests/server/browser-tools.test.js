@@ -934,3 +934,20 @@ test('an action that comes before the browser is ready (409 not_ready) waits for
   assert.equal(typeof asText(failed), 'string');
   assert.equal(stuck.calls.filter((entry) => entry[0] === 'action').length, 2);
 });
+
+test('a wait that was already running when the person took the browser over does not look at the page afterwards until they give it back', async () => {
+  const t = setup({ current: { sessionId: 'b1', conversationId: 'c1' } });
+  let held = false;
+  let slept = 0;
+  t.sessions.heldByUser = () => held;
+  const loader = createBrowserLoader({ sessions: t.sessions, userId: 'u1', conversationId: 'c1', language: 'en', emit: () => {}, sleep: async () => { slept += 1; if (slept === 4) held = false; }, frameWaitMs: 50 });
+  // The call starts while the browser is free; the person takes it over during the wait itself.
+  t.sessions.action = async (id, userId, action) => { t.calls.push(['action', action]); if (action.type === 'wait') held = true; return action.type === 'screenshot' ? { ok: true, mime: 'image/jpeg', base64: 'AAAA' } : { ...PAGE }; };
+  const answer = await loader.run(call('browser_wait', { ms: 1000 }));
+  assert.ok(slept >= 4, 'it waited for the browser to be given back');
+  const types = t.calls.filter((c) => c[0] === 'action').map((c) => c[1].type);
+  const waitAt = types.indexOf('wait');
+  const lookAt = types.indexOf('snapshot');
+  assert.ok(waitAt >= 0 && lookAt > waitAt, 'the look came after the wait');
+  assert.equal(typeof answer === 'string' || Boolean(answer?.content), true);
+});

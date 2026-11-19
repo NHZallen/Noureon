@@ -285,6 +285,11 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   // tripwire reads, as for a look of the model's own. A look that fails is not told: the action was done, and the plain answer is given.
   const looksAfter = (call, args) => autoLook && (['browser_open', 'browser_click', 'browser_press', 'browser_back', 'browser_scroll', 'browser_wait'].includes(call.name) || (call.name === 'browser_type' && args.submit === true));
   async function lookAfter(sessionId, did) {
+    // The person took the browser over while the action went on (a wait that was already running): no look at the page is taken until they give it back (the answer is then a plain "done").
+    if (sessions.heldByUser?.(userId)) {
+      const held = await waitWhileHeld();
+      if (held) return null;
+    }
     try {
       // A picture that does not come in time is left out (the page is what matters), as for the picture of the tag of a stopped reply.
       let timer;
