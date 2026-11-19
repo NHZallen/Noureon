@@ -959,7 +959,7 @@ test('the longest wait is not known: the panel says it is not certain', () => {
   }
 });
 
-test('the model\'s circle comes at the point the host gave for a click, stays where the model last worked, and is out of the way while the person holds the browser', async () => {
+test('the model\'s circle comes at the point the host gave for a click, goes after three seconds without a move, and is out of the way while the person holds the browser', async () => {
   const { window, card, q } = make();
   try {
     card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
@@ -987,7 +987,16 @@ test('the model\'s circle comes at the point the host gave for a click, stays wh
     card.handle({ type: 'browser', event: 'point', action: 'type', x: 0.6, y: 0.2 });
     assert.equal(lens.hidden, false);
     assert.equal(lens.classList.contains('is-user'), false);
-    assert.equal(lens.hidden, false, 'the model\'s circle stays where the model last worked');
+    assert.equal(lens.hidden, false);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    assert.equal(lens.hidden, false, 'not yet: it has not been three seconds');
+    card.handle({ type: 'browser', event: 'point', action: 'click', x: 0.5, y: 0.5 });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    assert.equal(lens.hidden, false, 'a new point starts the three seconds again');
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    assert.equal(lens.hidden, true, 'the model\'s circle goes after three seconds without a move');
+    card.handle({ type: 'browser', event: 'point', action: 'click', x: 0.2, y: 0.2 });
+    assert.equal(lens.hidden, false, 'and comes with the next click');
   } finally {
     window.happyDOM.abort();
   }
