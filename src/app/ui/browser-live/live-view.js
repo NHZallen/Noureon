@@ -47,15 +47,30 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   const reducedMotion = () => Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
   // The inside is sized from the width of the screen in the page (the circle is 13% of it, the picture inside is the screen times 1.6).
+  // Where the picture of the screen really is inside the view: a video that is not of the same shape as the view (the screen was just switched to another ratio, a view a little shorter than its ratio says) is
+  // drawn smaller than the view with bars at the sides or over and under it, so a point of the screen (0 to 1) is a point of that picture, not of the view.
+  const pictureBox = (width, height) => {
+    const size = current?.videoSize?.();
+    if (!size || !(size.width > 0 && size.height > 0) || !(width > 0 && height > 0)) return { x: 0, y: 0, w: width, h: height };
+    const scale = Math.min(width / size.width, height / size.height);
+    const w = size.width * scale;
+    const h = size.height * scale;
+    return { x: (width - w) / 2, y: (height - h) / 2, w, h };
+  };
   const place = () => {
     const width = root.clientWidth || 0;
     const height = root.clientHeight || 0;
     const diameter = width * LENS_SIZE;
-    lens.style.left = `${point.x * 100}%`;
-    lens.style.top = `${point.y * 100}%`;
+    const box = pictureBox(width, height);
+    const whole = Math.abs(box.x) < 0.5 && Math.abs(box.y) < 0.5 && Math.abs(box.w - width) < 1 && Math.abs(box.h - height) < 1;
+    // The point in pixels of the view (the circle is put there; the inside of it shows the same point in the middle).
+    const px = box.x + point.x * box.w;
+    const py = box.y + point.y * box.h;
+    lens.style.left = whole ? `${point.x * 100}%` : `${px}px`;
+    lens.style.top = whole ? `${point.y * 100}%` : `${py}px`;
     inner.style.width = `${width * LENS_ZOOM}px`;
     inner.style.height = `${height * LENS_ZOOM}px`;
-    inner.style.transform = `translate(${diameter / 2 - point.x * width * LENS_ZOOM}px, ${diameter / 2 - point.y * height * LENS_ZOOM}px)`;
+    inner.style.transform = `translate(${diameter / 2 - px * LENS_ZOOM}px, ${diameter / 2 - py * LENS_ZOOM}px)`;
   };
 
   const attach = (next) => {
@@ -66,6 +81,8 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
     lensMounted = false;
     if (!current) return;
     current.mount(picture);
+    // The picture changes its shape (a new ratio, the first frame): the circle is put again.
+    current.onVideoResize?.(() => place());
     if (current.mountLens) {
       current.mountLens(inner);
       lensMounted = true;
@@ -128,6 +145,13 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
       if (who && by !== who) return;
       glideId += 1;
       lens.hidden = true;
+    },
+    /** A point of the screen (0 to 1 each way) for a point of the window (client pixels): where the person pointed at the picture, bars at its sides left out. */
+    pointFromClient(clientX, clientY) {
+      const rect = root.getBoundingClientRect();
+      const box = pictureBox(rect.width, rect.height);
+      const unit = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+      return { x: box.w ? unit((clientX - rect.left - box.x) / box.w) : 0, y: box.h ? unit((clientY - rect.top - box.y) / box.h) : 0 };
     },
     /** The size of the screen changed (the card was drawn in a place of another size). */
     refresh: place,

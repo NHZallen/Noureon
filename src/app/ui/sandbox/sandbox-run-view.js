@@ -222,7 +222,8 @@ function createRunBody(document, run, { language = 'zh-TW' } = {}) {
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
   if (run.council) return councilRunElement(document, container, run, language);
-  if (!run.steps.length && (ownSources(run).length || run.connectors?.length || run.tools?.length || run.pictures?.length || run.segment) && run.elapsedMs > 0) {
+  // (A reply the browser agent worked in is a process too: its line says how long it all took, as the live line did, instead of only how long the model thought.)
+  if (!run.steps.length && (ownSources(run).length || run.connectors?.length || run.tools?.length || run.pictures?.length || run.segment || run.browser) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
     const details = element(document, 'details', 'sandbox-run-details');

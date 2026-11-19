@@ -67,6 +67,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let ratio = DEFAULT_RATIO;
   let control = 'model';
   let eyeOpen = false;
+  // The focus mode was open with the browser in the person's hands when the picture was lost: it opens again with the new picture (and whether the eye was open).
+  let reopenFocus = false;
+  let eyeWas = false;
   let zoomed = false;
   // The card has no picture yet (the browser is starting, or the first frame has not come): it is drawn with the loading look.
   let waitingFrame = false;
@@ -512,7 +515,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       },
       onStop: () => askCancel(),
       onTakeOver: () => { control = 'user'; hideModelCircle(); render(); live?.controller?.onTakeOver?.(); },
-      onGiveBack: () => { control = 'model'; circleViews().forEach((entry) => entry.hideCursor('user')); render(); live?.controller?.onGiveBack?.(); if (asking?.kind === 'takeover') asking.panel.finish?.('done'); },
+      onGiveBack: () => { control = 'model'; reopenFocus = false; circleViews().forEach((entry) => entry.hideCursor('user')); render(); live?.controller?.onGiveBack?.(); if (asking?.kind === 'takeover') asking.panel.finish?.('done'); },
       onRatio: (key) => { setRatio(key); live?.controller?.onRatio?.(key); }
     };
     // Whatever the card does not answer itself goes to the owner of the live picture (looked up when it is asked, so a later owner is the one).
@@ -615,9 +618,24 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       live = next || null;
       if (live) everLive = true;
       if (live?.ratio) ratio = live.ratio;
-      if (!live) closeFocus();
+      if (!live) {
+        // The picture was lost while the person held the browser (a stream that dropped): the focus mode goes with it, and comes back with the picture, so that they do not have to take over again.
+        if (focus && control === 'user') { reopenFocus = true; eyeWas = eyeOpen; }
+        closeFocus();
+      }
       mountLive();
       render();
+      if (live && reopenFocus) {
+        reopenFocus = false;
+        const eye = eyeWas;
+        eyeWas = false;
+        if (control === 'user' && phase === 'run') {
+          // What was shown as typed is dots again (the picture is a new one, and the browser must hear it too).
+          if (eye) live.controller?.onReveal?.(false);
+          openFocus();
+          focus?.update({ control });
+        }
+      }
     },
     /** The tabs or who has the browser changed (the parts that are given). */
     liveState(next = {}) {

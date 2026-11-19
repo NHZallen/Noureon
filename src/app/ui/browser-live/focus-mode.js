@@ -213,10 +213,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   pad.addEventListener('pointercancel', () => trackpad.cancel());
 
   // On a computer the person points at the screen itself: the mouse, the wheel, the keys and what they paste go into the browser while it is in their hands.
-  const pointOf = (event) => {
-    const rect = view.element.getBoundingClientRect();
-    return { x: rect.width ? (event.clientX - rect.left) / rect.width : 0, y: rect.height ? (event.clientY - rect.top) / rect.height : 0 };
-  };
+  const pointOf = (event) => view.pointFromClient(event.clientX, event.clientY);
   const mine = () => panel && state.control === 'user';
   if (panel) {
     const surface = view.element;

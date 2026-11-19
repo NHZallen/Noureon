@@ -229,3 +229,19 @@ test('the seconds a thinking line shows can be the server\'s: a page that comes 
     cleanup();
   }
 });
+
+test('a reply the browser agent worked in keeps the line of how long it all took (the live line), not only how long the model thought', () => {
+  const { window, cleanup } = createDom();
+  try {
+    const run = { v: 1, status: 'done', steps: [], elapsedMs: 28_000, thought: 'Plan the clicks', thoughtMs: 24_000, thoughtKind: 'raw', browser: { end: 'done', steps: [{ action: 'open', domain: 'a.example', label: 'Opened a.example' }] } };
+    const view = createSandboxRunElement(window.document, run, { language: 'en' });
+    const summary = view.querySelector('summary').textContent;
+    assert.match(summary, /^Thought for 28s/, 'the saved line says the same as the live line did');
+    assert.ok(!/24/.test(summary));
+    // The thinking is still there, as a row of the process, with its own time.
+    assert.ok([...view.querySelectorAll('summary, .ledger-row-head, .sandbox-run-summary')].length >= 1);
+    assert.ok(view.querySelector('.sandbox-run-thought-text, .ledger-thought'));
+  } finally {
+    cleanup();
+  }
+});

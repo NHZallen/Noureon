@@ -133,11 +133,26 @@ export function createNekoSource({ viewer, size = { w: 1024, h: 768 }, quality =
     video.className = 'bl-video';
     return video;
   };
-  const mountIn = (element) => { const video = make(); videos.add(video); element.append(video); attach(video); return video; };
+  // The view that draws the circle wants to know when the picture gets its size or changes it (a switch of the ratio).
+  let onResize = null;
+  const mountIn = (element) => {
+    const video = make();
+    videos.add(video);
+    for (const name of ['loadedmetadata', 'resize']) video.addEventListener?.(name, () => onResize?.());
+    element.append(video);
+    attach(video);
+    return video;
+  };
 
   return {
     mount: mountIn,
     mountLens: mountIn,
+    /** The size of the picture of the stream in pixels ({ width, height }), or null before the first frame. */
+    videoSize() {
+      const video = [...videos].find((candidate) => candidate.videoWidth > 0 && candidate.videoHeight > 0);
+      return video ? { width: video.videoWidth, height: video.videoHeight } : null;
+    },
+    onVideoResize(callback) { onResize = typeof callback === 'function' ? callback : null; },
     input,
     /** The picture on the screen now, as a JPEG (a Blob), or null when nothing is shown yet. Drawn from the video of the stream, so it is exactly what the person sees. */
     async snapshot({ quality = 0.9 } = {}) {

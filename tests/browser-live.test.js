@@ -121,3 +121,37 @@ test('the circle of the model glides to a point and is hidden by its own name on
     window.happyDOM.abort();
   }
 });
+
+test('a picture that is not of the shape of the view (bars at its sides): the circle and the pointing of the person use the picture, not the view', () => {
+  const window = new Window();
+  try {
+    const { document } = window;
+    const source = { ...fakeSource(), size: { width: 768, height: 1024 }, videoSize() { return this.size; }, onVideoResize(callback) { this.resized = callback; } };
+    const host = document.createElement('div');
+    document.body.append(host);
+    const view = createLiveView({ document, host, source });
+    const box = (element, width, height, left = 0, top = 0) => {
+      Object.defineProperty(element, 'clientWidth', { configurable: true, value: width });
+      Object.defineProperty(element, 'clientHeight', { configurable: true, value: height });
+      element.getBoundingClientRect = () => ({ left, top, width, height, right: left + width, bottom: top + height });
+    };
+    // A view of 800 x 800 that shows a picture of 3:4: the picture is 600 wide, with 100 of bars at each side.
+    box(view.element, 800, 800, 50, 10);
+    const lens = document.querySelector('.bl-lens');
+    view.moveCursor(0.5, 0.5, 'user');
+    assert.equal(lens.style.left, '400px');
+    view.moveCursor(0, 0.25, 'user');
+    assert.equal(lens.style.left, '100px', 'the left edge of the picture, not of the view');
+    assert.equal(lens.style.top, '200px');
+    // The person points at the left edge of the picture (50 + 100 of window) and at a quarter of its height.
+    assert.deepEqual(view.pointFromClient(150, 210), { x: 0, y: 0.25 });
+    assert.deepEqual(view.pointFromClient(450, 410), { x: 0.5, y: 0.5 });
+    assert.deepEqual(view.pointFromClient(60, 410), { x: 0, y: 0.5 }, 'a press on the bar is the edge');
+    // The size of the picture arrives (or changes) later: the circle is put again.
+    source.size = { width: 800, height: 800 };
+    source.resized();
+    assert.equal(lens.style.left, '0%', 'a picture of the shape of the view is placed in percent, as before');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

@@ -1037,3 +1037,30 @@ test('the eye through the card: pressed it shows, pressed again it hides; puttin
     window.happyDOM.abort();
   }
 });
+
+test('the picture is lost while the person holds the browser: the focus mode comes back with the new picture, with the browser still theirs; given back, it does not come back', () => {
+  const { window, card, document } = make();
+  try {
+    const first = fakeLive();
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive(first.live);
+    card.openFocus();
+    card.liveState({ control: 'user' });
+    card.liveState({ reveal: true });
+    assert.equal(document.querySelector('.bf').dataset.control, 'user');
+    card.setLive(null);
+    assert.equal(document.querySelector('.bf'), null, 'with no picture there is no screen to hold');
+    const second = fakeLive();
+    card.setLive(second.live);
+    assert.ok(document.querySelector('.bf'), 'the focus mode is back');
+    assert.equal(document.querySelector('.bf').dataset.control, 'user', 'the browser is still theirs');
+    assert.deepEqual(second.calls.at(-1), ['onReveal', false], 'what was shown as typed is dots again, and the browser is told');
+    // Given back: a lost picture does not open anything on its own.
+    document.querySelector('.bf-actions .is-primary:not([hidden])').click();
+    card.setLive(null);
+    card.setLive(fakeLive().live);
+    assert.equal(document.querySelector('.bf'), null);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
