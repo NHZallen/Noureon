@@ -10,6 +10,8 @@ const RETRY_MS = [1500, 4000, 10_000];
 const SLOW_RETRY_MS = 15_000;
 // A stream that lived this long was a real one: the tries start again after it. A stream that ends within seconds is a failure however often it comes back.
 const STABLE_MS = 20_000;
+// After the dots came back, a frame that shows them takes this long to arrive.
+const FRESH_FRAME_MS = 900;
 
 export function connectBrowserLive({ card, sessionId, api, document, createSource = createNekoSource, readClipboard = null, setTimer = (...a) => setTimeout(...a), clearTimer = (...a) => clearTimeout(...a), now = Date.now, log = (...a) => console.info('[browser-live]', ...a), setRepeat = (...a) => setInterval(...a), clearRepeat = (...a) => clearInterval(...a), writeClipboard = null }) {
   const base = `/v1/browser/${encodeURIComponent(sessionId)}`;
@@ -25,6 +27,8 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   // While a stream is being let go (the card says "look again" at every change it makes), and after it failed until the next try is due, nothing connects by itself.
   let letting = 0;
   let waiting = false;
+  // The eye of the person (what is typed into a field that holds a secret is shown as typed): known here so that a picture for the model is never taken while it is open.
+  let eyeOn = false;
 
   // While the task runs the stream stays, a pill or a turned card too (low quality): a press on the pill opens the focus mode at once, with the picture there, and nothing is loaded again.
   // It goes when the task is over, is cancelled, or fails.
@@ -50,6 +54,11 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     onBack: () => doTab({ op: 'back', tabId: frontTab()?.id }),
     // The picture on the screen goes to the box of the message as an attached file (the page puts it there: noureon:attach-files, app-bootstrap-lifecycle.js); true when there was a picture.
     onScreenshot: async () => {
+      // The picture goes to the model: with the eye open it would show what the person typed in a field that holds a secret, so the dots come back first and a new frame is waited for.
+      if (eyeOn) {
+        await controller.onReveal(false);
+        await new Promise((resolve) => { setTimer(resolve, FRESH_FRAME_MS); });
+      }
       const blob = await source?.snapshot?.().catch(() => null);
       const view = document.defaultView;
       if (!blob || !view?.File || !view?.CustomEvent) return false;
@@ -63,12 +72,15 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
       const answer = await api('POST', `${base}/control`, { mode: 'user', viewerId: viewer?.viewerId }).catch(() => ({ ok: false }));
       if (!answer.ok) card.liveState({ control: 'model' });
     },
-    onGiveBack: () => { card.liveState({ reveal: false }); void api('POST', `${base}/control`, { mode: 'model' }).catch(() => {}); },
+    onGiveBack: () => { eyeOn = false; card.liveState({ reveal: false }); void api('POST', `${base}/control`, { mode: 'model' }).catch(() => {}); },
     // The eye: shows what is typed into the fields that hold a secret (the page shows them as dots), only while the person holds the browser; asked of the server, which asks the browser.
     onReveal: async (on) => {
-      card.liveState({ reveal: Boolean(on) });
-      const answer = await api('POST', `${base}/reveal`, { on: Boolean(on) }).catch(() => ({ ok: false }));
-      card.liveState({ reveal: Boolean(answer?.ok && answer.on) });
+      eyeOn = Boolean(on);
+      card.liveState({ reveal: eyeOn });
+      const answer = await api('POST', `${base}/reveal`, { on: eyeOn }).catch(() => ({ ok: false }));
+      // (the answer of the server is in `data`: { ok, status, data: { ok, on } })
+      eyeOn = Boolean(answer?.ok && answer.data?.on);
+      card.liveState({ reveal: eyeOn });
     },
     onRatio: (key) => { void api('POST', `${base}/screen`, { ratio: key }).catch(() => {}); }
   };

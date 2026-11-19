@@ -20,6 +20,8 @@ function world({ viewerOk = true } = {}) {
     calls.push([method, path, body]);
     if (path.endsWith('/tabs')) return { ok: true, status: 200, data: { ok: true, tabs: tabsNow } };
     if (path.endsWith('/viewer') && method === 'POST') return viewerOk ? { ok: true, status: 200, data: { viewerId: 'v-1', token: 't', host: 'live.example.com', wsPath: '/s/x/api/ws' } } : { ok: false, status: 409, data: {} };
+    // The server answers the eye with { ok, on } under `data`, as every route does through the page's request.
+    if (path.endsWith('/reveal')) return { ok: true, status: 200, data: { ok: true, on: body.on } };
     return { ok: true, status: 200, data: {} };
   };
   const sources = [];
@@ -240,4 +242,34 @@ test('the screenshot button of the focus mode puts the picture of the screen in 
   [...none.document.querySelectorAll('button')].find((b) => /截圖給模型|screenshot to the model/i.test(`${b.getAttribute('aria-label') || ''}${b.textContent}`))?.click();
   await settle();
   assert.ok(none.document.querySelector('.bf'), 'it stays when there was nothing to take');
+});
+
+test('the eye stays on after the server answers (the answer is read from data), turns off when asked again, and a picture for the model is never taken with it open', async () => {
+  const w = await (async () => { const x = world(); await settle(); return x; })();
+  w.card.openFocus();
+  const buttons = () => [...w.card.element.ownerDocument.querySelectorAll('button')];
+  buttons().find((b) => /接管|take/i.test(b.getAttribute('aria-label') || '')).click();
+  await settle();
+  const eye = () => buttons().find((b) => /顯示輸入|show what|隱藏輸入|hide what/i.test(b.getAttribute('aria-label') || ''));
+  eye().click();
+  await settle();
+  assert.equal(eye().getAttribute('aria-pressed'), 'true', 'the server said on, so the eye stays pressed');
+  assert.match(eye().getAttribute('aria-label'), /Hide|隱藏/);
+  eye().click();
+  await settle();
+  assert.deepEqual(w.calls.filter((c) => c[1].endsWith('/reveal')).map((c) => c[2].on), [true, false]);
+  assert.equal(eye().getAttribute('aria-pressed'), 'false');
+  // With the eye open, "screenshot for the model" asks for the dots first and waits for a new frame before it takes the picture.
+  eye().click();
+  await settle();
+  const before = w.calls.filter((c) => c[1].endsWith('/reveal')).length;
+  w.sources[0].snapshot = async () => new w.document.defaultView.Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' });
+  [...w.document.querySelectorAll('.bf button')].find((b) => /更多|more/i.test(b.getAttribute('aria-label') || ''))?.click();
+  const shot = [...w.document.querySelectorAll('button')].find((b) => /截圖給模型|screenshot to the model/i.test(`${b.getAttribute('aria-label') || ''}${b.textContent}`));
+  assert.ok(shot, 'the button is there');
+  shot.click();
+  await settle();
+  const reveals = w.calls.filter((c) => c[1].endsWith('/reveal'));
+  assert.equal(reveals.length, before + 1);
+  assert.equal(reveals.at(-1)[2].on, false, 'the dots come back before the picture');
 });
