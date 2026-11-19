@@ -81,10 +81,13 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (!videos.length) { thawPicture(); return; }
     let done = false;
     const go = () => { if (done) return; done = true; thawPicture(); };
+    // The kept picture goes when a new frame has really been drawn (a stream takes some seconds to bring its first frame: nothing black in between); the long wait is only for a stream that never comes.
+    const drawn = (video) => { if (video.videoWidth > 0 && typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(go); else if (video.videoWidth > 0) go(); };
     for (const video of videos) {
-      video.addEventListener?.('playing', () => { if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(go); else go(); }, { once: true });
+      if (video.videoWidth > 0 && video.readyState >= 2) drawn(video);
+      for (const name of ['playing', 'loadeddata', 'resize']) video.addEventListener?.(name, () => drawn(video), { once: true });
     }
-    setTimeout(go, 2500);
+    setTimeout(go, 12_000);
   };
   // The focus mode was open with the browser in the person's hands when the picture was lost: it opens again with the new picture (and whether the eye was open).
   let reopenFocus = false;

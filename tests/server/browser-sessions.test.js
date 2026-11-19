@@ -268,3 +268,25 @@ test('the eye shows what is typed only while the person holds the browser, and t
   assert.deepEqual(reveals().slice(0, 3), [false, true, false], 'asked, shown, given back');
   await assert.rejects(() => w.sessions.reveal(sessionId, B, true), (error) => error instanceof BrowserSessionError);
 });
+
+test('the stream was lost while the person holds the browser: the viewer that goes with ?reconnect keeps the hold for a minute, the new viewer takes it over, and a hold that nobody takes over ends; leaving for good still gives the browser back at once', async () => {
+  const w = world();
+  w.host.control = async (id, request) => ({ control: request.mode });
+  w.host.closeViewer = async () => ({});
+  const { sessionId } = await w.sessions.open(A, {});
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v1' });
+  await w.sessions.closeViewer(sessionId, A, 'v1', { reconnecting: true });
+  assert.equal(w.sessions.heldByUser(A), true, 'the model does not go on in between');
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v2' });
+  w.clock.t += 120_000;
+  assert.equal(w.sessions.heldByUser(A), true, 'the new viewer holds it, nothing runs out');
+  // A hold kept for a viewer that never comes ends after its minute.
+  await w.sessions.closeViewer(sessionId, A, 'v2', { reconnecting: true });
+  assert.equal(w.sessions.heldByUser(A), true);
+  w.clock.t += 61_000;
+  assert.equal(w.sessions.heldByUser(A), false);
+  // Leaving for good (no reconnect): the browser goes back to the model at once.
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v3' });
+  await w.sessions.closeViewer(sessionId, A, 'v3');
+  assert.equal(w.sessions.heldByUser(A), false);
+});

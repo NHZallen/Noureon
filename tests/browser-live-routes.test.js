@@ -112,3 +112,11 @@ test('the eye: only a true or false is taken, and it goes to the owner\'s sessio
   assert.equal((await t.run('POST', `/v1/browser/${SID}/reveal`, {})).failed.code, 'bad_request');
   assert.equal(t.calls.length, 1);
 });
+
+test('the viewer of a lost stream goes with ?reconnect=1, which the sessions are told; without it the viewer is let go as before', async () => {
+  const t = setup();
+  await t.run('DELETE', `/v1/browser/${SID}/viewer/v-1?reconnect=1`);
+  assert.deepEqual(t.calls.at(-1), ['closeViewer', SID, 'user-1', 'v-1', { reconnecting: true }]);
+  await t.run('DELETE', `/v1/browser/${SID}/viewer/v-1`);
+  assert.deepEqual(t.calls.at(-1), ['closeViewer', SID, 'user-1', 'v-1', { reconnecting: false }]);
+});

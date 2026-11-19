@@ -100,7 +100,8 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     // keepCard: the card keeps its screen (the last picture is on it) and gets the new stream when it comes.
     if (had && !keepCard) { letting += 1; try { card.setLive(null); } finally { letting -= 1; } }
     if (had) {
-      const gone = api('DELETE', `${base}/viewer/${encodeURIComponent(had.viewerId)}`).catch(() => {});
+      // keepCard while the person holds the browser: the server keeps the hold for the new viewer that comes (?reconnect=1).
+      const gone = api('DELETE', `${base}/viewer/${encodeURIComponent(had.viewerId)}${keepCard ? '?reconnect=1' : ''}`).catch(() => {});
       if (!quick) await gone;
     }
   }
@@ -131,6 +132,11 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     const real = source;
     const shared = { mount: (el) => real.mount(el), mountLens: (el) => real.mountLens(el), input: real.input, snapshot: (options) => real.snapshot?.(options) ?? Promise.resolve(null), setQuality: (q) => real.setQuality(q), destroy: () => {} };
     card.setLive({ source: shared, controller, readClipboard });
+    // The stream came back while the person holds the browser: the new viewer is given the control (the old one was let go of), so that what they do on the screen reaches the browser again.
+    if (card.control === 'user') {
+      const answer = await api('POST', `${base}/control`, { mode: 'user', viewerId: granted.viewerId }).catch(() => ({ ok: false }));
+      if (!answer?.ok) card.liveState({ control: 'model' });
+    }
   }
 
   // The stream ended by itself (the host closed the viewer, the network went): let go, and look again if somebody still wants to see.

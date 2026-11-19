@@ -321,3 +321,24 @@ test('a picture lost while the person holds the browser: the last picture stays 
   await new Promise((resolve) => setTimeout(resolve, 2700));
   assert.equal([...doc.querySelectorAll('.bl-frozen')].filter((node) => !node.hidden).length, 0, 'the kept picture is gone');
 });
+
+test('the stream comes back while the person holds the browser: the old viewer goes with ?reconnect=1, and the new viewer is given the control, so that what they do reaches the browser', async () => {
+  const w = await (async () => { const x = world(); await settle(); return x; })();
+  const doc = w.card.element.ownerDocument;
+  w.card.openFocus();
+  [...doc.querySelectorAll('button')].find((b) => /接管|take/i.test(b.getAttribute('aria-label') || ''))?.click();
+  await settle();
+  w.sources[0].options.onState('live');
+  w.sources[0].options.onState('closed', 'rtc-failed');
+  await settle();
+  await settle();
+  const deleted = w.calls.find((c) => c[0] === 'DELETE' && c[1].includes('/viewer/'));
+  assert.ok(deleted[1].endsWith('?reconnect=1'), 'the server keeps the hold for the new viewer');
+  w.timers.filter((t) => t[1] === 250).at(-1)[0]();
+  await settle();
+  await settle();
+  const controls = w.calls.filter((c) => c[1].endsWith('/control'));
+  assert.deepEqual(controls.at(-1), ['POST', `/v1/browser/${SID}/control`, { mode: 'user', viewerId: 'v-1' }], 'the control is asked for the new viewer');
+  assert.ok(controls.length >= 2, 'once for the take-over, once for the new stream');
+  assert.equal(w.card.control, 'user');
+});

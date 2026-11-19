@@ -1,6 +1,6 @@
 // The routes of the live screen of the browser agent (design doc sections 6 and 16; P3b). The page asks here, signed in as the person the browser belongs to:
 //   POST   /v1/browser/:sessionId/viewer             -> { viewerId, token, host, wsPath, ratioSizes }  (a temporary member of the browser's neko; the page then opens wss://host + wsPath)
-//   DELETE /v1/browser/:sessionId/viewer/:viewerId   -> { ok }
+//   DELETE /v1/browser/:sessionId/viewer/:viewerId   -> { ok }   (?reconnect=1: the stream was lost while the person holds the browser, a new viewer takes it over: the hold stays for a minute)
 //   POST   /v1/browser/:sessionId/control            { mode: 'user' | 'model', viewerId? } -> { control }
 //   POST   /v1/browser/:sessionId/reveal            { on: boolean } -> { ok, on }  (the eye: what the person types into a field that holds a secret is shown as typed, only while they hold the browser; the model never sees it)
 //   POST   /v1/browser/:sessionId/tabs               { op: 'list' | 'new' | 'close' | 'activate' | 'reload' | 'back' | 'navigate', tabId?, url? } -> { tabs?, tabId?, url? }
@@ -21,7 +21,7 @@ const RATIOS = new Set(['4:3', '16:9', 'portrait']);
 export function createBrowserLiveRoutes({ browser, limiter = null, log = () => {} }) {
   const routes = [
     { method: 'POST', re: new RegExp(`^/v1/browser/${ID}/viewer$`), run: ({ user, match }) => browser.sessions.viewer(match[1], user.id).then((body) => [200, body]) },
-    { method: 'DELETE', re: new RegExp(`^/v1/browser/${ID}/viewer/${VIEWER}$`), run: ({ user, match }) => browser.sessions.closeViewer(match[1], user.id, match[2]).then(() => [200, { ok: true }]) },
+    { method: 'DELETE', re: new RegExp(`^/v1/browser/${ID}/viewer/${VIEWER}$`), run: ({ user, match, url }) => browser.sessions.closeViewer(match[1], user.id, match[2], { reconnecting: url?.searchParams?.get('reconnect') === '1' }).then(() => [200, { ok: true }]) },
     {
       method: 'POST', re: new RegExp(`^/v1/browser/${ID}/control$`), body: 512,
       run: async ({ user, match, body, problem }) => {
@@ -72,7 +72,7 @@ export function createBrowserLiveRoutes({ browser, limiter = null, log = () => {
     let body = null;
     if (route.body) body = await readJson(request, route.body, { optional: true });
     try {
-      const [status, payload] = await route.run({ user, match: route.re.exec(url.pathname), body, problem });
+      const [status, payload] = await route.run({ user, match: route.re.exec(url.pathname), body, problem, url });
       send(status, payload);
     } catch (error) {
       if (error?.name === 'BrowserSessionError' || error?.name === 'BrowserHostError') log('browser_live_refused', { route: kind, why: String(error.code || error.name).slice(0, 40), status: Number(error.status) || 0 });

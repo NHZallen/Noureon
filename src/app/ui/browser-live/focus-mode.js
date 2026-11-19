@@ -139,7 +139,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   // The keyboard of the person: long text is written here first and sent in one go; the keys that a phone keyboard does not have are in a row over it.
   const keyboard = make('div', 'bf-kb');
   const keyRow = make('div', 'bf-kb-keys');
-  KEYS.forEach(([name, label]) => keyRow.append(button('bf-key', label, () => { source?.input?.key?.(name, true); source?.input?.key?.(name, false); }, null, label)));
+  KEYS.forEach(([name, label]) => keyRow.append(button('bf-key', label, () => { view.source?.input?.key?.(name, true); view.source?.input?.key?.(name, false); }, null, label)));
   const field = make('textarea', 'bf-kb-field', { rows: '2', placeholder: t('browserTypeHere'), 'aria-label': t('browserKeyboard') });
   const send = button('bf-kb-send', t('browserSendText'), () => sendText(), null, t('browserSendText'));
   const typing = make('div', 'bf-kb-type');
@@ -180,7 +180,8 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     const { width, height } = ratioOf(state.ratio);
     return width / height;
   };
-  const input = () => source?.input;
+  // (the source of the view: the stream may be a new one after a reconnect)
+  const input = () => view.source?.input;
   const place = (down) => {
     view.moveCursor(cursor.x, cursor.y, 'user');
     input()?.pointer?.(cursor.x, cursor.y, down ? 'drag' : 'move');

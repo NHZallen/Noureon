@@ -37,6 +37,8 @@ export function tabActionOf(request) {
   throw new BrowserSessionError('That is not something to do with the tabs.', 'bad_request');
 }
 
+const HOLD_GRACE_MS = 60_000;
+
 export function createBrowserSessions({ host, profiles, log = () => {}, now = Date.now, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), saveEveryMs = 5 * 60_000, sweepEveryMs = 60 * 60_000, tickMs = 30_000, makeId = () => `b${randomBytes(12).toString('hex')}` }) {
   const byId = new Map();
   const byUser = new Map();
@@ -132,16 +134,24 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     },
     // The live screen. Only the person the browser belongs to may look at it, point and type in it, and change its size; the host never sees who is asking.
     async viewer(id, userId) { return host.createViewer(own(id, userId).id); },
-    async closeViewer(id, userId, viewerId) {
+    async closeViewer(id, userId, viewerId, { reconnecting = false } = {}) {
       const session = own(id, userId);
-      // The person who held the browser left the screen: the host takes the input back, and so does the model.
-      if (session.holder && session.holder === viewerId) { session.holder = null; hide(session); }
+      if (session.holder && session.holder === viewerId) {
+        if (reconnecting) {
+          // The stream was lost and a new viewer of the same person comes (it asks for the control again): the browser stays theirs for a minute, so that the model does not go on in between.
+          session.holdGraceUntil = now() + HOLD_GRACE_MS;
+        } else {
+          // The person who held the browser left the screen: the host takes the input back, and so does the model.
+          session.holder = null; hide(session);
+        }
+      }
       return host.closeViewer(session.id, viewerId);
     },
     async control(id, userId, request) {
       const session = own(id, userId);
       const answer = await host.control(session.id, request);
       session.holder = request?.mode === 'user' ? String(request.viewerId || 'viewer') : null;
+      session.holdGraceUntil = 0;
       // Given back to the model: what was shown as typed is dots again (a look of the model puts them back first anyway).
       if (!session.holder) hide(session);
       return answer;
@@ -156,6 +166,8 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     /** True while the person has taken the browser over from the screen (the model waits until it is given back). */
     heldByUser(userId) {
       const session = byId.get(byUser.get(userId));
+      // A hold kept for a new viewer that never came (the person left for good): it ends after its minute.
+      if (session?.holder && session.holdGraceUntil && now() > session.holdGraceUntil) { session.holder = null; session.holdGraceUntil = 0; hide(session); }
       return Boolean(session?.holder);
     },
     async screen(id, userId, ratio) { return host.setScreen(own(id, userId).id, ratio); },

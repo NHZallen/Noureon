@@ -285,3 +285,22 @@ test('the eye: while the browser is in the person\'s hands they can show what th
     assert.deepEqual(side.calls.at(-1), ['onReveal', true]);
   } finally { side.mode.destroy(); side.window.close(); }
 });
+
+test('what the person does on the screen goes to the stream the view has now: after a reconnect the new source gets it, not the one that was let go', () => {
+  const { window, mode, input } = make({ layout: 'panel', state: { domain: 'acme.com', control: 'user' } });
+  try {
+    const fresh = { input: { log: [], pointer(...a) { this.log.push(['pointer', ...a]); }, wheel() {}, key(...a) { this.log.push(['key', ...a]); }, text() {} }, mount() {}, mountLens() {}, destroy() {} };
+    mode.view.setSource(fresh);
+    const surface = mode.view.element;
+    Object.defineProperty(surface, 'clientWidth', { configurable: true, value: 400 });
+    Object.defineProperty(surface, 'clientHeight', { configurable: true, value: 300 });
+    surface.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 300, right: 400, bottom: 300 });
+    surface.dispatchEvent(new window.MouseEvent('pointerdown', { clientX: 200, clientY: 150, bubbles: true }));
+    assert.deepEqual(fresh.input.log[0], ['pointer', 0.5, 0.5, 'down'], 'the new stream got the press');
+    assert.equal(input.log.length, 0, 'the old one got nothing');
+    surface.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    assert.deepEqual(fresh.input.log.at(-1), ['key', 'a', true]);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
