@@ -29,7 +29,7 @@ test('the ratios: 4:3 is the default, 16:9 and the upright one are the others, a
 });
 
 test('the circle is 20% of the width and magnifies 1.6 times (the numbers of the design, the size changed from 13% on 2026-11-19)', () => {
-  assert.equal(LENS_SIZE, 0.2);
+  assert.equal(LENS_SIZE, 0.17);
   assert.equal(LENS_ZOOM, 1.6);
 });
 
@@ -172,4 +172,21 @@ test('after a switch of the ratio the old frames are not taken for the new scree
   } finally {
     window.happyDOM.abort();
   }
+});
+
+test('the bending of the glass at the rim is only made where it can be done well; without it (no canvas here, Safari) the circle keeps the flat zoom and still works', async () => {
+  const { createRefraction } = await import('../src/app/ui/browser-live/lens-refraction.js');
+  const window = new Window();
+  const document = window.document;
+  const glass = document.createElement('div');
+  assert.equal(createRefraction({ document, glass }), null, 'no canvas to draw the map on: no filter');
+  assert.equal(glass.children.length, 0, 'nothing was added to the glass');
+  const host = document.createElement('div');
+  document.body.append(host);
+  const view = createLiveView({ document, host, source: fakeSource() });
+  assert.ok(host.querySelector('.bl-lens-in'), 'the picture is still inside the circle');
+  assert.equal(host.querySelector('.bl-refract'), null);
+  view.moveCursor(0.4, 0.4, 'model');
+  assert.equal(view.cursor.visible, true);
+  window.close();
 });

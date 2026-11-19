@@ -11,7 +11,8 @@ export const BROWSER_CAPS = ['SETUID', 'SETGID', 'CHOWN', 'DAC_OVERRIDE', 'FOWNE
 export const PROFILE_MOUNT = '/home/neko/.config/chromium';          // --user-data-dir of the Chromium conf
 // The three Singleton* files are Chromium's lock of a profile that is in use (a link to "host-pid", a socket, a cookie). They are never kept: a saved copy that carries them makes every
 // later browser answer that the profile is used by another computer, and the person's browser cannot be started any more (found 2026-11-19: a save taken while the browser ran, and a
-// close whose save failed, left such a copy). They are left out when the profile is packed and, to heal a copy that was kept with them before, when it is unpacked.
+// close whose save failed, left such a copy). They are left out when the profile is packed and, to heal a copy that was kept with them before, when it is unpacked (busybox tar
+// compares the whole name of a member when it unpacks, which is `./SingletonLock`, so both spellings are given; checked on the real host 2026-11-20).
 export const PROFILE_EXCLUDES = ['Cache', 'Code Cache', 'GPUCache', 'Service Worker/CacheStorage', 'ShaderCache', 'GrShaderCache', 'DawnCache', 'SingletonLock', 'SingletonSocket', 'SingletonCookie'];
 export const PROFILE_LOCKS = ['SingletonLock', 'SingletonSocket', 'SingletonCookie'];
 
@@ -80,7 +81,7 @@ const helperBase = (mount) => ['run', '--rm', '-i', '--network', 'none', '--cap-
 
 /** Unpacks a profile archive (tar.gz on stdin) into the volume. No network, no capabilities, only that volume visible. */
 export function profileLoadArgs({ sessionId }) {
-  return [...helperBase(`${volumeName(sessionId)}:/data`), 'tar', 'xzf', '-', ...PROFILE_LOCKS.flatMap((name) => ['--exclude', name]), '-C', '/data'];
+  return [...helperBase(`${volumeName(sessionId)}:/data`), 'tar', 'xzf', '-', ...PROFILE_LOCKS.flatMap((name) => ['--exclude', name, '--exclude', `./${name}`]), '-C', '/data'];
 }
 /** Packs the volume (tar.gz on stdout), without the caches. The volume is mounted read-only. */
 export function profileSaveArgs({ sessionId }) {

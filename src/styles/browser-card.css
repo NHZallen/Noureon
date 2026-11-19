@@ -138,17 +138,18 @@
 .bl-picture { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
 .bl-video { border-radius: inherit; }
 .bl-picture > * { width: 100%; height: 100%; display: block; }
-.bl-lens { position: absolute; width: 20cqw; height: 20cqw; margin: -10cqw 0 0 -10cqw; border-radius: 50%; pointer-events: none; filter: drop-shadow(0 1cqw 1.4cqw color-mix(in srgb, var(--text-primary) 30%, transparent)); }
+.bl-lens { position: absolute; width: 17cqw; height: 17cqw; margin: -8.5cqw 0 0 -8.5cqw; border-radius: 50%; pointer-events: none; filter: drop-shadow(0 1cqw 1.4cqw color-mix(in srgb, var(--media-black) 30%, transparent)); }
 .bl-lens[hidden] { display: none; }
-/* The circle: a lens (style E, Allen 2026-11-19, after the milky one was too foggy): the middle is clear and magnifies, the edge goes a little dark inside like the rim of a lens, a white ring with a thin dark line outside it, a glint and a soft shadow. Grey and white only: the person's circle has the same lens with a pale blue. */
-.bl-glass { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-primary) 30%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--on-color) 85%, transparent); }
-.bl-glass::before { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: radial-gradient(circle, transparent 62%, color-mix(in srgb, var(--text-primary) 14%, transparent) 100%); }
+/* The circle: a lens (style E, Allen 2026-11-19, after the milky one was too foggy): the middle is clear and magnifies, the edge goes a little dark inside like the rim of a lens, a white ring with a thin dark line outside it, a glint and a soft shadow. The dark parts are a fixed black, not the colour of the text (that is light in the dark theme, and the rim and the shadow were not seen on a white page, found 2026-11-19). Grey and white only: the person's circle has the same lens with a pale blue. */
+.bl-glass { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in srgb, var(--media-black) 30%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--on-color) 85%, transparent); }
+.bl-glass::before { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: radial-gradient(circle, transparent 62%, color-mix(in srgb, var(--media-black) 14%, transparent) 100%); }
 .bl-glass::after { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 3; background: radial-gradient(ellipse 30% 16% at 30% 16%, color-mix(in srgb, var(--on-color) 55%, transparent), transparent 100%); }
 /* The last picture, kept on the screen while the stream comes back (the person holds the browser: nothing flashes, nothing is lost, and the screen is theirs at once). */
 .bl-frozen { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .bl-frozen[hidden] { display: none; }
 .bl-frozen img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0.85; }
 .bl-frozen-note { position: absolute; left: 50%; bottom: 0.75rem; transform: translateX(-50%); padding: 0.3rem 0.75rem; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--modal-bg); color: var(--text-secondary); font-size: 0.8125rem; white-space: nowrap; }
+.bl-refract { position: absolute; }
 .bl-lens-in { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .bl-lens-in > * { width: 100%; height: 100%; display: block; }
 /* The person's circle: the same glass as the model's, with a pale blue in it (the model's has no colour). */

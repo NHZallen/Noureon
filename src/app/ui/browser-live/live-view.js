@@ -8,10 +8,11 @@
 // The circle is 13% of the width of the screen, so it grows and shrinks with the card and the focus mode alike. Inside it the picture around the point is
 // magnified 1.6 times. It has no animation. When the person has taken over it is the same circle with a very faint touch of the accent colour.
 
+import { createRefraction } from './lens-refraction.js';
 import { cssRatio, DEFAULT_RATIO, ratioOf } from './ratios.js';
 
 export const LENS_ZOOM = 1.6;
-export const LENS_SIZE = 0.2; // of the width of the screen (the design said 13%; Allen wanted the bigger circle, 2026-11-19)
+export const LENS_SIZE = 0.17; // of the width of the screen (the design said 13%; Allen wanted it bigger, 20%, then a little smaller, 2026-11-19)
 
 const GLIDE_MS = 300;
 const clamp = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -34,7 +35,9 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   // The inside of the circle is the picture itself, as big as the screen times the zoom, moved so that the point is in the middle.
   const inner = document.createElement('div');
   inner.className = 'bl-lens-in';
-  glass.append(inner);
+  // The picture inside bends towards the rim like glass (lens-refraction.js); where that cannot be done it is the flat zoom, as it was.
+  const refraction = createRefraction({ document, glass });
+  (refraction ? refraction.box : glass).append(inner);
   lens.append(glass);
   // The last picture, kept while the stream comes back.
   const frozen = document.createElement('div');
@@ -81,7 +84,10 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
     lens.style.top = whole ? `${point.y * 100}%` : `${py}px`;
     inner.style.width = `${width * LENS_ZOOM}px`;
     inner.style.height = `${height * LENS_ZOOM}px`;
-    inner.style.transform = `translate(${diameter / 2 - px * LENS_ZOOM}px, ${diameter / 2 - py * LENS_ZOOM}px)`;
+    // With the bending the picture is in a box that sticks out of the circle on every side: the picture is moved by that much more.
+    refraction?.resize(diameter);
+    const shift = refraction ? refraction.padding(diameter) : 0;
+    inner.style.transform = `translate(${diameter / 2 + shift - px * LENS_ZOOM}px, ${diameter / 2 + shift - py * LENS_ZOOM}px)`;
   };
 
   const attach = (next) => {

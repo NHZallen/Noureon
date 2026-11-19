@@ -71,7 +71,7 @@ test('the lock files of Chromium are never kept in a saved profile, and are drop
   assert.deepEqual(PROFILE_LOCKS, ['SingletonLock', 'SingletonSocket', 'SingletonCookie']);
   for (const name of PROFILE_LOCKS) {
     assert.ok(pairs(profileSaveArgs(GOOD)).includes(`--exclude ${name}`), `${name} is not packed`);
-    assert.ok(pairs(profileLoadArgs(GOOD)).includes(`--exclude ${name}`), `${name} is not unpacked`);
+    assert.ok(pairs(profileLoadArgs(GOOD)).includes(`--exclude ${name}`) && pairs(profileLoadArgs(GOOD)).includes(`--exclude ./${name}`), `${name} is not unpacked (busybox compares ./name)`);
   }
   assert.ok(!pairs(profileLoadArgs(GOOD)).includes('--exclude Cookies'), 'the real cookies are kept');
 });
