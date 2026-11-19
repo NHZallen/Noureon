@@ -36,7 +36,16 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   inner.className = 'bl-lens-in';
   glass.append(inner);
   lens.append(glass);
-  root.append(picture, lens);
+  // The last picture, kept while the stream comes back.
+  const frozen = document.createElement('div');
+  frozen.className = 'bl-frozen';
+  frozen.hidden = true;
+  const frozenPicture = document.createElement('img');
+  frozenPicture.alt = '';
+  const frozenNote = document.createElement('div');
+  frozenNote.className = 'bl-frozen-note';
+  frozen.append(frozenPicture, frozenNote);
+  root.append(picture, frozen, lens);
   host.append(root);
 
   let current = null;
@@ -156,6 +165,18 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
       if (!size || !(size.width > 0 && size.height > 0) || !ratioNumber) return true;
       return Math.abs(size.width / size.height - ratioNumber) / ratioNumber < 0.02;
     },
+    /** Shows a picture over the stream (the last frame), with a few words ("Reconnecting…"), until `thaw`. */
+    freeze(url, note = '') {
+      if (url) frozenPicture.src = url; else frozenPicture.removeAttribute('src');
+      frozenPicture.hidden = !url;
+      frozenNote.textContent = note;
+      frozen.hidden = false;
+    },
+    thaw() {
+      frozen.hidden = true;
+      frozenPicture.removeAttribute('src');
+    },
+    get frozen() { return !frozen.hidden; },
     /** A point of the screen (0 to 1 each way) for a point of the window (client pixels): where the person pointed at the picture, bars at its sides left out. */
     pointFromClient(clientX, clientY) {
       const rect = root.getBoundingClientRect();

@@ -67,6 +67,25 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let ratio = DEFAULT_RATIO;
   let control = 'model';
   let eyeOpen = false;
+  // The last picture kept on the screen while the stream comes back (an object address), and the way it goes.
+  let frozenUrl = '';
+  let frozenOn = false;
+  const thawPicture = () => {
+    [liveView, focus?.view].forEach((entry) => entry?.thaw?.());
+    if (frozenUrl) { try { document.defaultView?.URL?.revokeObjectURL?.(frozenUrl); } catch { /* nothing to let go */ } }
+    frozenUrl = '';
+    frozenOn = false;
+  };
+  const thawWhenDrawn = () => {
+    const videos = [liveView, focus?.view].map((entry) => entry?.element?.querySelector?.('video')).filter(Boolean);
+    if (!videos.length) { thawPicture(); return; }
+    let done = false;
+    const go = () => { if (done) return; done = true; thawPicture(); };
+    for (const video of videos) {
+      video.addEventListener?.('playing', () => { if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(go); else go(); }, { once: true });
+    }
+    setTimeout(go, 2500);
+  };
   // The focus mode was open with the browser in the person's hands when the picture was lost: it opens again with the new picture (and whether the eye was open).
   let reopenFocus = false;
   let eyeWas = false;
@@ -617,16 +636,31 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     /** The card made from a saved message is complete: from now on it moves as any card does. */
     restored() { restoringNow = false; },
     /** The live picture is there (or gone: null). `live`: { source, controller, tabs, ratio, readClipboard }. */
+    /**
+     * The stream was lost while the person holds the browser: the last picture (a Blob) stays on the screen, with "Reconnecting…", and the focus mode stays open; the new stream takes its
+     * place when it comes (`setLive`), so there is nothing to wait for and nothing to take over again.
+     */
+    freezePicture(blob) {
+      thawPicture();
+      frozenOn = true;
+      const view = document.defaultView;
+      try { if (blob && view?.URL?.createObjectURL) frozenUrl = view.URL.createObjectURL(blob); } catch { frozenUrl = ''; }
+      [liveView, focus?.view].forEach((entry) => entry?.freeze?.(frozenUrl, t('browserReconnecting')));
+    },
     setLive(next) {
       live = next || null;
       if (live) everLive = true;
       if (live?.ratio) ratio = live.ratio;
+      if (!live) thawPicture();
       if (!live) {
         // The picture was lost while the person held the browser (a stream that dropped): the focus mode goes with it, and comes back with the picture, so that they do not have to take over again.
         if (focus && control === 'user') { reopenFocus = true; eyeWas = eyeOpen; }
         closeFocus();
       }
       mountLive();
+      // A new stream while the last picture is kept: the focus mode that stayed open gets it, and the kept picture goes when the first frame of the new one is drawn.
+      if (live && focus) focus.view.setSource(live.source);
+      if (live && frozenOn) thawWhenDrawn();
       render();
       if (live && reopenFocus) {
         reopenFocus = false;

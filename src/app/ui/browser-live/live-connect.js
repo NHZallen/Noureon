@@ -89,7 +89,7 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
   };
 
   // `quick`: the stream was lost, not ended on purpose; the viewer of it is let go of in the background, so that a host that does not answer does not delay the next try.
-  async function release({ quick = false } = {}) {
+  async function release({ quick = false, keepCard = false } = {}) {
     stopPolling();
     clearTimer(retry); retry = null;
     liveSince = 0;
@@ -97,7 +97,8 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     const gone = source;
     source = null; viewer = null;
     gone?.destroy();
-    if (had) { letting += 1; try { card.setLive(null); } finally { letting -= 1; } }
+    // keepCard: the card keeps its screen (the last picture is on it) and gets the new stream when it comes.
+    if (had && !keepCard) { letting += 1; try { card.setLive(null); } finally { letting -= 1; } }
     if (had) {
       const gone = api('DELETE', `${base}/viewer/${encodeURIComponent(had.viewerId)}`).catch(() => {});
       if (!quick) await gone;
@@ -138,6 +139,16 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     if (liveSince && now() - liveSince >= STABLE_MS) attempts = 0;
     log('lost', reason || '', `try ${attempts + 1} of ${RETRY_MS.length + 1}`);
     waiting = true;
+    // The person holds the browser: the last picture stays on their screen (the focus mode with it) while the stream comes back, so they are not thrown out and have nothing to take over again.
+    if (card.control === 'user' && typeof card.freezePicture === 'function') {
+      const grabbed = Promise.resolve(source?.snapshot?.()).catch(() => null);
+      const quickly = new Promise((resolve) => { setTimer(() => resolve(null), 400); });
+      void Promise.race([grabbed, quickly]).then((blob) => {
+        card.freezePicture(blob);
+        return release({ quick: true, keepCard: true });
+      }).then(() => { if (wanted()) schedule(); });
+      return;
+    }
     void release({ quick: true }).then(() => { if (wanted()) schedule(); });
   }
   function schedule() {

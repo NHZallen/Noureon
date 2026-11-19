@@ -293,3 +293,31 @@ test('a picture lost while the person holds the browser comes back at once: the 
   await settle();
   assert.equal(w.sources.length >= 2 || delays().length >= 2, true);
 });
+
+test('a picture lost while the person holds the browser: the last picture stays on the screen with "Reconnecting…", the focus mode stays open, and the new stream takes its place', async () => {
+  const w = await (async () => { const x = world(); await settle(); return x; })();
+  const doc = w.card.element.ownerDocument;
+  w.card.openFocus();
+  [...doc.querySelectorAll('button')].find((b) => /接管|take/i.test(b.getAttribute('aria-label') || ''))?.click();
+  await settle();
+  assert.equal(w.card.control, 'user');
+  w.sources[0].snapshot = async () => new doc.defaultView.Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' });
+  w.sources[0].options.onState('live');
+  w.sources[0].options.onState('closed', 'rtc-failed');
+  await settle();
+  await settle();
+  assert.ok(doc.querySelector('.bf'), 'the focus mode did not close');
+  const frozen = [...doc.querySelectorAll('.bl-frozen')].filter((node) => !node.hidden);
+  assert.ok(frozen.length >= 1, 'the last picture is kept');
+  assert.match(frozen[0].textContent, /重新連線|Reconnecting/);
+  assert.equal(doc.querySelector('.bf').dataset.control, 'user', 'and the browser is still theirs');
+  // The retry comes, the new stream arrives, and the kept picture goes when it is drawn.
+  const retry = w.timers.filter((t) => t[1] === 250).at(-1);
+  retry[0]();
+  await settle();
+  await settle();
+  assert.equal(w.sources.length, 2, 'a new stream');
+  assert.ok(doc.querySelector('.bf'), 'the focus mode is still there');
+  await new Promise((resolve) => setTimeout(resolve, 2700));
+  assert.equal([...doc.querySelectorAll('.bl-frozen')].filter((node) => !node.hidden).length, 0, 'the kept picture is gone');
+});

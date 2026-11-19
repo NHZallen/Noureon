@@ -142,6 +142,11 @@
 .bl-lens[hidden] { display: none; }
 .bl-glass { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--on-color) 6%, transparent); border: 1.5px solid color-mix(in srgb, var(--on-color) 50%, transparent); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 12px color-mix(in srgb, var(--on-color) 22%, transparent); }
 .bl-glass::before { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: radial-gradient(circle at 30% 22%, color-mix(in srgb, var(--on-color) 28%, transparent), transparent 36%), radial-gradient(circle at 50% 50%, transparent 62%, color-mix(in srgb, var(--on-color) 16%, transparent) 100%); }
+/* The last picture, kept on the screen while the stream comes back (the person holds the browser: nothing flashes, nothing is lost, and the screen is theirs at once). */
+.bl-frozen { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.bl-frozen[hidden] { display: none; }
+.bl-frozen img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0.85; }
+.bl-frozen-note { position: absolute; left: 50%; bottom: 0.75rem; transform: translateX(-50%); padding: 0.3rem 0.75rem; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--modal-bg); color: var(--text-secondary); font-size: 0.8125rem; white-space: nowrap; }
 .bl-lens-in { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .bl-lens-in > * { width: 100%; height: 100%; display: block; }
 /* The person's circle: the same one, with a very faint touch of the accent colour. */
