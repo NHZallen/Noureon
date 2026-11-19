@@ -27,7 +27,7 @@ test('the calls become the exact command lines, in the right place', async () =>
   const [volume, holder, load, start] = t.calls;
   assert.deepEqual(volume.args.slice(0, 2), ['volume', 'create']);
   assert.equal(holder.args[0], 'run'); assert.ok(holder.args.includes('-d') && holder.args.includes('--network') && holder.args.includes('none'), 'the volume is kept mounted by a small container before anything is unpacked');
-  assert.deepEqual(load.args.slice(-5), ['tar', 'xzf', '-', '-C', '/data']);
+  assert.deepEqual(load.args.slice(-11), ['tar', 'xzf', '-', '--exclude', 'SingletonLock', '--exclude', 'SingletonSocket', '--exclude', 'SingletonCookie', '-C', '/data']);
   assert.equal(load.opts.input.toString(), 'archive', 'the archive goes in on stdin, not on the command line');
   assert.ok(!load.args.join(' ').includes('archive'));
   assert.equal(start.args[0], 'run'); assert.ok(start.args.includes('--cap-drop=ALL')); assert.ok(start.args.includes(`seccomp=${PATHS.seccomp}`));

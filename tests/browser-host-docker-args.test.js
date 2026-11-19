@@ -1,7 +1,7 @@
 // The docker command lines of browser-host (browser-host/docker-args.mjs): every safety flag is pinned, and nothing from outside can add a flag.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCREEN_MM_SCRIPT, screenMmArgs, squareMm, LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, sidecarServiceArgs, sidecarRemoveArgs, sidecarServiceName, checkActionSize, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES } from '../browser-host/docker-args.mjs';
+import { SCREEN_MM_SCRIPT, screenMmArgs, squareMm, LIVE_PIPELINES, checkLive, holderRunArgs, browserRunArgs, sidecarArgs, sidecarServiceArgs, sidecarRemoveArgs, sidecarServiceName, checkActionSize, profileLoadArgs, profileSaveArgs, volumeCreateArgs, containerName, volumeName, checkSessionId, checkScreen, BROWSER_CAPS, PROFILE_EXCLUDES, PROFILE_LOCKS } from '../browser-host/docker-args.mjs';
 
 const GOOD = {
   sessionId: 'sess-12345678', screen: { w: 1024, h: 768 }, userPassword: 'a'.repeat(24), adminPassword: 'b'.repeat(24),
@@ -65,6 +65,15 @@ test('the helpers that unpack and pack the profile have no network, no capabilit
   }
   assert.ok(profileSaveArgs(GOOD).some((a) => a.endsWith(':/data:ro')), 'packing reads the volume read-only');
   for (const name of PROFILE_EXCLUDES) assert.ok(pairs(profileSaveArgs(GOOD)).includes(`--exclude ${name}`), `${name} is left out`);
+});
+
+test('the lock files of Chromium are never kept in a saved profile, and are dropped when an old copy that has them is unpacked (a copy with them makes every later browser say the profile is used by another computer)', () => {
+  assert.deepEqual(PROFILE_LOCKS, ['SingletonLock', 'SingletonSocket', 'SingletonCookie']);
+  for (const name of PROFILE_LOCKS) {
+    assert.ok(pairs(profileSaveArgs(GOOD)).includes(`--exclude ${name}`), `${name} is not packed`);
+    assert.ok(pairs(profileLoadArgs(GOOD)).includes(`--exclude ${name}`), `${name} is not unpacked`);
+  }
+  assert.ok(!pairs(profileLoadArgs(GOOD)).includes('--exclude Cookies'), 'the real cookies are kept');
 });
 
 test('a DevTools action runs in a throw-away container in the browser network, with nothing else', () => {
