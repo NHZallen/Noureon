@@ -6,6 +6,9 @@
 import { createNekoSource } from './neko-source.js';
 
 const RETRY_MS = [1500, 4000, 10_000];
+// While the person holds the browser a lost picture comes back as fast as it can: they are in the middle of typing. The first tries come almost at once, and it then looks every two seconds for as long as they hold it.
+const HOLDING_RETRY_MS = [250, 600, 1200];
+const HOLDING_STEADY_MS = 2000;
 // After those, it keeps looking now and then for as long as the task runs (a phone that was away, a network that dropped and came back), not at once and without end.
 const SLOW_RETRY_MS = 15_000;
 // A stream that lived this long was a real one: the tries start again after it. A stream that ends within seconds is a failure however often it comes back.
@@ -85,7 +88,8 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     onRatio: (key) => { void api('POST', `${base}/screen`, { ratio: key }).catch(() => {}); }
   };
 
-  async function release() {
+  // `quick`: the stream was lost, not ended on purpose; the viewer of it is let go of in the background, so that a host that does not answer does not delay the next try.
+  async function release({ quick = false } = {}) {
     stopPolling();
     clearTimer(retry); retry = null;
     liveSince = 0;
@@ -94,7 +98,10 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     source = null; viewer = null;
     gone?.destroy();
     if (had) { letting += 1; try { card.setLive(null); } finally { letting -= 1; } }
-    if (had) await api('DELETE', `${base}/viewer/${encodeURIComponent(had.viewerId)}`).catch(() => {});
+    if (had) {
+      const gone = api('DELETE', `${base}/viewer/${encodeURIComponent(had.viewerId)}`).catch(() => {});
+      if (!quick) await gone;
+    }
   }
 
   async function connect() {
@@ -131,13 +138,15 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
     if (liveSince && now() - liveSince >= STABLE_MS) attempts = 0;
     log('lost', reason || '', `try ${attempts + 1} of ${RETRY_MS.length + 1}`);
     waiting = true;
-    void release().then(() => { if (wanted()) schedule(); });
+    void release({ quick: true }).then(() => { if (wanted()) schedule(); });
   }
   function schedule() {
     if (!wanted()) return;
     waiting = true;
     if (retry) return;
-    retry = setTimer(() => { retry = null; attempts += 1; waiting = false; if (wanted()) void connect(); }, attempts < RETRY_MS.length ? RETRY_MS[attempts] : SLOW_RETRY_MS);
+    const holding = card.control === 'user';
+    const wait = holding ? (attempts < HOLDING_RETRY_MS.length ? HOLDING_RETRY_MS[attempts] : HOLDING_STEADY_MS) : (attempts < RETRY_MS.length ? RETRY_MS[attempts] : SLOW_RETRY_MS);
+    retry = setTimer(() => { retry = null; attempts += 1; waiting = false; if (wanted()) void connect(); }, wait);
   }
   // The page comes back to the front or the network comes back: if there is no picture, look at once (the tries start again).
   const lookNow = () => {

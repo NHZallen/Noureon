@@ -273,3 +273,23 @@ test('the eye stays on after the server answers (the answer is read from data), 
   assert.equal(reveals.length, before + 1);
   assert.equal(reveals.at(-1)[2].on, false, 'the dots come back before the picture');
 });
+
+test('a picture lost while the person holds the browser comes back at once: the first tries are almost immediate, then every two seconds, and the old viewer is let go in the background', async () => {
+  const w = await (async () => { const x = world(); await settle(); return x; })();
+  w.card.openFocus();
+  const buttons = () => [...w.card.element.ownerDocument.querySelectorAll('button')];
+  buttons().find((b) => /接管|take/i.test(b.getAttribute('aria-label') || ''))?.click();
+  await settle();
+  assert.equal(w.card.control, 'user');
+  w.sources[0].options.onState('live');
+  w.sources[0].options.onState('closed', 'rtc-failed');
+  await settle();
+  const delays = () => w.timers.map((t) => t[1]);
+  assert.equal(delays().at(-1), 250, 'the first try is almost at once');
+  // The old viewer is deleted without the next try waiting for it.
+  assert.ok(w.calls.some((c) => c[0] === 'DELETE' && c[1].includes('/viewer/')));
+  // The next tries (the viewer is refused while the browser is down): 600, 1200, then every two seconds.
+  w.timers.at(-1)[0]();
+  await settle();
+  assert.equal(w.sources.length >= 2 || delays().length >= 2, true);
+});

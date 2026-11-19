@@ -666,6 +666,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     get ratio() { return ratio; },
     get zoomed() { return zoomed; },
     get phase() { return phase; },
+    /** Who holds the browser: 'model' or 'user'. */
+    get control() { return control; },
     get view() { return view; },
     remove() {
       clearTimeout(modelCircleTimer);
