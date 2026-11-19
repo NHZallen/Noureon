@@ -28,8 +28,8 @@ test('the ratios: 4:3 is the default, 16:9 and the upright one are the others, a
   assert.equal(cssRatio('portrait'), '768 / 1024');
 });
 
-test('the circle is 13% of the width and magnifies 1.6 times (the numbers of the design)', () => {
-  assert.equal(LENS_SIZE, 0.13);
+test('the circle is 20% of the width and magnifies 1.6 times (the numbers of the design, the size changed from 13% on 2026-11-19)', () => {
+  assert.equal(LENS_SIZE, 0.2);
   assert.equal(LENS_ZOOM, 1.6);
 });
 

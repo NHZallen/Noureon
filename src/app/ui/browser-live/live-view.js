@@ -11,7 +11,7 @@
 import { cssRatio, DEFAULT_RATIO, ratioOf } from './ratios.js';
 
 export const LENS_ZOOM = 1.6;
-export const LENS_SIZE = 0.13; // of the width of the screen
+export const LENS_SIZE = 0.2; // of the width of the screen (the design said 13%; Allen wanted the bigger circle, 2026-11-19)
 
 const GLIDE_MS = 300;
 const clamp = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
