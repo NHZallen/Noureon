@@ -893,7 +893,7 @@ test('readPage reads a page in a tab of its own and closes the tab; it never sta
   assert.equal(broken.calls.filter((entry) => entry[0] === 'action').at(-1)[1].op, 'close');
 });
 
-test('a click or typing that the host answers with a point on the screen tells the page where the circle of the model goes; a point that cannot be right is not told', async () => {
+test('a click or typing that the host answers with a point on the screen tells the page where the circle of the model goes; a point that cannot be right is not told (a key is shown at the last place; a scroll shows nothing)', async () => {
   const t = setup({ actions: { click: () => ({ ...PAGE, at: { x: 0.31, y: 0.72 } }), type: () => ({ ...PAGE, at: { x: 0.5, y: 0.4 } }), press: () => ({ ...PAGE, at: { x: 7, y: 0.4 } }), scroll: () => PAGE } });
   t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
   await t.loader.run(call('browser_click', { ref: 3 }));
@@ -902,7 +902,22 @@ test('a click or typing that the host answers with a point on the screen tells t
   await t.loader.run(call('browser_scroll', { direction: 'down' }));
   assert.deepEqual(t.events.filter((event) => event.event === 'point'), [
     { type: 'browser', event: 'point', action: 'click', x: 0.31, y: 0.72 },
-    { type: 'browser', event: 'point', action: 'type', x: 0.5, y: 0.4 }
+    { type: 'browser', event: 'point', action: 'type', x: 0.5, y: 0.4 },
+    { type: 'browser', event: 'point', action: 'press', x: 0.5, y: 0.4 }
+  ]);
+});
+
+test('a key is shown at the last place that was clicked or typed into (the key goes to that field), and in the middle when there is none or the page was changed; a scroll shows no circle', async () => {
+  const t = setup({ actions: { click: () => ({ ...PAGE, at: { x: 0.2, y: 0.3 } }), press: () => PAGE, scroll: () => PAGE, back: () => PAGE } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  await t.loader.run(call('browser_press', { key: 'Tab' }));
+  await t.loader.run(call('browser_click', { ref: 3 }));
+  await t.loader.run(call('browser_press', { key: 'Enter' }));
+  await t.loader.run(call('browser_scroll', { direction: 'down' }));
+  await t.loader.run(call('browser_back', {}));
+  await t.loader.run(call('browser_press', { key: 'Enter' }));
+  assert.deepEqual(t.events.filter((event) => event.event === 'point').map((event) => [event.action, event.x, event.y]), [
+    ['press', 0.5, 0.5], ['click', 0.2, 0.3], ['press', 0.2, 0.3], ['press', 0.5, 0.5]
   ]);
 });
 

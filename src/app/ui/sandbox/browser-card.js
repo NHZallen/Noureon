@@ -390,7 +390,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (!views.length) return;
     views.forEach((entry) => entry.moveCursor(event.x, event.y, 'model', { glide: true }));
     clearTimeout(pulseTimer);
-    if (event.action === 'click') pulseTimer = setTimeout(() => circleViews().forEach((entry) => entry.pulse()), 300);
+    if (event.action === 'click' || event.action === 'press') pulseTimer = setTimeout(() => circleViews().forEach((entry) => entry.pulse()), 300);
     clearTimeout(modelCircleTimer);
     modelCircleTimer = setTimeout(hideModelCircle, MODEL_CIRCLE_IDLE_MS);
   };

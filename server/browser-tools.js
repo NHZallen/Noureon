@@ -120,6 +120,8 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   let takesCard = false;
   let subject = null;
   let confirmed = { domain: '', at: 0 };
+  // Where the last click or typing was (0 to 1 of the screen): a key goes to that field, so the circle of the model is shown there for a key (Allen, 2026-11-19); a scroll has no circle (Allen, 2026-11-19).
+  let lastPoint = null;
   const CONFIRMED_FOR_MS = 2 * 60_000;
   const confirm = async (action, summary) => {
     const result = await ask('confirm', { action, domain: lastDomain, summary });
@@ -543,7 +545,13 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       const result = await act(sessionId, request).catch((error) => { earlyPicture?.catch(() => {}); throw error; });
       if (result?.url) lastDomain = domainOf(result.url) || lastDomain;
       // Where the click or the typing was on the screen: the page draws the circle of the model there (a point that is not two numbers of 0 to 1 is not told).
-      if (result?.at && result.at.x >= 0 && result.at.x <= 1 && result.at.y >= 0 && result.at.y <= 1) emit({ type: 'browser', event: 'point', action: call.name === 'browser_type' ? 'type' : 'click', x: result.at.x, y: result.at.y });
+      if (result?.at && result.at.x >= 0 && result.at.x <= 1 && result.at.y >= 0 && result.at.y <= 1) {
+        lastPoint = { x: result.at.x, y: result.at.y };
+        emit({ type: 'browser', event: 'point', action: call.name === 'browser_type' ? 'type' : 'click', x: result.at.x, y: result.at.y });
+      } else if (call.name === 'browser_press') {
+        emit({ type: 'browser', event: 'point', action: 'press', x: lastPoint?.x ?? 0.5, y: lastPoint?.y ?? 0.5 });
+      }
+      if (['browser_open', 'browser_back', 'browser_tabs'].includes(call.name)) lastPoint = null;
       if (call.name === 'browser_snapshot') {
         lastElements = new Map((result.elements || []).map((element) => [element.ref, element]));
         takesCard = pageTakesCard(result.elements);
