@@ -292,16 +292,22 @@ test('on a computer the pill opens the side panel that takes its room from the c
     card.setLive({ ...live, url: 'https://acme.com/bill' });
     card.openFocus();
     const root = document.documentElement;
-    assert.equal(root.getAttribute('data-browser-panel'), 'panel');
-    assert.equal(root.style.getPropertyValue('--browser-panel-w'), '416px');
-    assert.ok(document.querySelector('.bf.is-panel'));
-    assert.ok(document.querySelector('.bf-resize'));
-    assert.equal(document.querySelector('.bf-pad'), null, 'no trackpad on a computer: the person points at the screen');
-    document.querySelector('.bf-head .bf-icon').click();
+    // It opens big (a small side panel is as good as none).
     assert.equal(root.getAttribute('data-browser-panel'), 'zoom');
     assert.match(root.style.getPropertyValue('--browser-panel-w'), /^calc\(100vw/);
     assert.equal(card.zoomed, true);
-    assert.deepEqual(calls.at(-1), ['onZoom', true], 'the owner of the picture is told too');
+    assert.ok(document.querySelector('.bf.is-panel'));
+    assert.ok(document.querySelector('.bf-resize'));
+    assert.equal(document.querySelector('.bf-pad'), null, 'no trackpad on a computer: the person points at the screen');
+    // The person can make it smaller; the owner of the picture is told too.
+    document.querySelector('.bf-head .bf-icon').click();
+    assert.equal(root.getAttribute('data-browser-panel'), 'panel');
+    assert.equal(root.style.getPropertyValue('--browser-panel-w'), '416px');
+    assert.equal(card.zoomed, false);
+    assert.deepEqual(calls.at(-1), ['onZoom', false]);
+    document.querySelector('.bf-head .bf-icon').click();
+    assert.equal(root.getAttribute('data-browser-panel'), 'zoom');
+    assert.deepEqual(calls.at(-1), ['onZoom', true]);
     document.querySelector('.bf-round[data-act="expand"]').click();
     assert.equal(card.zoomed, false);
     assert.equal(root.getAttribute('data-browser-panel'), 'panel');
@@ -309,6 +315,9 @@ test('on a computer the pill opens the side panel that takes its room from the c
     assert.equal(root.getAttribute('data-browser-panel'), null);
     assert.equal(document.querySelector('.bf'), null);
     assert.equal(card.view, 'front', 'opened from the card, the room is given back and the card stays');
+    // Opened again, it is big again, whatever the person did last time.
+    card.openFocus();
+    assert.equal(document.documentElement.getAttribute('data-browser-panel'), 'zoom');
   } finally {
     window.happyDOM.abort();
   }

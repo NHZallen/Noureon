@@ -149,9 +149,9 @@
 .bl-frozen-note { position: absolute; left: 50%; bottom: 0.75rem; transform: translateX(-50%); padding: 0.3rem 0.75rem; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--modal-bg); color: var(--text-secondary); font-size: 0.8125rem; white-space: nowrap; }
 .bl-lens-in { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .bl-lens-in > * { width: 100%; height: 100%; display: block; }
-/* The person's circle: the same one, with a very faint touch of the accent colour. */
-.bl-lens.is-user .bl-glass { border-color: color-mix(in srgb, var(--button-primary-bg) 16%, color-mix(in srgb, var(--on-color) 50%, transparent)); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 12px color-mix(in srgb, var(--on-color) 20%, transparent); }
-.bl-lens.is-user .bl-glass::after { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 3; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--button-primary-bg) 3%, transparent) 0, color-mix(in srgb, var(--button-primary-bg) 9%, transparent) 50%, color-mix(in srgb, var(--button-primary-bg) 20%, transparent) 100%); }
+/* The person's circle: the same glass as the model's, with a pale blue in it (the model's has no colour). */
+.bl-lens.is-user .bl-glass { border-color: color-mix(in srgb, var(--link-color) 38%, color-mix(in srgb, var(--on-color) 50%, transparent)); box-shadow: 0 6px 16px -6px var(--shadow-color), inset 0 0 12px color-mix(in srgb, var(--link-color) 22%, transparent); }
+.bl-lens.is-user .bl-glass::after { content: ''; position: absolute; inset: 0; border-radius: 50%; z-index: 3; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--link-color) 4%, transparent) 0, color-mix(in srgb, var(--link-color) 11%, transparent) 55%, color-mix(in srgb, var(--link-color) 24%, transparent) 100%); }
 .bl-lens.is-pressed { transform: scale(0.84); }
 
 /* The live picture as the screen of the card: it fills the card, and the capsule and the buttons are over it. */

@@ -550,6 +550,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     if (!live || focus) return;
     focusFrom = view === 'pill' ? 'pill' : 'front';
     const panel = wide();
+    // On a computer the screen opens big every time (a small side panel is as good as none); the person can make it smaller, and it is big again the next time.
+    if (panel) zoomed = true;
     if (panel) dock.open({ zoomed });
     focus = createFocusMode({ document, language, layout: panel ? 'panel' : 'phone', source: live.source, state: { domain, url: live.url || '', ratio, control, zoomed, over: phase === 'done' || phase === 'failed' || phase === 'cancelled', ...focusWords(), origin: focusFrom }, controller: focusController(), readClipboard: live.readClipboard || null });
     if (panel) dock.mountHandle(focus.element, sandboxText(language, 'browserResize'));
