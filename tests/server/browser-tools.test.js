@@ -918,3 +918,19 @@ test('readPage waits for a page that draws its words late: it reads again until 
   assert.equal(more, 5, 'five reads at most');
   assert.equal(empty.calls.filter((entry) => entry[0] === 'action').at(-1)[1].op, 'close');
 });
+
+test('an action that comes before the browser is ready (409 not_ready) waits for the browser and goes again, instead of telling the model the browser is not available', async () => {
+  let tries = 0;
+  const t = setup({ actions: { tabs: () => { tries += 1; if (tries === 1) throw new BrowserHostError('the browser is starting', { status: 409, code: 'not_ready' }); return { ok: true, tabs: [{ tabId: 'T1', url: 'https://a.example/', title: 'A' }] }; } } });
+  t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const answer = await t.loader.run(call('browser_tabs', { op: 'list' }));
+  assert.match(asText(answer), /The tabs/);
+  assert.equal(tries, 2);
+  assert.ok(t.calls.some((entry) => entry[0] === 'waitReady' && entry[1] === 'b1'), 'it waited for the browser');
+  // A browser that stays not ready is still an answer for the model (no endless waiting: one wait, one more try).
+  const stuck = setup({ actions: { tabs: () => { throw new BrowserHostError('the browser is starting', { status: 409, code: 'not_ready' }); } } });
+  stuck.setOpen({ sessionId: 'b1', conversationId: 'c1' });
+  const failed = await stuck.loader.run(call('browser_tabs', { op: 'list' }));
+  assert.equal(typeof asText(failed), 'string');
+  assert.equal(stuck.calls.filter((entry) => entry[0] === 'action').length, 2);
+});

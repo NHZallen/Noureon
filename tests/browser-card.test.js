@@ -992,3 +992,39 @@ test('the model\'s circle comes at the point the host gave for a click, stays wh
     window.happyDOM.abort();
   }
 });
+
+test('the eye through the card: pressed it shows, pressed again it hides; putting the screen away hides it, and so does giving the browser back', () => {
+  const { window, card, document } = make();
+  try {
+    const { live, calls } = fakeLive();
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive(live);
+    card.openFocus();
+    card.liveState({ control: 'user' });
+    const eye = () => document.querySelector('.bf-tool[aria-label="Show what I type"], .bf-tool[aria-label="Hide what I type"]');
+    assert.equal(eye().getAttribute('aria-pressed'), 'false');
+    eye().click();
+    assert.deepEqual(calls.at(-1), ['onReveal', true]);
+    // The controller answers with the state (live-connect.js does this through the card).
+    card.liveState({ reveal: true });
+    assert.equal(eye().getAttribute('aria-pressed'), 'true');
+    assert.equal(eye().getAttribute('aria-label'), 'Hide what I type');
+    eye().click();
+    assert.deepEqual(calls.at(-1), ['onReveal', false], 'pressed again it asks for the dots');
+    card.liveState({ reveal: false });
+    assert.equal(eye().getAttribute('aria-pressed'), 'false');
+    // Putting the screen away while it is open asks for the dots too.
+    card.liveState({ reveal: true });
+    card.closeFocus();
+    assert.deepEqual(calls.at(-1), ['onReveal', false]);
+    // Given back to the model: the eye is closed (the card does not keep it open for the next time).
+    card.openFocus();
+    card.liveState({ control: 'user' });
+    card.liveState({ reveal: true });
+    card.liveState({ control: 'model' });
+    card.liveState({ control: 'user' });
+    assert.equal(eye().getAttribute('aria-pressed'), 'false');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

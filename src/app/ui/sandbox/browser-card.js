@@ -66,6 +66,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   let focus = null;
   let ratio = DEFAULT_RATIO;
   let control = 'model';
+  let eyeOpen = false;
   let zoomed = false;
   // The card has no picture yet (the browser is starting, or the first frame has not come): it is drawn with the loading look.
   let waitingFrame = false;
@@ -481,6 +482,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
 
   // What the person's buttons in the focus mode ask: the card answers what is its own, the rest goes to the owner of the live picture.
   const closeFocus = () => {
+    // The screen is put away: what was shown as typed is dots again (the eye is the focus mode's).
+    if (eyeOpen) { eyeOpen = false; live?.controller?.onReveal?.(false); }
     focus?.destroy();
     focus = null;
     zoomed = false;
@@ -619,7 +622,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
         if (next.control === 'user') hideModelCircle(); else circleViews().forEach((entry) => entry.hideCursor('user'));
       }
       if (next.control) control = next.control;
-      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control });
+      if ('reveal' in next) eyeOpen = Boolean(next.reveal);
+      if (control !== 'user') eyeOpen = false;
+      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control, ...('reveal' in next || control !== 'user' ? { reveal: eyeOpen } : {}) });
       render();
     },
     /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */

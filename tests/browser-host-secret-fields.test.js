@@ -113,17 +113,21 @@ test('secret fields are dots in the page and have no value in a snapshot; ordina
   service.stdin.write(`${JSON.stringify({ id: 101, action: { type: 'reveal', on: true } })}\n`);
   assert.equal(await until('#card', 'none'), 'none', 'the eye shows the card field as typed');
   assert.equal(await until('frame:#fcard', 'none'), 'none', 'and the one in a frame');
+  const typeOf = () => page.evaluate(() => document.getElementById('pw').type);
+  assert.equal(await typeOf(), 'text', 'a password is shown as typed too (its field is a plain one while the eye is open)');
   await new Promise((resolve) => setTimeout(resolve, 700));
   assert.equal(await computed(page, '#card'), 'none', 'the guard does not hide it again while the eye is open');
   // The look of the model goes through the same service (as it does on the host), so that the guard does not open the eye again after it.
   service.stdin.write(`${JSON.stringify({ id: 150, action: { type: 'snapshot' } })}\n`);
   assert.equal(await until('#card', 'disc'), 'disc', 'a look of the model puts the dots back before it looks');
+  assert.equal(await typeOf(), 'password', 'and the password is a password field again');
   await new Promise((resolve) => setTimeout(resolve, 700));
   assert.equal(await computed(page, '#card'), 'disc', 'and the guard keeps them');
   service.stdin.write(`${JSON.stringify({ id: 102, action: { type: 'reveal', on: true } })}\n`);
   assert.equal(await until('#card', 'none'), 'none');
   service.stdin.write(`${JSON.stringify({ id: 103, action: { type: 'reveal', on: false } })}\n`);
   assert.equal(await until('#card', 'disc'), 'disc', 'the dots come back when the eye is closed');
+  assert.equal(await typeOf(), 'password');
   assert.equal(await computed(page, '#search'), 'none', 'an ordinary field is never touched by the eye');
   await connected.close().catch(() => {});
 });

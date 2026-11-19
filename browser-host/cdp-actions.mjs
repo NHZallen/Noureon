@@ -221,7 +221,7 @@ const FIELD_KIND_SRC = `(() => {
   const BANK = /iban|account.?number|routing|sort.?code|swift|身分證|身份证|銀行帳|帳戶號|ssn|social.?security/i;
   return (el) => {
     if (!el || el.tagName !== 'INPUT') return ''; // (no instanceof test: an element of a frame is of the frame own class)
-    if (el.type === 'password') return 'password';
+    if (el.type === 'password' || el.hasAttribute('data-nb-pw')) return 'password'; // (data-nb-pw: one the eye showed as typed, its type is text for the time being)
     if (el.hasAttribute('data-nb-secret')) return el.getAttribute('data-nb-secret') || 'filled'; // a field a tool filled, or one that was marked before
     const type = (el.getAttribute('type') || 'text').toLowerCase();
     if (!['text', 'email', 'tel', 'search', 'number', 'url', ''].includes(type)) return '';
@@ -259,7 +259,12 @@ const maskPageSrc = (reveal) => `(() => {
       const kind = kindOf(el);
       if (!kind) continue;
       found[kind] = (found[kind] || 0) + 1;
-      if (kind === 'password') continue;
+      if (kind === 'password') {
+        // The eye of the person shows a password as typed by making the field a plain one for the time being; the dots come back (type password) with the next look of the model or when the eye is closed.
+        if (REVEAL && el.type === 'password') { el.setAttribute('data-nb-pw', '1'); el.type = 'text'; }
+        else if (!REVEAL && el.hasAttribute('data-nb-pw')) { el.type = 'password'; el.removeAttribute('data-nb-pw'); }
+        continue;
+      }
       sheetFor(d);
       el.setAttribute('data-nb-secret', kind);
     }
@@ -301,7 +306,7 @@ const maskForModel = (cdp, sessionId) => { revealing = false; return maskPage(cd
 const FIELD_FINDER = `(() => {
   const visible = (el) => { const box = el.getBoundingClientRect(); const style = getComputedStyle(el); return box.width > 4 && box.height > 4 && style.visibility !== 'hidden' && style.display !== 'none' && !el.disabled && !el.readOnly; };
   const inputs = [...document.querySelectorAll('input')].filter(visible);
-  const password = inputs.find((el) => el.type === 'password') || null;
+  const password = inputs.find((el) => el.type === 'password' || el.hasAttribute('data-nb-pw')) || null;
   const textual = (el) => ['text', 'email', 'tel', 'search', ''].includes((el.getAttribute('type') || '').toLowerCase());
   const hinted = (el) => /user|email|login|account|identifier|phone|mail/i.test([el.name, el.id, el.autocomplete, el.getAttribute('aria-label'), el.placeholder].join(' '));
   let user = null;

@@ -153,6 +153,11 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
     try {
       return await sessions.action(sessionId, userId, action, { wait: 60_000 });
     } catch (error) {
+      // The action came before the browser was ready (409 not_ready: a browser that is still starting, e.g. one opened by the reply before): wait until it is, then once more.
+      if (tries > 1 && error?.status === 409 && error?.code === 'not_ready' && !signal?.aborted && !userEnded) {
+        try { await sessions.waitReady(sessionId, userId, { timeoutMs: waitForSpaceMs, signal: waitSignal, onPoll: announceQueue }); } catch { throw error; }
+        return act(sessionId, action, tries - 1);
+      }
       if (tries > 1 && retryable(error) && !signal?.aborted) { await sleep(1000); return act(sessionId, action, tries - 1); }
       throw error;
     }
