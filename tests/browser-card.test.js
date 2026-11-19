@@ -1064,3 +1064,32 @@ test('the picture is lost while the person holds the browser: the focus mode com
     window.happyDOM.abort();
   }
 });
+
+test('the eye is closed on the card when the model looks at the page (the browser puts the dots back first); a point on frames of the old screen shape is not drawn', () => {
+  const { window, card, document } = make();
+  try {
+    const { live, calls } = fakeLive();
+    card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    card.setLive(live);
+    card.openFocus();
+    card.liveState({ control: 'user' });
+    card.liveState({ reveal: true });
+    const eye = () => document.querySelector('.bf-tool[aria-label="Show what I type"], .bf-tool[aria-label="Hide what I type"]');
+    assert.equal(eye().getAttribute('aria-pressed'), 'true');
+    card.handle(call('snapshot', 'acme.com', 'Looking at acme.com'));
+    assert.equal(eye().getAttribute('aria-pressed'), 'false', 'label and screen say the same again');
+    assert.deepEqual(calls.at(-1), ['onReveal', false]);
+  } finally {
+    window.happyDOM.abort();
+  }
+  const w2 = make();
+  try {
+    const stale = { mount(el) { el.append(w2.document.createElement('div')); }, mountLens(el) { el.append(w2.document.createElement('div')); }, destroy() {}, videoSize: () => ({ width: 1024, height: 768 }), onVideoResize() {}, input: {} };
+    w2.card.handle(call('open', 'acme.com', 'Browsing: acme.com'));
+    w2.card.setLive({ source: stale, controller: {}, ratio: '16:9', tabs: [] });
+    w2.card.handle({ type: 'browser', event: 'point', action: 'click', x: 0.3, y: 0.7 });
+    assert.equal(w2.document.querySelector('.bl-lens').hidden, true, 'the stream still shows 4:3 frames of a 16:9 screen: no circle');
+  } finally {
+    w2.window.happyDOM.abort();
+  }
+});

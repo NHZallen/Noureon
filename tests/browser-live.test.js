@@ -155,3 +155,21 @@ test('a picture that is not of the shape of the view (bars at its sides): the ci
     window.happyDOM.abort();
   }
 });
+
+test('after a switch of the ratio the old frames are not taken for the new screen: the picture is ready only when it has the shape of the ratio', () => {
+  const window = new Window();
+  try {
+    const { document } = window;
+    const source = { ...fakeSource(), size: { width: 1024, height: 768 }, videoSize() { return this.size; }, onVideoResize() {} };
+    const view = createLiveView({ document, host: document.body, source });
+    assert.equal(view.pictureReady(), true, '4:3 stream, 4:3 view');
+    view.setRatio('16:9');
+    assert.equal(view.pictureReady(), false, 'the stream still brings 4:3 frames');
+    source.size = { width: 1280, height: 720 };
+    assert.equal(view.pictureReady(), true);
+    source.size = null;
+    assert.equal(view.pictureReady(), true, 'size not known: nothing is held back');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

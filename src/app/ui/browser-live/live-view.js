@@ -21,7 +21,8 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
   root.className = 'bl-view';
   root.style.aspectRatio = cssRatio(ratio);
   // The ratio as a number too (width over height): a place that must fit the screen in the height it has works the width out from it.
-  const setNumber = (key) => { const { width, height } = ratioOf(key); root.style.setProperty('--bl-ratio', String(width / height)); };
+  let ratioNumber = 0;
+  const setNumber = (key) => { const { width, height } = ratioOf(key); ratioNumber = width / height; root.style.setProperty('--bl-ratio', String(ratioNumber)); };
   setNumber(ratio);
   const picture = document.createElement('div');
   picture.className = 'bl-picture';
@@ -145,6 +146,15 @@ export function createLiveView({ document, host, ratio = DEFAULT_RATIO, source =
       if (who && by !== who) return;
       glideId += 1;
       lens.hidden = true;
+    },
+    /**
+     * Whether the picture on the screen is of the shape of the screen the browser has now. For a few seconds after the ratio is switched the stream still brings the old frames: a point
+     * of the new screen is not a point of them, so neither the circle of the model nor the pointing of the person is taken for the old frames (true when the size is not known).
+     */
+    pictureReady() {
+      const size = current?.videoSize?.();
+      if (!size || !(size.width > 0 && size.height > 0) || !ratioNumber) return true;
+      return Math.abs(size.width / size.height - ratioNumber) / ratioNumber < 0.02;
     },
     /** A point of the screen (0 to 1 each way) for a point of the window (client pixels): where the person pointed at the picture, bars at its sides left out. */
     pointFromClient(clientX, clientY) {

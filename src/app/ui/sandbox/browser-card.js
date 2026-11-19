@@ -363,7 +363,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const hideModelCircle = () => { clearTimeout(modelCircleTimer); clearTimeout(pulseTimer); circleViews().forEach((entry) => entry.hideCursor('model')); };
   const showModelPoint = (event) => {
     if (control === 'user' || !(event.x >= 0 && event.x <= 1 && event.y >= 0 && event.y <= 1)) return;
-    const views = circleViews();
+    // Not drawn on frames of the old shape of the screen (a ratio was just switched): the next click shows it.
+    const views = circleViews().filter((entry) => entry.pictureReady());
     if (!views.length) return;
     views.forEach((entry) => entry.moveCursor(event.x, event.y, 'model', { glide: true }));
     clearTimeout(pulseTimer);
@@ -375,6 +376,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const handle = (event) => {
     if (phase === 'cancelled') return;
     if (event?.event === 'point') { showModelPoint(event); return; }
+    // The model looks at the page: the browser puts the dots back before every look of the model, so the eye is closed here too (the label and the screen say the same).
+    if (event?.event === 'call' && eyeOpen) { eyeOpen = false; focus?.update({ reveal: false }); live?.controller?.onReveal?.(false); }
     // The first thing the server says about the work shows the card (it was joined to the screen out of sight, `prepare`).
     if (quiet) { quiet = false; root.hidden = false; }
     if (event?.event === 'ask') {

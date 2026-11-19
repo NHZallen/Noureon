@@ -218,10 +218,10 @@ export function createFocusMode({ document, host = document.body, language = 'zh
   if (panel) {
     const surface = view.element;
     surface.tabIndex = 0;
-    surface.addEventListener('pointermove', (event) => { if (!mine()) return; const { x, y } = pointOf(event); view.moveCursor(x, y, 'user'); input()?.pointer?.(x, y, event.buttons ? 'drag' : 'move'); });
-    surface.addEventListener('pointerdown', (event) => { if (!mine()) return; surface.focus?.(); const { x, y } = pointOf(event); view.press(true); input()?.pointer?.(x, y, 'down'); });
-    surface.addEventListener('pointerup', (event) => { if (!mine()) return; const { x, y } = pointOf(event); view.press(false); input()?.pointer?.(x, y, 'up'); });
-    surface.addEventListener('wheel', (event) => { if (!mine()) return; event.preventDefault?.(); const { x, y } = pointOf(event); input()?.wheel?.(event.deltaX, event.deltaY, x, y); }, { passive: false });
+    surface.addEventListener('pointermove', (event) => { if (!mine() || !view.pictureReady()) return; const { x, y } = pointOf(event); view.moveCursor(x, y, 'user'); input()?.pointer?.(x, y, event.buttons ? 'drag' : 'move'); });
+    surface.addEventListener('pointerdown', (event) => { if (!mine() || !view.pictureReady()) return; surface.focus?.(); const { x, y } = pointOf(event); view.press(true); input()?.pointer?.(x, y, 'down'); });
+    surface.addEventListener('pointerup', (event) => { if (!mine() || !view.pictureReady()) { view.press(false); return; } const { x, y } = pointOf(event); view.press(false); input()?.pointer?.(x, y, 'up'); });
+    surface.addEventListener('wheel', (event) => { if (!mine() || !view.pictureReady()) return; event.preventDefault?.(); const { x, y } = pointOf(event); input()?.wheel?.(event.deltaX, event.deltaY, x, y); }, { passive: false });
     surface.addEventListener('keydown', (event) => { if (!mine() || event.metaKey || event.ctrlKey) return; event.preventDefault?.(); input()?.key?.(event.key, true); });
     surface.addEventListener('keyup', (event) => { if (!mine() || event.metaKey || event.ctrlKey) return; event.preventDefault?.(); input()?.key?.(event.key, false); });
     surface.addEventListener('paste', (event) => { if (!mine()) return; event.preventDefault?.(); const text = event.clipboardData?.getData?.('text') || ''; if (text) input()?.text?.(text); });
