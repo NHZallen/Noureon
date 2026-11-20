@@ -48,3 +48,14 @@
 #settings-modal .ba .ba-menu-item.is-danger, #settings-modal .ba .ba-menu-item.is-confirming { color: var(--state-danger) !important; }
 
 @media (prefers-reduced-motion: reduce) { #settings-modal .ba .ba-switch, #settings-modal .ba .ba-switch::after { transition: none; } }
+
+/* The first page opens the list of the accounts (a row that is a button with a chevron); the list is a page of its own with a way back at its top. */
+#settings-modal .ba-row-link { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+@media (hover: hover) { #settings-modal .ba-row-link:hover { background: var(--hover-bg); } }
+#settings-modal .ba-row-link:focus-visible, #settings-modal .ba .ba-back:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: -2px; }
+#settings-modal .ba-chevron { flex: none; display: inline-grid; place-items: center; color: var(--text-secondary); }
+#settings-modal .ba-chevron svg, #settings-modal .ba-chevron svg * { color: var(--text-secondary) !important; stroke: var(--text-secondary) !important; }
+#settings-modal .ba-page { display: flex; flex-direction: column; gap: 0.75rem; }
+#settings-modal .ba .ba-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.6rem 0.35rem 0.25rem; border: 0; border-radius: 0.6rem; background: transparent; font-size: 0.9375rem; font-weight: 500; color: var(--text-primary) !important; cursor: pointer; }
+#settings-modal .ba .ba-back svg, #settings-modal .ba .ba-back svg * { color: var(--text-primary) !important; stroke: var(--text-primary) !important; }
+@media (hover: hover) { #settings-modal .ba .ba-back:hover { background: var(--hover-bg); } }

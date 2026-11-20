@@ -10,6 +10,7 @@ import { syncInputIndicatorItems } from './input-indicator-sync.js';
 import { replySteering } from '../features/reply-steering.js';
 import { replySteeringText } from '../features/reply-steering-texts.js';
 import { drivePickerAvailable } from '../projects/drive-picker.js';
+import { addBrowserIndicator } from '../../ui/browser-agent/browser-chip.js';
 
 export function createSubmitInputComposer({
   document, elements: ALL_ELEMENTS, updateInputState, getAstras, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
@@ -267,6 +268,7 @@ export function createSubmitInputComposer({
       });
     }
 
+    addBrowserIndicator({ map: activeIndicators, conv, canUse: modelSupportsVision(normalizeConversationModel(conv)), text: (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback, iconHtml: renderComposerToolIcon('browserAgent', 'input-indicator-mode-icon'), chipCloseButton, rerender: renderInputIndicators });
     getResearchMode()?.indicators(activeIndicators, chipCloseButton);
 
     syncInputIndicatorItems({ document, container, wrapper, activeIndicators });

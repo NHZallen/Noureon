@@ -11,6 +11,7 @@ import { asksForBrowser } from '../../runtime/browser-agent/browser-intent.js';
 import { verdictOf } from '../../runtime/decisions/decision-store.js';
 import { getBrowserStatus } from '../../runtime/browser-agent/browser-status-client.js';
 import { createBrowserIdleWatch } from './browser-idle-watch.js';
+import { BROWSER_SWITCH_EVENT } from './browser-chip.js';
 
 export const BROWSER_MENU_BUTTON_ID = 'browser-agent-menu-btn';
 const ACCESS_KEPT_MS = 60_000;
@@ -63,6 +64,9 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
     return button;
   }
 
+  // The chip of the box draws again (browser-chip.js).
+  const tellSwitchChanged = () => { try { (document.defaultView || globalThis).dispatchEvent(new (document.defaultView || globalThis).CustomEvent(BROWSER_SWITCH_EVENT)); } catch { /* the chip follows at the next change of the box */ } };
+
   async function toggle() {
     const conversation = getActiveConversation();
     if (!conversation) return;
@@ -78,7 +82,9 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
     }
     const kept = setBrowserOn(conversation.id, !on);
     sync();
-    showNotification(text(kept ? 'baMenuOn' : 'baMenuOff'), 'info');
+    // The chip in the box says it is on or off (browser-chip.js); a line in the corner is only for a switch that could not be kept.
+    if (!on && !kept) showNotification(text('baMenuUnavailable'), 'warning');
+    tellSwitchChanged();
   }
 
   // Whether the message asks for a browser: the judgement of the Decisions model (the question `browser`, decision-client.js) when there is one, the short list of phrases (browser-intent.js) when not.
@@ -96,7 +102,7 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
     if (!access.allowed) { showNotification(text('baMenuNeedInvite'), 'warning'); return false; }
     const kept = setBrowserOn(conversation.id, true);
     sync();
-    if (kept) showNotification(text('baMenuOn'), 'info');
+    if (kept) tellSwitchChanged();
     return kept;
   }
 

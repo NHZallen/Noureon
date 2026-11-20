@@ -30,6 +30,8 @@ function fakeClient(over = {}) {
   };
   return client;
 }
+// The accounts are a page of their own: the first page has a row that opens it.
+const openAccounts = async (document) => { document.querySelector('#browser-agent-section .ba-row-link').click(); await tick(); return document.getElementById('browser-agent-section'); };
 const config = (value = {}) => { const state = { ...value }; return { state, configAccess: { getConfig: () => state, mutateConfig: (patch) => Object.assign(state, patch) } }; };
 
 test('the tab is added after the tool models, with its words', async () => {
@@ -71,7 +73,7 @@ test('each login shows its site icon, and a globe when the icon cannot be loaded
   const { document } = page();
   mountBrowserAgentSection({ document, text, client: fakeClient({ listLogins: async () => ({ ok: true, logins: [{ id: 'l1', name: 'Shop', origins: ['https://shop.example'] }, { id: 'l2', name: 'Odd', origins: ['not a url'] }] }) }) });
   await tick();
-  const root = document.getElementById('browser-agent-section');
+  const root = await openAccounts(document);
   const image = root.querySelector('.ba-mark img');
   assert.equal(image.getAttribute('src'), 'https://shop.example/favicon.ico', 'asked of the site itself, nobody else');
   assert.equal(image.referrerPolicy, 'no-referrer');
@@ -90,7 +92,7 @@ test('delete password and log out of a site are in the ⋯ menu; the delete is d
   const client = fakeClient();
   mountBrowserAgentSection({ document, text, client });
   await tick();
-  let root = document.getElementById('browser-agent-section');
+  let root = await openAccounts(document);
   const items = [...root.querySelectorAll('.ba-menu-item')];
   assert.deepEqual(items.map((i) => i.textContent), ['Log out of this site', 'Delete password']);
   items[0].click();
@@ -109,7 +111,7 @@ test('the icon of a site is made once and kept when the tab is drawn again (it d
   const client = fakeClient();
   const section = mountBrowserAgentSection({ document, text, client });
   await tick();
-  let root = document.getElementById('browser-agent-section');
+  let root = await openAccounts(document);
   const image = root.querySelector('.ba-mark img');
   assert.ok(image);
   await section.refresh();
@@ -123,6 +125,24 @@ test('the icon of a site is made once and kept when the tab is drawn again (it d
   root = document.getElementById('browser-agent-section');
   assert.ok(!root.querySelector('.ba-mark img'), 'not tried again');
   assert.ok(root.querySelector('.ba-mark svg circle'));
+});
+
+test('the connected accounts are not listed on the first page: a row with their number opens the list, which has a way back; every row has a mark in front', async () => {
+  const { document } = page();
+  mountBrowserAgentSection({ document, text, client: fakeClient() });
+  await tick();
+  let root = document.getElementById('browser-agent-section');
+  assert.ok(!root.querySelector('.ba-menu'), 'no account is listed on the first page');
+  const entry = root.querySelector('.ba-row-link');
+  assert.match(entry.textContent, /1 sites/);
+  for (const row of root.querySelectorAll('.ba-row')) assert.ok(row.querySelector('.ba-mark svg, .ba-mark img'), `a mark in front of: ${row.textContent.slice(0, 30)}`);
+  root = await openAccounts(document);
+  assert.ok(root.querySelector('.ba-menu'), 'the list is on its own page');
+  assert.ok(!root.querySelector('.ba-switch'), 'the first page is gone');
+  root.querySelector('.ba-back').click();
+  await tick();
+  root = document.getElementById('browser-agent-section');
+  assert.ok(root.querySelector('.ba-switch') && !root.querySelector('.ba-menu'), 'the way back returns to the first page');
 });
 
 test('stay logged in is a setting that is saved; the login state can be deleted after a second press', async () => {
@@ -139,7 +159,7 @@ test('stay logged in is a setting that is saved; the login state can be deleted 
   await tick();
   assert.equal(state.browserKeepLogin, false);
   assert.equal(saved, 1);
-  assert.match(root.textContent, /1\.2 MB/);
+  assert.ok(!/MB|KB/.test(root.textContent), 'the row of the login state has no line of words about its size');
   const wipe = root.querySelector('.ba-btn.is-danger');
   wipe.click();
   await tick();

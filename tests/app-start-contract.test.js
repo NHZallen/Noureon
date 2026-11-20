@@ -113,7 +113,7 @@ test('main css is an ordered split manifest with every imported file under the s
   // page sheets that came after the first of them, which keep winning over them.
   const dialogOnly = ['settings-cards.css', 'update-log.css', 'charts.css', 'settings-mobile.css', 'settings-card-pages.css', 'settings-api-keys.css',
     'settings-output-translator.css', 'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css', 'permissions.css',
-    'conversation-search.css'];
+    'conversation-search.css', 'settings-nav-icons.css'];
   const dialogImports = [...readSource('src/styles/settings-dialog.css').matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);
   assert.deepEqual(dialogImports.filter((name) => !imports.includes(name)), dialogOnly);
   assert.deepEqual(dialogImports.filter((name) => imports.includes(name)), imports.slice(imports.indexOf('input-polish.css')));

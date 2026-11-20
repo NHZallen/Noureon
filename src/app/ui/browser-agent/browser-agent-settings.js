@@ -2,6 +2,8 @@
 // vault with a ⋯ menu each, the login state of the browser (stay logged in, delete it), and the person's own invite codes. The people in charge have their own page (noureon.com/admin/browser), not this tab.
 // A site shows its own icon (its /favicon.ico, asked of the site itself and of nobody else) and a globe when it has none. Words are put in with textContent; nothing here ever holds a password.
 
+import { onSettingsSectionBack } from '../../runtime/settings/settings-section-back.js';
+
 const SECTION_ID = 'browser-agent-section';
 const NAV_ID = 'browser-agent-section-nav';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -16,6 +18,13 @@ const icon = (document, paths, size = 18) => {
   svg.innerHTML = paths;
   return svg;
 };
+// The marks in front of the rows (the same line style as the rest of the settings).
+const KEEP = '<path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path>';
+const TRASH = '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"></path><path d="M9 7V4h6v3"></path>';
+const ACCOUNTS = '<circle cx="9" cy="8" r="3.2"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6"></path><path d="M18 14.4c1.8.8 3 2.6 3 5.6"></path>';
+const TICKET = '<path d="M3 9a2 2 0 0 0 0 6v2a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-2a2 2 0 0 1 0-6V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1z"></path><path d="M14 6v12" stroke-dasharray="2 3"></path>';
+const CHEVRON_RIGHT = '<path d="M9 6l6 6-6 6"></path>';
+const CHEVRON_LEFT = '<path d="M15 6l-6 6 6 6"></path>';
 export const GLOBE = '<circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a14 14 0 0 1 0 18"></path><path d="M12 3a14 14 0 0 0 0 18"></path>';
 
 const hostOf = (origin) => { try { return new URL(origin).hostname; } catch { return ''; } };
@@ -51,6 +60,10 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
   let notice = '';
   let noticeTimer = null;
   let drawing = 0;
+  // Which page of the tab is open: the first one, or the list of the connected site accounts (a page of its own, so the first page stays short).
+  let view = 'main';
+  const goTo = (next) => { view = next; void draw(); };
+  onSettingsSectionBack(SECTION_ID, () => { if (view === 'main') return false; goTo('main'); return true; });
 
   const el = (tag, className, content) => {
     const node = document.createElement(tag);
@@ -59,7 +72,6 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     return node;
   };
   const say = (message) => { notice = message; win.clearTimeout?.(noticeTimer); noticeTimer = win.setTimeout?.(() => { notice = ''; void draw(); }, MESSAGE_MS); void draw(); };
-  const when = (value) => { const date = value ? new Date(value) : null; return date && !Number.isNaN(date.getTime()) ? date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : text('baNever'); };
 
   // A button that asks twice: the first press changes its words, the second (within a few seconds) does it.
   const twice = (button, label, confirmLabel, id, run) => {
@@ -103,6 +115,7 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     return mark;
   };
 
+  const mark = (paths) => { const node = el('span', 'ba-mark'); node.append(icon(document, paths)); return node; };
   const secTitle = (key) => { const title = el('div', 'ba-sec-title', text(key)); title.setAttribute('role', 'heading'); title.setAttribute('aria-level', '3'); return title; };
   const row = (...children) => { const node = el('div', 'ba-row'); node.append(...children); return node; };
   const body = (title, desc) => { const wrap = el('div', 'ba-text'); wrap.append(el('span', 'ba-title pz-label', title)); if (desc) wrap.append(el('span', 'ba-desc', desc)); return wrap; };
@@ -142,7 +155,7 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     const block = el('section', 'ba-sec');
     block.append(secTitle('baSecInvite'));
     const card = el('div', 'ba-card');
-    card.append(row(body(text('baNeedInvite'), text('baNeedInviteDesc'))));
+    card.append(row(mark(TICKET), body(text('baNeedInvite'), text('baNeedInviteDesc'))));
     const input = el('input', 'ba-code');
     input.type = 'text';
     input.placeholder = text('baCodePlaceholder');
@@ -168,9 +181,30 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     return block;
   }
 
-  function accountsBlock(logins, reload) {
+  // The first page only says how many accounts there are and opens the list.
+  function accountsEntry(count) {
     const block = el('section', 'ba-sec');
-    block.append(secTitle('baSecAccounts'));
+    const card = el('div', 'ba-card');
+    const open = el('button', 'ba-row ba-row-link');
+    open.type = 'button';
+    open.setAttribute('aria-label', text('baSecAccounts'));
+    open.addEventListener('click', () => goTo('accounts'));
+    const chevron = el('span', 'ba-chevron');
+    chevron.append(icon(document, CHEVRON_RIGHT, 16));
+    open.append(mark(ACCOUNTS), body(text('baSecAccounts'), count ? fill(text('baAccountsCount'), { n: String(count) }) : text('baNoLogins')), chevron);
+    card.append(open);
+    block.append(card);
+    return block;
+  }
+
+  // The list is a page of its own, with a way back at the top.
+  function accountsPage(logins, reload) {
+    const page = el('div', 'ba-page');
+    const back = el('button', 'ba-back');
+    back.type = 'button';
+    back.append(icon(document, CHEVRON_LEFT, 18), el('span', 'ba-back-label', text('baSecAccounts')));
+    back.addEventListener('click', () => goTo('main'));
+    page.append(back);
     const card = el('div', 'ba-card');
     if (!logins.length) card.append(row(el('span', 'ba-desc', text('baNoLogins'))));
     for (const login of logins) {
@@ -182,8 +216,8 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       ], login.id);
       card.append(row(siteMark(login.id, origin), body(login.name, hosts), pill(text('baVaultTag')), menu));
     }
-    block.append(card, el('p', 'ba-note', text('baAccountsNote')));
-    return block;
+    page.append(card, el('p', 'ba-note', text('baAccountsNote')));
+    return page;
   }
 
   function stateBlock(profile, reload) {
@@ -202,15 +236,12 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       configAccess?.mutateConfig?.({ browserKeepLogin: next });
       try { await saveConfig(); } catch { /* the choice stays on this device until the next save */ }
     });
-    card.append(row(body(text('baKeepLogin'), text('baKeepLoginDesc')), toggle));
-    const info = profile.exists ? fill(text('baStateInfo'), { size: formatSize(profile.sizeBytes), when: when(profile.lastUsedAt) }) : text('baStateNone');
+    card.append(row(mark(KEEP), body(text('baKeepLogin'), text('baKeepLoginDesc')), toggle));
     const wipe = el('button', 'ba-btn is-danger');
     wipe.type = 'button';
     wipe.disabled = !profile.exists;
     twice(wipe, text('baDeleteAll'), text('baConfirmAll'), 'profile', async () => { const r = await client.deleteProfile(); if (r.ok) { say(text('baStateDeleted')); reload(); } else say(r.message || text('baError')); });
-    const mark = el('span', 'ba-mark');
-    mark.append(icon(document, GLOBE));
-    card.append(row(mark, body(text('baStateRow'), info), wipe));
+    card.append(row(mark(TRASH), body(text('baStateRow')), wipe));
     block.append(card);
     return block;
   }
@@ -227,7 +258,7 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       copyButton.type = 'button';
       copyButton.hidden = used;
       copyButton.addEventListener('click', () => { void copy(entry.code, copyButton); });
-      card.append(row(code, spacer, pill(text(used ? 'baCodeUsed' : 'baCodeUnused'), used ? 'is-on' : ''), copyButton));
+      card.append(row(mark(TICKET), code, spacer, pill(text(used ? 'baCodeUsed' : 'baCodeUnused'), used ? 'is-on' : ''), copyButton));
     }
     block.append(card, el('p', 'ba-note', text('baCodesNote')));
     return block;
@@ -237,7 +268,7 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     if (typeof section.replaceChildren !== 'function') return;
     const turn = ++drawing;
     const root = el('div', 'ba');
-    root.append(el('p', 'ba-hint', text('baHint')));
+    if (view === 'main') root.append(el('p', 'ba-hint', text('baHint')));
     if (notice) { const line = el('p', 'ba-notice', notice); line.setAttribute('role', 'status'); root.append(line); }
     section.dataset.sectionTitle = text('baTitle');
     const navItem = document.getElementById(NAV_ID);
@@ -250,8 +281,12 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     else {
       const [logins, profile] = await Promise.all([client.listLogins(), client.getProfile()]);
       if (turn !== drawing) return;
-      root.append(accountsBlock(logins.ok ? logins.logins : [], reload), stateBlock(profile.ok ? profile : { exists: false }, reload));
-      if (access.codes.length) root.append(codesBlock(access.codes));
+      const list = logins.ok ? logins.logins : [];
+      if (view === 'accounts') root.append(accountsPage(list, reload));
+      else {
+        root.append(accountsEntry(list.length), stateBlock(profile.ok ? profile : { exists: false }, reload));
+        if (access.codes.length) root.append(codesBlock(access.codes));
+      }
     }
     section.replaceChildren(root);
   }

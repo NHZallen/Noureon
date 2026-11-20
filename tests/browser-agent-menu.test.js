@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import { createBrowserAgentMenu, startBrowserAgentMenu, BROWSER_MENU_BUTTON_ID } from '../src/app/ui/browser-agent/browser-agent-menu.js';
-import { isBrowserOn } from '../src/app/runtime/server-reply/browser-switch.js';
+import { isBrowserOn, setBrowserOn } from '../src/app/runtime/server-reply/browser-switch.js';
 import browserAgentTexts from '../src/data/i18n/parts/browser-agent.js';
 
 const en = browserAgentTexts.en;
@@ -45,7 +45,7 @@ test('pressing it switches the conversation on after asking the server once, and
   button.click(); await new Promise((r) => setTimeout(r, 5));
   assert.equal(isBrowserOn('c1'), true);
   assert.equal(button.classList.contains('is-active'), true);
-  assert.deepEqual(t.notes.at(-1), [en.baMenuOn, 'info']);
+  assert.deepEqual(t.notes, [], 'no line in the corner: the chip of the box says it is on');
   button.click(); await new Promise((r) => setTimeout(r, 5));
   assert.equal(isBrowserOn('c1'), false);
   assert.equal(button.classList.contains('is-active'), false);
@@ -98,7 +98,7 @@ test('the row is brought up to date when the plus button is pressed, before the 
 });
 
 test('the five languages have the words of the row', () => {
-  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) for (const key of ['baMenuLabel', 'baMenuDescription', 'baMenuNoVision', 'baMenuNeedInvite', 'baMenuOn', 'baMenuOff', 'baMenuUnavailable']) assert.ok(browserAgentTexts[language][key], `${language} ${key}`);
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) for (const key of ['baMenuLabel', 'baMenuDescription', 'baMenuNoVision', 'baMenuNeedInvite', 'baChipClose', 'baMenuUnavailable']) assert.ok(browserAgentTexts[language][key], `${language} ${key}`);
 });
 
 test('words that ask for a browser switch it on once for the conversation, with a place and a model that sees; otherwise the person is told why', async () => {
@@ -107,7 +107,7 @@ test('words that ask for a browser switch it on once for the conversation, with 
   assert.equal(isBrowserOn('c1'), false);
   assert.equal(await t.menu.autoEnable('Open a browser and find flights'), true);
   assert.equal(isBrowserOn('c1'), true);
-  assert.deepEqual(t.notes.at(-1), [text('baMenuOn'), 'info']);
+  assert.deepEqual(t.notes, [], 'no line in the corner when it is switched on by the words');
   const before = t.notes.length;
   assert.equal(await t.menu.autoEnable('Open a browser again'), false, 'already on: nothing more is said');
   assert.equal(t.notes.length, before);
@@ -142,4 +142,33 @@ test('the Decisions model decides whether a message asks for a browser; the phra
   const none = setup({ conversation: { id: 'c5' } });
   assert.equal(await none.menu.autoEnable('Open a browser and find flights', { id: 'c5' }, { search: 0.9 }), true, 'no answer to the question: the phrase list');
   none.window.happyDOM.abort();
+});
+
+test('the chip of the box stands while the browser agent is on and the model can use it, a press on its cross turns it off, and the menu switching asks for it to be drawn again', async () => {
+  const { Window } = await import('happy-dom');
+  const { addBrowserIndicator, BROWSER_CHIP_ID, BROWSER_SWITCH_EVENT } = await import('../src/app/ui/browser-agent/browser-chip.js');
+  const window = new Window({ url: 'https://noureon.test/' });
+  const conv = { id: 'chip-1' };
+  const draws = [];
+  const closeButton = (id, label) => `<button id="${id}" aria-label="${label}"></button>`;
+  const text = (key, fallback) => (key === 'baMenuLabel' ? 'Browser agent' : fallback);
+  const make = (over = {}) => { const map = new Map(); addBrowserIndicator({ map, conv, canUse: true, text, iconHtml: '<svg></svg>', chipCloseButton: closeButton, rerender: () => draws.push('draw'), win: window, ...over }); return map; };
+  setBrowserOn('chip-1', false);
+  assert.equal(make().size, 0, 'off: no chip');
+  setBrowserOn('chip-1', true);
+  assert.equal(make({ canUse: false }).size, 0, 'a model that cannot see: no chip');
+  assert.equal(make({ conv: { id: 'chip-1', retentionMode: 'ephemeral' } }).size, 0, 'a temporary chat: no chip');
+  const map = make();
+  const chip = map.get(BROWSER_CHIP_ID);
+  assert.ok(chip && /input-indicator-content/.test(chip.html) && /close-browser-agent-btn-input/.test(chip.html));
+  const element = window.document.createElement('div');
+  element.innerHTML = chip.html;
+  chip.eventListener(element);
+  assert.equal(element.querySelector('.input-indicator-content > span:last-child').textContent, 'Browser agent');
+  element.querySelector('#close-browser-agent-btn-input').click();
+  assert.equal(isBrowserOn('chip-1'), false, 'the cross turns it off');
+  assert.deepEqual(draws, ['draw']);
+  window.dispatchEvent(new window.CustomEvent(BROWSER_SWITCH_EVENT));
+  assert.deepEqual(draws, ['draw', 'draw'], 'a switch made in the menu draws the chips again');
+  window.happyDOM.abort();
 });
