@@ -1,0 +1,35 @@
+/* important-audit: required: mobile override - the composer in the narrow chat column beside the big browser panel must outrank the one-row desktop grid (mobile.css) the way the multi-line state does. */
+
+/* The big panel of the browser agent leaves the chat a column of 24rem. The one-row composer (the tools, the editor and the send button side by side) needs about 40rem
+   and left the editor 14px wide, so the words of the placeholder stood one under the other (found by Hark 2026-11-20). Here it uses the layout it has for a text of several
+   lines: the editor on its own row and the tools under it. */
+@media (min-width: 769px) {
+    html[data-browser-panel="zoom"] #input-bar-container .input-wrapper:not(.has-file-previews):not(.has-quote-inquiry) {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "input input input"
+            "file model submit";
+        min-height: 5.9rem !important;
+        padding-top: 0.65rem !important;
+        padding-bottom: 0.65rem !important;
+        border-radius: 1.75rem !important;
+    }
+
+    /* The model and the depth share the room between the "+" and the send button; the name of the model gives way (an ellipsis) instead of running under the send button. */
+    html[data-browser-panel="zoom"] #model-council-control {
+        grid-area: model;
+        min-width: 0;
+        max-width: 100%;
+        justify-self: start;
+    }
+
+    html[data-browser-panel="zoom"] #model-council-control .mp-anchor:first-child {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    html[data-browser-panel="zoom"] #model-council-control .mp-anchor .mp-trigger {
+        max-width: 100%;
+        min-width: 0;
+    }
+}

@@ -23,6 +23,7 @@
 @import './desktop-composer-layout.css';
 @import './mobile.css';
 @import './mobile-composer-layout.css';
+@import './browser-panel-composer.css';
 @import './chat-edge-fade.css';
 @import './busy-feedback.css';
 @import './typography.css';
