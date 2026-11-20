@@ -152,12 +152,13 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
   };
 
   const copy = async (value, button) => {
-    const label = button.textContent;
-    button.dataset.reserve = text('baCopied');
+    const label = button.dataset.label || button.textContent;
+    button.dataset.label = label;
     try {
       await win.navigator.clipboard.writeText(value);
       button.textContent = text('baCopied');
-      win.setTimeout?.(() => { button.textContent = label; }, COPIED_MS);
+      button.dataset.reserve = label; // the old words keep their room while "Copied" shows, so the button does not get narrower
+      win.setTimeout?.(() => { button.textContent = label; button.dataset.reserve = text('baCopied'); }, COPIED_MS);
     } catch { /* the code stays on the screen to be copied by hand */ }
   };
   // The code that came with a link (runtime/browser-agent/browser-invite-link.js): it waits in the box until the person presses the button.
