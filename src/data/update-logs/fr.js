@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.4": [
+    "<strong>Notes de version de Noureon 20.0.4</strong>",
+    "Cette version corrige deux problèmes de l’agent navigateur.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Activation : </strong>quand vous dites quelque chose de court et clair comme « utilise le navigateur » ou « ouvre le navigateur », l’agent navigateur est désormais toujours activé, au lieu d’être ignoré parce que le modèle qui juge trouvait la demande pas assez claire ; l’IA ne répond donc plus sans cesse par des recherches.</li><li><strong>Écran : </strong>une fois la tâche terminée, la dernière image de la carte garde sa forme au lieu d’être rognée sur les côtés.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte aucune mise à jour de la base de données.</li></ul>"
+  ],
   "20.0.3": [
     "<strong>Notes de version de Noureon 20.0.3</strong>",
     "Cette version corrige un problème lors de la prise en main de l’agent navigateur.",

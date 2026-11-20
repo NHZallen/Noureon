@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "20.0.4",
+    date: "2026-11-20",
+    content: [
+      "<strong>Noureon 20.0.4 發布說明</strong>",
+      "本版本修正瀏覽器代理的兩個問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>開啟：</strong>你說「用瀏覽器」「你開瀏覽器」這類簡短又明確的話時，一定會打開瀏覽器代理，不會再因為判斷模型覺得不夠清楚而被略過，AI 也就不會一直用搜尋回答。</li><li><strong>畫面：</strong>任務完成後，卡片裡最後一張圖維持原本的比例，不再被裁掉兩側。</li></ul>",
+      "<strong>相容性</strong>",
+      "<ul><li>不需要任何操作，本版本不含資料庫更新。</li></ul>"
+    ]
+  },
+  {
     version: "20.0.3",
     date: "2026-11-20",
     content: [

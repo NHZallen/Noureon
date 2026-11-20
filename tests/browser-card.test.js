@@ -548,6 +548,20 @@ test('"Done" on the hand-over panel gives the browser back by itself', () => {
   assert.equal(w.card.control, 'model', `the browser is back with the model (it was ${held} before)`);
 });
 
+test('the last picture keeps its own shape on the card, also when the live screen lets go after it (it was cropped to 4:3 before)', () => {
+  const w = make();
+  const still = w.card.element.querySelector('.bcard-still');
+  Object.defineProperty(still, 'naturalWidth', { value: 1280 });
+  Object.defineProperty(still, 'naturalHeight', { value: 800 });
+  w.card.setStill('data:image/jpeg;base64,AAAA');
+  still.dispatchEvent(new w.card.element.ownerDocument.defaultView.Event('load'));
+  const box = w.card.element.querySelector('.bcard-card');
+  assert.equal(box.style.aspectRatio, '1280 / 800');
+  w.card.setLive(null);
+  assert.equal(box.style.aspectRatio, '1280 / 800', 'letting go of the live screen does not put the shape back to 4:3');
+  assert.equal(still.hidden, false);
+});
+
 test('the payment panel: three ways, one tap each', () => {
   const answers = [];
   const w = make({ onAnswer: (id, payload) => answers.push(payload) });

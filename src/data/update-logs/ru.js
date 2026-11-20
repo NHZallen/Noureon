@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.4": [
+    "<strong>Примечания к выпуску Noureon 20.0.4</strong>",
+    "В этой версии исправлены две проблемы браузерного агента.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Включение: </strong>когда вы говорите коротко и ясно, например «используй браузер» или «открой браузер», браузерный агент теперь всегда включается, а не пропускается из-за того, что оценивающая модель сочла запрос недостаточно ясным, и ИИ больше не отвечает поиском раз за разом.</li><li><strong>Экран: </strong>после завершения задачи последнее изображение на карточке сохраняет свою форму и больше не обрезается по бокам.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "<ul><li>Ничего делать не нужно, обновления базы данных в этой версии нет.</li></ul>"
+  ],
   "20.0.3": [
     "<strong>Примечания к выпуску Noureon 20.0.3</strong>",
     "В этой версии исправлена одна проблема при передаче управления браузерным агентом.",

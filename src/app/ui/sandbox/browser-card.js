@@ -137,6 +137,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   const buttons = make('span', 'bcard-buttons');
   buttons.append(shrinkButton, cancelButton);
   // The last picture of the browser, kept with a saved message: it takes the place of the screen when the tag is opened.
+  let stillRatio = '';
   const still = make('img', 'bcard-still', { alt: '' });
   still.hidden = true;
   front.append(still, screen, capsule, buttons);
@@ -568,8 +569,9 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     liveView = null;
     if (!live) {
       waitingFrame = false;
-      screen.hidden = false;
-      card.style.aspectRatio = '';
+      screen.hidden = !still.hidden;
+      // The last picture keeps its own shape: the card goes back to the shape of the CSS only when there is no picture, or the picture is cropped to the wrong shape.
+      card.style.aspectRatio = !still.hidden && stillRatio ? stillRatio : '';
       return;
     }
     liveView = createLiveView({ document, host: front, ratio, source: live.source });
@@ -626,7 +628,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     /** The last picture (a data address of a JPEG) is the screen of the card; the card has the shape of the picture. */
     setStill(url) {
       if (typeof url !== 'string' || !url) return;
-      still.addEventListener('load', () => { if (still.naturalWidth > 0 && still.naturalHeight > 0) card.style.aspectRatio = `${still.naturalWidth} / ${still.naturalHeight}`; }, { once: true });
+      still.addEventListener('load', () => { if (still.naturalWidth > 0 && still.naturalHeight > 0) { stillRatio = `${still.naturalWidth} / ${still.naturalHeight}`; if (!live) card.style.aspectRatio = stillRatio; } }, { once: true });
       still.src = url;
       still.hidden = false;
       screen.hidden = true;
