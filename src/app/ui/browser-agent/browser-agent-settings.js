@@ -78,9 +78,13 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     return button;
   };
 
-  // The icon of a site: its own, and a globe when the site has none (or cannot be reached).
-  const siteMark = (origin) => {
+  // The icon of a site: its own, and a globe when the site has none (or cannot be reached). The page is drawn again at every change, so a mark is made once per login and moved into
+  // the new row: a new picture each time was loaded again and flashed (a blank, then the globe) at every draw (Allen, 2026-11-20).
+  const marks = new Map();
+  const siteMark = (key, origin) => {
+    if (marks.has(key)) return marks.get(key);
     const mark = el('span', 'ba-mark');
+    marks.set(key, mark);
     const host = hostOf(origin);
     const globe = () => mark.replaceChildren(icon(document, GLOBE));
     if (!host) { globe(); return mark; }
@@ -90,8 +94,11 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     image.height = 20;
     image.decoding = 'async';
     image.referrerPolicy = 'no-referrer';
-    image.addEventListener('error', globe, { once: true });
-    image.src = `https://${host}/favicon.ico`;
+    // The site's own icon, from the two places sites keep it; a globe when neither has one. Both are asked of the site itself and of nobody else.
+    const places = [`https://${host}/favicon.ico`, `https://${host}/apple-touch-icon.png`];
+    let next = 0;
+    image.addEventListener('error', () => { next += 1; if (next < places.length) image.src = places[next]; else globe(); });
+    image.src = places[0];
     mark.append(image);
     return mark;
   };
@@ -171,9 +178,9 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       const hosts = (login.origins || []).map(hostOf).filter(Boolean).join(', ');
       const menu = moreMenu([
         { id: 'logout', label: text('baLogoutSite'), run: async () => { const r = await client.logoutSite(origin); say(r.ok ? fill(text('baSiteLoggedOut'), { site: hostOf(origin) }) : r.message || text('baError')); } },
-        { id: 'delete', label: text('baDeletePassword'), danger: true, confirmKey: 'baConfirmDelete', run: async () => { const r = await client.deleteLogin(login.id); if (r.ok) { say(fill(text('baPasswordDeleted'), { name: login.name })); reload(); } else say(r.message || text('baError')); } }
+        { id: 'delete', label: text('baDeletePassword'), danger: true, run: async () => { const r = await client.deleteLogin(login.id); if (r.ok) { marks.delete(login.id); reload(); } else say(r.message || text('baError')); } }
       ], login.id);
-      card.append(row(siteMark(origin), body(login.name, hosts), pill(text('baVaultTag')), menu));
+      card.append(row(siteMark(login.id, origin), body(login.name, hosts), pill(text('baVaultTag')), menu));
     }
     block.append(card, el('p', 'ba-note', text('baAccountsNote')));
     return block;

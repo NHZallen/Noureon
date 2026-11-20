@@ -76,14 +76,16 @@ test('each login shows its site icon, and a globe when the icon cannot be loaded
   assert.equal(image.getAttribute('src'), 'https://shop.example/favicon.ico', 'asked of the site itself, nobody else');
   assert.equal(image.referrerPolicy, 'no-referrer');
   image.dispatchEvent(new document.defaultView.Event('error'));
-  assert.ok(!root.querySelector('.ba-mark img'), 'the icon that failed became a globe');
+  assert.equal(image.getAttribute('src'), 'https://shop.example/apple-touch-icon.png', 'the other place the site keeps its icon is tried before a globe');
+  image.dispatchEvent(new document.defaultView.Event('error'));
+  assert.ok(!root.querySelector('.ba-mark img'), 'the icon that failed twice became a globe');
   assert.ok(root.querySelector('.ba-mark svg circle'));
   const rows = [...root.querySelectorAll('.ba-row')].filter((row) => row.textContent.includes('Vault'));
   assert.equal(rows.length, 2);
   assert.ok(!/password\s*[:=]/i.test(root.innerHTML));
 });
 
-test('delete password and log out of a site are in the ⋯ menu; the delete asks twice', async () => {
+test('delete password and log out of a site are in the ⋯ menu; the delete is done by one press and says nothing about what was deleted', async () => {
   const { document } = page();
   const client = fakeClient();
   mountBrowserAgentSection({ document, text, client });
@@ -97,12 +99,30 @@ test('delete password and log out of a site are in the ⋯ menu; the delete asks
   root = document.getElementById('browser-agent-section');
   root.querySelectorAll('.ba-menu-item')[1].click();
   await tick();
-  assert.ok(!client.calls.some((c) => c[0] === 'deleteLogin'), 'one press only asks');
+  assert.deepEqual(client.calls.at(-1), ['deleteLogin', 'l1'], 'one press deletes');
   root = document.getElementById('browser-agent-section');
-  assert.equal(root.querySelectorAll('.ba-menu-item')[1].textContent, 'Press again to delete');
-  root.querySelectorAll('.ba-menu-item')[1].click();
+  assert.ok(!/deleted/i.test(root.querySelector('.ba-notice')?.textContent || ''), 'no line about the deleted login');
+});
+
+test('the icon of a site is made once and kept when the tab is drawn again (it did not flash), and a globe that replaced a failed icon stays a globe', async () => {
+  const { document } = page();
+  const client = fakeClient();
+  const section = mountBrowserAgentSection({ document, text, client });
   await tick();
-  assert.deepEqual(client.calls.at(-1), ['deleteLogin', 'l1']);
+  let root = document.getElementById('browser-agent-section');
+  const image = root.querySelector('.ba-mark img');
+  assert.ok(image);
+  await section.refresh();
+  await tick();
+  root = document.getElementById('browser-agent-section');
+  assert.equal(root.querySelector('.ba-mark img'), image, 'the same picture, not a new one that has to load again');
+  image.dispatchEvent(new document.defaultView.Event('error'));
+  image.dispatchEvent(new document.defaultView.Event('error'));
+  await section.refresh();
+  await tick();
+  root = document.getElementById('browser-agent-section');
+  assert.ok(!root.querySelector('.ba-mark img'), 'not tried again');
+  assert.ok(root.querySelector('.ba-mark svg circle'));
 });
 
 test('stay logged in is a setting that is saved; the login state can be deleted after a second press', async () => {
