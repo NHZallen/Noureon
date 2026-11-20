@@ -100,3 +100,19 @@ test('a new change cuts the one before short; reduced motion and a missing size 
   await playMorph({ direction: 'open', before: null, ...nothing });
   assert.equal(nothing.played.length, 0);
 });
+
+test('the shape of the card (from the picture it shows) survives the end of the opening and the folding', async () => {
+  const w = world({ cardHidden: false, pillHidden: true });
+  w.card.style.aspectRatio = '1280 / 800';
+  const done = playMorph({ direction: 'open', before: { rootHeight: 40, card: null, pill: { width: 200, height: 40 } }, ...w });
+  w.played.forEach((entry) => entry.end());
+  await done;
+  assert.equal(w.card.style.aspectRatio, '1280 / 800', 'the opening does not give the card back to the 4 / 3 of the stylesheet');
+  assert.equal(w.card.style.clipPath || '', '');
+  const v = world({ cardHidden: false, pillHidden: true });
+  v.card.style.aspectRatio = '1280 / 800';
+  const folded = playMorph({ direction: 'fold', before: { rootHeight: 270, card: { width: 360, height: 270 }, pill: null }, ...v });
+  v.played.forEach((entry) => entry.end());
+  await folded;
+  assert.equal(v.card.style.aspectRatio, '1280 / 800', 'the card that comes again has its shape');
+});

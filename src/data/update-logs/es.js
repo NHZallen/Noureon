@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.7": [
+    "<strong>Notas de la versión de Noureon 20.0.7</strong>",
+    "Esta versión corrige la forma de la tarjeta del agente de navegador abierta desde su etiqueta «Terminado».",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Pantalla: </strong>tras abrir la tarjeta desde la etiqueta «Terminado», la última imagen conserva su propia forma en lugar de recortarse o quedar con franjas por la forma predeterminada de la tarjeta.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "<ul><li>No hay que hacer nada, y esta versión no incluye actualización de la base de datos.</li></ul>"
+  ],
   "20.0.6": [
     "<strong>Notas de la versión de Noureon 20.0.6</strong>",
     "Esta versión vuelve a corregir la pantalla del agente de navegador tras una tarea.",

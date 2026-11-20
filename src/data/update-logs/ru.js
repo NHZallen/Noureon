@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.7": [
+    "<strong>Примечания к выпуску Noureon 20.0.7</strong>",
+    "Эта версия исправляет форму карточки браузерного агента, открытой по метке «Готово».",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Экран: </strong>после открытия карточки по метке «Готово» последнее изображение сохраняет собственную форму и не обрезается и не получает полей из-за формы карточки по умолчанию.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "<ul><li>Ничего делать не нужно, обновления базы данных в этой версии нет.</li></ul>"
+  ],
   "20.0.6": [
     "<strong>Примечания к выпуску Noureon 20.0.6</strong>",
     "В этой версии снова исправлен экран браузерного агента после задачи.",

@@ -18,7 +18,12 @@ export function measureCard({ root, card, pill }) {
   return { rootHeight: rootBox.height, card: cardBox && { width: cardBox.width, height: cardBox.height }, pill: pillBox && { width: pillBox.width, height: pillBox.height } };
 }
 
-const clear = (...elements) => elements.forEach((element) => { element.removeAttribute('style'); });
+// The inline style of the animation goes away when it is over, but the shape of the card is not part of it (it comes from the picture the card shows): it is kept.
+const clear = (...elements) => elements.forEach((element) => {
+  const ratio = element.style.aspectRatio;
+  element.removeAttribute('style');
+  if (ratio) element.style.aspectRatio = ratio;
+});
 
 /**
  * Plays the change that has already been made to the page (`before` was measured first). 'open': the pill went, the card came. 'fold': the card went, the pill came.
