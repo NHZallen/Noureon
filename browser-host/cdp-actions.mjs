@@ -246,8 +246,7 @@ const SECRET_SHEET_SRC = `(d) => {
 }`;
 // The whole page (and the frames of the same site in it): every field that holds a secret is marked. Gives how many fields there are of each kind.
 const maskPageSrc = (reveal) => `(() => {
-  // true / false: the eye is turned on / off; null: the guard of every few seconds, which keeps what the eye of the person has set (the state is on the page, so it does not matter which process asks).
-  const ASKED = ${reveal === true ? 'true' : reveal === false ? 'false' : 'null'};
+  const REVEAL = ${reveal ? 'true' : 'false'};
   const kindOf = ${FIELD_KIND_SRC};
   const sheetFor = ${SECRET_SHEET_SRC};
   const docs = [];
@@ -255,8 +254,7 @@ const maskPageSrc = (reveal) => `(() => {
   walk(document, 0);
   const found = {};
   for (const d of docs) {
-    if (d.documentElement && ASKED !== null) d.documentElement.toggleAttribute('data-nb-reveal', ASKED);
-    const REVEAL = Boolean(d.documentElement && d.documentElement.hasAttribute('data-nb-reveal'));
+    if (d.documentElement) d.documentElement.toggleAttribute('data-nb-reveal', REVEAL);
     for (const el of d.querySelectorAll('input')) {
       const kind = kindOf(el);
       if (!kind) continue;
@@ -289,7 +287,6 @@ async function markSecret(cdp, sessionId, objectId) {
 let revealing = false;
 /** Marks the fields of the page that hold a secret, in the page and in the frames of the payment providers (a frame of another site is its own target). `reveal` shows them as typed instead of as dots. */
 export async function maskPage(cdp, sessionId, { reveal = false } = {}) {
-  // reveal: true / false set the eye; null leaves it as the person set it (the guard).
   const expression = maskPageSrc(reveal);
   await cdp.send('Runtime.evaluate', { expression, returnByValue: true }, sessionId, 5000).catch(() => {});
   for (const frame of await paymentFrames(cdp).catch(() => [])) {
@@ -780,7 +777,7 @@ export async function runAction(action, devtools = 'http://127.0.0.1:9222') {
       if (action.type === 'reveal') revealing = action.on === true;
       for (const page of (await pagesOf(cdp)).slice(0, 6)) {
         let session;
-        try { session = await attach(cdp, page.targetId); await maskPage(cdp, session, { reveal: action.type === 'reveal' ? revealing : null }); } catch { /* a tab that cannot be reached is left */ } finally { if (session) await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {}); }
+        try { session = await attach(cdp, page.targetId); await maskPage(cdp, session, { reveal: revealing }); } catch { /* a tab that cannot be reached is left */ } finally { if (session) await cdp.send('Target.detachFromTarget', { sessionId: session }).catch(() => {}); }
       }
       return { ok: true };
     }

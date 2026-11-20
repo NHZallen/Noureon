@@ -689,7 +689,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       if (next.control) control = next.control;
       if ('reveal' in next) eyeOpen = Boolean(next.reveal);
       if (control !== 'user') eyeOpen = false;
-      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control, ...('reveal' in next || control !== 'user' ? { reveal: eyeOpen } : {}), ...('revealFailed' in next ? { revealFailed: Boolean(next.revealFailed) } : {}) });
+      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control, ...('reveal' in next || control !== 'user' ? { reveal: eyeOpen } : {}) });
       render();
     },
     /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */

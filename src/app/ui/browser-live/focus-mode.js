@@ -316,7 +316,7 @@ export function createFocusMode({ document, host = document.body, language = 'zh
     if (panel && document.activeElement !== urlField) urlField.value = state.url || '';
     barTools.hidden = !user;
     for (const eye of revealButtons) {
-      const label = state.revealFailed ? t('browserRevealFailed') : state.reveal && user ? t('browserHide') : t('browserReveal');
+      const label = state.reveal && user ? t('browserHide') : t('browserReveal');
       eye.setAttribute('aria-label', label);
       eye.setAttribute('aria-pressed', String(Boolean(state.reveal && user)));
       eye.title = label;
