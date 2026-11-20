@@ -95,13 +95,7 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
   }
 
   // Whether the message asks for a browser: the judgement of the Decisions model (the question `browser`, decision-client.js) when there is one, the short list of phrases (browser-intent.js) when not.
-  // A short message that names a browser outright ("用瀏覽器", "你開瀏覽器我要看畫面") is a request whatever the judgement says: the judge sees too little in it and answered no, and the person repeated themselves three
-  // times while the model went on searching (Allen, 2026-11-20). A long message that only has the words in it (a browser tab in an editor) is left to the judge.
-  const SHORT_REQUEST = 30;
-  const wantsBrowser = (messageText, decisions) => {
-    if (String(messageText ?? '').trim().length <= SHORT_REQUEST && asksForBrowser(messageText)) return true;
-    return verdictOf(decisions, 'browser') ?? asksForBrowser(messageText);
-  };
+  const wantsBrowser = (messageText, decisions) => verdictOf(decisions, 'browser') ?? asksForBrowser(messageText);
 
   // A message that asks for a browser switches it on for its conversation, once, before the reply is made. A person who has no place yet, or a model that cannot see pictures, is told why not;
   // the message is sent either way. Resolves whether the switch was turned on.

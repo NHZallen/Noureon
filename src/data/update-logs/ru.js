@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.5": [
+    "<strong>Примечания к выпуску Noureon 20.0.5</strong>",
+    "Эта версия лучше понимает вас в браузерном агенте и позволяет посмотреть сохранённый вход.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Включение: </strong>решение, нужен ли браузер, теперь учитывает несколько предыдущих сообщений: короткая фраза вроде «посмотри в Твиттере» сразу после просьбы войти в аккаунт тоже включает браузерного агента.</li><li><strong>Подключённые аккаунты сайтов: </strong>откройте аккаунт, чтобы сразу увидеть имя пользователя; пароль показывается только после подтверждения шестизначным кодом или ключом доступа и скрывается через 30 секунд.</li><li><strong>Экран: </strong>кнопки кода приглашения на узком экране переносятся на следующую строку и больше не выходят за край.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "<ul><li>Ничего делать не нужно, обновления базы данных в этой версии нет.</li></ul>"
+  ],
   "20.0.4": [
     "<strong>Примечания к выпуску Noureon 20.0.4</strong>",
     "В этой версии исправлены две проблемы браузерного агента.",

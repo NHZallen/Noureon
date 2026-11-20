@@ -24,6 +24,18 @@ export async function listLogins() {
   return result.ok ? { ok: true, logins: Array.isArray(result.data?.logins) ? result.data.logins : [] } : failure(result);
 }
 
+/** The user name of one login, seen without a new confirmation: { ok, username }. */
+export async function getLoginUsername(id) {
+  const result = await serverRequest('GET', `/v1/browser/logins/${encodeURIComponent(id)}/username`);
+  return result.ok ? { ok: true, username: String(result.data?.username ?? '') } : failure(result);
+}
+
+/** The password of one login: the page asks only after the person was confirmed (six digits of the authenticator, or the passkey). { ok, username, password }. */
+export async function revealLogin(id) {
+  const result = await serverRequest('POST', `/v1/browser/logins/${encodeURIComponent(id)}/reveal`);
+  return result.ok ? { ok: true, username: String(result.data?.username ?? ''), password: String(result.data?.password ?? '') } : failure(result);
+}
+
 export async function deleteLogin(id) {
   const result = await serverRequest('DELETE', `/v1/browser/logins/${encodeURIComponent(id)}`);
   return result.ok ? { ok: true } : failure(result);

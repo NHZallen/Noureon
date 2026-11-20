@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.5": [
+    "<strong>Notes de version de Noureon 20.0.5</strong>",
+    "Cette version fait mieux comprendre l’agent navigateur et permet de consulter un identifiant enregistré.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Activation : </strong>la décision d’utiliser un navigateur tient désormais compte des messages qui précèdent le vôtre : un message court comme « regarde sur Twitter » juste après avoir demandé à l’IA de se connecter active aussi l’agent navigateur.</li><li><strong>Comptes de sites connectés : </strong>ouvrez un compte pour voir tout de suite son identifiant ; le mot de passe n’apparaît qu’après confirmation par le code à six chiffres ou votre clé d’accès, et se masque après 30 secondes.</li><li><strong>Écran : </strong>les boutons d’un code d’invitation passent à la ligne sur un écran étroit au lieu de dépasser.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte aucune mise à jour de la base de données.</li></ul>"
+  ],
   "20.0.4": [
     "<strong>Notes de version de Noureon 20.0.4</strong>",
     "Cette version corrige deux problèmes de l’agent navigateur.",

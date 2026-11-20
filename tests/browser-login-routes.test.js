@@ -35,6 +35,7 @@ test('add, list (no values), reveal and delete, for the owner', async () => {
   const list = await t.run('GET', '/v1/browser/logins');
   assert.equal(list.sent.payload.logins.length, 1);
   assert.ok(!JSON.stringify(list.sent.payload).includes('S3cret') && !JSON.stringify(list.sent.payload).includes('who@'));
+  assert.deepEqual((await t.run('GET', `/v1/browser/logins/${id}/username`)).sent.payload, { username: 'who@example.com' }, 'the user name needs no new confirmation and carries no password');
   assert.deepEqual((await t.run('POST', `/v1/browser/logins/${id}/reveal`)).sent.payload, { username: 'who@example.com', password: 'S3cret-pw-1' });
   assert.equal((await t.run('DELETE', `/v1/browser/logins/${id}`)).sent.payload.ok, true);
   assert.equal((await t.run('GET', '/v1/browser/logins')).sent.payload.logins.length, 0);
@@ -46,6 +47,7 @@ test('refused: bad input, somebody else, somebody who may not use the browser ag
   const added = await t.run('POST', '/v1/browser/logins', login);
   const id = added.sent.payload.login.id;
   assert.equal((await t.run('POST', `/v1/browser/logins/${id}/reveal`, null, { id: B })).failed.code, 'not_found'); // B may not use the agent
+  assert.equal((await t.run('GET', `/v1/browser/logins/${id}/username`, null, { id: B })).failed.code, 'not_found');
   const closed = setup({ allowed: false });
   assert.equal((await closed.run('GET', '/v1/browser/logins')).failed.code, 'not_found');
   assert.equal((await t.run('GET', '/v1/browser/other')).handled, false);

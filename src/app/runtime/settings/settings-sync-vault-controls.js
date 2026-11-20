@@ -5,7 +5,7 @@ import { isSyncVaultUnlocked, readSyncVaultRecord, syncVaultPolicy } from '../..
 import { getSupabaseClient, isSupabaseConfigured } from '../../auth/supabase-client.js';
 import { readEmailLogin } from '../../auth/email-login-state.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
-import { SERVICES, getService } from '../services.js';
+import { SERVICES, getService, provideService } from '../services.js';
 import { buildUserSectionMarkup, getUserSectionElements } from './settings-user-section-markup.js';
 import { mountSecurityPage, togglePasswordEye } from './settings-security-page.js';
 import { createRecoverySlotsStore } from './settings-vault-recovery-slots-store.js';
@@ -122,6 +122,8 @@ export function createSettingsSyncVaultControls({
   const keyguardApi = () => (keyguardLoaded ||= import('./settings-security-keyguard.js').then((module) => module.createKeyguardControls({ window, storage, getCurrentUser, getElements, text, showNotification, notifyError, confirmIdentity: (options) => identity.confirm(options), passkeys })));
   const keyguard = { bind: () => void keyguardApi().then((api) => api.bind()), refresh: async () => (await keyguardApi()).refresh(), isProtected: () => Boolean(readProtection(getCurrentUser?.()?.username, window.localStorage)) };
   identity.confirm = createIdentityConfirmation({ authenticator, passkeys });
+  // The other parts that show a secret ask the same way (the password vault of the browser agent): { confirm, strong }.
+  provideService(SERVICES.confirmIdentity, { confirm: (options) => identity.confirm(options), strong: async () => Boolean(await authenticator.isSet() || await passkeys.hasSlots()) });
   const devices = createDevicesControls({ window, storage, reloadPage, scheduleTimeout, getSupabase: () => getSupabase(), getCurrentUser, getElements, text, showNotification, notifyError, notifySecurity });
 
   // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.

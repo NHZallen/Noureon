@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "20.0.5",
+    date: "2026-11-20",
+    content: [
+      "<strong>Noureon 20.0.5 發布說明</strong>",
+      "本版本讓瀏覽器代理更懂你的意思，並可以查看已存的帳號密碼。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>開啟：</strong>判斷是否要用瀏覽器時會參考前面的幾則對話，你剛叫 AI 登入、接著說「看推特」這類簡短的話，也會自動打開瀏覽器代理。</li><li><strong>已連接的網站帳號：</strong>點進任一個帳號可以直接看到帳號；密碼要用 6 位數驗證碼或通行金鑰確認後才會顯示，30 秒後自動隱藏。</li><li><strong>畫面：</strong>邀請碼的按鈕在窄螢幕上會換到下一行，不再超出畫面。</li></ul>",
+      "<strong>相容性</strong>",
+      "<ul><li>不需要任何操作，本版本不含資料庫更新。</li></ul>"
+    ]
+  },
+  {
     version: "20.0.4",
     date: "2026-11-20",
     content: [

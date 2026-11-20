@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import { mountBrowserAgentSection, formatSize } from '../src/app/ui/browser-agent/browser-agent-settings.js';
 import { PENDING_INVITE_KEY } from '../src/app/runtime/browser-agent/browser-invite-link.js';
+import { SERVICES, provideService } from '../src/app/runtime/services.js';
 import browserAgentTexts from '../src/data/i18n/parts/browser-agent.js';
 
 const texts = browserAgentTexts.en;
@@ -24,6 +25,8 @@ function fakeClient(over = {}) {
     listLogins: async () => ({ ok: true, logins: [{ id: 'l1', name: 'Shop', origins: ['https://shop.example'] }] }),
     getProfile: async () => ({ ok: true, exists: true, sizeBytes: 1_300_000, lastUsedAt: '2026-11-16T10:00:00Z' }),
     redeemCode: async (code) => { calls.push(['redeem', code]); return code === 'bad' ? { ok: false, message: 'That code cannot be used.' } : { ok: true }; },
+    getLoginUsername: async (id) => { calls.push(['username', id]); return { ok: true, username: 'who@example.com' }; },
+    revealLogin: async (id) => { calls.push(['reveal', id]); return { ok: true, username: 'who@example.com', password: 'S3cret-pw-1' }; },
     deleteLogin: async (id) => { calls.push(['deleteLogin', id]); return { ok: true }; },
     logoutSite: async (origin) => { calls.push(['logout', origin]); return { ok: true }; },
     deleteProfile: async () => { calls.push(['deleteProfile']); return { ok: true }; },
@@ -180,7 +183,7 @@ test('the person\'s own codes are listed, the unused one can be copied; there is
   const root = document.getElementById('browser-agent-section');
   const rows = [...root.querySelectorAll('.ba-code-text')].map((n) => n.textContent);
   assert.deepEqual(rows, ['NRN-AAAA-BBBB', 'NRN-CCCC-DDDD']);
-  const copyButtons = [...root.querySelectorAll('.ba-btn')].filter((b) => b.textContent === 'Copy');
+  const copyButtons = [...root.querySelectorAll('.ba-icon-btn')].filter((b) => b.getAttribute('aria-label') === 'Copy');
   assert.equal(copyButtons.length, 2);
   assert.deepEqual(copyButtons.map((b) => b.hidden), [false, true]);
   assert.ok(!/Stop all|admin/i.test(root.textContent));
@@ -195,24 +198,62 @@ test('a server that cannot be reached says so; sizes read plainly', async () => 
   assert.equal(formatSize(2 * 1024 * 1024), '2.0 MB');
 });
 
+test('a login opens its own page: the user name is seen at once, the password only after the six digits or the passkey, and it hides again', async () => {
+  const { document } = page();
+  const client = fakeClient();
+  mountBrowserAgentSection({ document, text, client });
+  await tick();
+  await openAccounts(document);
+  document.querySelector('#browser-agent-section .ba-row-open').click();
+  await tick();
+  const section = document.getElementById('browser-agent-section');
+  assert.deepEqual(client.calls.filter((call) => call[0] === 'username'), [['username', 'l1']], 'the user name is asked for on opening');
+  assert.ok(section.textContent.includes('who@example.com'), 'and shown, with no confirmation');
+  assert.ok(!section.textContent.includes('S3cret'), 'the password is not on the page');
+  assert.equal(client.calls.some((call) => call[0] === 'reveal'), false);
+  const show = () => [...section.querySelectorAll('.ba-icon-btn')].find((button) => [texts.baShowPass, texts.baHidePass].includes(button.getAttribute('aria-label')));
+  // no authenticator and no passkey: it says what to set up, and gives nothing
+  provideService(SERVICES.confirmIdentity, { strong: async () => false, confirm: async () => true });
+  show().click();
+  await tick();
+  assert.ok(section.textContent.includes(texts.baNeedStrong));
+  assert.equal(client.calls.some((call) => call[0] === 'reveal'), false, 'nothing was asked of the server');
+  // confirmation refused (the passkey was cancelled, the digits were wrong): nothing is shown
+  provideService(SERVICES.confirmIdentity, { strong: async () => true, confirm: async () => false });
+  show().click();
+  await tick();
+  assert.equal(client.calls.some((call) => call[0] === 'reveal'), false);
+  // confirmed: the password shows, then hides on the second press
+  provideService(SERVICES.confirmIdentity, { strong: async () => true, confirm: async () => true });
+  show().click();
+  await tick();
+  assert.ok(section.textContent.includes('S3cret-pw-1'));
+  assert.deepEqual(client.calls.filter((call) => call[0] === 'reveal'), [['reveal', 'l1']]);
+  show().click();
+  assert.ok(!section.textContent.includes('S3cret-pw-1'), 'hidden again');
+  provideService(SERVICES.confirmIdentity, null);
+});
+
 test('each code that is not used has a link to copy', async () => {
   const { window, document } = page();
   let copied = '';
   Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (value) => { copied = value; } }, configurable: true });
   mountBrowserAgentSection({ document, text, client: fakeClient() });
   await tick();
-  const buttons = [...document.querySelectorAll('#browser-agent-section .ba-btn')].filter((button) => button.textContent === texts.baCopyLink);
+  const icons = (label) => [...document.querySelectorAll('#browser-agent-section .ba-icon-btn')].filter((button) => button.getAttribute('aria-label') === label);
+  const buttons = icons(texts.baCopyLink);
   assert.equal(buttons.length, 2);
+  assert.equal(icons(texts.baCopy).length, 2, 'the code has its copy mark too');
+  assert.equal(buttons[0].textContent, '', 'a mark and no words');
   assert.equal(buttons[0].hidden, false);
   assert.equal(buttons[1].hidden, true, 'a code that is used has no link to give');
+  const before = buttons[0].innerHTML;
   buttons[0].click();
   await tick();
   assert.equal(copied, 'https://noureon.test/#browser-invite=NRN-AAAA-BBBB');
-  assert.equal(buttons[0].textContent, texts.baCopied);
-  assert.equal(buttons[0].dataset.reserve, texts.baCopyLink, 'while "Copied" shows, the old words keep their room, so the button does not get narrower');
+  assert.notEqual(buttons[0].innerHTML, before, 'a check for a moment');
   await new Promise((resolve) => setTimeout(resolve, 1700));
-  assert.equal(buttons[0].textContent, texts.baCopyLink, 'the words come back');
-  assert.equal(buttons[0].dataset.reserve, texts.baCopied);
+  assert.equal(buttons[0].innerHTML, before, 'and the mark comes back, the button never changes its size');
 });
 
 test('a code that came with a link waits in the box, and is not used until the button is pressed', async () => {

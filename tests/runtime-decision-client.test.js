@@ -27,15 +27,24 @@ test('the request puts four questions in one call, the tool question only when t
   assert.equal(buildDecisionRequest({ message: '   ' }), null);
 });
 
-test('what is sent is short: the message, the last two earlier messages and no images', () => {
+test('what is sent is short: the message, the last six earlier messages and no images', () => {
   const long = 'x'.repeat(5000);
   const history = ['a', 'b', 'c', 'd'].map((text, index) => ({ role: index % 2 ? 'model' : 'user', parts: [{ text: long }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }] }));
   const request = buildDecisionRequest({ message: long, history });
   assert.ok(request.state[0].length <= 'Latest message: '.length + 1501);
   const earlier = request.state[1];
-  assert.equal((earlier.match(/(?:Person|Assistant): /g) || []).length, 2);
-  assert.ok(earlier.length < 800);
+  assert.equal((earlier.match(/(?:Person|Assistant): /g) || []).length, 4, 'the four there are, up to six');
+  assert.ok(earlier.length < 1800);
   assert.doesNotMatch(JSON.stringify(request), /AAAA|inlineData|image_url/);
+});
+
+test('the judge reads six earlier messages, so a short "use the browser" is understood from what came before it', () => {
+  const history = Array.from({ length: 8 }, (_, index) => ({ role: index % 2 ? 'model' : 'user', parts: [{ text: `message ${index + 1}` }] }));
+  const request = buildDecisionRequest({ message: 'use the browser', history, browserCandidate: true });
+  const earlier = request.state[1];
+  assert.equal((earlier.match(/(?:Person|Assistant): /g) || []).length, 6);
+  assert.match(earlier, /message 8/);
+  assert.doesNotMatch(earlier, /message 2\b/);
 });
 
 test('the answers are probabilities, anything else is no answer', () => {
@@ -250,7 +259,9 @@ test('the question about a browser is put only where the browser agent could sti
   assert.equal('browser' in buildDecisionRequest({ message: 'go and see what the shop has' }).questions, false);
   const request = buildDecisionRequest({ message: 'go and see what the shop has', browserCandidate: true });
   assert.equal(request.questions.browser.type, 'noul');
-  assert.match(request.questions.browser.instructions, /real web browser/);
+  assert.match(request.questions.browser.instructions, /live website/);
+  assert.match(request.questions.browser.instructions, /whole conversation/, 'the judge is told to read what came before the short message');
+  assert.match(request.questions.browser.instructions, /X or Twitter/, 'a feed of a social network is a browser task');
   assert.equal(parseDecisionResponse({ answers: { browser: { noul: 0.82 } } }).browser, 0.82);
   assert.equal(verdictOf(parseDecisionResponse({ answers: { browser: { noul: 0.82 } } }), 'browser'), true);
 });

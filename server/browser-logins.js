@@ -79,6 +79,17 @@ export function createBrowserLogins({ db, vault, now = () => new Date(), makeId 
       checkUser(userId); checkId(id);
       await db.remove(table, { user_id: `eq.${userId}`, id: `eq.${id}` });
     },
+    /** For the person's own settings: the user name of one login, which they see without being confirmed again (a user name is not a secret; the password is only given by `reveal`). */
+    async username(userId, id) {
+      checkUser(userId); checkId(id);
+      const [row] = await rows(userId, { id: `eq.${id}` });
+      if (!row) throw new LoginError('not_found', 'There is no such login.');
+      try {
+        return { username: open(row, userId).username };
+      } catch {
+        throw new LoginError('unreadable', 'This login cannot be opened any more.');
+      }
+    },
     /** For the person's own settings: the user name and the password of one login. */
     async reveal(userId, id) {
       checkUser(userId); checkId(id);

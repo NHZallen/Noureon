@@ -21,7 +21,9 @@ export const SERVICES = Object.freeze({
   // The settings as { getConfig, update(patch), save() } (cloud-workspace-live-lifecycle.js): for the parts that start by themselves for a signed-in account and keep a setting (security/local-key-policy-sync.js).
   settingsAccess: 'settings-access',
   // (messageText, conversation) -> a promise of true when the words of the message switched the browser agent on for the conversation (null for a message that does not ask for a browser) (ui/browser-agent/browser-agent-menu.js).
-  browserAutoOn: 'browser-auto-on'
+  browserAutoOn: 'browser-auto-on',
+  // { confirm({ onlyIfSet }) -> a promise of true when the person was confirmed again (the six digits of the authenticator, or the passkey; once for ten minutes), strong() -> a promise of whether they have one of the two } (settings-sync-vault-controls.js).
+  confirmIdentity: 'confirm-identity'
 });
 
 const NAMES = new Set(Object.values(SERVICES));

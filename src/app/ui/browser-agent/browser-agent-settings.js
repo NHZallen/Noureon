@@ -4,11 +4,13 @@
 
 import { onSettingsSectionBack } from '../../runtime/settings/settings-section-back.js';
 import { clearPendingInvite, inviteUrl, readPendingInvite } from '../../runtime/browser-agent/browser-invite-link.js';
+import { SERVICES, getService } from '../../runtime/services.js';
 
 const SECTION_ID = 'browser-agent-section';
 const NAV_ID = 'browser-agent-section-nav';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CONFIRM_MS = 4000;
+const PASSWORD_SHOWN_MS = 30_000;
 const MESSAGE_MS = 4500;
 const COPIED_MS = 1600;
 
@@ -25,10 +27,19 @@ const KEEP = '<path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></pat
 const TRASH = '<path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"></path><path d="M9 7V4h6v3"></path>';
 const ACCOUNTS = '<circle cx="9" cy="8" r="3.2"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6"></path><path d="M18 14.4c1.8.8 3 2.6 3 5.6"></path>';
 const TICKET = '<path d="M3 9a2 2 0 0 0 0 6v2a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-2a2 2 0 0 1 0-6V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1z"></path><path d="M14 6v12" stroke-dasharray="2 3"></path>';
+const USER = '<circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path>';
+const KEY = '<circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9"></path><path d="M16 7l3 3"></path>';
+// The same copy mark as under a message of the conversation, the eye of the live screen, and a chain for a link; a check for a moment after a copy.
+const COPY = '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>';
+const LINK = '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path>';
+const CHECK = '<path d="M20 6L9 17l-5-5"></path>';
+const EYE = '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle>';
+const EYE_OFF = '<path d="M3 3l18 18"></path><path d="M10.6 6.2A9.8 9.8 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.9"></path><path d="M6.6 6.7C3.9 8.4 2 12 2 12s4 6 10 6c1.4 0 2.7-.3 3.8-.8"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>';
 const CHEVRON_RIGHT = '<path d="M9 6l6 6-6 6"></path>';
 const CHEVRON_LEFT = '<path d="M15 6l-6 6 6 6"></path>';
 export const GLOBE = '<circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a14 14 0 0 1 0 18"></path><path d="M12 3a14 14 0 0 0 0 18"></path>';
 
+const DOTS = '••••••••••';
 const hostOf = (origin) => { try { return new URL(origin).hostname; } catch { return ''; } };
 export const formatSize = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
@@ -65,7 +76,8 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
   // Which page of the tab is open: the first one, or the list of the connected site accounts (a page of its own, so the first page stays short).
   let view = 'main';
   const goTo = (next) => { view = next; void draw(); };
-  onSettingsSectionBack(SECTION_ID, () => { if (view === 'main') return false; goTo('main'); return true; });
+  let openLogin = null; // the login whose page is open (view 'login')
+  onSettingsSectionBack(SECTION_ID, () => { if (view === 'main') return false; goTo(view === 'login' ? 'accounts' : 'main'); return true; });
 
   const el = (tag, className, content) => {
     const node = document.createElement(tag);
@@ -151,15 +163,23 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     return wrap;
   };
 
+  // A round button with only a mark in it (the words are its label and its title).
+  const iconButton = (paths, label) => {
+    const button = el('button', 'ba-icon-btn');
+    button.type = 'button';
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.dataset.paths = paths;
+    button.append(icon(document, paths, 18));
+    return button;
+  };
+  const setIcon = (button, paths) => { button.replaceChildren(icon(document, paths, 18)); };
   const copy = async (value, button) => {
-    const label = button.dataset.label || button.textContent;
-    button.dataset.label = label;
     try {
       await win.navigator.clipboard.writeText(value);
-      button.textContent = text('baCopied');
-      button.dataset.reserve = label; // the old words keep their room while "Copied" shows, so the button does not get narrower
-      win.setTimeout?.(() => { button.textContent = label; button.dataset.reserve = text('baCopied'); }, COPIED_MS);
-    } catch { /* the code stays on the screen to be copied by hand */ }
+      setIcon(button, CHECK);
+      win.setTimeout?.(() => { setIcon(button, button.dataset.paths); }, COPIED_MS);
+    } catch { /* the text stays on the screen to be copied by hand */ }
   };
   // The code that came with a link (runtime/browser-agent/browser-invite-link.js): it waits in the box until the person presses the button.
   const pendingCode = () => { try { return readPendingInvite(win.localStorage); } catch { return ''; } };
@@ -230,9 +250,79 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
         { id: 'logout', label: text('baLogoutSite'), run: async () => { const r = await client.logoutSite(origin); say(r.ok ? fill(text('baSiteLoggedOut'), { site: hostOf(origin) }) : r.message || text('baError')); } },
         { id: 'delete', label: text('baDeletePassword'), danger: true, run: async () => { const r = await client.deleteLogin(login.id); if (r.ok) { marks.delete(login.id); reload(); } else say(r.message || text('baError')); } }
       ], login.id);
-      card.append(row(siteMark(login.id, origin), body(login.name, hosts), pill(text('baVaultTag')), menu));
+      // The row opens the page of the login (its user name, and its password after a new confirmation); the menu at its end keeps its own actions.
+      const open = el('button', 'ba-row-open');
+      open.type = 'button';
+      open.append(siteMark(login.id, origin), body(login.name, hosts));
+      open.addEventListener('click', () => { openLogin = login; goTo('login'); });
+      card.append(row(open, pill(text('baVaultTag')), menu));
     }
     page.append(card, el('p', 'ba-note', text('baAccountsNote')));
+    return page;
+  }
+
+  // The page of one login: the user name is seen at once (it is not a secret); the password only after the person is confirmed again with the six digits of their authenticator or their passkey
+  // (the same rule as the changes that are hard to undo, runtime/settings/settings-identity-confirmation.js), and it hides again after half a minute.
+  function loginPage(login, reload) {
+    const page = el('div', 'ba-page');
+    const back = el('button', 'ba-back');
+    back.type = 'button';
+    back.append(icon(document, CHEVRON_LEFT, 18), el('span', 'ba-back-label', text('baSecAccounts')));
+    back.addEventListener('click', () => goTo('accounts'));
+    page.append(back);
+    const origin = login.origins?.[0] || '';
+    const card = el('div', 'ba-card');
+    card.append(row(siteMark(login.id, origin), body(login.name, (login.origins || []).map(hostOf).filter(Boolean).join(', '))));
+    const userBody = body(text('baLoginUser'), '…');
+    const userValue = userBody.querySelector('.ba-desc');
+    userValue.classList.add('ba-value');
+    const userCopy = iconButton(COPY, text('baCopy'));
+    userCopy.hidden = true;
+    card.append(row(mark(USER), userBody, userCopy));
+    const turn = drawing;
+    void client.getLoginUsername(login.id).then((result) => {
+      if (turn !== drawing) return;
+      if (result.ok) { userValue.textContent = result.username; userCopy.hidden = false; userCopy.addEventListener('click', () => { void copy(result.username, userCopy); }); } else userValue.textContent = text('baError');
+    });
+    const passBody = body(text('baLoginPass'), DOTS);
+    const passValue = passBody.querySelector('.ba-desc');
+    passValue.classList.add('ba-value');
+    const passCopy = iconButton(COPY, text('baCopy'));
+    passCopy.hidden = true;
+    const toggle = iconButton(EYE, text('baShowPass'));
+    let hideTimer = null;
+    let secret = '';
+    const hide = () => {
+      win.clearTimeout?.(hideTimer);
+      secret = '';
+      passValue.textContent = DOTS;
+      passCopy.hidden = true;
+      setIcon(toggle, EYE);
+      toggle.setAttribute('aria-label', text('baShowPass'));
+      toggle.title = text('baShowPass');
+    };
+    toggle.addEventListener('click', async () => {
+      if (secret) { hide(); return; }
+      const identity = getService(SERVICES.confirmIdentity);
+      let strong = false;
+      try { strong = identity ? await identity.strong() : false; } catch { strong = false; }
+      if (!strong) { say(text('baNeedStrong')); return; }
+      let confirmed = false;
+      try { confirmed = await identity.confirm(); } catch { confirmed = false; }
+      if (!confirmed) return;
+      const result = await client.revealLogin(login.id);
+      if (!result.ok) { say(result.message || text('baError')); return; }
+      secret = result.password;
+      passValue.textContent = secret;
+      passCopy.hidden = false;
+      setIcon(toggle, EYE_OFF);
+      toggle.setAttribute('aria-label', text('baHidePass'));
+      toggle.title = text('baHidePass');
+      hideTimer = win.setTimeout?.(hide, PASSWORD_SHOWN_MS);
+    });
+    passCopy.addEventListener('click', () => { if (secret) void copy(secret, passCopy); });
+    card.append(row(mark(KEY), passBody, passCopy, toggle));
+    page.append(card, el('p', 'ba-note', text('baLoginNote')));
     return page;
   }
 
@@ -271,17 +361,15 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       const used = entry.used === true;
       const code = el('span', 'ba-code-text', entry.code);
       const spacer = el('span', 'ba-grow');
-      const copyButton = el('button', 'ba-btn', text('baCopy'));
-      copyButton.dataset.reserve = text('baCopied');
-      copyButton.type = 'button';
+      const copyButton = iconButton(COPY, text('baCopy'));
       copyButton.hidden = used;
       copyButton.addEventListener('click', () => { void copy(entry.code, copyButton); });
-      const linkButton = el('button', 'ba-btn', text('baCopyLink'));
-      linkButton.dataset.reserve = text('baCopied');
-      linkButton.type = 'button';
+      const linkButton = iconButton(LINK, text('baCopyLink'));
       linkButton.hidden = used;
       linkButton.addEventListener('click', () => { void copy(inviteUrl(win.location?.origin || 'https://noureon.com', entry.code), linkButton); });
-      card.append(row(mark(TICKET), code, spacer, pill(text(used ? 'baCodeUsed' : 'baCodeUnused'), used ? 'is-on' : ''), copyButton, linkButton));
+      const line = row(mark(TICKET), code, spacer, pill(text(used ? 'baCodeUsed' : 'baCodeUnused'), used ? 'is-on' : ''), copyButton, linkButton);
+      line.classList.add('is-wrap'); // on a narrow screen the buttons go under the code instead of running off the edge
+      card.append(line);
     }
     block.append(card, el('p', 'ba-note', text('baCodesNote')));
     return block;
@@ -307,7 +395,10 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       const [logins, profile] = await Promise.all([client.listLogins(), client.getProfile()]);
       if (turn !== drawing) return;
       const list = logins.ok ? logins.logins : [];
-      if (view === 'accounts') root.append(accountsPage(list, reload));
+      const current = view === 'login' && openLogin ? list.find((entry) => entry.id === openLogin.id) : null;
+      if (view === 'login' && !current) view = 'accounts'; // the login is gone (deleted on another device)
+      if (view === 'login') root.append(loginPage(current, reload));
+      else if (view === 'accounts') root.append(accountsPage(list, reload));
       else {
         root.append(accountsEntry(list.length), stateBlock(profile.ok ? profile : { exists: false }, reload));
         if (access.codes.length) root.append(codesBlock(access.codes));

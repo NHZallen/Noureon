@@ -39,6 +39,8 @@ test('a login is kept sealed: the table holds neither the user name nor the pass
   assert.deepEqual(Object.keys(list[0]).sort(), ['createdAt', 'id', 'lastUsedAt', 'name', 'origins']);
   assert.deepEqual(await w.logins.list(B), []);
   assert.deepEqual(await w.logins.reveal(A, made.id), { username: 'who@example.com', password: 'S3cret-pw-1' });
+  assert.deepEqual(await w.logins.username(A, made.id), { username: 'who@example.com' }, 'the user name alone, with no password in the answer');
+  await assert.rejects(w.logins.username(B, made.id), (e) => e.code === 'not_found', 'only the owner');
   await assert.rejects(w.logins.reveal(B, made.id), (e) => e.code === 'not_found');
 });
 

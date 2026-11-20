@@ -2,6 +2,7 @@
 //   GET    /v1/browser/logins                  -> { logins: [{ id, name, origins, createdAt, lastUsedAt }] }   (never a value)
 //   POST   /v1/browser/logins                  { name, origins: ['https://…'], username, password } -> 201 { login }
 //   DELETE /v1/browser/logins/:id              -> { ok }
+//   GET    /v1/browser/logins/:id/username     -> { username }            (seen without a new confirmation: a user name is not a secret)
 //   POST   /v1/browser/logins/:id/reveal       -> { username, password }   (the page asks only after the three-step confirmation; the answer is never kept in a log)
 // Only the person who owns a login reaches it, and only a person who may use the browser agent.
 import { ERROR_CODES } from './protocol.js';
@@ -15,6 +16,7 @@ export function createBrowserLoginRoutes({ browser, limiter = null }) {
     { method: 'GET', re: /^\/v1\/browser\/logins$/, run: async ({ user }) => [200, { logins: await browser.logins.list(user.id) }] },
     { method: 'POST', re: /^\/v1\/browser\/logins$/, body: 8 * 1024, run: async ({ user, body }) => [201, { login: await browser.logins.add(user.id, { name: body?.name, origins: body?.origins, username: body?.username, password: body?.password }) }] },
     { method: 'DELETE', re: new RegExp(`^/v1/browser/logins/${UUID}$`), run: async ({ user, match }) => { await browser.logins.remove(user.id, match[1]); return [200, { ok: true }]; } },
+    { method: 'GET', re: new RegExp(`^/v1/browser/logins/${UUID}/username$`), run: async ({ user, match }) => [200, await browser.logins.username(user.id, match[1])] },
     { method: 'POST', re: new RegExp(`^/v1/browser/logins/${UUID}/reveal$`), run: async ({ user, match }) => [200, await browser.logins.reveal(user.id, match[1])] }
   ];
   return async function handle(request, { url, authenticate, readJson, send, fail }) {

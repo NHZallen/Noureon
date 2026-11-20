@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.5": [
+    "<strong>Noureon 20.0.5 Release Notes</strong>",
+    "This version makes the browser agent understand you better and lets you look at a saved login.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Switching it on: </strong>the decision whether to use a browser now looks at the few messages before yours, so a short message such as “look at Twitter” right after you asked the AI to log in also switches the browser agent on.</li><li><strong>Connected site accounts: </strong>open an account to see its user name at once; the password shows only after you confirm with the six-digit code or your passkey, and hides again after 30 seconds.</li><li><strong>Screen: </strong>the buttons of an invite code go to the next line on a narrow screen instead of running off it.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update.</li></ul>"
+  ],
   "20.0.4": [
     "<strong>Noureon 20.0.4 Release Notes</strong>",
     "This version fixes two problems of the browser agent.",
