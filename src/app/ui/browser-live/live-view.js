@@ -12,7 +12,7 @@ import { createRefraction } from './lens-refraction.js';
 import { cssRatio, DEFAULT_RATIO, ratioOf } from './ratios.js';
 
 export const LENS_ZOOM = 1.6;
-export const LENS_SIZE = 0.17; // of the width of the screen (the design said 13%; Allen wanted it bigger, 20%, then a little smaller, 2026-11-19)
+export const LENS_SIZE = 0.14; // of the width of the screen (the design said 13%; Allen wanted it bigger, 20%, then smaller: 17%, then 14%, 2026-11-20)
 
 const GLIDE_MS = 300;
 const clamp = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));

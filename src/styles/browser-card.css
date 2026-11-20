@@ -138,7 +138,7 @@
 .bl-picture { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
 .bl-video { border-radius: inherit; }
 .bl-picture > * { width: 100%; height: 100%; display: block; }
-.bl-lens { position: absolute; width: 17cqw; height: 17cqw; margin: -8.5cqw 0 0 -8.5cqw; border-radius: 50%; pointer-events: none; filter: drop-shadow(0 1cqw 1.4cqw color-mix(in srgb, var(--media-black) 30%, transparent)); }
+.bl-lens { position: absolute; width: 14cqw; height: 14cqw; margin: -7cqw 0 0 -7cqw; border-radius: 50%; pointer-events: none; filter: drop-shadow(0 1cqw 1.4cqw color-mix(in srgb, var(--media-black) 30%, transparent)); }
 .bl-lens[hidden] { display: none; }
 /* The circle: a lens (style E, Allen 2026-11-19, after the milky one was too foggy): the middle is clear and magnifies, the edge goes a little dark inside like the rim of a lens, a white ring with a thin dark line outside it, a glint and a soft shadow. The dark parts are a fixed black, not the colour of the text (that is light in the dark theme, and the rim and the shadow were not seen on a white page, found 2026-11-19). Grey and white only: the person's circle has the same lens with a pale blue. */
 .bl-glass { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in srgb, var(--media-black) 30%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--on-color) 85%, transparent); }
