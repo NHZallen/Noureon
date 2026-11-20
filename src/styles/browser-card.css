@@ -86,6 +86,11 @@
 .bpanel-button.is-primary { background: var(--gpt-primary-action-bg); border-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
 .bpanel-button.is-danger { background: var(--state-danger); border-color: var(--state-danger); color: var(--on-color); }
 .bpanel-button:disabled { opacity: 0.5; cursor: default; }
+.bpanel-other { display: flex; flex-direction: column; gap: 0.5rem; }
+.bpanel-other-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.bpanel-other-input { resize: none; min-height: 3.4rem; padding: 0.55rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--input-field-bg); color: var(--text-primary); font: inherit; font-size: 1rem; line-height: 1.4; }
+.bpanel-other-form .bpanel-button { align-self: flex-end; }
+.bpanel-other[hidden], .bpanel-other-form[hidden] { display: none; }
 .bpanel-hint { font-size: 0.75rem; color: var(--text-tertiary); text-align: center; }
 .bpanel.is-sent .bpanel-hint { visibility: hidden; }
 .bpanel-head { display: flex; align-items: center; justify-content: space-between; }

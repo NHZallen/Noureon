@@ -113,6 +113,17 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   const waitSignal = signal ? AbortSignal.any([signal, endController.signal]) : endController.signal;
   let lastDomain = '';
   let announcedQueue = null;
+  // The sign-in details the user typed in the panel of this reply (browser_request_login): a site that asks for the user name on one page and the password on the next must not ask the user again, so the
+  // details wait here, in the memory of this reply only, for the next page of the same site. They are never in an answer to the model, never in a log, and are gone with the browser or after ten minutes.
+  const HELD_LOGIN_MS = 10 * 60 * 1000;
+  const heldLogins = new Map();
+  const holdLogin = (origin, details) => { if (origin) heldLogins.set(origin, { ...details, until: Date.now() + HELD_LOGIN_MS }); };
+  const heldLogin = (origin) => {
+    const entry = heldLogins.get(origin);
+    if (!entry) return null;
+    if (entry.until < Date.now()) { heldLogins.delete(origin); return null; }
+    return entry;
+  };
   // What the last snapshot showed (for the tripwire: the name of what a click is on) and when the user last confirmed something on a site (one confirmation covers what follows at once).
   const keptFiles = [];
   let lastShot = null;
@@ -123,14 +134,18 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
   // Where the last click or typing was (0 to 1 of the screen): a key goes to that field, so the circle of the model is shown there for a key (Allen, 2026-11-19); a scroll has no circle (Allen, 2026-11-19).
   let lastPoint = null;
   const CONFIRMED_FOR_MS = 2 * 60_000;
+  // What the person wrote instead of choosing (the "Other" of every question): their own words, to be answered in the conversation.
+  let otherWords = '';
+  const otherAnswer = (text) => `The user did not pick one of the answers and wrote this instead: "${oneLine(text, 500)}". It is their answer to you (it may be a question or a different instruction): answer it in the conversation or change what you do, and do not ask the same question again.`;
   const confirm = async (action, summary) => {
     const result = await ask('confirm', { action, domain: lastDomain, summary });
+    if (result.other) { otherWords = result.other; return 'other'; }
     if (result.cancelled) return 'cancel';
     if (result.timeout) return 'timeout';
     if (result.decision === 'confirm') { confirmed = { domain: lastDomain, at: Date.now() }; return 'confirm'; }
     return 'no';
   };
-  const declined = (answer) => (answer === 'cancel' ? 'The reply was stopped.'
+  const declined = (answer) => (answer === 'other' ? otherAnswer(otherWords) : answer === 'cancel' ? 'The reply was stopped.'
     : answer === 'timeout' ? 'The user did not answer the question in time, so it was not done. Do not do it; say what you were about to do and ask in the conversation.'
       : 'The user did not confirm, so it was not done. Do not try it again or go around it: say what you were about to do and ask the user what they want instead.');
 
@@ -376,6 +391,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         // The last look, before it is closed (not on a page that asks for a card: what the person typed there may show; the picture the model saw last stays).
         if (!takesCard) await picture(sessionId);
         const kept = await sessions.close(sessionId, userId);
+        heldLogins.clear();
         actions += 1;
         return kept ? 'The browser is closed; the logins are kept for next time.' : 'The browser is closed.';
       }
@@ -386,7 +402,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         const here = await act(sessionNow, { type: 'text', maxChars: 100 });
         const origin = originOf(here?.url) || '';
         if (here?.url) lastDomain = domainOf(here.url) || lastDomain;
-        const stopped = (result) => (result.cancelled ? 'The reply was stopped.' : result.timeout ? 'The user did not answer in time. Say what you needed and ask in the conversation.' : null);
+        const stopped = (result) => (result.other ? otherAnswer(result.other) : result.cancelled ? 'The reply was stopped.' : result.timeout ? 'The user did not answer in time. Say what you needed and ask in the conversation.' : null);
         if (call.name === 'browser_request_payment') {
           const way = await ask('payment', { domain: lastDomain, methods: ['card', 'applepay', 'other'] });
           if (stopped(way)) return stopped(way);
@@ -413,6 +429,12 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
           await act(sessionNow, { type: 'fill-code', origins: [origin], code: result.code });
           return 'The code was typed into the page (you cannot see it). Click the button that sends it, then look at the page.';
         }
+        // The user already typed their details for this site in this reply (the first page asked for the user name only): the next page gets them without asking again.
+        const reused = origin ? heldLogin(origin) : null;
+        if (reused) {
+          const again = await act(sessionNow, { type: 'fill-login', origins: [origin], username: reused.username, password: reused.password });
+          if (again.filled?.length) return `${again.filled.includes('password') ? 'The password' : 'The user name'} was typed into the page again from what the user gave a moment ago, so the user was not asked a second time (you cannot see it). ${again.filled.includes('password') ? 'Click the sign-in button, or press Enter, then look at the page.' : 'This page has no password field yet: click the button for the next step, look, and call browser_request_login again for the password.'}`;
+        }
         const methods = (Array.isArray(args.methods) ? args.methods : ['password']).filter((m) => ['password', 'google', 'apple', 'passkey', 'sms'].includes(m));
         const result = await ask('login', { domain: lastDomain, methods: methods.length ? [...new Set([...methods, 'takeover'])] : ['password', 'takeover'] });
         if (stopped(result)) return stopped(result);
@@ -423,6 +445,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
         if (result.method !== 'password') return `The user chose to sign in with ${result.method}. Click the button for it on the page, then call browser_request_handover so the user can finish signing in themselves.`;
         if (!origin) return 'This page cannot take a login.';
         const done = await act(sessionNow, { type: 'fill-login', origins: [origin], username: result.username, password: result.password });
+        holdLogin(origin, { username: result.username, password: result.password });
         let saved = false;
         if (result.save && logins) {
           try { await logins.add(userId, { name: lastDomain || origin, origins: [origin], username: result.username, password: result.password }); saved = true; } catch { /* the sign-in still counts */ }
@@ -467,7 +490,13 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
           if (error.code === 'several') return `The user has more than one saved login for this site: ${error.names.map((entry) => `"${oneLine(entry, 80)}"`).join(', ')}. Call browser_fill_login again with the name that fits what the user said; if you cannot tell, ask the user which one.`;
           if (error.code === 'wrong_site') return 'That login is not for the site this page belongs to, so nothing was filled. Check the address of the page.';
           if (error.code === 'unreadable') return 'The saved login cannot be opened any more. Ask the user to save it again in the settings, or to sign in themselves.';
-          return 'The user has no saved login for this site. Call browser_request_login to let the user sign in (they pick the way and type the password in a panel you never see). Never ask for a password in the conversation.';
+          // No saved login, but the user gave their details a moment ago in this reply (the page before asked for the user name only): they are typed again, without asking.
+          const reused = heldLogin(originOf(here?.url) || '');
+          if (!reused) return 'The user has no saved login for this site. Call browser_request_login to let the user sign in (they pick the way and type the password in a panel you never see). Never ask for a password in the conversation.';
+          const again = await act(sessionId, { type: 'fill-login', origins: [originOf(here?.url)], username: reused.username, password: reused.password });
+          return again.filled?.includes('password')
+            ? 'Filled the password from what the user gave a moment ago, so the user was not asked again (you cannot see it). Click the sign-in button, or press Enter, then look at the page.'
+            : again.filled?.length ? 'Filled the user name from what the user gave a moment ago. This page has no password field yet: click the button for the next step, look at the page, and call browser_fill_login again for the password.' : 'No login field can be seen on this page.';
         }
         // The host fills the visible fields and says which; what was filled is never in the answer.
         const filled = await act(sessionId, { type: 'fill-login', origins: found.origins, username: found.username, password: found.password });

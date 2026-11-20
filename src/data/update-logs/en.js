@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.2": [
+    "<strong>Noureon 20.0.2 Release Notes</strong>",
+    "This version adjusts how the browser agent signs in, hands over and asks you questions.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Signing in: </strong>some sites ask for the user name on one page and the password on the next. You now type them once, and the AI uses what you gave on the next page instead of asking a second time.</li><li><strong>Taking over: </strong>after you press Done in the hand-over panel in the conversation, the browser goes back to the AI by itself, so there is no second press on Give back.</li><li><strong>Questions: </strong>when the AI asks you something, there is now an Other… where you can write what you want to say; the AI takes it as your answer.</li><li><strong>Messages and screen: </strong>the Browser agent chip is shown in the bubble of the message you send; the eye button says so when it did not work, and the copy buttons of the invite codes no longer change their width when pressed.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update.</li></ul>"
+  ],
   "20.0.1": [
     "<strong>Noureon 20.0.1 Release Notes</strong>",
     "This version adjusts the message box and the settings of the browser agent.",

@@ -33,6 +33,21 @@ test('what is not an answer to the question is not taken; an unknown action is t
   assert.deepEqual(await pending, { decision: 'cancel' });
 });
 
+test('"Other": words written instead of choosing are taken for every question but a card, and are never a way around the choice', async () => {
+  for (const [kind, info] of [['confirm', { action: 'change' }], ['login', { methods: ['password'] }], ['payment', {}], ['takeover', {}], ['code', {}]]) {
+    const t = setup();
+    const pending = t.asker.ask(kind, info);
+    assert.deepEqual(t.asker.answer('ask-000001', { other: '  ' }), { answered: false }, 'empty words are not an answer');
+    t.asker.answer('ask-000001', { other: 'Use my work email instead?' });
+    assert.deepEqual(await pending, { other: 'Use my work email instead?' }, kind);
+    assert.equal(t.events.at(-1).decision, 'other');
+  }
+  const t = setup();
+  t.asker.ask('card', { domain: 'd' });
+  assert.deepEqual(t.asker.answer('ask-000001', { other: 'here is my card number' }), { answered: false }, 'a card is never asked for in words');
+  t.asker.cancelAll();
+});
+
 test('no answer in time is a timeout, and a stopped reply is cancelled', async () => {
   const t = setup({ waitMs: 5 });
   assert.deepEqual(await t.asker.ask('confirm', { action: 'delete', domain: 'd', summary: 's' }), { timeout: true });

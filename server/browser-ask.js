@@ -105,7 +105,9 @@ export function createBrowserAsk({ emit, signal = null, waitMs = BROWSER_ASK_WAI
     answer(askId, answer) {
       const entry = pending.get(askId);
       if (!entry) return { answered: false };
-      const checked = KINDS[entry.kind].check(answer);
+      // "Other": the person wrote something instead of choosing (a card is never asked in words). It goes to the model as their own words.
+      const other = entry.kind !== 'card' && typeof answer?.other === 'string' ? text(answer.other, 500) : '';
+      const checked = other ? { result: { other }, shown: 'other' } : KINDS[entry.kind].check(answer);
       if (!checked) return { answered: false };
       entry.finish(checked);
       return { answered: true };

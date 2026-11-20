@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { BrowserHostError } from '../../server/browser-host-client.js';
 import { BrowserSessionError } from '../../server/browser-sessions.js';
+import { LoginError } from '../../server/browser-logins.js';
 import { BROWSER_ENDED_BY_USER, BROWSER_INSTRUCTION, BROWSER_TOOLS, createBrowserLoader, snapshotText } from '../../server/browser-tools.js';
 
 const PAGE = { ok: true, tabId: 'T1', url: 'https://shop.example/items?q=secret-search', title: 'Shop', scroll: { y: 0, height: 2000, view: 700 }, elements: [{ ref: 3, role: 'searchbox', name: 'Search' }, { ref: 4, role: 'password field', name: 'Password' }, { ref: 5, role: 'button', name: 'Go', disabled: true }], text: 'Welcome to the shop', truncated: false };
@@ -284,16 +285,16 @@ test('the tripwire: a button named only Submit on a page about deleting is asked
   assert.equal(asked.length, 1, 'an ordinary page is not asked');
 });
 
-function loginWorld({ answers }) {
+function loginWorld({ answers, fill = null }) {
   const added = [];
   const sent = [];
   const queue = [...answers];
   const asked = [];
-  const logins = { forFill: async () => { throw new Error('not used'); }, add: async (userId, login) => { added.push([userId, login]); return { id: 'l1' }; } };
+  const logins = { forFill: async () => { throw new LoginError('none', 'There is no saved login for this site.'); }, add: async (userId, login) => { added.push([userId, login]); return { id: 'l1' }; } };
   const t = setup({
     logins,
     ask: async (kind, info) => { asked.push([kind, info]); return queue.shift(); },
-    actions: { text: () => ({ ok: true, url: 'https://github.com/login', title: 'Sign in', text: '' }), 'fill-login': (a) => { sent.push(['login', a]); return { ok: true, filled: ['username', 'password'] }; }, 'fill-code': (a) => { sent.push(['code', a]); return { ok: true, boxes: 6 }; } }
+    actions: { text: () => ({ ok: true, url: 'https://github.com/login', title: 'Sign in', text: '' }), 'fill-login': (a) => { sent.push(['login', a]); return fill ? fill(a) : { ok: true, filled: ['username', 'password'] }; }, 'fill-code': (a) => { sent.push(['code', a]); return { ok: true, boxes: 6 }; } }
   });
   t.setOpen({ sessionId: 'b1', conversationId: 'c1' });
   return { t, added, sent, asked };
@@ -320,6 +321,25 @@ test('browser_request_login: a password the person does not want kept is not kep
   assert.equal(h.asked[1][0], 'takeover');
   const n = loginWorld({ answers: [{ timeout: true }] });
   assert.match(await n.t.loader.run(call('browser_request_login')), /did not answer in time/);
+});
+
+test('a site that asks for the user name first and the password on the next page does not make the user type it twice', async () => {
+  let page = 1;
+  const w = loginWorld({ answers: [{ method: 'password', username: 'who@example.com', password: 'S3cret-pw-1', save: false }], fill: () => ({ ok: true, filled: page === 1 ? ['username'] : ['password'] }) });
+  const first = await w.t.loader.run(call('browser_request_login'));
+  assert.match(first, /no password field yet/);
+  page = 2;
+  // the model asks again on the password page: the user is not asked a second time
+  const second = await w.t.loader.run(call('browser_request_login'));
+  assert.equal(w.asked.length, 1, 'the panel was shown once');
+  assert.deepEqual(w.sent[1][1], { type: 'fill-login', origins: ['https://github.com'], username: 'who@example.com', password: 'S3cret-pw-1' });
+  assert.match(second, /password.*not asked a second time/s);
+  assert.ok(!second.includes('S3cret') && !JSON.stringify(w.t.events).includes('S3cret'));
+  // browser_fill_login on the password page (no saved login) uses what was given a moment ago too
+  const third = await w.t.loader.run(call('browser_fill_login'));
+  assert.equal(w.asked.length, 1);
+  assert.doesNotMatch(third, /no saved login/);
+  assert.match(third, /not asked again/);
 });
 
 test('browser_request_code: the code is typed into the page and the model never hears it', async () => {

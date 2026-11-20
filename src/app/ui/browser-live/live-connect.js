@@ -82,8 +82,11 @@ export function connectBrowserLive({ card, sessionId, api, document, createSourc
       card.liveState({ reveal: eyeOn });
       const answer = await api('POST', `${base}/reveal`, { on: eyeOn }).catch(() => ({ ok: false }));
       // (the answer of the server is in `data`: { ok, status, data: { ok, on } })
+      const wanted = eyeOn;
       eyeOn = Boolean(answer?.ok && answer.data?.on);
       card.liveState({ reveal: eyeOn });
+      // The eye was pressed and the browser did not open it: the button says so for a moment, instead of doing nothing.
+      if (wanted && !eyeOn) { card.liveState({ revealFailed: true }); setTimer(() => card.liveState({ revealFailed: false }), 2500); }
     },
     onRatio: (key) => { void api('POST', `${base}/screen`, { ratio: key }).catch(() => {}); }
   };

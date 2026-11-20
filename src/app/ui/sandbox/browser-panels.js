@@ -13,6 +13,28 @@ const make = (document, tag, className, text) => {
   return node;
 };
 
+
+// "Other": under a question with fixed answers, a quiet button opens a box where the person writes what they want instead (Allen, 2026-11-20: they may want to ask the model something). It goes to the
+// model as the person's own words, in place of the choice. `deliver(text)` ends the question.
+function otherBox({ document, t, deliver }) {
+  const root = make(document, 'div', 'bpanel-other');
+  const open = make(document, 'button', 'bpanel-link', t('browserOther'));
+  open.type = 'button';
+  const form = make(document, 'form', 'bpanel-other-form');
+  form.hidden = true;
+  const input = make(document, 'textarea', 'bpanel-other-input');
+  input.rows = 2; input.maxLength = 500; input.placeholder = t('browserOtherPlaceholder'); input.setAttribute('aria-label', t('browserOther'));
+  const go = make(document, 'button', 'bpanel-button is-primary', t('browserOtherSend'));
+  go.type = 'submit'; go.disabled = true;
+  form.append(input, go);
+  root.append(open, form);
+  open.addEventListener('click', () => { open.hidden = true; form.hidden = false; input.focus?.(); });
+  input.addEventListener('input', () => { go.disabled = !input.value.trim(); });
+  input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit?.(); } });
+  form.addEventListener('submit', (event) => { event.preventDefault(); const value = input.value.trim(); if (value) deliver(value); });
+  return root;
+}
+
 function confirmPanel({ document, language, info, answer }) {
   const t = (key, values) => sandboxText(language, key, values);
   const root = make(document, 'div', 'bpanel');
@@ -35,6 +57,7 @@ function confirmPanel({ document, language, info, answer }) {
   const send = (decision) => { if (sent) return; sent = true; root.classList.add('is-sent'); cancel.disabled = true; confirm.disabled = true; answer({ decision }); };
   cancel.addEventListener('click', () => send('cancel'));
   confirm.addEventListener('click', () => send('confirm'));
+  root.append(otherBox({ document, t, deliver: (other) => { if (sent) return; sent = true; root.classList.add('is-sent'); cancel.disabled = true; confirm.disabled = true; answer({ other }); } }));
   return { element: root, focus: () => cancel.focus?.(), destroy: () => root.remove() };
 }
 
@@ -81,13 +104,13 @@ function loginPanel({ document, language, info, answer }) {
     const button = make(document, 'button', `bpanel-method${method === 'takeover' ? ' is-quiet' : ''}`, t(METHOD_KEYS[method]));
     button.type = 'button';
     button.addEventListener('click', () => {
-      if (method === 'password') { list.hidden = true; form.hidden = false; user.input.focus?.(); } else finish({ method });
+      if (method === 'password') { list.hidden = true; other.hidden = true; form.hidden = false; user.input.focus?.(); } else finish({ method });
     });
     list.append(button);
   }
   const ready = () => { go.disabled = !(user.input.value.trim() && pass.input.value); };
   user.input.addEventListener('input', ready); pass.input.addEventListener('input', ready);
-  back.addEventListener('click', () => { form.hidden = true; list.hidden = false; });
+  back.addEventListener('click', () => { form.hidden = true; list.hidden = false; other.hidden = false; });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (go.disabled) return;
@@ -95,7 +118,8 @@ function loginPanel({ document, language, info, answer }) {
     pass.input.value = ''; user.input.value = '';
     finish(payload);
   });
-  root.append(title, site, list, form, note);
+  const other = otherBox({ document, t, deliver: (text) => finish({ other: text }) });
+  root.append(title, site, list, other, form, note);
   return { element: root, focus: () => list.querySelector('button')?.focus?.(), destroy: () => { pass.input.value = ''; root.remove(); } };
 }
 
@@ -169,7 +193,8 @@ function takeoverPanel({ document, language, info, answer, helpers }) {
   const finish = (decision) => { if (sent) return; sent = true; root.classList.add('is-sent'); root.querySelectorAll('button').forEach((el) => { el.disabled = true; }); answer({ decision }); };
   cancel.addEventListener('click', () => finish('cancel'));
   take.addEventListener('click', () => helpers?.takeOver?.());
-  done.addEventListener('click', () => finish('done'));
+  done.addEventListener('click', () => { finish('done'); helpers?.giveBack?.(); });
+  root.append(otherBox({ document, t, deliver: (other) => { if (sent) return; sent = true; root.classList.add('is-sent'); root.querySelectorAll('button, textarea').forEach((el) => { el.disabled = true; }); answer({ other }); } }));
   return { element: root, below: true, finish, focus: () => take.focus?.(), destroy: () => root.remove() };
 }
 
@@ -189,7 +214,7 @@ function paymentPanel({ document, language, info, answer }) {
     button.addEventListener('click', () => { if (sent) return; sent = true; root.classList.add('is-sent'); root.querySelectorAll('button').forEach((el) => { el.disabled = true; }); answer({ method }); });
     list.append(button);
   }
-  root.append(list);
+  root.append(list, otherBox({ document, t, deliver: (other) => { if (sent) return; sent = true; root.classList.add('is-sent'); root.querySelectorAll('button, textarea').forEach((el) => { el.disabled = true; }); answer({ other }); } }));
   return { element: root, focus: () => list.querySelector('button')?.focus?.(), destroy: () => root.remove() };
 }
 

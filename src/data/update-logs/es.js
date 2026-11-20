@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.2": [
+    "<strong>Notas de la versión de Noureon 20.0.2</strong>",
+    "Esta versión ajusta cómo el agente de navegador inicia sesión, cede el control y te hace preguntas.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Inicio de sesión: </strong>algunos sitios piden el usuario en una página y la contraseña en la siguiente. Ahora los escribes una sola vez y la IA usa lo que diste en la página siguiente, sin preguntarte una segunda vez.</li><li><strong>Control: </strong>después de pulsar Listo en el panel de cesión de control de la conversación, el navegador vuelve solo a la IA; ya no hace falta pulsar otra vez Devolver.</li><li><strong>Preguntas: </strong>cuando la IA te pregunta algo, ahora hay un Otro… donde puedes escribir lo que quieras decir; la IA lo toma como tu respuesta.</li><li><strong>Mensajes y pantalla: </strong>la etiqueta Agente de navegador se muestra en la burbuja del mensaje que envías; el botón del ojo avisa cuando no ha funcionado y los botones de copiar de los códigos de invitación ya no cambian de ancho al pulsarlos.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "<ul><li>No hay que hacer nada, y esta versión no incluye actualización de la base de datos.</li></ul>"
+  ],
   "20.0.1": [
     "<strong>Notas de la versión de Noureon 20.0.1</strong>",
     "Esta versión ajusta el cuadro de mensaje y los ajustes del agente de navegador.",

@@ -511,6 +511,43 @@ test('the hand-over panel: the card stays, the person can take over, and giving 
   assert.deepEqual(answers, [{ decision: 'done' }]);
 });
 
+test('every question with fixed answers has an "Other" where the person writes what they want, and it goes as their own words', () => {
+  for (const [kind, extra] of [['confirm', { action: 'change', summary: 'x' }], ['login', { methods: ['password', 'takeover'] }], ['payment', { methods: ['card', 'other'] }], ['takeover', { reason: 'r' }]]) {
+    const answers = [];
+    const w = make({ onAnswer: (id, payload) => answers.push(payload) });
+    w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'a.example', label: 'x' });
+    w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind, domain: 'a.example', ...extra });
+    const root = w.card.element;
+    const open = root.querySelector('.bpanel-other .bpanel-link');
+    assert.ok(open, `${kind}: there is an Other`);
+    const form = root.querySelector('.bpanel-other-form');
+    assert.equal(form.hidden, true);
+    open.click();
+    assert.equal(form.hidden, false);
+    const input = root.querySelector('.bpanel-other-input');
+    const send = form.querySelector('button');
+    assert.equal(send.disabled, true, 'nothing to send yet');
+    typeInto(input, 'Can you use my work email instead?');
+    assert.equal(send.disabled, false);
+    form.dispatchEvent(new w.window.Event('submit', { cancelable: true }));
+    form.dispatchEvent(new w.window.Event('submit', { cancelable: true }));
+    assert.deepEqual(answers, [{ other: 'Can you use my work email instead?' }], `${kind}: answered once`);
+  }
+});
+
+test('"Done" on the hand-over panel gives the browser back by itself', () => {
+  let held = null;
+  const w = make({ onAnswer: () => {} });
+  w.card.handle({ type: 'browser', event: 'call', action: 'open', domain: 'a.example', label: 'x' });
+  w.card.handle({ type: 'browser', event: 'ask', id: 'ask-1', kind: 'takeover', domain: 'a.example', reason: 'Sign in' });
+  held = w.card.control;
+  const [, take, done] = w.card.element.querySelectorAll('.bpanel-button');
+  take.click();
+  assert.equal(w.card.control, 'user');
+  done.click();
+  assert.equal(w.card.control, 'model', `the browser is back with the model (it was ${held} before)`);
+});
+
 test('the payment panel: three ways, one tap each', () => {
   const answers = [];
   const w = make({ onAnswer: (id, payload) => answers.push(payload) });

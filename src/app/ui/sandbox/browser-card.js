@@ -356,7 +356,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
   // The answer of the person goes to the server; when it does not get there (or the reply is not running any more, e.g. the server was just updated), the panel
   // is made again with a line that says so, instead of staying locked for ever.
   const showAsk = (event, note = '') => {
-    const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => answerAsk(event, id, payload), helpers: { fetch: fetchImpl, takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); } } });
+    const panel = createAskPanel({ document, language, ask: event, onAnswer: (id, payload) => answerAsk(event, id, payload), helpers: { fetch: fetchImpl, takeOver: () => { openFocus(); focus?.update({ control: 'user' }); focusController().onTakeOver(); }, giveBack: () => { if (control === 'user') focusController().onGiveBack(); } } });
     if (!panel) return false;
     asking?.panel?.destroy();
     asking = { id: event.id, kind: event.kind, panel };
@@ -689,7 +689,7 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
       if (next.control) control = next.control;
       if ('reveal' in next) eyeOpen = Boolean(next.reveal);
       if (control !== 'user') eyeOpen = false;
-      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control, ...('reveal' in next || control !== 'user' ? { reveal: eyeOpen } : {}) });
+      focus?.update({ ...(typeof next.url === 'string' ? { url: next.url } : {}), control, ...('reveal' in next || control !== 'user' ? { reveal: eyeOpen } : {}), ...('revealFailed' in next ? { revealFailed: Boolean(next.revealFailed) } : {}) });
       render();
     },
     /** The circle goes to a point of the screen (0 to 1), the model's or the person's. */

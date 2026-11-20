@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.2": [
+    "<strong>Notes de version de Noureon 20.0.2</strong>",
+    "Cette version ajuste la connexion, la prise en main et les questions de l’agent navigateur.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Connexion : </strong>certains sites demandent l’identifiant sur une page et le mot de passe sur la suivante. Vous ne les saisissez plus qu’une fois : l’IA réutilise ce que vous avez donné sur la page suivante, sans vous le redemander.</li><li><strong>Prise en main : </strong>après avoir appuyé sur Terminé dans le panneau de prise en main de la conversation, le navigateur est rendu tout seul à l’IA ; plus besoin d’appuyer encore sur Rendre.</li><li><strong>Questions : </strong>quand l’IA vous pose une question, un bouton Autre… permet d’écrire ce que vous voulez dire ; l’IA le prend comme votre réponse.</li><li><strong>Messages et écran : </strong>la pastille Agent navigateur s’affiche dans la bulle du message envoyé ; le bouton en forme d’œil le signale quand il n’a pas fonctionné, et les boutons de copie des codes d’invitation ne changent plus de largeur quand on appuie dessus.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte aucune mise à jour de la base de données.</li></ul>"
+  ],
   "20.0.1": [
     "<strong>Notes de version de Noureon 20.0.1</strong>",
     "Cette version ajuste la zone de message et les réglages de l’agent navigateur.",

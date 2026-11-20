@@ -9,7 +9,7 @@ const SID = 'b0123456789abcdef';
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 let tabsNow = [];
-function world({ viewerOk = true } = {}) {
+function world({ viewerOk = true, revealWorks = true } = {}) {
   tabsNow = [{ tabId: 'T1', title: 'Shop', url: 'https://shop.example/', active: true }, { tabId: 'T2', title: 'Docs', url: 'https://docs.example/', active: false }];
   const window = new Window();
   const document = window.document;
@@ -21,7 +21,7 @@ function world({ viewerOk = true } = {}) {
     if (path.endsWith('/tabs')) return { ok: true, status: 200, data: { ok: true, tabs: tabsNow } };
     if (path.endsWith('/viewer') && method === 'POST') return viewerOk ? { ok: true, status: 200, data: { viewerId: 'v-1', token: 't', host: 'live.example.com', wsPath: '/s/x/api/ws' } } : { ok: false, status: 409, data: {} };
     // The server answers the eye with { ok, on } under `data`, as every route does through the page's request.
-    if (path.endsWith('/reveal')) return { ok: true, status: 200, data: { ok: true, on: body.on } };
+    if (path.endsWith('/reveal')) return { ok: true, status: 200, data: { ok: true, on: revealWorks ? body.on : false } };
     return { ok: true, status: 200, data: {} };
   };
   const sources = [];
@@ -45,6 +45,22 @@ test('the card shows the picture: a viewer is asked for, the source opens in the
   assert.deepEqual(names(w), ['POST /viewer']);
   assert.equal(w.sources.length, 1); assert.equal(w.sources[0].options.quality, 'lq');
   assert.ok(w.card.element.querySelector('.bcard-live'));
+});
+
+test('an eye that the browser did not open says so for a moment, instead of doing nothing', async () => {
+  const w = world({ revealWorks: false });
+  await settle();
+  w.card.openFocus();
+  const buttons = () => [...w.card.element.ownerDocument.querySelectorAll('button')];
+  buttons().find((b) => /接管|take/i.test(b.getAttribute('aria-label') || '')).click();
+  await settle();
+  const eye = buttons().find((b) => /顯示輸入|show what/i.test(b.getAttribute('aria-label') || ''));
+  eye.click();
+  await settle();
+  const failed = buttons().find((b) => /could not show|無法顯示/i.test(b.getAttribute('aria-label') || ''));
+  assert.ok(failed, 'the button says that it did not work');
+  w.timers.at(-1)[0]();
+  assert.ok(buttons().find((b) => /顯示輸入|show what/i.test(b.getAttribute('aria-label') || '')), 'and goes back to its words');
 });
 
 test('the focus mode asks for the high quality, and closing it goes back', async () => {
