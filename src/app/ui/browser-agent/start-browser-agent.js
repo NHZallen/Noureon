@@ -28,7 +28,8 @@ export function startBrowserAgent({ document, configAccess, saveConfig = async (
   // already use the browser agent gets nothing opened (the tab tells them the code was not used). Pressing "Redeem" is always the person's.
   const tellAlreadyAllowed = async () => {
     try {
-      await import('../../../styles/projects.css').catch(() => {});
+      // The spacing of the buttons of a window (psh-buttons) is in the sheet of the project sharing, like the window of an invitation to a project.
+      await Promise.all([import('../../../styles/projects.css'), import('../../../styles/project-sharing.css')]).catch(() => {});
       const { make, openSheet } = await import('../projects/project-parts.js');
       openSheet({
         document, root: document.body, title: text('baAlreadyTitle'), dialog: true, close: text('baAlreadyOk'),
