@@ -560,6 +560,10 @@ test('the last picture keeps its own shape on the card, also when the live scree
   w.card.setLive(null);
   assert.equal(box.style.aspectRatio, '1280 / 800', 'letting go of the live screen does not put the shape back to 4:3');
   assert.equal(still.hidden, false);
+  box.style.aspectRatio = '4 / 3'; // whatever resets the shape later is undone by the next drawing
+  w.card.setRatio?.('4:3');
+  w.card.liveState({ control: 'model' });
+  assert.equal(box.style.aspectRatio, '1280 / 800');
 });
 
 test('the payment panel: three ways, one tap each', () => {

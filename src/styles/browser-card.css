@@ -16,7 +16,7 @@
 
 /* The screen: until the live screen comes, a quiet place with the name of the site. */
 .bcard-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; color: var(--text-tertiary); font-size: 0.8125rem; }
-.bcard-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.bcard-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; } /* contain: a picture of another shape than the card is shown whole, never cropped */
 .bcard-screen.is-loading { color: var(--loading-ink); background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--loading-glow) 58%, transparent), transparent 46%), linear-gradient(135deg, var(--loading-violet-deep), var(--loading-violet) 55%, var(--loading-violet-light)); background-size: 220% 220%, 100% 100%; background-position: 10% 85%, 0 0; animation: bcard-glow 4.5s ease-in-out infinite alternate; }
 @keyframes bcard-glow { from { background-position: 10% 85%, 0 0; } to { background-position: 90% 15%, 0 0; } }
 .bcard-site { max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

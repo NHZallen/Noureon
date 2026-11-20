@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.6": [
+    "<strong>Noureon 20.0.6 Release Notes</strong>",
+    "This version fixes the screen of the browser agent after a task again.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Screen: </strong>the last picture on the card after a task is done is now always shown whole; when its shape differs from the card it gets bars at the sides instead of being cropped.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update.</li></ul>"
+  ],
   "20.0.5": [
     "<strong>Noureon 20.0.5 Release Notes</strong>",
     "This version makes the browser agent understand you better and lets you look at a saved login.",

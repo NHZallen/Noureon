@@ -237,6 +237,8 @@ export function createBrowserCard({ document, host, language = 'zh-TW', onCancel
     pillText.textContent = label;
     pill.classList.toggle('is-tag', phase === 'done' || phase === 'cancelled');
     pill.setAttribute('aria-label', label);
+    // The last picture keeps the shape it has, whatever reset the card since (the live screen letting go, the card opening from its tag).
+    if (!live && !still.hidden && stillRatio && card.style.aspectRatio !== stillRatio) card.style.aspectRatio = stillRatio;
     const busy = waitingFrame || (!live && (phase === 'run' || phase === 'queued'));
     screen.classList.toggle('is-loading', busy);
     // What the card is waiting for: the browser itself to start (nothing is connected yet), then the picture to come (the screen is being connected).
