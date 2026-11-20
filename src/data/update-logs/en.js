@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.3": [
+    "<strong>Noureon 20.0.3 Release Notes</strong>",
+    "This version fixes one problem when you take over the browser agent.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Taking over: </strong>when you took over the browser and pressed the eye to show what you type, the AI looking at the page at that moment turned the text back into dots. While you hold the browser the AI now looks at nothing, so the eye stays open until you give the browser back.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update.</li></ul>"
+  ],
   "20.0.2": [
     "<strong>Noureon 20.0.2 Release Notes</strong>",
     "This version adjusts how the browser agent signs in, hands over and asks you questions.",

@@ -269,6 +269,22 @@ test('the eye shows what is typed only while the person holds the browser, and t
   await assert.rejects(() => w.sessions.reveal(sessionId, B, true), (error) => error instanceof BrowserSessionError);
 });
 
+test('while the person holds the browser the model looks at nothing (a look would close the eye), and everything else goes through; given back, looks work again', async () => {
+  const w = world();
+  w.host.control = async (id, request) => ({ control: request.mode });
+  const { sessionId } = await w.sessions.open(A, {});
+  const sent = () => w.calls.filter((call) => call[0] === 'action').map((call) => call[2].type);
+  await w.sessions.action(sessionId, A, { type: 'snapshot' });
+  await w.sessions.control(sessionId, A, { mode: 'user', viewerId: 'v1' });
+  for (const type of ['snapshot', 'screenshot']) await assert.rejects(() => w.sessions.action(sessionId, A, { type }), (error) => error instanceof BrowserSessionError && error.code === 'held');
+  assert.ok(!sent().slice(sent().indexOf('snapshot') + 1).includes('snapshot'), 'no look reached the host');
+  await w.sessions.action(sessionId, A, { type: 'text', maxChars: 10 });
+  assert.ok(sent().includes('text'), 'other actions are not blocked');
+  await w.sessions.control(sessionId, A, { mode: 'model' });
+  await w.sessions.action(sessionId, A, { type: 'screenshot' });
+  assert.equal(sent().at(-1), 'screenshot');
+});
+
 test('the stream was lost while the person holds the browser: the viewer that goes with ?reconnect keeps the hold for a minute, the new viewer takes it over, and a hold that nobody takes over ends; leaving for good still gives the browser back at once', async () => {
   const w = world();
   w.host.control = async (id, request) => ({ control: request.mode });

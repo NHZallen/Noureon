@@ -154,6 +154,7 @@ export function createBrowserLoader({ sessions, logins = null, ask = null, files
       if (error.code === 'not_found') return 'The browser is not open any more (it was closed after a while). Call browser_open to start it again.';
       if (error.code === 'timeout') return 'There was no free browser in time: others are using them. Tell the user to try again in a few minutes.';
       if (error.code === 'aborted') return 'The reply was stopped.';
+      if (error.code === 'held') return 'The user is using the browser themselves right now, so nothing was looked at. Do not touch the browser: wait for them to give it back, and say so in the conversation if it takes long.';
       return 'The browser could not be started now. Go on without it and say so briefly.';
     }
     if (error?.name === 'BrowserHostError') {

@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.3": [
+    "<strong>Notes de version de Noureon 20.0.3</strong>",
+    "Cette version corrige un problème lors de la prise en main de l’agent navigateur.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Prise en main : </strong>quand vous preniez la main sur le navigateur et appuyiez sur l’œil pour afficher votre saisie, un regard de l’IA sur la page à ce moment-là remettait des points. Tant que vous tenez le navigateur, l’IA ne regarde plus rien : l’œil reste ouvert jusqu’à ce que vous le rendiez.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte aucune mise à jour de la base de données.</li></ul>"
+  ],
   "20.0.2": [
     "<strong>Notes de version de Noureon 20.0.2</strong>",
     "Cette version ajuste la connexion, la prise en main et les questions de l’agent navigateur.",

@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.3": [
+    "<strong>Примечания к выпуску Noureon 20.0.3</strong>",
+    "В этой версии исправлена одна проблема при передаче управления браузерным агентом.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Передача управления: </strong>когда вы брали управление браузером и нажимали на глаз, чтобы показать вводимый текст, ИИ, смотревший в этот момент на страницу, снова превращал его в точки. Пока браузер у вас, ИИ ничего не просматривает, поэтому глаз остаётся открытым, пока вы не вернёте браузер.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "<ul><li>Ничего делать не нужно, обновления базы данных в этой версии нет.</li></ul>"
+  ],
   "20.0.2": [
     "<strong>Примечания к выпуску Noureon 20.0.2</strong>",
     "В этой версии доработаны вход, передача управления и вопросы браузерного агента.",

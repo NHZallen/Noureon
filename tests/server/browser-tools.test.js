@@ -342,6 +342,12 @@ test('a site that asks for the user name first and the password on the next page
   assert.match(third, /not asked again/);
 });
 
+test('a look refused because the person holds the browser says so to the model', async () => {
+  const held = () => { throw new BrowserSessionError('The user holds the browser.', 'held'); };
+  const t = setup({ current: { sessionId: 'b1', conversationId: 'c1' }, actions: { snapshot: held, screenshot: held } });
+  assert.match(await t.loader.run(call('browser_snapshot')), /using the browser themselves.*give it back/s);
+});
+
 test('browser_request_code: the code is typed into the page and the model never hears it', async () => {
   const w = loginWorld({ answers: [{ method: 'code', code: '123456' }, { method: 'other' }] });
   const answer = await w.t.loader.run(call('browser_request_code', { digits: 6 }));

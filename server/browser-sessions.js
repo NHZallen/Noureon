@@ -130,7 +130,13 @@ export function createBrowserSessions({ host, profiles, log = () => {}, now = Da
     },
     /** One action of the browser (navigate, screenshot, tabs, text). */
     async action(id, userId, action, options) {
-      return host.action(own(id, userId).id, action, options);
+      const session = own(id, userId);
+      // While the person holds the browser the model looks at nothing: a look puts the dots back on the fields the eye of the person has opened (the host does it before every look of the model), and a look
+      // that was already on its way when they took over (an action that looks at the page by itself, a wait that ended) would close the eye at once (found with the host, 2026-11-20).
+      if ((action?.type === 'snapshot' || action?.type === 'screenshot') && session.holder && !(session.holdGraceUntil && now() > session.holdGraceUntil)) {
+        throw new BrowserSessionError('The user holds the browser.', 'held');
+      }
+      return host.action(session.id, action, options);
     },
     // The live screen. Only the person the browser belongs to may look at it, point and type in it, and change its size; the host never sees who is asking.
     async viewer(id, userId) { return host.createViewer(own(id, userId).id); },
