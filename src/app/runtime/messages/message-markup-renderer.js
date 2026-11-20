@@ -30,6 +30,7 @@ const historySourceLabel = (template, count) => String(template || '')
 const COMPOSER_MODE_ICONS = {
     'search-indicator': renderComposerToolIcon('webSearch', 'sent-composer-mode-icon'),
     'learning-mode-indicator': renderComposerToolIcon('learning', 'sent-composer-mode-icon'),
+    'browser-agent-indicator': renderComposerToolIcon('browserAgent', 'sent-composer-mode-icon'),
     'deep-research-indicator': renderComposerToolIcon('deepResearch', 'sent-composer-mode-icon'),
     'research-plan-indicator': renderComposerToolIcon('deepResearch', 'sent-composer-mode-icon'),
     'astras-input-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"></path></svg>'

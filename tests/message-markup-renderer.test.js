@@ -99,6 +99,25 @@ test('renders sent composer functions inline while excluding council metadata', 
   assert.doesNotMatch(view.messageHTML, /理事會/);
 });
 
+test('the chip of the browser agent is shown in the bubble of the message sent with it', () => {
+  const view = buildMessageRenderView({
+    message: {
+      role: 'user',
+      parts: [{
+        text: '打開推特給我登入',
+        displaySegments: [
+          { type: 'mode', indicatorId: 'browser-agent-indicator', label: '瀏覽器代理' },
+          { type: 'text', text: ' 打開推特給我登入' }
+        ]
+      }]
+    },
+    ...dependencies
+  });
+  assert.match(view.messageHTML, /class="sent-composer-mode" data-composer-mode="browser-agent-indicator"/);
+  assert.match(view.messageHTML, /<svg [^>]*class="sent-composer-mode-icon"/);
+  assert.match(view.messageHTML, /瀏覽器代理/);
+});
+
 test('renders expandable history references without exposing source UUIDs', () => {
   const sourceId = '11111111-1111-4111-8111-111111111111';
   const view = buildMessageRenderView({
