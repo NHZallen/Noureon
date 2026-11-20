@@ -209,6 +209,9 @@ test('each code that is not used has a link to copy', async () => {
   await tick();
   assert.equal(copied, 'https://noureon.test/#browser-invite=NRN-AAAA-BBBB');
   assert.equal(buttons[0].textContent, texts.baCopied);
+  assert.equal(buttons[0].dataset.reserve, texts.baCopied, 'the button keeps the room of the longer words, so it does not move');
+  await new Promise((resolve) => setTimeout(resolve, 1700));
+  assert.equal(buttons[0].textContent, texts.baCopyLink, 'the words come back');
 });
 
 test('a code that came with a link waits in the box, and is not used until the button is pressed', async () => {

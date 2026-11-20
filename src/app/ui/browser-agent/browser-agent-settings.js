@@ -10,6 +10,7 @@ const NAV_ID = 'browser-agent-section-nav';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CONFIRM_MS = 4000;
 const MESSAGE_MS = 4500;
+const COPIED_MS = 1600;
 
 const fill = (template, values) => String(template).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? '');
 
@@ -77,6 +78,7 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
   // A button that asks twice: the first press changes its words, the second (within a few seconds) does it.
   const twice = (button, label, confirmLabel, id, run) => {
     button.textContent = confirming === id ? confirmLabel : label;
+    button.dataset.reserve = confirming === id ? label : confirmLabel; // the button keeps the width of the longer words, so it does not move when the words change
     button.classList.toggle('is-confirming', confirming === id);
     button.addEventListener('click', async () => {
       if (confirming !== id) {
@@ -150,7 +152,13 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
   };
 
   const copy = async (value, button) => {
-    try { await win.navigator.clipboard.writeText(value); button.textContent = text('baCopied'); } catch { /* the code stays on the screen to be copied by hand */ }
+    const label = button.textContent;
+    button.dataset.reserve = text('baCopied');
+    try {
+      await win.navigator.clipboard.writeText(value);
+      button.textContent = text('baCopied');
+      win.setTimeout?.(() => { button.textContent = label; }, COPIED_MS);
+    } catch { /* the code stays on the screen to be copied by hand */ }
   };
   // The code that came with a link (runtime/browser-agent/browser-invite-link.js): it waits in the box until the person presses the button.
   const pendingCode = () => { try { return readPendingInvite(win.localStorage); } catch { return ''; } };
@@ -263,10 +271,12 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       const code = el('span', 'ba-code-text', entry.code);
       const spacer = el('span', 'ba-grow');
       const copyButton = el('button', 'ba-btn', text('baCopy'));
+      copyButton.dataset.reserve = text('baCopied');
       copyButton.type = 'button';
       copyButton.hidden = used;
       copyButton.addEventListener('click', () => { void copy(entry.code, copyButton); });
       const linkButton = el('button', 'ba-btn', text('baCopyLink'));
+      linkButton.dataset.reserve = text('baCopied');
       linkButton.type = 'button';
       linkButton.hidden = used;
       linkButton.addEventListener('click', () => { void copy(inviteUrl(win.location?.origin || 'https://noureon.com', entry.code), linkButton); });

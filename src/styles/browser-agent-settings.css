@@ -27,6 +27,8 @@
 
 #settings-modal .ba .ba-btn { flex: none; height: 2.25rem; padding: 0 0.95rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; font-size: 0.9375rem; font-weight: 400; color: var(--text-primary) !important; cursor: pointer; }
 #settings-modal .ba .ba-btn[hidden] { display: none; }
+/* The other words of a button (data-reserve) take room without showing, so a button does not change its width when its words change. */
+#settings-modal .ba .ba-btn[data-reserve]::after { content: attr(data-reserve); display: block; height: 0; overflow: hidden; visibility: hidden; }
 #settings-modal .ba .ba-btn.is-primary { border-color: var(--gpt-primary-action-bg); background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text) !important; }
 #settings-modal .ba .ba-btn.is-danger, #settings-modal .ba .ba-btn.is-confirming { color: var(--state-danger) !important; }
 #settings-modal .ba .ba-btn:disabled { opacity: 0.45; cursor: default; }

@@ -26,6 +26,24 @@ export function startBrowserAgent({ document, configAccess, saveConfig = async (
 
   // A person who came by the link of an invite code (runtime/browser-agent/browser-invite-link.js): once signed in, the settings open on this tab with the code in the box. Someone who can
   // already use the browser agent gets nothing opened (the tab tells them the code was not used). Pressing "Redeem" is always the person's.
+  const tellAlreadyAllowed = async () => {
+    try {
+      await import('../../../styles/projects.css').catch(() => {});
+      const { make, openSheet } = await import('../projects/project-parts.js');
+      openSheet({
+        document, root: document.body, title: text('baAlreadyTitle'), dialog: true, close: text('baAlreadyOk'),
+        body: (content, { close }) => {
+          content.append(make(document, 'p', 'pj-note', text('baRedeemAlready')));
+          const buttons = make(document, 'div', 'psh-buttons');
+          const ok = make(document, 'button', 'pj-button pj-primary psh-go', text('baAlreadyOk'));
+          ok.type = 'button';
+          ok.addEventListener('click', close);
+          buttons.append(ok);
+          content.append(buttons);
+        }
+      });
+    } catch (error) { console.warn('The window about the invite link did not open.', error); }
+  };
   let opening = false;
   let shown = false; // once for each start of the page, however often the page tells who is signed in
   const openForInvite = async () => {
@@ -37,7 +55,13 @@ export function startBrowserAgent({ document, configAccess, saveConfig = async (
     try {
       const access = await client.getAccess();
       if (!access.ok) return;
-      if (access.allowed) { try { clearPendingInvite(win.localStorage); } catch { /* nothing */ } return; }
+      if (access.allowed) {
+        // Their own link, or a friend's link to someone who already has the browser agent: a window says that nothing was used up.
+        try { clearPendingInvite(win.localStorage); } catch { /* nothing */ }
+        shown = true;
+        await tellAlreadyAllowed();
+        return;
+      }
       for (let tries = 0; tries < 20 && !section; tries += 1) await new Promise((resolve) => win.setTimeout(resolve, 150));
       if (!section) return;
       document.getElementById('settings-btn')?.click();
