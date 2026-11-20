@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.1": [
+    "<strong>Notes de version de Noureon 20.0.1</strong>",
+    "Cette version ajuste la zone de message et les réglages de l’agent navigateur.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Zone de message : </strong>quand l’agent navigateur est activé, une pastille Agent navigateur apparaît au-dessus de la zone, et sa croix le désactive. L’activer ou le désactiver n’affiche plus de message dans le coin, et le menu se ferme après le choix d’une option.</li><li><strong>Liste des réglages : </strong>chaque partie de la liste des réglages sur ordinateur a une icône devant son nom.</li><li><strong>Réglages de l’agent navigateur : </strong>les comptes de sites connectés se listent sur une page qu’on ouvre, ce qui raccourcit la page ; la suppression d’un mot de passe se fait d’une seule pression et n’indique plus ce qui a été supprimé, et la suppression de l’état de connexion n’affiche plus rien non plus ; l’icône d’un compte de site est celle du site lui-même, une icône par défaut seulement quand le site n’en a pas, et elle ne clignote plus quand la page est redessinée.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "<ul><li>Aucune action n’est nécessaire, et cette version ne comporte pas de mise à jour de la base de données.</li></ul>"
+  ],
   "20.0.0": [
     "<strong>Notes de version de Noureon 20.0.0</strong>",
     "Cette version ajoute l’agent navigateur : le modèle peut piloter un navigateur dans le cloud, vous voyez son écran dans la conversation et vous pouvez en prendre le contrôle à tout moment.",

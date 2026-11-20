@@ -3,6 +3,7 @@
 // A site shows its own icon (its /favicon.ico, asked of the site itself and of nobody else) and a globe when it has none. Words are put in with textContent; nothing here ever holds a password.
 
 import { onSettingsSectionBack } from '../../runtime/settings/settings-section-back.js';
+import { clearPendingInvite, inviteUrl, readPendingInvite } from '../../runtime/browser-agent/browser-invite-link.js';
 
 const SECTION_ID = 'browser-agent-section';
 const NAV_ID = 'browser-agent-section-nav';
@@ -116,6 +117,7 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
   };
 
   const mark = (paths) => { const node = el('span', 'ba-mark'); node.append(icon(document, paths)); return node; };
+  const when = (value) => { const date = value ? new Date(value) : null; return date && !Number.isNaN(date.getTime()) ? date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : text('baNever'); };
   const secTitle = (key) => { const title = el('div', 'ba-sec-title', text(key)); title.setAttribute('role', 'heading'); title.setAttribute('aria-level', '3'); return title; };
   const row = (...children) => { const node = el('div', 'ba-row'); node.append(...children); return node; };
   const body = (title, desc) => { const wrap = el('div', 'ba-text'); wrap.append(el('span', 'ba-title pz-label', title)); if (desc) wrap.append(el('span', 'ba-desc', desc)); return wrap; };
@@ -147,9 +149,12 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     return wrap;
   };
 
-  const copy = async (code, button) => {
-    try { await win.navigator.clipboard.writeText(code); button.textContent = text('baCopied'); } catch { /* the code stays on the screen to be copied by hand */ }
+  const copy = async (value, button) => {
+    try { await win.navigator.clipboard.writeText(value); button.textContent = text('baCopied'); } catch { /* the code stays on the screen to be copied by hand */ }
   };
+  // The code that came with a link (runtime/browser-agent/browser-invite-link.js): it waits in the box until the person presses the button.
+  const pendingCode = () => { try { return readPendingInvite(win.localStorage); } catch { return ''; } };
+  const forgetPending = () => { try { clearPendingInvite(win.localStorage); } catch { /* nothing */ } };
 
   function inviteBlock(redo) {
     const block = el('section', 'ba-sec');
@@ -164,20 +169,22 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     input.spellcheck = false;
     input.maxLength = 24;
     input.setAttribute('aria-label', text('baCodeAria'));
+    const fromLink = pendingCode();
+    if (fromLink) input.value = fromLink;
     const go = el('button', 'ba-btn is-primary', text('baRedeem'));
     go.type = 'button';
     const submit = async () => {
       if (!input.value.trim()) return;
       go.disabled = true;
       const result = await client.redeemCode(input.value);
-      if (result.ok) { redo(); return; }
+      if (result.ok) { forgetPending(); redo(); return; }
       go.disabled = false;
       say(result.message || text('baError'));
     };
     go.addEventListener('click', submit);
     input.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); void submit(); } });
     card.append(row(input, go));
-    block.append(card, el('p', 'ba-note', text('baRedeemNote')));
+    block.append(card, el('p', 'ba-note', text(fromLink ? 'baRedeemFromLink' : 'baRedeemNote')));
     return block;
   }
 
@@ -237,11 +244,12 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       try { await saveConfig(); } catch { /* the choice stays on this device until the next save */ }
     });
     card.append(row(mark(KEEP), body(text('baKeepLogin'), text('baKeepLoginDesc')), toggle));
+    const info = profile.exists ? fill(text('baStateInfo'), { size: formatSize(profile.sizeBytes), when: when(profile.lastUsedAt) }) : text('baStateNone');
     const wipe = el('button', 'ba-btn is-danger');
     wipe.type = 'button';
     wipe.disabled = !profile.exists;
-    twice(wipe, text('baDeleteAll'), text('baConfirmAll'), 'profile', async () => { const r = await client.deleteProfile(); if (r.ok) { say(text('baStateDeleted')); reload(); } else say(r.message || text('baError')); });
-    card.append(row(mark(TRASH), body(text('baStateRow')), wipe));
+    twice(wipe, text('baDeleteAll'), text('baConfirmAll'), 'profile', async () => { const r = await client.deleteProfile(); if (r.ok) reload(); else say(r.message || text('baError')); });
+    card.append(row(mark(TRASH), body(text('baStateRow'), info), wipe));
     block.append(card);
     return block;
   }
@@ -258,7 +266,11 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
       copyButton.type = 'button';
       copyButton.hidden = used;
       copyButton.addEventListener('click', () => { void copy(entry.code, copyButton); });
-      card.append(row(mark(TICKET), code, spacer, pill(text(used ? 'baCodeUsed' : 'baCodeUnused'), used ? 'is-on' : ''), copyButton));
+      const linkButton = el('button', 'ba-btn', text('baCopyLink'));
+      linkButton.type = 'button';
+      linkButton.hidden = used;
+      linkButton.addEventListener('click', () => { void copy(inviteUrl(win.location?.origin || 'https://noureon.com', entry.code), linkButton); });
+      card.append(row(mark(TICKET), code, spacer, pill(text(used ? 'baCodeUsed' : 'baCodeUnused'), used ? 'is-on' : ''), copyButton, linkButton));
     }
     block.append(card, el('p', 'ba-note', text('baCodesNote')));
     return block;
@@ -279,6 +291,8 @@ export function mountBrowserAgentSection({ document, text, client, configAccess 
     if (!access.ok) root.append(el('p', 'ba-note', text('baError')));
     else if (!access.allowed) root.append(inviteBlock(reload));
     else {
+      // A code from a link that arrives at a person who can already use the browser agent is not used up.
+      if (pendingCode()) { forgetPending(); root.prepend(el('p', 'ba-notice', text('baRedeemAlready'))); }
       const [logins, profile] = await Promise.all([client.listLogins(), client.getProfile()]);
       if (turn !== drawing) return;
       const list = logins.ok ? logins.logins : [];

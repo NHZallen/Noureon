@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.1": [
+    "<strong>Noureon 20.0.1 Release Notes</strong>",
+    "This version adjusts the message box and the settings of the browser agent.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Message box: </strong>while the browser agent is on, a Browser agent chip stands above the box, and its cross turns it off. Switching it no longer shows a notice in the corner, and the menu closes after you choose an option in it.</li><li><strong>Settings list: </strong>every part of the settings list on a computer has an icon in front.</li><li><strong>Browser agent settings: </strong>the connected site accounts are listed on a page you open, so the page is shorter; deleting a password is done by one press and no longer says what was deleted, and deleting the login state says nothing either; the icon of a site account is the site's own icon, a default one only when the site has none, and it no longer flashes when the page is drawn again.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update.</li></ul>"
+  ],
   "20.0.0": [
     "<strong>Noureon 20.0.0 Release Notes</strong>",
     "This version adds the browser agent: the model can work a cloud browser, you see its screen in the conversation, and you can take over at any time.",

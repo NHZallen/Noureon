@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import { mountBrowserAgentSection, formatSize } from '../src/app/ui/browser-agent/browser-agent-settings.js';
+import { PENDING_INVITE_KEY } from '../src/app/runtime/browser-agent/browser-invite-link.js';
 import browserAgentTexts from '../src/data/i18n/parts/browser-agent.js';
 
 const texts = browserAgentTexts.en;
@@ -159,7 +160,8 @@ test('stay logged in is a setting that is saved; the login state can be deleted 
   await tick();
   assert.equal(state.browserKeepLogin, false);
   assert.equal(saved, 1);
-  assert.ok(!/MB|KB/.test(root.textContent), 'the row of the login state has no line of words about its size');
+  assert.match(root.textContent, /1\.2 MB/, 'the row of the login state says its size and when it was used');
+  assert.ok(!/deleted/i.test(root.querySelector('.ba-notice')?.textContent || ''));
   const wipe = root.querySelector('.ba-btn.is-danger');
   wipe.click();
   await tick();
@@ -168,6 +170,7 @@ test('stay logged in is a setting that is saved; the login state can be deleted 
   root.querySelector('.ba-btn.is-danger, .ba-btn.is-confirming').click();
   await tick();
   assert.deepEqual(client.calls.at(-1), ['deleteProfile']);
+  assert.equal(document.querySelector('#browser-agent-section .ba-notice'), null, 'no line that says the login state was deleted');
 });
 
 test('the person\'s own codes are listed, the unused one can be copied; there is nothing for the people in charge here', async () => {
@@ -190,6 +193,49 @@ test('a server that cannot be reached says so; sizes read plainly', async () => 
   assert.match(document.getElementById('browser-agent-section').textContent, /cannot be reached/);
   assert.equal(formatSize(512), '1 KB');
   assert.equal(formatSize(2 * 1024 * 1024), '2.0 MB');
+});
+
+test('each code that is not used has a link to copy', async () => {
+  const { window, document } = page();
+  let copied = '';
+  Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (value) => { copied = value; } }, configurable: true });
+  mountBrowserAgentSection({ document, text, client: fakeClient() });
+  await tick();
+  const buttons = [...document.querySelectorAll('#browser-agent-section .ba-btn')].filter((button) => button.textContent === texts.baCopyLink);
+  assert.equal(buttons.length, 2);
+  assert.equal(buttons[0].hidden, false);
+  assert.equal(buttons[1].hidden, true, 'a code that is used has no link to give');
+  buttons[0].click();
+  await tick();
+  assert.equal(copied, 'https://noureon.test/#browser-invite=NRN-AAAA-BBBB');
+  assert.equal(buttons[0].textContent, texts.baCopied);
+});
+
+test('a code that came with a link waits in the box, and is not used until the button is pressed', async () => {
+  const { window, document } = page();
+  window.localStorage.setItem(PENDING_INVITE_KEY, JSON.stringify({ code: 'NRN-EEEE-FFFF', at: Date.now() }));
+  const client = fakeClient({ getAccess: async () => ({ ok: true, allowed: false, admin: false, codes: [] }) });
+  mountBrowserAgentSection({ document, text, client });
+  await tick();
+  const input = document.querySelector('#browser-agent-section input.ba-code');
+  assert.equal(input.value, 'NRN-EEEE-FFFF');
+  assert.ok(document.getElementById('browser-agent-section').textContent.includes(texts.baRedeemFromLink));
+  assert.deepEqual(client.calls, [], 'nothing is redeemed by itself');
+  [...document.querySelectorAll('#browser-agent-section .ba-btn')].find((button) => button.textContent === texts.baRedeem).click();
+  await tick();
+  assert.deepEqual(client.calls, [['redeem', 'NRN-EEEE-FFFF']]);
+  assert.equal(window.localStorage.getItem(PENDING_INVITE_KEY), null);
+});
+
+test('a person who can already use the browser agent is told the code was not used', async () => {
+  const { window, document } = page();
+  window.localStorage.setItem(PENDING_INVITE_KEY, JSON.stringify({ code: 'NRN-EEEE-FFFF', at: Date.now() }));
+  const client = fakeClient();
+  mountBrowserAgentSection({ document, text, client });
+  await tick();
+  assert.ok(document.getElementById('browser-agent-section').textContent.includes(texts.baRedeemAlready));
+  assert.equal(window.localStorage.getItem(PENDING_INVITE_KEY), null);
+  assert.deepEqual(client.calls, []);
 });
 
 test('the five languages have the same words', () => {

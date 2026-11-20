@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.0.1": [
+    "<strong>Notas de la versión de Noureon 20.0.1</strong>",
+    "Esta versión ajusta el cuadro de mensaje y los ajustes del agente de navegador.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Cuadro de mensaje: </strong>mientras el agente de navegador está activado, aparece una etiqueta Agente de navegador sobre el cuadro, y su cruz lo desactiva. Al activarlo o desactivarlo ya no se muestra un aviso en la esquina, y el menú se cierra al elegir una opción.</li><li><strong>Lista de ajustes: </strong>cada parte de la lista de ajustes en el ordenador tiene un icono delante.</li><li><strong>Ajustes del agente de navegador: </strong>las cuentas de sitios conectadas se listan en una página que se abre, así que la página es más corta; eliminar una contraseña se hace con una sola pulsación y ya no dice qué se eliminó, y eliminar el estado de sesión tampoco muestra nada; el icono de una cuenta de sitio es el del propio sitio, uno por defecto solo cuando el sitio no tiene, y ya no parpadea cuando se vuelve a dibujar la página.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "<ul><li>No hace falta hacer nada, y esta versión no incluye actualización de la base de datos.</li></ul>"
+  ],
   "20.0.0": [
     "<strong>Notas de la versión de Noureon 20.0.0</strong>",
     "Esta versión añade el agente de navegador: el modelo puede manejar un navegador en la nube, ves su pantalla en la conversación y puedes tomar el control en cualquier momento.",

@@ -25,6 +25,7 @@ import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './a
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
 import { isAdminRoute, isShareRoute } from './app/share-page/share-route.js';
 import { isChatLinkRoute, isJoinRoute, rememberChatLink, rememberJoinCode } from './app/runtime/project-sharing/join-route.js';
+import { rememberInviteCode } from './app/runtime/browser-agent/browser-invite-link.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
@@ -88,6 +89,7 @@ async function bootstrap() {
   // An invitation to a project (noureon.com/join/<code>): the code waits for the app, which asks about it once there is a signed-in cloud account.
   if (isJoinRoute(window.location.pathname)) rememberJoinCode(window);
   if (isChatLinkRoute(window.location.pathname)) rememberChatLink(window);
+  rememberInviteCode(window); // a link to an invite code of the browser agent (#browser-invite=...)
 
   mountAppShell(appShell);
   recordBootstrapMilestone(

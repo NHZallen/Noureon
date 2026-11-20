@@ -42,7 +42,9 @@ test('the row is in the menu before the learning button, with its words and its 
 test('pressing it switches the conversation on after asking the server once, and off again without asking', async () => {
   const t = setup();
   const button = t.menu.sync();
+  t.window.document.getElementById('file-options-popover').classList.add('popover', 'visible');
   button.click(); await new Promise((r) => setTimeout(r, 5));
+  assert.equal(t.window.document.getElementById('file-options-popover').classList.contains('visible'), false, 'a press on the row closes the menu');
   assert.equal(isBrowserOn('c1'), true);
   assert.equal(button.classList.contains('is-active'), true);
   assert.deepEqual(t.notes, [], 'no line in the corner: the chip of the box says it is on');

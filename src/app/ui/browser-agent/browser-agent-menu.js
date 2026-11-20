@@ -12,6 +12,7 @@ import { verdictOf } from '../../runtime/decisions/decision-store.js';
 import { getBrowserStatus } from '../../runtime/browser-agent/browser-status-client.js';
 import { createBrowserIdleWatch } from './browser-idle-watch.js';
 import { BROWSER_SWITCH_EVENT } from './browser-chip.js';
+import { collapseTriggers } from '../../runtime/features/popover-escape.js';
 
 export const BROWSER_MENU_BUTTON_ID = 'browser-agent-menu-btn';
 const ACCESS_KEPT_MS = 60_000;
@@ -24,6 +25,12 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
   let access = null;
   let askedAt = 0;
 
+  // A press on the row closes the menu, like the other rows (the choice is shown by the chip of the box).
+  const closeMenu = () => {
+    document.querySelectorAll('.popover.visible').forEach((popover) => popover.classList.remove('visible'));
+    collapseTriggers(document);
+  };
+
   const ensureButton = () => {
     const popover = document.getElementById('file-options-popover');
     if (!popover) return null;
@@ -33,7 +40,7 @@ export function createBrowserAgentMenu({ document, getActiveConversation, normal
       button.id = BROWSER_MENU_BUTTON_ID;
       button.type = 'button';
       button.className = 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--hover-bg)] flex items-center gap-3';
-      button.addEventListener('click', () => { void toggle(); });
+      button.addEventListener('click', () => { closeMenu(); void toggle(); });
       popover.insertBefore(button, document.getElementById('learning-mode-btn') || null);
     }
     return button;
