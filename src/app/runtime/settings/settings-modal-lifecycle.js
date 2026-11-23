@@ -162,8 +162,6 @@ export function createSettingsModalLifecycle({
             processOpen: collectedSettings.processOpen,
             fileModeDefault: collectedSettings.fileModeDefault,
             replyInputMode: collectedSettings.replyInputMode,
-            openaiWebSearch: collectedSettings.openaiWebSearch,
-            openaiSafetyIdentifier: collectedSettings.openaiSafetyIdentifier,
             autoNaming: collectedSettings.autoNaming,
             uiLanguage: collectedSettings.uiLanguage,
             aiDefaultLanguage: collectedSettings.aiDefaultLanguage,

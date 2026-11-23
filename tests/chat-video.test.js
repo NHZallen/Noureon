@@ -14,7 +14,7 @@ const video = (name, bytes = [1, 2, 3, 4]) => ({ inlineData: { mimeType: 'video/
 const toolbox = (log, found = { duration: 130, hasVideo: true, hasAudio: true }) => async () => ({ open: async ({ name }) => { log.opened.push(name); return { probe: async () => found, frame: async (at) => ({ mimeType: 'image/jpeg', data: new Uint8Array([at]) }), close: async () => { log.closed += 1; } }; } });
 
 test('only a video that the model cannot take itself is looked at with the tool, and only when the model can look (sees pictures, calls tools)', () => {
-  const blind = MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash');
+  const blind = MODEL('nvidia/z-ai/glm-5.3-flash');
   const hearing = MODEL('gemini-4-hydrogen');
   const parts = [{ text: 'hi' }, video('a.mp4'), { inlineData: { mimeType: 'image/png', name: 'p.png', data: 'AAAA' } }];
   assert.equal(lookableVideoParts(parts, blind, true).length, 1);
@@ -26,7 +26,7 @@ test('a video learns its hash and length once (kept with the part), becomes an e
   const log = { opened: [], closed: 0 };
   const part = video('talk.mp4', [9, 9]);
   const crypto = { subtle: { digest: async () => new Uint8Array(32).fill(171).buffer } };
-  const prepared = await prepareChatVideos([{ text: 'hi' }, part], MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash'), true, { getToolbox: toolbox(log), cryptoProvider: crypto });
+  const prepared = await prepareChatVideos([{ text: 'hi' }, part], MODEL('nvidia/z-ai/glm-5.3-flash'), true, { getToolbox: toolbox(log), cryptoProvider: crypto });
   assert.equal(prepared.entries.length, 1);
   assert.deepEqual(part.mediaInfo, { hash: 'ab'.repeat(32), duration: 130 });
   const [entry] = prepared.entries;
@@ -36,14 +36,14 @@ test('a video learns its hash and length once (kept with the part), becomes an e
   assert.equal(entry.fileHash, 'ab'.repeat(32));
   assert.deepEqual(await entry.bytes(), { mimeType: 'video/mp4', data: part.inlineData.data });
   assert.equal(log.closed, 1);
-  await prepareChatVideos([part], MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash'), true, { getToolbox: toolbox(log), cryptoProvider: crypto });
+  await prepareChatVideos([part], MODEL('nvidia/z-ai/glm-5.3-flash'), true, { getToolbox: toolbox(log), cryptoProvider: crypto });
   assert.equal(log.opened.length, 1, 'learned once: not opened again');
   const silent = video('s.mp4');
-  const none = await prepareChatVideos([silent], MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash'), true, { getToolbox: toolbox({ opened: [], closed: 0 }, { duration: 5, hasVideo: false, hasAudio: true }), cryptoProvider: crypto });
+  const none = await prepareChatVideos([silent], MODEL('nvidia/z-ai/glm-5.3-flash'), true, { getToolbox: toolbox({ opened: [], closed: 0 }, { duration: 5, hasVideo: false, hasAudio: true }), cryptoProvider: crypto });
   assert.equal(none.entries.length, 0);
   assert.equal(silent.mediaInfo, undefined);
   // Two videos with the same name are told apart.
-  const twin = await prepareChatVideos([video('x.mp4', [1]), video('x.mp4', [2])], MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash'), true, { getToolbox: toolbox({ opened: [], closed: 0 }), cryptoProvider: { subtle: { digest: async (_name, bytes) => new Uint8Array(32).fill(bytes[0]).buffer } } });
+  const twin = await prepareChatVideos([video('x.mp4', [1]), video('x.mp4', [2])], MODEL('nvidia/z-ai/glm-5.3-flash'), true, { getToolbox: toolbox({ opened: [], closed: 0 }), cryptoProvider: { subtle: { digest: async (_name, bytes) => new Uint8Array(32).fill(bytes[0]).buffer } } });
   assert.deepEqual(twin.entries.map((item) => item.name), ['x.mp4', 'x (2).mp4']);
 });
 
@@ -53,7 +53,7 @@ test('the request has a note in place of the video (what it is, how long, how to
   part.transcript = { text: '[0:00] hello\n[1:00] bye', model: 'openai/whisper-large-v3' };
   const picture = { inlineData: { mimeType: 'image/png', name: 'p.png', data: 'AAAA' } };
   const message = [{ text: 'What happens?' }, part, picture];
-  const prepared = await prepareChatVideos(message, MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash'), true, { getToolbox: toolbox(log), cryptoProvider: { subtle: { digest: async () => new Uint8Array(32).fill(1).buffer } } });
+  const prepared = await prepareChatVideos(message, MODEL('nvidia/z-ai/glm-5.3-flash'), true, { getToolbox: toolbox(log), cryptoProvider: { subtle: { digest: async () => new Uint8Array(32).fill(1).buffer } } });
   const request = withChatVideoNotes(message, prepared);
   assert.equal(request[0], message[0]);
   assert.equal(request[2], picture);
@@ -67,7 +67,7 @@ test('the request has a note in place of the video (what it is, how long, how to
 test('a chat that is not in a project has the tools for the videos of the message: the tool looks at one from the second it is told, the server is told only the facts of the file, and a model that cannot see gets nothing', async () => {
   const log = { opened: [], closed: 0 };
   const part = video('talk.mp4');
-  const prepared = await prepareChatVideos([part], MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash'), true, { getToolbox: toolbox(log), cryptoProvider: { subtle: { digest: async () => new Uint8Array(32).fill(2).buffer } } });
+  const prepared = await prepareChatVideos([part], MODEL('nvidia/z-ai/glm-5.3-flash'), true, { getToolbox: toolbox(log), cryptoProvider: { subtle: { digest: async () => new Uint8Array(32).fill(2).buffer } } });
   const asked = [];
   const viewer = async (source, entry, place) => { asked.push([source, entry.name, place]); return [{ mimeType: 'image/jpeg', data: 'QUJD', at: place.at }]; };
   const access = await createProjectFilesAccess({ conversation: { id: 'c' }, canViewPictures: true, attachments: prepared.entries, viewer });

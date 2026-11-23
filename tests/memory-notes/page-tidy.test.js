@@ -11,7 +11,7 @@ import { undoEvent, joinTidyEvents } from '../../src/app/runtime/memory-notes/ma
 const NOW = '2026-10-30T12:00:00.000Z';
 const row = (key, payload) => ({ record_key: key, payload, version: 1, updated_at: '2026-10-30T00:00:00.000Z', deleted_at: null });
 const make = (id, text, keywords, observedAt) => createNote({ id, text, keywords, kind: 'fact', source: { conversationId: 'c1', messageIds: [], quote: 'q', seen: [] }, observedAt, now: () => '2026-10-01T00:00:00.000Z' });
-const MODELS = [{ id: 'gemini-3.8-flash', provider: 'gemini' }, { id: 'gemini-3.5-flash-lite', provider: 'gemini' }];
+const MODELS = [{ id: 'gemini-3.8-flash', provider: 'gemini' }, { id: 'gemini-4-hydrogen', provider: 'gemini' }];
 const NOTES = [
   make('taipei', 'The user lives in Taipei and works as a nurse', ['taipei', 'nurse', 'lives'], '2026-03-02T00:00:00.000Z'),
   make('taichung', 'The user lives in Taichung and works as a nurse', ['taichung', 'nurse', 'lives'], '2026-08-15T00:00:00.000Z'),
@@ -35,7 +35,7 @@ test('the page tidies the notes: the older note is archived, the time of the tid
   const result = await tidyNotes({ ...common(store, async ({ modelId, prompt }) => { prompts.push({ modelId, prompt }); return supersede; }) });
   assert.equal(result.ran, true);
   assert.equal(prompts.length, 1);
-  assert.equal(prompts[0].modelId, 'gemini-3.5-flash-lite', 'the cheap model of the same provider');
+  assert.equal(prompts[0].modelId, 'gemini-4-hydrogen', 'the cheap model of the same provider');
   const byId = new Map(store.getNotes().map((note) => [note.id, note]));
   assert.equal(byId.get('taipei').status, 'archived');
   assert.equal(byId.get('taipei').supersededBy, 'taichung');
@@ -101,7 +101,7 @@ test('the tidy follows the turn the page curated: a turn that is skipped still l
   const calls = [];
   await curateNotesTurn({
     conversation: { id: 'conv-tidy', model: 'gemini-3.8-flash', retentionMode: 'ephemeral', messages: [{ role: 'user', parts: [{ text: 'hello there friend' }] }] },
-    getConfig: () => ({ memoryModelId: 'gemini-3.5-flash-lite' }),
+    getConfig: () => ({ memoryModelId: 'gemini-4-hydrogen' }),
     getMemory: () => memory,
     runMemoryModel: async (options) => { calls.push(options.prompt); return supersede; },
     models: MODELS,

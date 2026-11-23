@@ -37,7 +37,6 @@ const RUNTIME_DOM_ELEMENT_IDS = [
   ['openrouterApiKeyInputAll', 'openrouter-api-key-input-all'],
   ['nvidiaApiKeyInput', 'nvidia-api-key-input'],
   ['opencodeGoApiKeyInput', 'opencode-go-api-key-input'],
-  ['openaiApiKeyInput', 'openai-api-key-input'],
   ['searchProviderSelect', 'search-provider-select'],
   ['tavilyApiKeyInput', 'tavily-api-key-input'],
   ['tinyfishApiKeyInput', 'tinyfish-api-key-input'],

@@ -16,28 +16,31 @@ import {
 } from '../src/app/runtime/shell/model-registry.js';
 import i18n from '../src/data/i18n.js';
 
-const native = MODELS.find((model) => model.id === 'gemini-4-argon');
-const viaOpenRouter = MODELS.find((model) => model.id === 'google/gemini-4-argon');
+const native = MODELS.find((model) => model.id === 'gemini-4-neon');
+const viaOpenRouter = MODELS.find((model) => model.id === 'google/gemini-4-neon');
 
-test('Gemini 4 Argon replaces Gemini 3.1 Pro Preview, natively and on OpenRouter: the same name, the same abilities', () => {
+test('Gemini 4 Neon replaces Gemini 4 Argon and Gemini 3.5 Flash Lite is gone, natively and on OpenRouter: the same name, the same abilities', () => {
   assert.ok(native && viaOpenRouter);
   assert.deepEqual([native.provider, viaOpenRouter.provider], ['gemini', 'openrouter']);
-  assert.equal(native.name, 'Gemini 4 Argon');
+  assert.equal(native.name, 'Gemini 4 Neon');
   assert.equal(viaOpenRouter.name, native.name, 'the same name: the row says where it comes from');
-  assert.equal(MODELS.some((model) => /gemini-3\.1-pro/.test(model.id)), false, 'the old model is gone from the list');
+  assert.equal(MODELS.some((model) => /gemini-3\.1-pro|gemini-4-argon|gemini-3\.5-flash-lite/.test(model.id) && model.provider !== 'opencode-go'), false, 'the old models are gone from the list');
   for (const model of [native, viaOpenRouter]) {
     assert.equal(modelSupportsVision(model), true, `${model.id} takes pictures`);
     assert.equal(modelSupportsToolCalling(model), true, `${model.id} calls tools`);
-    assert.equal(model.releasedAt, 20261013);
   }
-  assert.ok(GEMINI_DOCUMENT_MODELS.includes('gemini-4-argon'), 'PDF and files go to the model itself');
+  assert.ok(GEMINI_DOCUMENT_MODELS.includes('gemini-4-neon'), 'PDF and files go to the model itself');
   assert.equal(modelSupportsUploadedFile(native, { type: 'application/pdf' }), true);
   assert.equal(modelSupportsUploadedFile(viaOpenRouter, { type: 'application/pdf' }), true);
 });
 
-test('what was chosen under the name of Gemini 3.1 Pro Preview is Gemini 4 Argon now, the translator of documents included', () => {
-  assert.equal(getCanonicalModelId('gemini-3.1-pro-preview'), 'gemini-4-argon');
-  assert.equal(getCanonicalModelId('google/gemini-3.1-pro-preview'), 'google/gemini-4-argon');
+test('what was chosen under the name of Gemini 4 Argon or Gemini 3.1 Pro Preview is Gemini 4 Neon now, the translator of documents included; Flash Lite goes to Hydrogen', () => {
+  assert.equal(getCanonicalModelId('gemini-3.1-pro-preview'), 'gemini-4-neon');
+  assert.equal(getCanonicalModelId('gemini-4-argon'), 'gemini-4-neon');
+  assert.equal(getCanonicalModelId('google/gemini-3.1-pro-preview'), 'google/gemini-4-neon');
+  assert.equal(getCanonicalModelId('google/gemini-4-argon'), 'google/gemini-4-neon');
+  assert.equal(getCanonicalModelId('gemini-3.5-flash-lite'), 'gemini-4-hydrogen');
+  assert.equal(getCanonicalModelId('google/gemini-3.5-flash-lite'), 'google/gemini-4-hydrogen');
 
   const normalized = normalizeLoadedLegacyConfig({
     currentConfig: { apiKeys: {}, uiTheme: {}, modelSettings: [] },
@@ -46,14 +49,14 @@ test('what was chosen under the name of Gemini 3.1 Pro Preview is Gemini 4 Argon
     councilTranslatorCandidates: [MODELS[0], native, viaOpenRouter],
     singleTranslatorCandidates: [MODELS[0], native, viaOpenRouter]
   });
-  assert.equal(normalized.defaultModel, 'gemini-4-argon');
-  assert.equal(normalized.lastUsedModel, 'google/gemini-4-argon');
-  assert.equal(normalized.singleDocumentTranslatorModelId, 'gemini-4-argon', 'not replaced by the first model of the list');
-  assert.equal(normalized.councilTranslatorModelId, 'google/gemini-4-argon');
-  assert.deepEqual(normalized.modelSettings.find((setting) => setting.id === 'gemini-4-argon'), { id: 'gemini-4-argon', hidden: true, order: 0 });
+  assert.equal(normalized.defaultModel, 'gemini-4-neon');
+  assert.equal(normalized.lastUsedModel, 'google/gemini-4-neon');
+  assert.equal(normalized.singleDocumentTranslatorModelId, 'gemini-4-neon', 'not replaced by the first model of the list');
+  assert.equal(normalized.councilTranslatorModelId, 'google/gemini-4-neon');
+  assert.deepEqual(normalized.modelSettings.find((setting) => setting.id === 'gemini-4-neon'), { id: 'gemini-4-neon', hidden: true, order: 0 });
 });
 
-test('the thinking of Gemini 4 Argon: low, medium and high, medium by default (what Google says), nothing to turn it off', () => {
+test('the thinking of Gemini 4 Neon: low, medium and high, medium by default (what Google says), nothing to turn it off', () => {
   for (const model of [native, viaOpenRouter]) {
     const config = getModelReasoningConfig(model);
     assert.deepEqual([config.options, config.defaultEffort], [['low', 'medium', 'high'], 'medium'], model.id);
@@ -65,12 +68,11 @@ test('the thinking of Gemini 4 Argon: low, medium and high, medium by default (w
   assert.equal(getModelReasoningConfig(viaOpenRouter).providerParameter, 'openrouterReasoningEffort');
 });
 
-test('the price is told in each language, with the day it changes', () => {
+test('the price line is told in each language, and the lines of the models that left are gone', () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    const text = i18n[language].model_gemini_4_argon_desc_tier_paid;
-    assert.match(text, /10/, `${language} the price in force`);
-    assert.match(text, /20/, `${language} the price after`);
-    assert.match(text, /30/, `${language} the day`);
+    assert.ok(String(i18n[language].model_gemini_4_neon_desc_tier_paid || '').length > 0, `${language} has the price line of Neon`);
+    assert.equal(i18n[language].model_gemini_4_argon_desc_tier_paid, undefined, `${language} the text of Argon is gone`);
+    assert.equal(i18n[language].model_gemini_3_5_flash_lite_desc_tier_paid, undefined, `${language} the text of Flash Lite is gone`);
     assert.equal(i18n[language].model_gemini_3_1_pro_preview_desc_tier_paid, undefined, `${language} the text of the old model is gone`);
   }
 });
@@ -99,9 +101,9 @@ const sent = async (model, { effort, search = false } = {}) => {
   return requests[0];
 };
 
-test('the request to Gemini 4 Argon: its model, a level of thinking from the list (medium when none is chosen), no temperature or topP, the summaries of the thinking asked for', async () => {
+test('the request to Gemini 4 Neon: its model, a level of thinking from the list (medium when none is chosen), no temperature or topP, the summaries of the thinking asked for', async () => {
   const defaulted = await sent(native);
-  assert.match(defaulted.url, /models\/gemini-4-argon:streamGenerateContent/);
+  assert.match(defaulted.url, /models\/gemini-4-neon:streamGenerateContent/);
   assert.equal(defaulted.body.generationConfig.thinkingConfig.thinkingLevel, 'medium');
   assert.equal(defaulted.body.generationConfig.thinkingConfig.includeThoughts, true);
   assert.equal('temperature' in defaulted.body.generationConfig || 'topP' in defaulted.body.generationConfig, false);
@@ -109,7 +111,7 @@ test('the request to Gemini 4 Argon: its model, a level of thinking from the lis
   assert.deepEqual((await sent(native, { search: true })).body.tools, [{ googleSearch: {} }]);
 
   const openRouter = await sent(viaOpenRouter, { effort: 'low' });
-  assert.equal(openRouter.body.model, 'google/gemini-4-argon');
+  assert.equal(openRouter.body.model, 'google/gemini-4-neon');
   assert.equal(openRouter.body.reasoning.effort, 'low');
   assert.equal((await sent(viaOpenRouter)).body.reasoning.effort, 'medium');
 });

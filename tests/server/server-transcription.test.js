@@ -15,7 +15,7 @@ import { MODELS } from '../../src/app/runtime/shell/model-registry.js';
 // Speech to text on the server, so that a reply goes on when the page is closed (docs/superpowers/specs/2026-11-02-chat-video-audio-design.md, §3).
 
 const has = spawnSync('ffmpeg', ['-version']).status === 0;
-const replyModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
+const replyModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash');
 const sse = (...objects) => `${objects.map((object) => `data: ${JSON.stringify(object)}\n\n`).join('')}data: [DONE]\n\n`;
 const streamResponse = (body) => new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
 const content = (text) => ({ choices: [{ delta: { content: text } }] });
@@ -42,9 +42,10 @@ test('the request may ask the server for speech to text: which way, and the key 
   const parts = [{ text: 'hi' }];
   assert.equal(validateRunSpec(specFor({ parts, transcription: { provider: 'openrouter' }, secrets: { sttKey: 'or-key' } })).ok, true);
   assert.equal(validateRunSpec(specFor({ parts, transcription: { provider: 'whisper' } })).ok, true);
-  const ok = validateRunSpec(specFor({ parts, transcription: { provider: 'openai' }, secrets: { sttKey: 'sk-openai' } }));
-  assert.deepEqual(ok.spec.tools.transcription, { provider: 'openai' });
-  assert.equal(ok.spec.secrets.sttKey, 'sk-openai');
+  const ok = validateRunSpec(specFor({ parts, transcription: { provider: 'gemini' }, secrets: { sttKey: 'g-key' } }));
+  assert.deepEqual(ok.spec.tools.transcription, { provider: 'gemini' });
+  assert.equal(ok.spec.secrets.sttKey, 'g-key');
+  assert.equal(validateRunSpec(specFor({ parts, transcription: { provider: 'openai' }, secrets: { sttKey: 'sk-openai' } })).ok, false, 'OpenAI is no provider of speech to text any more');
   assert.deepEqual(validateRunSpec(specFor({ parts, transcription: { provider: 'whisper', model: 'base', language: 'ja' } })).spec.tools.transcription, { provider: 'whisper', model: 'base', language: 'ja' }, 'the language spoken is kept');
   assert.equal(validateRunSpec(specFor({ parts, transcription: { provider: 'whisper', language: 'klingon' } })).ok, false, 'a language that is not listed is refused');
   for (const bad of [specFor({ parts, transcription: { provider: 'openrouter' } }), specFor({ parts, transcription: { provider: 'nobody' }, secrets: { sttKey: 'k' } }), specFor({ parts, transcription: 'whisper' }), specFor({ parts, secrets: { sttKey: 'k' } }), specFor({ parts, transcription: { provider: 'whisper' }, secrets: { sttKey: 'k' } })]) {

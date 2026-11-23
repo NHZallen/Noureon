@@ -6,10 +6,12 @@ const PROVIDER_KEY_ALIASES = Object.freeze({
   openrouter: 'openrouter',
   nvidia: 'nvidia',
   'opencode-go': 'opencode-go',
-  openai: 'openai',
   tavily: 'tavily',
   tinyfish: 'tinyfish'
 });
+
+// Providers that were taken out: a key saved for one of them is dropped when the keys are read (OpenAI's own API, 2026-11-23).
+const RETIRED_PROVIDERS = new Set(['openai']);
 
 export function normalizeProviderKey(provider) {
   return PROVIDER_KEY_ALIASES[provider] || provider;
@@ -24,6 +26,7 @@ function normalizeApiKeys(apiKeys = {}, normalizeApiKeyValue = defaultNormalizeA
   if (!apiKeys || typeof apiKeys !== 'object') return normalized;
 
   for (const [provider, value] of Object.entries(apiKeys)) {
+    if (RETIRED_PROVIDERS.has(provider)) continue;
     const normalizedProvider = normalizeProviderKey(provider);
     normalized[normalizedProvider] = normalizeApiKeyValue(value);
   }
@@ -34,7 +37,7 @@ function normalizeApiKeys(apiKeys = {}, normalizeApiKeyValue = defaultNormalizeA
 function normalizeApiKeyUpdates(apiKeys = {}, normalizeApiKeyValue = defaultNormalizeApiKeyValue) {
   if (!apiKeys || typeof apiKeys !== 'object') return {};
   return Object.fromEntries(
-    Object.entries(apiKeys).map(([provider, value]) => [
+    Object.entries(apiKeys).filter(([provider]) => !RETIRED_PROVIDERS.has(provider)).map(([provider, value]) => [
       normalizeProviderKey(provider),
       normalizeApiKeyValue(value)
     ])

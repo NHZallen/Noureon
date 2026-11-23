@@ -8,8 +8,6 @@ import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCo
 import { applyAnthropicTools, createAnthropicCollector } from './anthropic-messages-format.js';
 import { opencodeErrorMessage } from './opencode-errors.js';
 import { buildOpencodeRequest } from './opencode-request.js';
-import { buildOpenAiRequest } from './openai-request.js';
-import { openAiUsesOfficialSearch } from '../shell/openai-models.js';
 import { opencodeFormatOf, opencodeModelReadsOfficeViaPdf, opencodeModelReadsPdf } from '../shell/opencode-models.js';
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 
@@ -217,9 +215,8 @@ const buildGeminiRequest = ({
   const supportsSamplingParameters = !viaOpencode && ![
     'gemini-4-hydrogen',
     'gemini-4-carbon',
-    'gemini-3.5-flash-lite',
-    // Gemini 4 Argon ignores temperature, topP and topK (Google's page of the latest models): they are not sent.
-    'gemini-4-argon'
+    // Gemini 4 Neon took the place of Argon, which ignored temperature, topP and topK (Google's page of the latest models): they are not sent.
+    'gemini-4-neon'
   ].includes(modelId);
   const payload = {
     contents: cleanGeminiHistory(
@@ -650,8 +647,6 @@ export function createStreamApiCall({
   officeReader = createOfficeReader(),
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null,
-  // The anonymous identifier of the account that goes to OpenAI with a request (openai-request.js); '' sends none.
-  getSafetyIdentifier = async () => '',
   // The interface text of the language in use (for the errors shown to the person); '' when there is none.
   getText = () => '',
   fetchImpl = fetch,
@@ -787,22 +782,6 @@ export function createStreamApiCall({
         systemInstruction,
         wantsReasoningSummary: Boolean(requestOptions.onReasoning)
       })
-      : provider === 'openai'
-      ? buildOpenAiRequest({
-        modelId,
-        apiKey,
-        historyForApi,
-        currentMessageForApi,
-        generationConfig,
-        reasoningEffort,
-        reasoningConfig,
-        systemInstruction,
-        buildResponsesInput: buildOpenRouterResponsesInput,
-        safetyIdentifier: await getSafetyIdentifier(),
-        // OpenAI's own search tool, when the person left the search of its models to OpenAI (settings) and a search is wanted for this reply.
-        webSearch: openAiUsesOfficialSearch(modelInfo, config) && !requestOptions.ignoreConversationWebSearch
-          && (requestOptions.webSearchEnabled === true || Boolean(conversation.isWebSearchEnabled) || isWebSearchForced || Boolean(requestOptions.forceWebSearch))
-      })
       : provider === 'gemini'
       ? buildGeminiRequest({
         modelId,
@@ -865,7 +844,7 @@ export function createStreamApiCall({
         });
 
     if (hasTools) {
-      if (useResponsesApi || opencodeFormat === 'responses' || provider === 'openai') applyResponsesTools(request.payload, toolOptions);
+      if (useResponsesApi || opencodeFormat === 'responses') applyResponsesTools(request.payload, toolOptions);
       else if (opencodeFormat === 'messages') applyAnthropicTools(request.payload, toolOptions);
       else if (provider === 'gemini' || opencodeFormat === 'gemini') applyGeminiTools(request.payload, toolOptions);
       // The service refuses fields it does not know: the thinking details of OpenRouter are not sent back to it.
@@ -897,7 +876,7 @@ export function createStreamApiCall({
       onToolArguments: requestOptions.onToolArguments
     };
     const collector = (provider === 'gemini' || opencodeFormat === 'gemini') ? createGeminiCollector(hooks)
-      : (useResponsesApi || opencodeFormat === 'responses' || provider === 'openai') ? createResponsesCollector(hooks)
+      : (useResponsesApi || opencodeFormat === 'responses') ? createResponsesCollector(hooks)
         : opencodeFormat === 'messages' ? createAnthropicCollector(hooks)
           : createOpenAiCollector(hooks);
     const fullText = (provider === 'gemini' || opencodeFormat === 'gemini')

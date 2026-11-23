@@ -165,7 +165,7 @@ export function createImageGenerationResponseLifecycle({
     // A drawing marked in the editor goes back to the text model with its code (the marked picture goes along as the picture to look at).
     let svgEditCode = '';
     let svgRoute = null;
-    // (A picture model that makes SVGs gets the same: Luna of OpenAI or OpenRouter changes the drawing, as it writes the SVGs of that model.)
+    // (A picture model that makes SVGs gets the same: Luna (through OpenRouter) changes the drawing, as it writes the SVGs of that model.)
     const svgEditId = requestParts.map(part => part.inlineData?.targetedEdit?.svg).find(Boolean) || '';
     if (svgEditId) {
       svgRoute = await import('./svg-chat-route.js');
@@ -192,7 +192,7 @@ export function createImageGenerationResponseLifecycle({
     let inputReferences = getInlineReferences(requestParts);
     const attachedByPerson = inputReferences.length > 0;
     const gifOnOpenRouter = outputFormat === 'gif' && modelInfo.provider === 'openrouter';
-    if (attachedByPerson && gifOnOpenRouter) throw new Error(getText('imageGifPictureOpenRouter', 'OpenRouter cannot make a GIF from a picture, so nothing was sent. Use a GPT Image 2.6 model of OpenAI, or ask for the GIF from words alone.'));
+    if (attachedByPerson && gifOnOpenRouter) throw new Error(getText('imageGifPictureOpenRouter', 'OpenRouter cannot make a GIF from a picture, so nothing was sent. Ask for the GIF from words alone.'));
     let carriedImage = null;
     if (inputReferences.length === 0 && outputFormat !== 'svg' && !gifOnOpenRouter) {
       const latest = findLatestGeneratedImage(conversation);
@@ -295,7 +295,7 @@ export function createImageGenerationResponseLifecycle({
     if (reasoningEffort) {
       generationRequest.config.reasoningEffort = reasoningEffort;
     }
-    if (!generationRequest.apiKey) throw new Error(modelInfo.provider === 'openai' ? getText('imageKeyRequiredOpenAI', 'Enter your OpenAI API key in Settings first.') : getText('imageKeyRequired', 'Enter your OpenRouter API key in Settings first.'));
+    if (!generationRequest.apiKey) throw new Error(getText('imageKeyRequired', 'Enter your OpenRouter API key in Settings first.'));
     // Frames of a GIF that were marked in the editor: each goes to the model on its own and the edited frame is put back in the GIF (here, in the page: the GIF is written again from the frames).
     const frameEdits = requestParts.filter(part => part.inlineData?.targetedEdit?.count).map(part => ({ ...part.inlineData.targetedEdit, dataUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` }));
     if (frameEdits.length) {

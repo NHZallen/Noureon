@@ -12,8 +12,8 @@ const turnOf = (text, extra = {}) => ({ messages: [{ id: 'u1', text, at: '2026-1
 
 const MODELS = [
   { id: 'gemini-3.8-flash', provider: 'gemini' },
-  { id: 'gemini-3.5-flash-lite', provider: 'gemini' },
-  { id: 'google/gemini-3.5-flash-lite', provider: 'openrouter' },
+  { id: 'gemini-4-hydrogen', provider: 'gemini' },
+  { id: 'google/gemini-4-hydrogen', provider: 'openrouter' },
   { id: 'openai/gpt-6.1-sol', provider: 'openrouter' },
   { id: 'opencode-go/glm', provider: 'opencode-go' },
   { id: 'openrouter-image', provider: 'openrouter', category: 'image_generation' }

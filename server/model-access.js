@@ -4,7 +4,6 @@
 import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { createServerOfficeReader } from './office-deps.js';
 import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision, normalizeReasoningEffort } from '../src/app/runtime/shell/model-registry.js';
-import { getOpenAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
 const SEARCH_SOURCES = ['tavily', 'tinyfish'];
@@ -43,8 +42,6 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
     officeReader: createServerOfficeReader({ userId, signal }),
     getModelReasoningConfig,
     normalizeReasoningEffort,
-    // The identifier OpenAI is sent for the account of the reply (unless the person turned it off).
-    getSafetyIdentifier: () => getOpenAiSafetyIdentifier(config, userId),
     fetchImpl: upstreamFetch,
     warn: () => {}
   });

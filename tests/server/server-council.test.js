@@ -16,7 +16,7 @@ const TAVILY = 'tvly-secret-value';
 const byId = (id) => JSON.parse(JSON.stringify(MODELS.find((model) => model.id === id)));
 const entry = (id) => { const model = byId(id); return { provider: model.provider, id: model.id, info: model }; };
 const MEMBER_A = 'anthropic/claude-haiku-5.5';
-const MEMBER_B = 'nvidia/deepseek-ai/deepseek-v4.1-flash';
+const MEMBER_B = 'nvidia/z-ai/glm-5.3-flash';
 const SYNTH = 'anthropic/claude-sonnet-5.5';
 
 const rawSpec = ({ mode = 'consensus', search = false, history = [{ role: 'user', parts: [{ text: 'Earlier question' }] }, { role: 'model', parts: [{ text: 'Earlier answer' }] }], participants = [MEMBER_A, MEMBER_B], keys = KEYS } = {}) => ({
@@ -79,11 +79,11 @@ test('a council: the members answer with the key of their own provider, the synt
   assert.match(bodyOf(result.parts[0].text), /^SYNTH-ANSWER/);
   assert.match(result.parts[0].text, /ANSWER of anthropic\/claude-haiku-5\.5/, 'the answers of the first round are in the block the council adds');
   const record = liftSandboxRunBlock(result.parts[0].text).run.council;
-  assert.deepEqual(record.members.map((member) => [member.name, member.status]), [['Claude Haiku 5.5', 'done'], ['NVIDIA DeepSeek V4.1 Flash', 'done']], 'the message keeps the council\'s line and timeline');
+  assert.deepEqual(record.members.map((member) => [member.name, member.status]), [['Claude Haiku 5.5', 'done'], ['NVIDIA GLM-5.3 Flash', 'done']], 'the message keeps the council\'s line and timeline');
   assert.deepEqual(record.stages.map((stage) => stage.key), ['firstRound', 'synthesis']);
 
   const [a] = onlyModel(w.requests, 'haiku');
-  const [b] = onlyModel(w.requests, 'deepseek');
+  const [b] = onlyModel(w.requests, 'glm');
   const [s] = onlyModel(w.requests, 'sonnet');
   assert.equal(a.headers.Authorization, `Bearer ${KEYS.openrouter}`);
   assert.equal(b.headers.Authorization, `Bearer ${KEYS.nvidia}`, 'a member of another provider gets that provider\'s key');
@@ -185,15 +185,15 @@ test('the members may load the person\'s skills and read the connectors, only th
 });
 
 test('a member that fails does not end the council; a member that never answers runs out of time and is told as a failure', async () => {
-  const failing = world({ answer: async ({ model }) => (model.includes('deepseek') ? new Response(JSON.stringify({ error: { message: `Rate limited for ${KEYS.nvidia}` } }), { status: 429 }) : null) });
+  const failing = world({ answer: async ({ model }) => (model.includes('glm') ? new Response(JSON.stringify({ error: { message: `Rate limited for ${KEYS.nvidia}` } }), { status: 429 }) : null) });
   const one = await executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: failing.fetchImpl, retryDelayMs: 1 });
   assert.equal(one.status, 'done');
   assert.match(one.parts[0].text, /SYNTH-ANSWER/);
   assert.equal(one.parts[0].text.includes(KEYS.nvidia), false, 'the key is not in what is written');
-  assert.equal(onlyModel(failing.requests, 'deepseek').length, 2, 'one more try');
+  assert.equal(onlyModel(failing.requests, 'glm').length, 2, 'one more try');
 
   const hanging = world({
-    answer: ({ model, options }) => (model.includes('deepseek')
+    answer: ({ model, options }) => (model.includes('glm')
       ? new Promise((_, reject) => options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
       : null)
   });
@@ -202,7 +202,7 @@ test('a member that fails does not end the council; a member that never answers 
   assert.ok(Date.now() - started < 3000, 'the council did not wait for it');
   assert.equal(two.status, 'done');
   assert.match(two.parts[0].text, /did not answer within/);
-  assert.equal(onlyModel(hanging.requests, 'deepseek').length, 1, 'a call that ran out of time is not tried again');
+  assert.equal(onlyModel(hanging.requests, 'glm').length, 1, 'a call that ran out of time is not tried again');
 });
 
 test('when every member fails the reply fails with their message, and no key is in it', async () => {
@@ -242,7 +242,7 @@ test('a council taken up after a restart does not ask the models (or the search)
   const result = await executeCouncil({ ...specFor(options), secrets: secretsOf(options), resume: last, fetchImpl: again.fetchImpl });
   assert.equal(result.status, 'done');
   assert.equal(onlyModel(again.requests, 'haiku').length, 0, 'the members are not asked again');
-  assert.equal(onlyModel(again.requests, 'deepseek').length, 0);
+  assert.equal(onlyModel(again.requests, 'glm').length, 0);
   assert.equal(again.requests.filter((request) => request.url.includes('tavily')).length, 0, 'nor the search');
   assert.equal(onlyModel(again.requests, 'sonnet').length, 1, 'the synthesis is made again');
   assert.match(bodyOf(result.parts[0].text), /^SYNTH-ANSWER/);
@@ -343,7 +343,7 @@ test('a person lets a model leave the council: it stops, the others go on, and t
   assert.equal(states.find((state) => state.modelId === MEMBER_A).status, 'exited');
   assert.equal(states.find((state) => state.modelId === MEMBER_B).status, 'done');
   assert.doesNotMatch(result.parts[0].text, /ANSWER of anthropic\/claude-haiku/, 'its answer is not in the council');
-  assert.match(result.parts[0].text, /ANSWER of deepseek/);
+  assert.match(result.parts[0].text, /ANSWER of z-ai\/glm/);
   assert.equal(onlyModel(w.requests, 'haiku').length, 1, 'it was not asked again');
   assert.deepEqual(checkpoints.at(-1).exited, [MEMBER_A], 'kept with the checkpoint');
   assert.equal(JSON.stringify(live).includes(KEYS.openrouter), false);
@@ -366,7 +366,7 @@ test('a council taken up after a restart does not ask the models that had left',
   const checkpoints = [];
   await executeCouncil({ ...specFor(threeModels), secrets: secretsOf(threeModels), resume: { version: COUNCIL_CHECKPOINT_VERSION, kind: 'council', memo: {}, exited: [MEMBER_A] }, fetchImpl: first.fetchImpl, onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
   assert.equal(onlyModel(first.requests, 'haiku').length, 0, 'the model that had left is not asked');
-  assert.equal(onlyModel(first.requests, 'deepseek').length, 1);
+  assert.equal(onlyModel(first.requests, 'glm').length, 1);
   assert.deepEqual(checkpoints.at(-1).exited, [MEMBER_A], 'and it stays out of the next checkpoint');
 });
 

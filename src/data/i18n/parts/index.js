@@ -15,7 +15,6 @@ import officialNouras from './official-nouras.js';
 import accountAndSyncPassword from './account-and-sync-password.js';
 import memoryAndImport from './memory-and-import.js';
 import chatActionsAndErrors from './chat-actions-and-errors.js';
-import openai from './openai.js';
 import memoryNotes from './memory-notes.js';
 import share from './share.js';
 import projects from './projects.js';
@@ -42,7 +41,6 @@ const parts = [
     accountAndSyncPassword,
     memoryAndImport,
     chatActionsAndErrors,
-    openai,
     memoryNotes,
     share,
     projects,

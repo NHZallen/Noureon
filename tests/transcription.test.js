@@ -10,13 +10,14 @@ const AUDIO = { mimeType: 'audio/wav', data: new Uint8Array([82, 73, 70, 70, 1, 
 
 test('the provider is the one the person chose when it can be used, else the first that has a key, else the browser', () => {
   const keys = (names) => (name) => names.includes(name);
-  assert.equal(pickSttProvider({ chosen: 'openai', hasKey: keys(['openai', 'openrouter']) }), 'openai');
-  assert.equal(pickSttProvider({ chosen: 'openai', hasKey: keys(['openrouter']) }), 'openrouter', 'no key for the chosen one');
+  assert.equal(pickSttProvider({ chosen: 'gemini', hasKey: keys(['gemini', 'openrouter']) }), 'gemini');
+  assert.equal(pickSttProvider({ chosen: 'gemini', hasKey: keys(['openrouter']) }), 'openrouter', 'no key for the chosen one');
+  assert.equal(pickSttProvider({ chosen: 'openai', hasKey: keys(['openai', 'openrouter']) }), 'openrouter', 'OpenAI is no provider of speech to text any more (taken out on 2026-11-23)');
   assert.equal(pickSttProvider({ hasKey: keys(['gemini']) }), 'gemini');
   assert.equal(pickSttProvider({ hasKey: keys([]) }), 'browser', 'no key at all: the browser');
   assert.equal(pickSttProvider({ hasKey: keys([]), browserCan: false }), '');
   assert.equal(STT_PROVIDERS.openrouter.model, 'openai/whisper-large-v3');
-  assert.equal(STT_PROVIDERS.openai.model, 'whisper-1');
+  assert.equal(STT_PROVIDERS.openai, undefined);
 });
 
 test('OpenRouter takes the sound as JSON; a route that wants the form of OpenAI is tried after a refusal, and the way that worked is kept', async () => {
@@ -42,19 +43,15 @@ test('OpenRouter takes the sound as JSON; a route that wants the form of OpenAI 
   await assert.rejects(() => createTranscriber({ provider: 'openrouter', getApiKey: () => '', fetchImpl }).transcribe(AUDIO), /key is needed/);
 });
 
-test('OpenAI is called with a file and whisper-1, Gemini with a prompt and the sound, and the browser with its own pipeline', async () => {
+test('Gemini is called with a prompt and the sound, and the browser with its own pipeline', async () => {
   const seen = [];
   const fetchImpl = async (url, options) => {
     seen.push({ url, body: options.body });
-    if (url.includes('openai.com')) return Response.json({ text: 'from openai' });
     return Response.json({ candidates: [{ content: { parts: [{ text: 'from ' }, { text: 'gemini' }] } }] });
   };
-  assert.equal(await createTranscriber({ provider: 'openai', getApiKey: () => 'sk', fetchImpl }).transcribe(AUDIO), 'from openai');
-  assert.equal(seen[0].url, 'https://api.openai.com/v1/audio/transcriptions');
-  assert.equal(seen[0].body.get('model'), 'whisper-1');
   assert.equal(await createTranscriber({ provider: 'gemini', getApiKey: () => 'g', fetchImpl }).transcribe(AUDIO), 'from gemini');
-  assert.match(seen[1].url, /models\/gemini-3\.5-flash-lite:generateContent$/);
-  assert.equal(JSON.parse(seen[1].body).contents[0].parts[1].inline_data.mime_type, 'audio/wav');
+  assert.match(seen[0].url, /models\/gemini-4-hydrogen:generateContent$/);
+  assert.equal(JSON.parse(seen[0].body).contents[0].parts[1].inline_data.mime_type, 'audio/wav');
   const browser = createTranscriber({ provider: 'browser', runWhisper: async (audio) => ` words of ${audio.data.length} bytes ` });
   assert.equal(await browser.transcribe(AUDIO), 'words of 7 bytes');
   await assert.rejects(() => createTranscriber({ provider: 'browser' }).transcribe(AUDIO), /not available/);
@@ -147,17 +144,17 @@ test('a provider that is busy is asked again after a short wait (twice at most);
   assert.deepEqual(waits, [1500, 4000]);
   calls = 0;
   waits.length = 0;
-  const always = createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 503 }); }, sleep });
+  const always = createTranscriber({ provider: 'gemini', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 503 }); }, sleep });
   await assert.rejects(() => always.transcribe(AUDIO), (error) => error.status === 503);
   assert.equal(calls, 3);
   calls = 0;
-  const refused = createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 401 }); }, sleep });
+  const refused = createTranscriber({ provider: 'gemini', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 401 }); }, sleep });
   await assert.rejects(() => refused.transcribe(AUDIO), (error) => error.status === 401);
   assert.equal(calls, 1);
   const controller = new AbortController();
   controller.abort();
   calls = 0;
-  await assert.rejects(() => createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 429 }); }, sleep }).transcribe(AUDIO, { signal: controller.signal }));
+  await assert.rejects(() => createTranscriber({ provider: 'gemini', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 429 }); }, sleep }).transcribe(AUDIO, { signal: controller.signal }));
   assert.equal(calls, 1, 'no more tries after a stop');
 });
 

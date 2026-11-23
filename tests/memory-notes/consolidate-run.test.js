@@ -168,10 +168,10 @@ test('the prompt and the parsing: the notes of the group only, JSON in any wrapp
 });
 
 test('the model for the tidy: the person\'s choice, then the cheap one of the provider, then any provider that has a key', () => {
-  const models = [{ id: 'gemini-3.8-flash', provider: 'gemini' }, { id: 'gemini-3.5-flash-lite', provider: 'gemini' }, { id: 'google/gemini-3.5-flash-lite', provider: 'openrouter' }, { id: 'img', provider: 'gemini', category: 'image_generation' }];
-  assert.equal(pickTidyModel({ currentId: 'gemini-3.8-flash', models, hasKey: () => true }).id, 'gemini-3.5-flash-lite');
+  const models = [{ id: 'gemini-3.8-flash', provider: 'gemini' }, { id: 'gemini-4-hydrogen', provider: 'gemini' }, { id: 'google/gemini-4-hydrogen', provider: 'openrouter' }, { id: 'img', provider: 'gemini', category: 'image_generation' }];
+  assert.equal(pickTidyModel({ currentId: 'gemini-3.8-flash', models, hasKey: () => true }).id, 'gemini-4-hydrogen');
   assert.equal(pickTidyModel({ settingsId: 'gemini-3.8-flash', currentId: 'gemini-3.8-flash', models, hasKey: () => true }).id, 'gemini-3.8-flash');
-  assert.equal(pickTidyModel({ models, hasKey: (provider) => provider === 'openrouter' }).id, 'google/gemini-3.5-flash-lite', 'no current model: the cheap one of a provider with a key');
+  assert.equal(pickTidyModel({ models, hasKey: (provider) => provider === 'openrouter' }).id, 'google/gemini-4-hydrogen', 'no current model: the cheap one of a provider with a key');
   assert.equal(pickTidyModel({ models, hasKey: () => false }), null);
   assert.notEqual(pickTidyModel({ settingsId: 'img', models, hasKey: () => true })?.id, 'img', 'a model that draws pictures is never chosen');
 });

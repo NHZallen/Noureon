@@ -16,9 +16,8 @@ export const CURATOR = Object.freeze({ minChars: 4, assistantExcerpt: 200, relat
  * list that was looked at by hand (the catalogue of models has no prices to look up); a provider with no entry here uses the reply's own model.
  */
 export const CURATOR_DEFAULTS = Object.freeze({
-  gemini: 'gemini-3.5-flash-lite',
-  openrouter: 'google/gemini-3.5-flash-lite',
-  openai: 'openai-api/gpt-6-luna',
+  gemini: 'gemini-4-hydrogen',
+  openrouter: 'google/gemini-4-hydrogen',
   nvidia: 'nvidia/z-ai/glm-5.3-flash'
 });
 

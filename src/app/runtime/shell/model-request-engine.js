@@ -12,7 +12,6 @@ import {
     withSearchContext
 } from '../reply/model-request-formatting.js';
 import { createStreamApiCall } from '../reply/stream-api-call.js';
-import { getOpenAiSafetyIdentifier, setOpenAiConfigReader } from '../reply/openai-request.js';
 import { getNotesMemory } from '../memory-store/memory-ref.js';
 import { createCouncilResponseLifecycle } from '../council/council-response-lifecycle.js';
 import { createProviderRequestSupport } from '../reply/provider-request-support.js';
@@ -33,7 +32,6 @@ export function createModelRequestEngine({
     getCouncilRuntimeTexts, getCouncilAttachmentTranslationNeed, getCouncilTranslatorModel, renderHistorySidebar, conversationStateAccess,
     saveAppData, showNotification
 }) {
-    setOpenAiConfigReader(() => config);
     const streamApiCall = createStreamApiCall({
         getActiveConversation,
         normalizeConversationModel,
@@ -47,7 +45,6 @@ export function createModelRequestEngine({
         modelSupportsVision,
         getModelReasoningConfig,
         normalizeReasoningEffort,
-        getSafetyIdentifier: () => getOpenAiSafetyIdentifier(config),
         getText: (key) => i18n[config.uiLanguage]?.[key] || ''
     });
     const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });

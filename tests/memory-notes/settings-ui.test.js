@@ -38,7 +38,7 @@ async function setup({ language = 'en', notes = [], extraRows = [], conversation
     getUser: () => ({ username: 'tester' }),
     getRebuild: () => rebuild,
     getVectors: () => vectors,
-    getModels: () => [{ id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' }, { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' }],
+    getModels: () => [{ id: 'gemini-4-hydrogen', name: 'Gemini 3.5 Flash Lite' }, { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' }],
     getText: (key) => i18n[config.uiLanguage]?.[key] || '',
     showNotification: (message, kind) => notices.push({ message, kind }),
     // The dialog gives back what the next entry of `answers` says: a text for an input, true for a confirmation, null for cancel.
@@ -177,7 +177,7 @@ test('the curator model can be chosen, and automatic is the first choice', async
   const { document, memory, root } = await setup({ notes: [dog] });
   const select = root().querySelector('select');
   assert.equal(select.value, '', 'automatic by default');
-  assert.deepEqual([...select.options].map((option) => option.value), ['', 'gemini-3.5-flash-lite', 'gemini-3.8-flash']);
+  assert.deepEqual([...select.options].map((option) => option.value), ['', 'gemini-4-hydrogen', 'gemini-3.8-flash']);
   select.value = 'gemini-3.8-flash';
   select.dispatchEvent(new document.defaultView.Event('change'));
   await tick();

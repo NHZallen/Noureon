@@ -1,5 +1,7 @@
 # OpenAI 官方供應商（文字與圖片，用使用者自己的金鑰直連）
 
+> **2026-11-23: this provider was taken out (the owner).** The models `openai-api/*`, the OpenAI key field, the two OpenAI settings (its own web search, the anonymous identifier), the direct Images API, `svg.model`, the Responses path for provider `openai` and `scripts/openai-probe.mjs` are gone. A choice or a chat that names `openai-api/<id>` goes to the same model of OpenRouter (the `legacyIds` of the `openai/…` rows in `model-registry.js`); the saved OpenAI key is dropped when the settings are read; speech to text no longer has an OpenAI way. The text below is the record of what was built.
+
 **狀態：** 設計，探測結果出來後才動程式（2026-10-29）。區塊 02「模型供應商與模型管理」，Allen 負責。OpenAI 的模型頁（`developers.openai.com`）不在開發環境允許的網域內，這份文件沒有讀到原文；能力、價格、上下文長度要靠探測工具（§8）和 Allen 貼的頁面重點補。
 
 ## 1. Allen 的決定（2026-10-29）

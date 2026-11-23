@@ -15,7 +15,7 @@ const streamResponse = (body) => new Response(body, { status: 200, headers: { 'C
 const content = (text) => ({ choices: [{ delta: { content: text } }] });
 
 // A reply model that reads no file (NVIDIA's DeepSeek) and a translator of another provider (OpenRouter).
-const replyModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
+const replyModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash');
 const translatorModel = MODELS.find((model) => model.provider === 'openrouter' && modelSupportsSingleTranslation(model));
 const NVIDIA_CHAT = 'https://integrate.api.nvidia.com/v1/chat/completions';
 

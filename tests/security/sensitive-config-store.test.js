@@ -49,8 +49,17 @@ test('store reads, writes, merges, replaces, clears, and protects external mutat
     openrouter: '',
     nvidia: '',
     'opencode-go': '',
-    openai: '',
     tavily: '',
     tinyfish: ''
   });
+});
+
+test('a key saved for OpenAI (its own API was taken out on 2026-11-23) is dropped, when read and when written', () => {
+  const store = createSensitiveConfigStore({ initialApiKeys: { gemini: 'g', openai: 'sk-old' } });
+  assert.equal(store.getApiKey('gemini'), 'g');
+  assert.equal(store.getApiKey('openai'), '');
+  assert.equal('openai' in store.getApiKeys(), false);
+  store.mergeApiKeys({ openai: 'sk-new', tavily: 't' });
+  assert.equal(store.getApiKey('openai'), '');
+  assert.equal(store.getApiKey('tavily'), 't');
 });

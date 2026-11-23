@@ -6,7 +6,7 @@ import { createNotesMemory } from '../../src/app/runtime/memory-store/notes-memo
 import { resetTrace } from '../../src/app/runtime/memory-store/memory-trace.js';
 
 const row = (key, payload) => ({ record_key: key, payload, version: 1, updated_at: '2026-10-30T00:00:00.000Z', deleted_at: null });
-const MODELS = [{ id: 'gemini-3.8-flash', provider: 'gemini' }, { id: 'gemini-3.5-flash-lite', provider: 'gemini' }];
+const MODELS = [{ id: 'gemini-3.8-flash', provider: 'gemini' }, { id: 'gemini-4-hydrogen', provider: 'gemini' }];
 
 async function memoryWith(settings) {
   const data = new Map([['noureon.memoryNotes.v1.tester', JSON.stringify({ version: 1, rows: settings ? [row('meta:settings', settings)] : [] })]]);
@@ -25,7 +25,7 @@ const conversation = (extra = {}) => ({
   ...extra
 });
 
-function run({ memory, conv = conversation(), config = { memoryModelId: 'gemini-3.5-flash-lite' }, output = '{"ops":[]}', keys = () => 'key' }) {
+function run({ memory, conv = conversation(), config = { memoryModelId: 'gemini-4-hydrogen' }, output = '{"ops":[]}', keys = () => 'key' }) {
   const calls = [];
   const saved = [];
   return {
@@ -56,7 +56,7 @@ test('for a model with no memory tools, the curator reads the turn with the chea
   const { calls, saved, done } = run({ memory, conv, output: ADD });
   const result = await done;
   assert.equal(result.applied.length, 1);
-  assert.equal(calls[0].modelId, 'gemini-3.5-flash-lite');
+  assert.equal(calls[0].modelId, 'gemini-4-hydrogen');
   assert.match(calls[0].prompt, /I live in Taipei and I am a nurse/);
   assert.deepEqual(memory.getStore().getNotes().filter((note) => note.status === 'active').map((note) => note.text), ['The user lives in Taipei']);
   const message = conv.messages[1];

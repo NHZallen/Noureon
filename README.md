@@ -95,7 +95,6 @@ Use models from different vendors in the same conversation list and switch betwe
 | --- | --- |
 | Google Gemini | Gemini models, with their own built-in web search |
 | OpenRouter | One key for models from many labs, and image models |
-| OpenAI | OpenAI text and image models, with OpenAI's own web search |
 | NVIDIA | Free hosted models from the NVIDIA catalog |
 | OpenCode Go | Models from several vendors on an OpenCode Go subscription |
 | Tavily, TinyFish | Web search and page reading for models that have no search of their own |
@@ -139,11 +138,11 @@ For questions that need a lot of looking up and a report with sources.
 3. You watch progress live (items done, percentage, searches, time used) and can open the sources and activity. You can pause, stop, or send extra instructions.
 4. The result is a report with citations and charts. Read it in the chat or full screen with a table of contents, and export it as PDF, Word or Markdown.
 
-Research runs on the server for accounts that use it, so you can leave and come back to the finished report. It needs a web search source: Gemini and OpenAI models have their own, other models use a Tavily or TinyFish key.
+Research runs on the server for accounts that use it, so you can leave and come back to the finished report. It needs a web search source: Gemini models have their own, other models use a Tavily or TinyFish key.
 
 ### Web search and reading pages
 
-- Models with built-in search (Gemini, OpenAI) can use it; other models use the Tavily or TinyFish source you choose.
+- Models with built-in search (Gemini) can use it; other models use the Tavily or TinyFish source you choose.
 - **Smart search** decides whether a message should search the web at all.
 - Addresses you paste into a message are read for you.
 - For a model that cannot use tools, a search is made first and the pages found are given to it as a "search packet".

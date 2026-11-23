@@ -1,17 +1,15 @@
-// An SVG written by a text model (docs/superpowers/specs/2026-11-06-gpt-image-2-6-design.md §6). OpenAI's Images API makes an SVG from words (with `svg.model`, a text model it asks by name), but not from a
-// picture (the endpoint that edits takes png, webp and jpeg), and OpenRouter's images endpoint takes no SVG at all (the probes of 2026-11-06). A text model that sees pictures can write one either way, so:
-//   - GPT Image 2.6 asked for an SVG on OpenRouter, or with a picture to start from on either provider: the model that writes is GPT-6 Luna (fixed, the person does not choose);
+// An SVG written by a text model (docs/superpowers/specs/2026-11-06-gpt-image-2-6-design.md §6). OpenRouter's images endpoint takes no SVG at all (the probes of 2026-11-06), so a text model that sees pictures writes it
+// (OpenAI's own Images API, which could make one from words, was taken out on 2026-11-23 with the OpenAI provider):
+//   - GPT Image 2.6 asked for an SVG on OpenRouter: the model that writes is GPT-6 Luna (fixed, the person does not choose);
 //   - a text model of the person's choice asked for an SVG in a chat (`config.svgWriter`): that model writes it.
 // The answer is the same as a picture maker's ({ images: [{ b64Json, mediaType: 'image/svg+xml' }] }), so the pictures are kept and shown like any other. Shared by the page and the server: no window, no document.
 
-import { OPENAI_BASE_URL } from '../shell/openai-models.js';
-
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-/** The model that writes the SVG of a picture model, by provider (both already in the app's lists). */
-export const SVG_WRITER_MODELS = Object.freeze({ openai: 'gpt-6-luna', openrouter: 'openai/gpt-6-luna' });
-/** The two providers this file asks itself (their chat endpoints); a model of any other provider (Gemini, NVIDIA, OpenCode Go...) is asked through `askText`, the app's own request to that provider (svg-text-ask.js). */
-export const SVG_DIRECT_PROVIDERS = Object.freeze(['openai', 'openrouter']);
+/** The model that writes the SVG of a picture model, by provider (already in the app's lists). */
+export const SVG_WRITER_MODELS = Object.freeze({ openrouter: 'openai/gpt-6-luna' });
+/** The provider this file asks itself (its chat endpoint); a model of any other provider (Gemini, NVIDIA, OpenCode Go...) is asked through `askText`, the app's own request to that provider (svg-text-ask.js). */
+export const SVG_DIRECT_PROVIDERS = Object.freeze(['openrouter']);
 
 export const SVG_WRITER_INSTRUCTION = 'You draw vector graphics. Answer with ONE complete SVG document and nothing else: it starts with <svg and ends with </svg>, has xmlns="http://www.w3.org/2000/svg" and a viewBox, '
   + 'no code fences, no explanation and no text outside the SVG. Draw with shapes, paths, gradients and text; do not link to anything outside the document. '
@@ -80,10 +78,6 @@ async function readError(response) {
 
 const userText = (prompt, config) => [prompt, canvasSentence(config?.aspectRatio)].filter(Boolean).join('\n\n');
 
-// The words of a Responses API answer.
-const responsesText = (body) => (typeof body?.output_text === 'string' && body.output_text)
-  || (body?.output || []).filter((item) => item?.type === 'message').flatMap((item) => item.content || []).map((part) => part?.text || '').join('');
-
 // The words of a chat completion (a string, or a list of parts).
 const chatText = (body) => {
   const content = body?.choices?.[0]?.message?.content;
@@ -95,7 +89,7 @@ const dataUrlPart = (url) => {
   return match ? { inlineData: { mimeType: match[1], data: match[2] } } : null;
 };
 
-export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...args), getSafetyIdentifier = async () => '', askText = null } = {}) {
+export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...args), askText = null } = {}) {
   const writeOne = async ({ provider, apiKey, model, modelInfo, prompt, config = {}, inputReferences = [], signal }) => {
     const text = userText(prompt, config);
     if (!SVG_DIRECT_PROVIDERS.includes(provider)) {
@@ -106,40 +100,22 @@ export function createSvgWriter({ fetchImpl = (...args) => globalThis.fetch(...a
       if (!written) throw new Error('The model did not write an SVG.');
       return { images: [{ b64Json: toBase64(withIntrinsicSize(written)), mediaType: 'image/svg+xml' }] };
     }
-    let response;
-    if (provider === 'openai') {
-      const safetyIdentifier = await getSafetyIdentifier();
-      response = await fetchImpl(`${OPENAI_BASE_URL}/responses`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          instructions: SVG_WRITER_INSTRUCTION,
-          input: [{ role: 'user', content: [{ type: 'input_text', text }, ...inputReferences.map((url) => ({ type: 'input_image', image_url: url }))] }],
-          store: false,
-          ...(config.svgWriter && config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {}),
-          ...(safetyIdentifier ? { safety_identifier: safetyIdentifier } : {})
-        }),
-        signal
-      });
-    } else {
-      response = await fetchImpl(OPENROUTER_CHAT_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: SVG_WRITER_INSTRUCTION },
-            { role: 'user', content: [{ type: 'text', text }, ...inputReferences.map((url) => ({ type: 'image_url', image_url: { url } }))] }
-          ],
-          ...(config.svgWriter && config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {})
-        }),
-        signal
-      });
-    }
+    const response = await fetchImpl(OPENROUTER_CHAT_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: SVG_WRITER_INSTRUCTION },
+          { role: 'user', content: [{ type: 'text', text }, ...inputReferences.map((url) => ({ type: 'image_url', image_url: { url } }))] }
+        ],
+        ...(config.svgWriter && config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {})
+      }),
+      signal
+    });
     if (!response.ok) throw new Error(await readError(response));
     const body = await response.json();
-    const svg = extractSvg(provider === 'openai' ? responsesText(body) : chatText(body));
+    const svg = extractSvg(chatText(body));
     if (!svg) throw new Error('The model did not write an SVG.');
     return { images: [{ b64Json: toBase64(withIntrinsicSize(svg)), mediaType: 'image/svg+xml' }] };
   };

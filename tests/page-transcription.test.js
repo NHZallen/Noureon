@@ -32,7 +32,7 @@ test('the settings keep when and how it was agreed to; nothing is done before', 
   assert.equal(await transcription.enable('openrouter'), true);
   assert.deepEqual({ ...store.getSettings() }, { enabled: true, consentAt: '2026-11-02T00:00:00.000Z', provider: 'openrouter', whisperSize: 'small', language: '' });
   assert.equal(transcription.isEnabled(), true);
-  assert.equal(await transcription.setProvider('openai'), false, 'no key for it');
+  assert.equal(await transcription.setProvider('gemini'), false, 'no key for it');
   assert.equal(await transcription.setProvider('browser'), true);
   assert.equal(transcription.provider(), 'browser');
   await transcription.disable();
@@ -89,7 +89,7 @@ test('a model that cannot take the file is given the words in its place, one tha
   const picture = { inlineData: { mimeType: 'image/png', name: 'p.png', data: 'AAAA' } };
   assert.equal(hasTranscript(recording), true);
   assert.equal(hasTranscript(picture), false);
-  const blind = MODEL('nvidia/deepseek-ai/deepseek-v4.1-flash');
+  const blind = MODEL('nvidia/z-ai/glm-5.3-flash');
   const out = withTranscriptText([{ text: 'Summarise' }, recording, picture], blind, (item) => `[${item.inlineData.attachmentLabel}]`);
   assert.equal(out[0].text, 'Summarise');
   assert.match(out[1].text, /^\[File 1 of 1 in this message: memo\.mp3\]\nTranscript of what is said in this recording, written by a speech to text model \(openai\/whisper-large-v3\)/);
@@ -105,10 +105,10 @@ test('a model that cannot take the file is given the words in its place, one tha
 });
 
 test('a reply the server makes is told the way and the key for that reply; the browser\'s Whisper is the server\'s Whisper there (no key), and off is nothing', async () => {
-  const withKey = make({ keys: { openrouter: 'or-key', openai: 'sk' } });
+  const withKey = make({ keys: { openrouter: 'or-key', gemini: 'sk' } });
   assert.equal(withKey.transcription.serverAccess(), null, 'off');
-  await withKey.transcription.enable('openai');
-  assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'openai', key: 'sk' });
+  await withKey.transcription.enable('gemini');
+  assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'gemini', key: 'sk' });
   await withKey.transcription.setProvider('browser');
   assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'whisper', model: 'small' });
   const noKey = make({ keys: {} });
@@ -117,11 +117,11 @@ test('a reply the server makes is told the way and the key for that reply; the b
 });
 
 test('the language chosen for the recordings goes to the server with the way, and a language that does not exist is refused', async () => {
-  const made = make({ keys: { openai: 'sk' } });
-  await made.transcription.enable('openai');
+  const made = make({ keys: { gemini: 'sk' } });
+  await made.transcription.enable('gemini');
   assert.equal(made.transcription.language(), '');
   assert.equal(await made.transcription.setLanguage('zh'), true);
-  assert.deepEqual(made.transcription.serverAccess(), { provider: 'openai', key: 'sk', language: 'zh' });
+  assert.deepEqual(made.transcription.serverAccess(), { provider: 'gemini', key: 'sk', language: 'zh' });
   await made.transcription.setProvider('browser');
   assert.deepEqual(made.transcription.serverAccess(), { provider: 'whisper', model: 'small', language: 'zh' });
   assert.equal(await made.transcription.setLanguage('klingon'), false);

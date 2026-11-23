@@ -1,12 +1,11 @@
 // Speech to text for the recordings and the videos a person attaches (docs/superpowers/specs/2026-11-02-chat-video-audio-design.md, §3): a short piece of sound (16 kHz mono WAV, a minute) goes
-// to the speech model of a provider with the person's own key, and the words come back. Four ways, all with the same shape `transcribe({ mimeType, data (Uint8Array) }, { signal, language }) -> text`:
-// OpenRouter (Whisper large v3 by default), OpenAI itself (whisper-1), Gemini (a prompt with the sound), and Whisper run in this browser (nothing leaves the device). Page only: the fetch and the
+// to the speech model of a provider with the person's own key, and the words come back. Three ways, all with the same shape `transcribe({ mimeType, data (Uint8Array) }, { signal, language }) -> text`:
+// OpenRouter (Whisper large v3 by default), Gemini (a prompt with the sound), and Whisper run in this browser (nothing leaves the device). Page only: the fetch and the
 // pipeline of the browser are given from outside, so the tests need neither.
 
 export const STT_PROVIDERS = Object.freeze({
   openrouter: Object.freeze({ model: 'openai/whisper-large-v3', keyProvider: 'openrouter', label: 'OpenRouter' }),
-  openai: Object.freeze({ model: 'whisper-1', keyProvider: 'openai', label: 'OpenAI' }),
-  gemini: Object.freeze({ model: 'gemini-3.5-flash-lite', keyProvider: 'gemini', label: 'Gemini' }),
+  gemini: Object.freeze({ model: 'gemini-4-hydrogen', keyProvider: 'gemini', label: 'Gemini' }),
   browser: Object.freeze({ model: 'onnx-community/whisper-base', keyProvider: '', label: 'Whisper' })
 });
 
@@ -14,7 +13,7 @@ export const STT_PROVIDERS = Object.freeze({
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const RETRY_WAITS_MS = Object.freeze([1500, 4000]);
 
-export const STT_ORDER = Object.freeze(['openrouter', 'openai', 'gemini', 'browser']);
+export const STT_ORDER = Object.freeze(['openrouter', 'gemini', 'browser']);
 
 /** The provider to use: the one the person chose when it can be used (it has a key, or it is the browser), else the first of STT_ORDER that can; '' when none. */
 export function pickSttProvider({ chosen = '', hasKey = () => false, browserCan = true } = {}) {
@@ -41,7 +40,7 @@ async function failure(response, label) {
 const formatOf = (mimeType) => (/wav/i.test(mimeType) ? 'wav' : /mpeg|mp3/i.test(mimeType) ? 'mp3' : /flac/i.test(mimeType) ? 'flac' : /ogg/i.test(mimeType) ? 'ogg' : 'wav');
 
 /**
- * `provider`: 'openrouter' | 'openai' | 'gemini' | 'browser'. `getApiKey()` gives the key of the provider (not for the browser). `model` replaces the default. For the browser, `runWhisper({ mimeType, data }, { signal })`
+ * `provider`: 'openrouter' | 'gemini' | 'browser'. `getApiKey()` gives the key of the provider (not for the browser). `model` replaces the default. For the browser, `runWhisper({ mimeType, data }, { signal })`
  * resolves the text (whisper-browser.js). Throws when there is no key or the provider refuses (the error has `status`).
  */
 export function createTranscriber({ provider, getApiKey = () => '', model = '', fetchImpl = (...args) => globalThis.fetch(...args), runWhisper = null, sleep = (ms, signal) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); signal?.addEventListener?.('abort', () => { clearTimeout(timer); resolve(); }, { once: true }); }) }) {
@@ -76,17 +75,6 @@ export function createTranscriber({ provider, getApiKey = () => '', model = '', 
     return clean((await response.json())?.text);
   }
 
-  async function openAi({ mimeType, data }, { signal, language }) {
-    const form = new FormData();
-    form.append('model', used);
-    form.append('file', new Blob([data], { type: mimeType }), `audio.${formatOf(mimeType)}`);
-    form.append('response_format', 'json');
-    if (language) form.append('language', language);
-    const response = await fetchImpl('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${key()}` }, body: form, signal });
-    if (!response?.ok) throw await failure(response, 'OpenAI');
-    return clean((await response.json())?.text);
-  }
-
   async function gemini({ mimeType, data }, { signal }) {
     const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${used}:generateContent`, {
       method: 'POST',
@@ -101,7 +89,6 @@ export function createTranscriber({ provider, getApiKey = () => '', model = '', 
 
   const once = async (audio, { signal, language }) => {
     if (provider === 'openrouter') return openRouter(audio, { signal, language });
-    if (provider === 'openai') return openAi(audio, { signal, language });
     if (provider === 'gemini') return gemini(audio, { signal });
     if (typeof runWhisper !== 'function') throw new Error('Whisper in this browser is not available.');
     return clean(await runWhisper(audio, { signal, language }));

@@ -10,7 +10,7 @@ import { createServerMediaToolbox } from './ffmpeg-runner.js';
 import { DEFAULT_WHISPER_SIZE, WHISPER_SIZES, whisperModelOf } from '../src/app/runtime/transcription/whisper-audio.js';
 import { createServerWhisper } from './whisper-runner.js';
 
-export const SERVER_STT_PROVIDERS = Object.freeze(['openrouter', 'openai', 'gemini', 'whisper']);
+export const SERVER_STT_PROVIDERS = Object.freeze(['openrouter', 'gemini', 'whisper']);
 const isTimed = (mimeType) => /^(audio|video)\//i.test(String(mimeType || ''));
 const needs = (part) => Boolean(part?.inlineData && isTimed(part.inlineData.mimeType) && typeof part.inlineData.data === 'string' && part.inlineData.data && !part.transcript);
 

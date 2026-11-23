@@ -19,7 +19,6 @@ import { createCouncilResponseLifecycle } from '../src/app/runtime/council/counc
 import { buildTavilySearchQuery, formatTavilySearchPacket, getSearchCurrentDate, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/runtime/reply/model-request-formatting.js';
 import { createProviderRequestSupport } from '../src/app/runtime/reply/provider-request-support.js';
 import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
-import { getOpenAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { formatSandboxRunBlock, hasSandboxRunBlock, liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { withCouncilRecord } from '../src/app/ui/council/council-record.js';
 import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
@@ -134,10 +133,7 @@ export async function executeCouncil({
     councilTranslatorModelId: translator?.id || null,
     memorySystemVersion: 1,
     memoryEnabled1: false,
-    isLearningMode: false,
-    // OpenAI's two settings (the page's): where its models search the web, and whether an identifier of the account goes with a request.
-    openaiWebSearch: spec.tools.openaiWebSearch === 'provider' ? 'provider' : 'official',
-    openaiSafetyIdentifier: spec.tools.openaiSafetyId !== false
+    isLearningMode: false
   };
   const councilConfig = {
     enabled: true,
@@ -173,7 +169,6 @@ export async function executeCouncil({
     officeReader: createServerOfficeReader(),
     getModelReasoningConfig,
     normalizeReasoningEffort,
-    getSafetyIdentifier: () => getOpenAiSafetyIdentifier(config, userId),
     fetchImpl: upstreamFetch,
     warn: () => {}
   });
@@ -466,8 +461,6 @@ export async function executeCouncil({
           webSearch: 'off',
           searchProvider: spec.tools.searchProvider,
           searchDepth: spec.tools.searchDepth,
-          ...(spec.tools.openaiWebSearch ? { openaiWebSearch: spec.tools.openaiWebSearch } : {}),
-          ...(spec.tools.openaiSafetyId === false ? { openaiSafetyId: false } : {}),
           advanced: false,
           // Python (and the CLI tools, which run in its sandbox) only where the server has a sandbox; the visual check in any case.
           ...(withPython ? synthesisTools : synthesisTools.visionCheck ? { visionCheck: { ...synthesisTools.visionCheck, advanced: false } } : {}),

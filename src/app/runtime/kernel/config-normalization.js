@@ -174,8 +174,8 @@ export function normalizeLoadedLegacyConfig({
     .filter(model => model?.category !== 'image_generation' && model?.outputModality !== 'image')
     .map(model => model.id));
   if (!memoryModelIds.has(normalizedConfig.memoryModelId)) {
-    normalizedConfig.memoryModelId = memoryModelIds.has('gemini-3.5-flash-lite')
-      ? 'gemini-3.5-flash-lite'
+    normalizedConfig.memoryModelId = memoryModelIds.has('gemini-4-hydrogen')
+      ? 'gemini-4-hydrogen'
       : models.find(model => memoryModelIds.has(model.id))?.id || null;
   }
   normalizedConfig.lastCouncilConfig = normalizeCouncilConfig(normalizedConfig.lastCouncilConfig, {
@@ -206,8 +206,9 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.decisionModel = normalizeDecisionModel(normalizedConfig.decisionModel);
   normalizedConfig.reduceMotion = normalizedConfig.reduceMotion === 'on' ? 'on' : 'system';
   normalizedConfig.replyInputMode = ['steer', 'queue', 'send-now'].includes(normalizedConfig.replyInputMode) ? normalizedConfig.replyInputMode : 'steer';
-  normalizedConfig.openaiWebSearch = normalizedConfig.openaiWebSearch === 'provider' ? 'provider' : 'official';
-  normalizedConfig.openaiSafetyIdentifier = normalizedConfig.openaiSafetyIdentifier !== false;
+  // The settings of OpenAI's own API (taken out on 2026-11-23) are not kept.
+  delete normalizedConfig.openaiWebSearch;
+  delete normalizedConfig.openaiSafetyIdentifier;
   normalizedConfig.netRules = normalizeNetRules(normalizedConfig.netRules);
   // The picture model a text model draws with, and whether the person is asked before each picture.
   normalizedConfig.toolModels = normalizeToolModels(normalizedConfig.toolModels);

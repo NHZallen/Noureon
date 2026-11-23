@@ -7,12 +7,12 @@ import { createSensitiveConfigStore } from '../src/app/runtime/security/sensitiv
 import { getErrorMessage, readErrorBody } from '../src/app/runtime/shell/shell-utilities.js';
 
 test('the keys the person set are taken out of a provider\'s error text, whole', () => {
-  const store = createSensitiveConfigStore({ initialApiKeys: { openai: 'custom-key-123456' } });
+  const store = createSensitiveConfigStore({ initialApiKeys: { tinyfish: 'custom-key-123456' } });
   const text = 'Incorrect API key provided: custom-key-123456. You can find your key at the dashboard.';
   const scrubbed = scrubApiKeys(text);
   assert.ok(!scrubbed.includes('custom-key-123456'));
   assert.match(scrubbed, /\[hidden\]/);
-  store.setApiKey('openai', 'second-key-abcdef');
+  store.setApiKey('tinyfish', 'second-key-abcdef');
   assert.ok(!scrubApiKeys('bad second-key-abcdef').includes('second-key-abcdef'), 'a changed key is followed');
   assert.ok(scrubApiKeys('bad custom-key-123456').includes('custom-key-123456'), 'a key that is no longer set is just text');
 });

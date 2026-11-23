@@ -1,4 +1,4 @@
-export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai']);
+export const MODEL_PROVIDER_ORDER = Object.freeze(['gemini', 'openrouter', 'nvidia', 'opencode-go']);
 
 const compareModelsForPicker = (left, right) => (
     (right.releasedAt - left.releasedAt) ||
@@ -28,7 +28,7 @@ export function prepareModelSwitcherModels({
         } else if (provider === 'nvidia') {
             tier = getModelTiers(model);
             company = getModelApiId(model).split('/')[0];
-        } else if (provider === 'opencode-go' || provider === 'openai') {
+        } else if (provider === 'opencode-go') {
             tier = getModelTiers(model);
             company = model.company;
         }

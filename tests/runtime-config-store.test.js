@@ -8,7 +8,7 @@ import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const expectedConfig = (defaultModelId) => ({
-  apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', openai: '', tavily: '', tinyfish: '' },
+  apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', tavily: '', tinyfish: '' },
   defaultModel: defaultModelId,
   modelSettings: [],
   enableAutoWebSearch: false,
@@ -24,15 +24,13 @@ const expectedConfig = (defaultModelId) => ({
   localKeyProtection: null,
   decisionModel: 'typesafe/jev-1.14',
     reduceMotion: 'system',
-  openaiWebSearch: 'official',
-  openaiSafetyIdentifier: true,
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
   outputMode: 'realtime',
   autoNaming: true,
   lastUsedModel: null,
   acknowledgedStealthModelTerms: [],
-  memoryModelId: 'gemini-3.5-flash-lite',
+  memoryModelId: 'gemini-4-hydrogen',
   uiTheme: {
     mode: 'default',
     customColor: '#3b82f6'

@@ -51,8 +51,6 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     processOpen: false,
     fileModeDefault: 'advanced',
     replyInputMode: 'steer',
-    openaiWebSearch: 'official',
-    openaiSafetyIdentifier: true,
     autoNaming: true,
     uiLanguage: 'en',
     aiDefaultLanguage: 'zh-TW',

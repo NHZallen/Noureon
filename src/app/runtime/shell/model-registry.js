@@ -5,9 +5,7 @@ import {
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
 import { GPT_IMAGE_26_FORMATS } from '../images/image-formats.js';
-import { OPENAI_IMAGE_MODEL_IDS, OPENAI_MODELS, OPENAI_PROVIDER, OPENAI_REASONING_CONFIGS, OPENAI_TEXT_MODEL_IDS, openAiUsesOfficialSearch } from './openai-models.js';
 
-export { openAiUsesOfficialSearch };
 import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelReadsFile, opencodeModelReadsPdf, opencodeModelSupportsVision } from './opencode-models.js';
 
 // The anonymous test model of OpenRouter (written in several lists below).
@@ -18,15 +16,14 @@ const GEMINI_RELEASES = {
     // Gemini 4 Hydrogen and Gemini 4 Carbon (the owner's probe of 2026-11-13): $1.5 / $7.5 and $2 / $10 per million tokens (OpenRouter's prices, which are Google's list prices).
     'gemini-4-hydrogen': { releasedAt: 20261113, outputPricePerMillion: 7.5 },
     'gemini-4-carbon': { releasedAt: 20261113, outputPricePerMillion: 10 },
-    'gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
-    // Gemini 4 Argon: $2 / $10 per million tokens to 2026-11-30, $4 / $20 from 2026-12-01 (the price used here is the one in force; the texts of the models give both).
-    'gemini-4-argon': { releasedAt: 20261013, outputPricePerMillion: 10 }
+    // Gemini 4 Neon took the place of Gemini 4 Argon and Gemini 3.5 Flash Lite (the owner, 2026-11-23). Its release day and its price are not confirmed yet (the price of Argon is kept until the probe and the price list say).
+    'gemini-4-neon': { releasedAt: 20261123, outputPricePerMillion: 10 }
 };
 const GEMINI_IDS = Object.keys(GEMINI_RELEASES);
 const MODEL_RELEASE_METADATA = Object.freeze({
     ...GEMINI_RELEASES,
     ...Object.fromEntries(Object.entries(GEMINI_RELEASES).map(([id, release]) => [`google/${id}`, release])),
-    'nvidia/deepseek-ai/deepseek-v4.1-flash': { releasedAt: 20260918, outputPricePerMillion: 0 },
+    'nvidia/moonshotai/kimi-k3.1-pro': { releasedAt: 20261024, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.3-flash': { releasedAt: 20260825, outputPricePerMillion: 0 },
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 0 },
@@ -54,15 +51,16 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
-    'openai/gpt-6-astra': { releasedAt: 20260904, outputPricePerMillion: 50 },
+    'openai/gpt-6.2-astra': { releasedAt: 20261123, outputPricePerMillion: 50 },
     'openai/gpt-6-luna': { releasedAt: 20260922, outputPricePerMillion: 0.5 },
     'openai/gpt-6.1-terra': { releasedAt: 20261027, outputPricePerMillion: 5 },
-    'openai/gpt-6.1-sol': { releasedAt: 20260929, outputPricePerMillion: 10 },
+    'openai/gpt-6.2-sol': { releasedAt: 20261123, outputPricePerMillion: 10 },
     'openai/gpt-image-2.6-flare': { releasedAt: 20261104, outputPricePerMillion: 30 },
     'openai/gpt-image-2.6-sunburst': { releasedAt: 20261104, outputPricePerMillion: 30 },
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
-    'qwen/qwen3.8-max-0902': { releasedAt: 20260903, outputPricePerMillion: 6 },
+    // Qwen4 Max, GPT-6.2 Sol and GPT-6.2 Astra (the owner, 2026-11-23): the release days and the prices are not confirmed yet (the ones of the models they replaced are kept until the probe and the price lists say).
+    'qwen/qwen4-max': { releasedAt: 20261123, outputPricePerMillion: 6 },
     'stepfun/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 2.7 },
     'xiaomi/mimo-v2.6-pro': { releasedAt: 20260921, outputPricePerMillion: 0.87 },
     'xiaomi/mimo-v2.6-flash': { releasedAt: 20260921, outputPricePerMillion: 0.28 },
@@ -97,13 +95,15 @@ const GPT_IMAGE_RESOLUTIONS = Object.freeze([]);
 export const MODEL_CATALOG = [
     // Gemini Models (Native)
     // Gemini 4 Hydrogen takes the place of Gemini 3.8 Flash (2026-11-13: pictures, video, PDF, audio, tools and search all tried with a real key); Gemini 4 Carbon is the dearer one.
-    { id: 'gemini-4-hydrogen', legacyIds: ['gemini-3.8-flash', 'gemini-3.7-flash'], name: 'Gemini 4 Hydrogen', provider: 'gemini', descriptionKey: 'model_gemini_4_hydrogen_desc' },
+    { id: 'gemini-4-hydrogen', legacyIds: ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'], name: 'Gemini 4 Hydrogen', provider: 'gemini', descriptionKey: 'model_gemini_4_hydrogen_desc' },
     { id: 'gemini-4-carbon', name: 'Gemini 4 Carbon', provider: 'gemini', descriptionKey: 'model_gemini_4_carbon_desc' },
-    { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'gemini', descriptionKey: 'model_gemini_3_5_flash_lite_desc' },
-    { id: 'gemini-4-argon', legacyIds: ['gemini-3.1-pro-preview'], name: 'Gemini 4 Argon', provider: 'gemini', descriptionKey: 'model_gemini_4_argon_desc' },
+    // Gemini 4 Neon (asked for by the owner on 2026-11-23) took the place of Gemini 4 Argon: a choice or a conversation that names Argon (or the old 3.1 Pro) goes to Neon.
+    { id: 'gemini-4-neon', legacyIds: ['gemini-4-argon', 'gemini-3.1-pro-preview'], name: 'Gemini 4 Neon', provider: 'gemini', descriptionKey: 'model_gemini_4_neon_desc' },
 
     // NVIDIA Build Free Models
-    { id: 'nvidia/deepseek-ai/deepseek-v4.1-flash', apiId: 'deepseek-ai/deepseek-v4.1-flash', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash', 'nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA DeepSeek V4.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_1_flash_desc', tier: ['free'], category: 'general' },
+    // Kimi K3.1 Pro (asked for by the owner on 2026-11-23) took the place of DeepSeek V4.1 Flash on NVIDIA: a choice or a conversation that names DeepSeek there goes to Kimi. It is the same model as the one of OpenRouter
+    // (pictures, video, a PDF and tools there); what NVIDIA's own endpoint takes is to be shown by `node scripts/model-probe-all.mjs --only nvidia` (the id `moonshotai/kimi-k3.1-pro` too).
+    { id: 'nvidia/moonshotai/kimi-k3.1-pro', apiId: 'moonshotai/kimi-k3.1-pro', legacyIds: ['nvidia/deepseek-ai/deepseek-v4.1-flash', 'deepseek-ai/deepseek-v4.1-flash', 'nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash', 'nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA Kimi K3.1 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_1_pro_desc', tier: ['free'], category: 'general' },
     // GLM-5.3 (the full one) was taken out on 2026-11-13: a choice or a conversation that names it goes to GLM-5.3 Flash.
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', legacyIds: ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
@@ -119,8 +119,7 @@ export const MODEL_CATALOG = [
     // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
     ...OPENCODE_GO_MODELS,
 
-    // OpenAI's own API (the person's OpenAI key): the list is in openai-models.js.
-    ...OPENAI_MODELS,
+    // OpenAI's own API (the person's OpenAI key) was taken out on 2026-11-23 (the owner): a choice or a conversation that names one of its models (`openai-api/<id>`) goes to the same model of OpenRouter (legacy ids below).
 
     // OpenRouter Paid Models (Anthropic)
     { id: 'anthropic/claude-haiku-5.5', legacyIds: ['anthropic/claude-haiku-4.5'], name: 'Claude Haiku 5.5', provider: 'openrouter', descriptionKey: 'model_claude_haiku_5_5_desc' },
@@ -133,10 +132,9 @@ export const MODEL_CATALOG = [
 
     // OpenRouter Paid Models (Google): the same models as the native ones at the top, for those who have an OpenRouter key and no Google key.
     // They share the price line of the native ones (descriptionKey); their search is the one OpenRouter models have (Tavily), not Google's own.
-    { id: 'google/gemini-4-hydrogen', legacyIds: ['google/gemini-3.8-flash'], name: 'Gemini 4 Hydrogen', provider: 'openrouter', descriptionKey: 'model_gemini_4_hydrogen_desc', category: 'general' },
+    { id: 'google/gemini-4-hydrogen', legacyIds: ['google/gemini-3.8-flash', 'google/gemini-3.5-flash-lite'], name: 'Gemini 4 Hydrogen', provider: 'openrouter', descriptionKey: 'model_gemini_4_hydrogen_desc', category: 'general' },
     { id: 'google/gemini-4-carbon', name: 'Gemini 4 Carbon', provider: 'openrouter', descriptionKey: 'model_gemini_4_carbon_desc', category: 'general' },
-    { id: 'google/gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'openrouter', descriptionKey: 'model_gemini_3_5_flash_lite_desc', category: 'general' },
-    { id: 'google/gemini-4-argon', legacyIds: ['google/gemini-3.1-pro-preview'], name: 'Gemini 4 Argon', provider: 'openrouter', descriptionKey: 'model_gemini_4_argon_desc', category: 'general' },
+    { id: 'google/gemini-4-neon', legacyIds: ['google/gemini-4-argon', 'google/gemini-3.1-pro-preview'], name: 'Gemini 4 Neon', provider: 'openrouter', descriptionKey: 'model_gemini_4_neon_desc', category: 'general' },
 
     // OpenRouter Image Models (Google)
     { id: 'google/gemini-nano-banana-2.1', legacyIds: ['google/gemini-3.1-flash-image', 'google/gemini-3.1-flash-lite-image', 'google/gemini-3-pro-image'], name: 'Gemini Nano Banana 2.1', provider: 'openrouter', descriptionKey: 'model_gemini_nano_banana_2_1_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_IMAGE_RATIOS, supportedImageResolutions: GEMINI_IMAGE_RESOLUTIONS },
@@ -175,13 +173,13 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/nemotron-3.5-super-vl:free', legacyIds: ['nvidia/nemotron-3-super-120b-a12b:free'], name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_super_vl_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
-    { id: 'openai/gpt-6-astra', legacyIds: ['openai/gpt-5.5'], name: 'OpenAI GPT-6 Astra', provider: 'openrouter', descriptionKey: 'model_gpt_6_astra_desc', category: 'general' },
-    { id: 'openai/gpt-6-luna', legacyIds: ['openai/gpt-5.6-luna'], name: 'OpenAI GPT-6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_6_luna_desc', category: 'general' },
-    { id: 'openai/gpt-6.1-terra', legacyIds: ['openai/gpt-5.6-terra'], name: 'OpenAI GPT-6.1 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_terra_desc', category: 'general' },
+    { id: 'openai/gpt-6.2-astra', legacyIds: ['openai/gpt-6-astra', 'openai/gpt-5.5', 'openai-api/gpt-6-astra'], name: 'OpenAI GPT-6.2 Astra', provider: 'openrouter', descriptionKey: 'model_gpt_6_2_astra_desc', category: 'general' },
+    { id: 'openai/gpt-6-luna', legacyIds: ['openai/gpt-5.6-luna', 'openai-api/gpt-6-luna'], name: 'OpenAI GPT-6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_6_luna_desc', category: 'general' },
+    { id: 'openai/gpt-6.1-terra', legacyIds: ['openai/gpt-5.6-terra', 'openai-api/gpt-6.1-terra'], name: 'OpenAI GPT-6.1 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
-    { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
+    { id: 'openai/gpt-6.2-sol', legacyIds: ['openai/gpt-6.1-sol', 'openai/gpt-6-sol', 'openai/gpt-5.6-sol', 'openai-api/gpt-6.1-sol'], name: 'OpenAI GPT-6.2 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_2_sol_desc', category: 'general', responsesApiForTools: true },
     // GPT Image 2.6 (released 2026-11-04; the owner asked for it on 2026-11-06) took the place of 2.5: a chat that names a 2.5 model goes to the same one of 2.6.
-    ...[['flare', ['openai/gpt-image-2.5-flare', 'openai/gpt-image-2']], ['sunburst', ['openai/gpt-image-2.5-sunburst']]].map(([name, legacyIds]) => ({
+    ...[['flare', ['openai/gpt-image-2.5-flare', 'openai/gpt-image-2', 'openai-api/gpt-image-2.6-flare', 'openai-api/gpt-image-2.5-flare']], ['sunburst', ['openai/gpt-image-2.5-sunburst', 'openai-api/gpt-image-2.6-sunburst', 'openai-api/gpt-image-2.5-sunburst']]].map(([name, legacyIds]) => ({
         id: `openai/gpt-image-2.6-${name}`, legacyIds, name: `OpenAI GPT Image 2.6 ${name[0].toUpperCase()}${name.slice(1)}`, provider: 'openrouter', descriptionKey: `model_gpt_image_2_6_${name}_desc`, category: 'image_generation', outputModality: 'image',
         supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, supportedImageFormats: GPT_IMAGE_26_FORMATS, maxImageCount: 10, maxImageReferences: 16
     })),
@@ -189,7 +187,7 @@ export const MODEL_CATALOG = [
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },
     { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
-    { id: 'qwen/qwen3.8-max-0902', legacyIds: ['qwen/qwen3.8-max'], name: 'Qwen3.8 Max 0902', provider: 'openrouter', descriptionKey: 'model_qwen3_8_max_desc', category: 'general' },
+    { id: 'qwen/qwen4-max', legacyIds: ['qwen/qwen3.8-max-0902', 'qwen/qwen3.8-max'], name: 'Qwen4 Max', provider: 'openrouter', descriptionKey: 'model_qwen4_max_desc', category: 'general' },
 
     // OpenRouter Paid Models (StepFun): sees pictures, calls tools, thinks at three levels that cannot be turned off, $1 / $2.70 per million tokens in / out.
     { id: 'stepfun/step-5-preview', name: 'StepFun Step 5 Preview', provider: 'openrouter', descriptionKey: 'model_step_5_preview_desc', category: 'general' },
@@ -221,10 +219,9 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'black-forest-labs/flux-3-image-klein',
     'krea/k3-edit',
     'qwen/qwen-image-2.1-turbo',
-    'qwen/qwen-image-2.1-pro',
-    ...OPENAI_IMAGE_MODEL_IDS
+    'qwen/qwen-image-2.1-pro'
 ]);
-export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
+export const CHEAP_MODEL_ID = 'gemini-4-hydrogen';
 export const OPENROUTER_VISION_MODELS = [
     ...GEMINI_IDS.map((id) => `google/${id}`),
     'anthropic/claude-haiku-5.5',
@@ -239,13 +236,13 @@ export const OPENROUTER_VISION_MODELS = [
     'nvidia/nemotron-3.5-super-vl:free',
     // The tests of 2026-11-06: a picture is read (the small digits can be cut).
     CROUTON_ALPHA,
-    'openai/gpt-6-astra',
+    'openai/gpt-6.2-astra',
     'openai/gpt-6-luna',
     'openai/gpt-6.1-terra',
-    'openai/gpt-6.1-sol',
+    'openai/gpt-6.2-sol',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
-    'qwen/qwen3.8-max-0902',
+    'qwen/qwen4-max',
     'stepfun/step-5-preview',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
@@ -253,9 +250,9 @@ export const OPENROUTER_VISION_MODELS = [
     'x-ai/grok-4.6'
 ];
 // Models that see pictures but refuse a video (Claude Fable 5.2 through OpenRouter: 404 "No endpoints found that support input video", the probe of 2026-11-13; 400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
-export const NO_VIDEO_MODEL_IDS = Object.freeze(['anthropic/claude-fable-5.2', 'deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'openai/gpt-6.1-terra']);
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['anthropic/claude-fable-5.2', 'deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'openai/gpt-6.1-terra']);
 export const NVIDIA_VISION_MODELS = [
-    'deepseek-ai/deepseek-v4.1-flash',
+    'moonshotai/kimi-k3.1-pro',
     'z-ai/glm-5.3-flash',
     'nvidia/nemotron-3.5-super-vl-120b-a12b',
     'stepfun-ai/step-5-preview',
@@ -287,7 +284,8 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',
     // Tried with a real key on 2026-10-16 (scripts/nvidia-probe.mjs): a call, and the answer after the result of the tool.
-    'nvidia/deepseek-ai/deepseek-v4.1-flash',
+    // Kimi K3.1 Pro on NVIDIA is the same model as the one of OpenRouter (which calls tools); NVIDIA's own endpoint is yet to be tried (scripts/model-probe-all.mjs --only nvidia).
+    'nvidia/moonshotai/kimi-k3.1-pro',
     'nvidia/z-ai/glm-5.3-flash',
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
     'nvidia/stepfun-ai/step-5-preview',
@@ -295,13 +293,13 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/minimaxai/minimax-m3.1-flash',
     // The probe of 2026-10-30: a call, two calls at once, and the answer after the result of the tool.
     'nvidia/mistralai/mistral-large-4-1t-a52b',
-    'openai/gpt-6-astra',
+    'openai/gpt-6.2-astra',
     'openai/gpt-6-luna',
     'openai/gpt-6.1-terra',
-    'openai/gpt-6.1-sol',
+    'openai/gpt-6.2-sol',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
-    'qwen/qwen3.8-max-0902',
+    'qwen/qwen4-max',
     'stepfun/step-5-preview',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
@@ -309,9 +307,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'z-ai/glm-5.3',
     'z-ai/glm-5.3-flash',
     // OpenCode Go: every model calls tools (the probe of 2026-10-13: a call and the answer of the tool sent back, in each form of API).
-    ...OPENCODE_GO_MODEL_IDS,
-    // OpenAI's own API: a call and the answer of the tool sent back, with `store: false` (the probe of 2026-10-29).
-    ...OPENAI_TEXT_MODEL_IDS
+    ...OPENCODE_GO_MODEL_IDS
 ]);
 // Text models without tool calling (or not yet shown to have it).
 export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([]);
@@ -337,10 +333,8 @@ const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
 export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs([
     // Gemini 4 Hydrogen and Carbon (the probe of 2026-11-13): low, medium and high are taken, minimal is refused (400); Hydrogen cannot stop thinking (a budget of 0 changes nothing), Carbon thinks nothing at low.
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-hydrogen', 'gemini-4-carbon']],
-    [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
-    // Gemini 4 Argon: low, medium and high, medium by default, and the thinking cannot be turned off (Google's thinking page, 2026-10-13).
-    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-argon']],
-    [NVIDIA_REASONING_EFFORT, ['low', 'medium', 'high', 'max'], 'max', ['nvidia/deepseek-ai/deepseek-v4.1-flash'], { effortValues: { low: 25, medium: 50, high: 75, max: 100 } }],
+    // Gemini 4 Neon: taken to be like Argon, which it replaced (low, medium and high, medium by default, the thinking cannot be turned off); the probe of scripts/model-probe-all.mjs checks it.
+    [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-neon']],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3-flash']],
     // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step).
     // Nemotron also takes "none" (fast, no thinking: 3 tokens for the answer); Step 5 Preview still thinks with "none", so it cannot be turned off.
@@ -361,19 +355,18 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     // The Gemini models through OpenRouter take the same levels as their native twins (OpenRouter maps the effort to Gemini's thinking level).
     // Gemini 4 Hydrogen and Carbon through OpenRouter (the probe of 2026-11-13): the thinking is mandatory (`none` is refused); low to max are taken, the app offers the three levels of the native ones.
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-hydrogen', 'google/gemini-4-carbon']],
-    [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],
-    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-argon']],
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-neon']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
     // Nemotron 3.5 Super VL through OpenRouter: none (fast, no thinking), low, medium, high (the probe of 2026-10-16).
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nemotron-3.5-super-vl:free']],
-    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'xhigh'], 'xhigh', ['qwen/qwen3.8-max-0902']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-astra']],
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'xhigh'], 'xhigh', ['qwen/qwen4-max']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.2-astra']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna']],
     // GPT-6.1 Terra cannot turn its thinking off (the probe of 2026-10-27: "none" is refused with 400, "Reasoning is mandatory"); low to max are taken, and its thinking comes back by default.
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-terra']],
     // GPT-6.1 Sol has no "none" (OpenAI docs, OpenRouter model page: low, medium, high, xhigh, max; default medium).
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-sol']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.2-sol']],
     // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; default level: medium).
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
@@ -383,7 +376,7 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['minimax/minimax-m3.1-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
-]), ...OPENCODE_REASONING_CONFIGS, ...OPENAI_REASONING_CONFIGS });
+]), ...OPENCODE_REASONING_CONFIGS });
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;
 export const COUNCIL_RESPONSE_CHAR_LIMIT = 8000;
@@ -560,13 +553,12 @@ export const getProviderLabel = (provider) => {
     if (provider === 'openrouter') return 'OpenRouter';
     if (provider === 'nvidia') return 'NVIDIA';
     if (provider === OPENCODE_GO_PROVIDER) return 'OpenCode Go';
-    if (provider === OPENAI_PROVIDER) return 'OpenAI';
     if (provider === 'tavily') return 'Tavily';
     if (provider === 'tinyfish') return 'TinyFish';
     return provider || '';
 };
 
-// The name of a model as the picker shows it: the provider after it ("GPT-6 Astra · OpenAI", "OpenAI GPT-6 Astra · OpenRouter"), so that the same model reached through two providers
+// The name of a model as the picker shows it: the provider after it ("Gemini 4 Hydrogen · OpenRouter"), so that the same model reached through two providers
 // can be told apart. A name that starts with the provider (NVIDIA's, Gemini's) already says it.
 export const getModelDisplayName = (model) => {
     const name = String(model?.name || '');
@@ -602,7 +594,6 @@ export const modelSupportsVision = (model) => Boolean(model && (
     model.provider === 'gemini' ||
     (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
     (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model))) ||
-    model.provider === OPENAI_PROVIDER ||
     opencodeModelSupportsVision(model)
 ));
 
@@ -612,8 +603,7 @@ export const modelGeneratesImages = (model) => Boolean(
 
 export const modelSupportsDocumentUpload = (model) => Boolean(model && (
     (model.provider === 'gemini' && GEMINI_DOCUMENT_MODELS.includes(model.id)) ||
-    model.provider === 'openrouter' ||
-    model.provider === OPENAI_PROVIDER
+    model.provider === 'openrouter'
 ));
 
 export const modelSupportsUploadedFile = (model, file) => {
@@ -621,11 +611,6 @@ export const modelSupportsUploadedFile = (model, file) => {
     const mimeType = file.type || file.mimeType || file.inlineData?.mimeType || '';
     if (!mimeType) return true;
     if (mimeType.startsWith('video/') && NO_VIDEO_MODEL_IDS.includes(model.id)) return false;
-    // OpenAI's Responses API takes no video, and of the documents only a PDF was tried as a file part (the probe of 2026-10-29): the others are read here and sent as text.
-    if (model.provider === OPENAI_PROVIDER && model.outputModality !== 'image') {
-        if (mimeType.startsWith('video/')) return false;
-        if (!mimeType.startsWith('image/')) return mimeType === 'application/pdf';
-    }
     if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
         return modelSupportsVision(model);
     }
@@ -643,14 +628,13 @@ export const modelSupportsSingleTranslation = (model) => Boolean(model && (
 ));
 export const getSingleTranslatorCandidates = () => MODELS.filter(modelSupportsSingleTranslation);
 
-export const modelUsesNativeWebSearch = (model, config) => Boolean(model && (model.provider === 'gemini' || openAiUsesOfficialSearch(model, config)));
-export const modelUsesTavilySearch = (model, config) => Boolean(model && (
+export const modelUsesNativeWebSearch = (model) => Boolean(model && model.provider === 'gemini');
+export const modelUsesTavilySearch = (model) => Boolean(model && (
     model.provider === 'openrouter' ||
     model.provider === 'nvidia' ||
-    isOpencodeModel(model) ||
-    (model.provider === OPENAI_PROVIDER && model.outputModality !== 'image' && !openAiUsesOfficialSearch(model, config))
+    isOpencodeModel(model)
 ));
-export const modelSupportsWebSearch = (model, config) => Boolean(modelUsesNativeWebSearch(model, config) || modelUsesTavilySearch(model, config));
+export const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
 export const modelSupportsToolCalling = (model) => Boolean(model && model.outputModality !== 'image' && TOOL_CALLING_MODEL_IDS.includes(model.id));
 
 // A text model that can be given a tool and can look at a picture may call another model on the person's behalf (it draws pictures with the picture
@@ -697,10 +681,9 @@ export function createModelRegistry({
     };
 
     const hasSingleDocumentAccess = (model) => Boolean(modelSupportsDocumentUpload(model) || opencodeModelReadsPdf(model) || getSingleDocumentTranslatorModel());
-    // The page's own versions of the three: the choice of the person for the models of OpenAI (settings) is read each time.
-    const usesNativeWebSearch = (model) => modelUsesNativeWebSearch(model, getConfig());
-    const usesTavilySearch = (model) => modelUsesTavilySearch(model, getConfig());
-    const supportsWebSearch = (model) => modelSupportsWebSearch(model, getConfig());
+    const usesNativeWebSearch = (model) => modelUsesNativeWebSearch(model);
+    const usesTavilySearch = (model) => modelUsesTavilySearch(model);
+    const supportsWebSearch = (model) => modelSupportsWebSearch(model);
     const hasSingleWebSearchAccess = (model) => Boolean(supportsWebSearch(model));
     const getCouncilSharedSearchModel = (synthesizer) => supportsWebSearch(synthesizer) ? synthesizer : null;
     const hasCouncilWebSearchAccess = (synthesizer) => Boolean(getCouncilSharedSearchModel(synthesizer));

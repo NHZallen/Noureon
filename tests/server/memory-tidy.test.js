@@ -38,11 +38,11 @@ const seed = (table) => {
 test('the settings of the table are saved without losing the others, and old events are taken away', async () => {
   const table = createFakeTable({ now: () => NOW });
   const records = createMemoryRecords({ db: table.service, now: () => NOW });
-  table.write({ user_id: USER, record_key: 'meta:settings', payload: { learn: false, curatorModelId: 'gemini-3.5-flash-lite' } });
+  table.write({ user_id: USER, record_key: 'meta:settings', payload: { learn: false, curatorModelId: 'gemini-4-hydrogen' } });
   const saved = await records.saveSettings(USER, { consolidatedAt: NOW });
   assert.equal(saved.consolidatedAt, NOW);
   assert.equal(saved.learn, false, 'the other settings stay');
-  assert.equal(saved.curatorModelId, 'gemini-3.5-flash-lite');
+  assert.equal(saved.curatorModelId, 'gemini-4-hydrogen');
   assert.equal((await records.load(USER)).settings.consolidatedAt, NOW);
   // A person with no settings row yet gets one.
   const empty = createFakeTable({ now: () => NOW });
@@ -78,7 +78,7 @@ test('after a reply the server tidies the notes if that is due: the older note i
   assert.equal(typeof memoryOut.afterReply, 'function');
   await memoryOut.afterReply();
   assert.equal(requests.length, 2);
-  assert.equal(requests[1].model, 'google/gemini-3.5-flash-lite', 'the cheap model of the reply\'s provider');
+  assert.equal(requests[1].model, 'google/gemini-4-hydrogen', 'the cheap model of the reply\'s provider');
   assert.match(JSON.stringify(requests[1].messages), /Taichung/);
   const after = await memory.load(USER);
   assert.equal(after.notes.find((note) => note.id === 'taipei').status, 'archived');

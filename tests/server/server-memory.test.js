@@ -187,7 +187,7 @@ test('a model with no memory tools is followed by the curator: no tools are offe
   assert.equal(rowCount(table, `${USER}\u0000note:`), 0, 'nothing is written while the reply is made');
   await memoryOut.afterReply();
   assert.equal(requests.length, 2);
-  assert.equal(requests[1].model, 'google/gemini-3.5-flash-lite', 'the cheap model of the same provider');
+  assert.equal(requests[1].model, 'google/gemini-4-hydrogen', 'the cheap model of the same provider');
   assert.match(JSON.stringify(requests[1].messages), /I live in Hsinchu and I work as a nurse/);
   assert.match(JSON.stringify(requests[1].messages), /Roses are red/, 'the start of the reply is there as context');
   const saved = await memory.load(USER, { conversationId: ID_A });

@@ -107,7 +107,7 @@ test('it can be stopped between conversations, clear the notes first, and a fail
 
 test('the controller: starts, reports progress, pauses, and goes further back; it picks the model like the curator', async () => {
   const store = await newStore();
-  const models = [{ id: 'm1', provider: 'gemini' }, { id: 'gemini-3.5-flash-lite', provider: 'gemini' }];
+  const models = [{ id: 'm1', provider: 'gemini' }, { id: 'gemini-4-hydrogen', provider: 'gemini' }];
   const used = [];
   const many = Array.from({ length: 35 }, (_, index) => conv(`n${index}`, (index % 9) + 1, [`I like topic number ${index} very much indeed`], { lastUpdatedAt: `2026-01-${String(index + 1).padStart(2, '0')}T00:00:00.000Z` }));
   const controller = createRebuildController({
@@ -128,7 +128,7 @@ test('the controller: starts, reports progress, pauses, and goes further back; i
   assert.equal(first.status, 'done');
   assert.equal(first.total, 30);
   assert.equal(used.length, 30);
-  assert.ok(used.every((id) => id === 'gemini-3.5-flash-lite'), 'the cheap model of the same provider');
+  assert.ok(used.every((id) => id === 'gemini-4-hydrogen'), 'the cheap model of the same provider');
   assert.ok(states.includes('running'));
   const more = await controller.older();
   assert.equal(more.status, 'done');
@@ -163,8 +163,8 @@ test('carrying on after a pause does not read again what was read through the sa
 });
 
 const keyed = () => 'key';
-const MODELS = [{ id: 'm1', provider: 'gemini' }, { id: 'gemini-3.5-flash-lite', provider: 'gemini' }];
-const autoController = (store, { runner = async () => '{"ops":[]}', conversations = CONVERSATIONS, hasKey = keyed } = {}) => createRebuildController({ getStore: () => store, getConversations: () => conversations, getConfig: () => ({ memoryModelId: 'gemini-3.5-flash-lite' }), getModelRunner: () => runner, models: MODELS, getApiKeyForProvider: hasKey, createId, now, logger: { warn() {} } });
+const MODELS = [{ id: 'm1', provider: 'gemini' }, { id: 'gemini-4-hydrogen', provider: 'gemini' }];
+const autoController = (store, { runner = async () => '{"ops":[]}', conversations = CONVERSATIONS, hasKey = keyed } = {}) => createRebuildController({ getStore: () => store, getConversations: () => conversations, getConfig: () => ({ memoryModelId: 'gemini-4-hydrogen' }), getModelRunner: () => runner, models: MODELS, getApiKeyForProvider: hasKey, createId, now, logger: { warn() {} } });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 test('the first time, with no notes and a model to read with, the memory is built by itself, once for the account', async () => {
@@ -245,7 +245,7 @@ test('the controller makes the build itself when the server cannot take it, when
 test('with no model to read with, the automatic rebuild does not even look at the conversations (they are not read into memory at every start for nothing)', async () => {
   let looked = 0;
   const store = await newStore();
-  const controller = createRebuildController({ getStore: () => store, getConversations: () => { looked += 1; return CONVERSATIONS; }, getConfig: () => ({ memoryModelId: 'gemini-3.5-flash-lite' }), getModelRunner: () => async () => '{"ops":[]}', models: MODELS, getApiKeyForProvider: () => '', createId, now, logger: { warn() {} } });
+  const controller = createRebuildController({ getStore: () => store, getConversations: () => { looked += 1; return CONVERSATIONS; }, getConfig: () => ({ memoryModelId: 'gemini-4-hydrogen' }), getModelRunner: () => async () => '{"ops":[]}', models: MODELS, getApiKeyForProvider: () => '', createId, now, logger: { warn() {} } });
   assert.equal(await controller.maybeAutoStart(), false);
   assert.equal(looked, 0);
 });

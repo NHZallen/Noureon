@@ -132,14 +132,6 @@
       "note": "Reviewed 2026-11-06: no browser globals in what the server uses (dataUrlToBlob: atob and Blob are also in Node); the rest only reads the navigator it is given. Needs the owner's confirmation."
     },
     {
-      "path": "src/app/runtime/images/openai-image-generation.js",
-      "note": "Reviewed 2026-10-29: no browser globals (the calls to OpenAI's Images API; FormData, Blob and atob are also in Node)."
-    },
-    {
-      "path": "src/app/runtime/reply/openai-request.js",
-      "note": "Reviewed 2026-10-29: no browser globals (the request to OpenAI's Responses API; the identifier uses globalThis.crypto, which Node has too)."
-    },
-    {
       "path": "src/app/runtime/reply/stream-api-call.js",
       "note": "Reviewed 2026-10-03: no browser globals (\"document.pdf\" is a file name)."
     },
@@ -187,10 +179,6 @@
     },
     {
       "path": "src/app/runtime/shell/model-registry.js"
-    },
-    {
-      "path": "src/app/runtime/shell/openai-models.js",
-      "note": "Reviewed 2026-10-29: no browser globals (the list of OpenAI's own models: the ids, the depths of thinking, what the picture models take)."
     },
     {
       "path": "src/app/runtime/shell/opencode-models.js",

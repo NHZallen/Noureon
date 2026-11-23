@@ -2,12 +2,10 @@
 // Probe of the SVG written by a text model (docs/superpowers/specs/2026-11-06-gpt-image-2-6-design.md §6), with real keys. It uses the code of the app itself (images/svg-writer.js and the question of the
 // Decisions API in decisions/decision-client.js), so what is found is what the app meets. Keys come from the environment, are never printed or written, and are taken out of whatever a service says back.
 //
-//   OPENROUTER_API_KEY=... OPENAI_API_KEY=... node scripts/svg-writer-probe.mjs [picture.png] [--out dir]
-//     either key may be left out: the tests of that provider are skipped. Without a picture, a small one is drawn (a red square, a blue circle, a green triangle).
+//   OPENROUTER_API_KEY=... node scripts/svg-writer-probe.mjs [picture.png] [--out dir]
+//     Without a picture, a small one is drawn (a red square, a blue circle, a green triangle).
 //   Tests:  openrouter-text      GPT-6 Luna through OpenRouter, from words
 //           openrouter-picture   the same, redrawing the picture      <- the one never tried
-//           openai-picture       GPT-6 Luna through OpenAI's Responses API, redrawing the picture
-//           openai-images-svg    OpenAI's own way (Images API with svg.model), from words, for comparison
 //           decisions            the svg question of the Decisions API on 14 sentences in five languages (OPENROUTER_API_KEY)
 // Result: svg-writer-probe-result.json and the SVG files in --out (default ./svg-writer-probe).
 
@@ -17,15 +15,14 @@ import { deflateSync } from 'node:zlib';
 
 import { DECISION_URL, buildDecisionRequest, parseDecisionResponse } from '../src/app/runtime/decisions/decision-client.js';
 import { SVG_WRITER_MODELS, createSvgWriter } from '../src/app/runtime/images/svg-writer.js';
-import { createImageGenerator } from '../src/app/runtime/images/image-generators.js';
 
 const args = process.argv.slice(2);
 const outAt = args.indexOf('--out');
 const outDir = outAt >= 0 ? args[outAt + 1] : 'svg-writer-probe';
 const pictureArg = args.find((arg, index) => !arg.startsWith('--') && index !== outAt + 1);
-const keys = { openrouter: String(process.env.OPENROUTER_API_KEY || '').trim(), openai: String(process.env.OPENAI_API_KEY || '').trim() };
-if (!keys.openrouter && !keys.openai) {
-  console.error('Set OPENROUTER_API_KEY and/or OPENAI_API_KEY first.');
+const keys = { openrouter: String(process.env.OPENROUTER_API_KEY || '').trim() };
+if (!keys.openrouter) {
+  console.error('Set OPENROUTER_API_KEY first.');
   process.exit(1);
 }
 mkdirSync(outDir, { recursive: true });
@@ -88,11 +85,6 @@ const write = createSvgWriter({});
 if (keys.openrouter) {
   await run('openrouter-text', () => write({ provider: 'openrouter', apiKey: keys.openrouter, model: SVG_WRITER_MODELS.openrouter, prompt: FOX, config: { aspectRatio: '1:1' } }));
   await run('openrouter-picture', () => write({ provider: 'openrouter', apiKey: keys.openrouter, model: SVG_WRITER_MODELS.openrouter, prompt: REDRAW, config: { aspectRatio: 'auto' }, inputReferences: [dataUrl] }));
-}
-if (keys.openai) {
-  await run('openai-picture', () => write({ provider: 'openai', apiKey: keys.openai, model: SVG_WRITER_MODELS.openai, prompt: REDRAW, config: { aspectRatio: 'auto' }, inputReferences: [dataUrl] }));
-  // The app's own dispatcher: from words, OpenAI makes the SVG itself (the Images API with svg.model).
-  await run('openai-images-svg', () => createImageGenerator({ getSafetyIdentifier: async () => '' })({ provider: 'openai', apiKey: keys.openai, model: 'gpt-image-2.6-flare', prompt: FOX, config: { outputFormat: 'svg', aspectRatio: '1:1', quality: 'low' }, inputReferences: [] }));
 }
 
 // ---- the svg question of the Decisions API: a yes (0.8 or more turns a chat into an SVG) for the first seven, a no for the rest
