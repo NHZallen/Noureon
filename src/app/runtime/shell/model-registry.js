@@ -16,8 +16,8 @@ const GEMINI_RELEASES = {
     // Gemini 4 Hydrogen and Gemini 4 Carbon (the owner's probe of 2026-11-13): $1.5 / $7.5 and $2 / $10 per million tokens (OpenRouter's prices, which are Google's list prices).
     'gemini-4-hydrogen': { releasedAt: 20261113, outputPricePerMillion: 7.5 },
     'gemini-4-carbon': { releasedAt: 20261113, outputPricePerMillion: 10 },
-    // Gemini 4 Neon took the place of Gemini 4 Argon and Gemini 3.5 Flash Lite (the owner, 2026-11-23). Its release day and its price are not confirmed yet (the price of Argon is kept until the probe and the price list say).
-    'gemini-4-neon': { releasedAt: 20261123, outputPricePerMillion: 10 }
+    // Gemini 4 Neon took the place of Gemini 4 Argon and Gemini 3.5 Flash Lite (the owner, 2026-11-23): released 2026-11-18, $3 in and $15 out per million (Google's list price, the same at OpenRouter).
+    'gemini-4-neon': { releasedAt: 20261118, outputPricePerMillion: 15 }
 };
 const GEMINI_IDS = Object.keys(GEMINI_RELEASES);
 const MODEL_RELEASE_METADATA = Object.freeze({
@@ -51,16 +51,16 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
-    'openai/gpt-6.2-astra': { releasedAt: 20261123, outputPricePerMillion: 50 },
+    'openai/gpt-6.2-astra': { releasedAt: 20261117, outputPricePerMillion: 40 },
     'openai/gpt-6-luna': { releasedAt: 20260922, outputPricePerMillion: 0.5 },
     'openai/gpt-6.1-terra': { releasedAt: 20261027, outputPricePerMillion: 5 },
-    'openai/gpt-6.2-sol': { releasedAt: 20261123, outputPricePerMillion: 10 },
+    'openai/gpt-6.2-sol': { releasedAt: 20261117, outputPricePerMillion: 10 },
     'openai/gpt-image-2.6-flare': { releasedAt: 20261104, outputPricePerMillion: 30 },
     'openai/gpt-image-2.6-sunburst': { releasedAt: 20261104, outputPricePerMillion: 30 },
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
-    // Qwen4 Max, GPT-6.2 Sol and GPT-6.2 Astra (the owner, 2026-11-23): the release days and the prices are not confirmed yet (the ones of the models they replaced are kept until the probe and the price lists say).
-    'qwen/qwen4-max': { releasedAt: 20261123, outputPricePerMillion: 6 },
+    // Qwen4 Max (released 2026-11-16, $1.50 in and $4.50 out per million), GPT-6.2 Sol and Astra (released 2026-11-17; Sol $2 / $10, Astra $8 / $40) took the place of Qwen3.8 Max and GPT-6.1 Sol / GPT-6 Astra (the owner, 2026-11-23).
+    'qwen/qwen4-max': { releasedAt: 20261116, outputPricePerMillion: 4.5 },
     'stepfun/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 2.7 },
     'xiaomi/mimo-v2.6-pro': { releasedAt: 20260921, outputPricePerMillion: 0.87 },
     'xiaomi/mimo-v2.6-flash': { releasedAt: 20260921, outputPricePerMillion: 0.28 },
@@ -101,8 +101,8 @@ export const MODEL_CATALOG = [
     { id: 'gemini-4-neon', legacyIds: ['gemini-4-argon', 'gemini-3.1-pro-preview'], name: 'Gemini 4 Neon', provider: 'gemini', descriptionKey: 'model_gemini_4_neon_desc' },
 
     // NVIDIA Build Free Models
-    // Kimi K3.1 Pro (asked for by the owner on 2026-11-23) took the place of DeepSeek V4.1 Flash on NVIDIA: a choice or a conversation that names DeepSeek there goes to Kimi. It is the same model as the one of OpenRouter
-    // (pictures, video, a PDF and tools there); what NVIDIA's own endpoint takes is to be shown by `node scripts/model-probe-all.mjs --only nvidia` (the id `moonshotai/kimi-k3.1-pro` too).
+    // Kimi K3.1 Pro (asked for by the owner on 2026-11-23) took the place of DeepSeek V4.1 Flash on NVIDIA: a choice or a conversation that names DeepSeek there goes to Kimi. The probe of the same day: the id is right, pictures,
+    // tools and the depths none, low, medium and high are taken; a video is refused (400) and a PDF is stopped by the content screening (422); it is slow (30 to 60 seconds for a word).
     { id: 'nvidia/moonshotai/kimi-k3.1-pro', apiId: 'moonshotai/kimi-k3.1-pro', legacyIds: ['nvidia/deepseek-ai/deepseek-v4.1-flash', 'deepseek-ai/deepseek-v4.1-flash', 'nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash', 'nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA Kimi K3.1 Pro', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_1_pro_desc', tier: ['free'], category: 'general' },
     // GLM-5.3 (the full one) was taken out on 2026-11-13: a choice or a conversation that names it goes to GLM-5.3 Flash.
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', legacyIds: ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
@@ -250,7 +250,7 @@ export const OPENROUTER_VISION_MODELS = [
     'x-ai/grok-4.6'
 ];
 // Models that see pictures but refuse a video (Claude Fable 5.2 through OpenRouter: 404 "No endpoints found that support input video", the probe of 2026-11-13; 400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
-export const NO_VIDEO_MODEL_IDS = Object.freeze(['anthropic/claude-fable-5.2', 'deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'openai/gpt-6.1-terra']);
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['anthropic/claude-fable-5.2', 'deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'nvidia/moonshotai/kimi-k3.1-pro', 'openai/gpt-6.1-terra', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra']);
 export const NVIDIA_VISION_MODELS = [
     'moonshotai/kimi-k3.1-pro',
     'z-ai/glm-5.3-flash',
@@ -284,7 +284,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',
     // Tried with a real key on 2026-10-16 (scripts/nvidia-probe.mjs): a call, and the answer after the result of the tool.
-    // Kimi K3.1 Pro on NVIDIA is the same model as the one of OpenRouter (which calls tools); NVIDIA's own endpoint is yet to be tried (scripts/model-probe-all.mjs --only nvidia).
+    // The probe of 2026-11-23 on Kimi K3.1 Pro at NVIDIA: a call, and the answer after the result of the tool.
     'nvidia/moonshotai/kimi-k3.1-pro',
     'nvidia/z-ai/glm-5.3-flash',
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
@@ -333,7 +333,7 @@ const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
 export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs([
     // Gemini 4 Hydrogen and Carbon (the probe of 2026-11-13): low, medium and high are taken, minimal is refused (400); Hydrogen cannot stop thinking (a budget of 0 changes nothing), Carbon thinks nothing at low.
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-hydrogen', 'gemini-4-carbon']],
-    // Gemini 4 Neon: taken to be like Argon, which it replaced (low, medium and high, medium by default, the thinking cannot be turned off); the probe of scripts/model-probe-all.mjs checks it.
+    // Gemini 4 Neon (the probe of 2026-11-23): low, medium and high are taken, minimal is refused (400), a budget of 0 does not stop the thinking; medium by default.
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-neon']],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3-flash']],
     // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step).
@@ -342,6 +342,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/stepfun-ai/step-5-preview']],
     // Mistral Large 4 on NVIDIA: low, medium and high are taken; "none" is refused (400), so the thinking cannot be turned off (the probe of 2026-10-30).
     [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/mistralai/mistral-large-4-1t-a52b']],
+    // Kimi K3.1 Pro on NVIDIA (the probe of 2026-11-23): none (no thinking), low, medium and high are taken.
+    [NVIDIA_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/moonshotai/kimi-k3.1-pro']],
     // Crouton Alpha (the owner's tests of 2026-11-06): all six depths are taken and all answered right on three hard problems; the time grows with the depth (the hardest: 52 s at minimal, 144 s at medium, 167 s at max).
     // OpenRouter's own default is max, which is slow for what most chats ask, so the one used when none is chosen is medium. The upstream pool is shared and answers 429 when many requests come together.
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', [CROUTON_ALPHA]],

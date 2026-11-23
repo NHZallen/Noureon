@@ -236,7 +236,8 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getModelReasoningConfig(fableModel)?.defaultEffort, 'high');
   assert.deepEqual(getModelReasoningConfig(glmFlashModel)?.options, ['low', 'high', 'max']);
   assert.equal(getModelReasoningConfig(glmFlashModel)?.defaultEffort, 'max');
-  assert.ok(!getModelReasoningConfig(nvidiaDeepseekModel), 'Kimi K3.1 Pro on NVIDIA has no depth setting until the probe shows what it takes');
+  assert.deepEqual(getModelReasoningConfig(nvidiaDeepseekModel)?.options, ['none', 'low', 'medium', 'high'], 'the probe of 2026-11-23: none, low, medium and high are taken');
+  assert.equal(getModelReasoningConfig(nvidiaDeepseekModel)?.providerParameter, 'nvidiaReasoningEffort');
   assert.deepEqual(getModelReasoningConfig(nvidiaGlmModel)?.options, ['low', 'high', 'max']);
   assert.equal(getModelReasoningConfig(nvidiaGlmModel)?.defaultEffort, 'max');
   assert.deepEqual(getModelReasoningConfig(MODELS.find((model) => model.id === 'qwen/qwen4-max'))?.options, ['none', 'low', 'medium', 'xhigh']);
@@ -289,6 +290,8 @@ test('model registry lists the Nemotron 3.5 Super VL and NVIDIA Step 5 Preview m
   for (const id of ['nvidia/moonshotai/kimi-k3.1-pro', 'nvidia/z-ai/glm-5.3-flash']) assert.equal(modelSupportsToolCalling(find(id)), true, `${id} calls tools`);
   for (const id of ['nvidia/moonshotai/kimi-k3.1-pro', 'nvidia/z-ai/glm-5.3-flash']) assert.equal(modelSupportsUploadedFile(find(id), { type: 'image/png' }), true);
   assert.equal(modelSupportsUploadedFile(find('nvidia/z-ai/glm-5.3-flash'), { type: 'video/mp4' }), false, 'GLM-5.3 Flash refuses a video');
+  assert.equal(modelSupportsUploadedFile(find('nvidia/moonshotai/kimi-k3.1-pro'), { type: 'video/mp4' }), false, 'Kimi K3.1 Pro at NVIDIA refuses a video (400, the probe of 2026-11-23)');
+  for (const id of ['openai/gpt-6.2-sol', 'openai/gpt-6.2-astra']) assert.equal(modelSupportsUploadedFile(find(id), { type: 'video/mp4' }), false, `${id}: no endpoint takes a video (404, the probe of 2026-11-23)`);
   assert.deepEqual(getModelReasoningConfig(find('nvidia/stepfun-ai/step-5-preview')).options, ['low', 'medium', 'high'], 'Step 5 Preview cannot be turned off');
   assert.deepEqual(getModelReasoningConfig(find('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b')).options, ['none', 'low', 'medium', 'high'], 'Nemotron has a fast mode');
   assert.equal(getModelReasoningConfig(find('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b')).providerParameter, 'nvidiaReasoningEffort');
