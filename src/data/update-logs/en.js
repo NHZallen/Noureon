@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "20.1.0": [
+    "<strong>Noureon 20.1.0 Release Notes</strong>",
+    "This version updates the model list and removes the OpenAI provider.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>New models: </strong>OpenRouter gets Qwen4 Max, GPT-6.2 Sol, GPT-6.2 Astra and Gemini 4 Neon; NVIDIA gets Kimi K3.1 Pro; Gemini gets Gemini 4 Neon.</li><li><strong>Removed models: </strong>Gemini 4 Argon, Gemini 3.5 Flash Lite and NVIDIA's DeepSeek V4.1 Flash are gone; old chats and settings move to the matching new model by themselves.</li><li><strong>OpenAI provider removed: </strong>OpenAI's own models, the key field, its web search and its speech-to-text option are gone; chats that used an OpenAI model now use the same model on OpenRouter.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "<ul><li>Nothing needs to be done, and this version has no database update. To use OpenAI models, use an OpenRouter key.</li></ul>"
+  ],
   "20.0.7": [
     "<strong>Noureon 20.0.7 Release Notes</strong>",
     "This version fixes the shape of the browser agent card opened from its “Done” tag.",

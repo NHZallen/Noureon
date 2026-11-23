@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "20.1.0",
+    date: "2026-11-23",
+    content: [
+      "<strong>Noureon 20.1.0 發布說明</strong>",
+      "本版本更新模型清單，並移除 OpenAI 提供商。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>新模型：</strong>OpenRouter 新增 Qwen4 Max、GPT-6.2 Sol、GPT-6.2 Astra、Gemini 4 Neon；NVIDIA 新增 Kimi K3.1 Pro；Gemini 新增 Gemini 4 Neon。</li><li><strong>移除的模型：</strong>Gemini 4 Argon、Gemini 3.5 Flash Lite 和 NVIDIA 的 DeepSeek V4.1 Flash 已移除，舊對話與設定會自動換成對應的新模型。</li><li><strong>移除 OpenAI 提供商：</strong>OpenAI 官方的模型、金鑰欄位、官方搜尋與語音轉文字選項已移除；原本選了 OpenAI 模型的對話會改用 OpenRouter 上相同的模型。</li></ul>",
+      "<strong>相容性</strong>",
+      "<ul><li>不需要任何操作，本版本不含資料庫更新。需要 OpenAI 模型的話，請改用 OpenRouter 的金鑰。</li></ul>"
+    ]
+  },
+  {
     version: "20.0.7",
     date: "2026-11-20",
     content: [
