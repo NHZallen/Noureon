@@ -17,8 +17,10 @@ export function createModelUsageChartLifecycle({
         const ctx = canvas.getContext('2d');
         const models = getModels() || [];
         const conversations = getConversations() || [];
+        const i18n = getI18n() || {};
+        const uiLanguage = getUiLanguage();
         const modelCounts = conversations.reduce((acc, conv) => {
-            const modelName = models.find((model) => model.id === conv.model)?.name || '未知模型';
+            const modelName = models.find((model) => model.id === conv.model)?.name || i18n[uiLanguage]?.dashboardUnknownModel || '未知模型';
             acc[modelName] = (acc[modelName] || 0) + 1;
             return acc;
         }, {});
@@ -28,8 +30,6 @@ export function createModelUsageChartLifecycle({
         if (previousChart) {
             previousChart.destroy();
         }
-        const i18n = getI18n() || {};
-        const uiLanguage = getUiLanguage();
         applyChartThemeDefaults(Chart);
         const chart = new Chart(ctx, {
             type: 'pie',

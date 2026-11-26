@@ -1,6 +1,8 @@
 // Personal dashboard
 export default {
     'zh-TW': {
+        dashboardUnknownModel: '未知模型',
+        dashboardCountNote: '依對話數計算，每個對話算最後使用的模型。',
         modelUsageCount: '模型使用次數',
         yearlyMessageCount: '每年訊息數',
         monthlyMessageCount: '每月訊息數',
@@ -19,6 +21,8 @@ export default {
         queriesSuffix: '次',
     },
     en: {
+        dashboardUnknownModel: 'Unknown model',
+        dashboardCountNote: 'Counted by conversation: each conversation counts for the last model it used.',
         modelUsageCount: 'Model Usage Count',
         yearlyMessageCount: 'Yearly Message Count',
         monthlyMessageCount: 'Monthly Message Count',
@@ -37,6 +41,8 @@ export default {
         queriesSuffix: ' queries',
     },
     fr: {
+        dashboardUnknownModel: 'Modèle inconnu',
+        dashboardCountNote: 'Compté par conversation : chaque conversation compte pour le dernier modèle utilisé.',
         modelUsageCount: 'Nombre d\'utilisations du modèle',
         yearlyMessageCount: 'Nombre de messages par an',
         monthlyMessageCount: 'Nombre de messages par mois',
@@ -55,6 +61,8 @@ export default {
         queriesSuffix: ' requêtes',
     },
     ru: {
+        dashboardUnknownModel: 'Неизвестная модель',
+        dashboardCountNote: 'Считается по беседам: каждая беседа относится к последней использованной модели.',
         modelUsageCount: 'Количество использований модели',
         yearlyMessageCount: 'Ежегодное количество сообщений',
         monthlyMessageCount: 'Ежемесячное количество сообщений',
@@ -73,6 +81,8 @@ export default {
         queriesSuffix: 'запросы',
     },
     es: {
+        dashboardUnknownModel: 'Modelo desconocido',
+        dashboardCountNote: 'Se cuenta por conversación: cada conversación cuenta para el último modelo que usó.',
         modelUsageCount: 'Recuento de uso del modelo',
         yearlyMessageCount: 'Recuento anual de mensajes',
         monthlyMessageCount: 'Recuento de mensajes mensuales',

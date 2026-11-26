@@ -33,23 +33,28 @@ export function createDashboardLifecycle(dependencies = {}) {
     };
     syncState();
 
+    // What the dashboard counts: the conversations that are not in the trash (the number of them, the models and the chart all use the same ones).
+    const countedConversations = () => conversations.filter(c => !c.deletedAt);
     const renderDashboardStats = () => {
         syncState();
-        ALL_ELEMENTS.totalConvStat.textContent = conversations.filter(c => !c.deletedAt).length;
+        const counted = countedConversations();
+        const text = i18n[config.uiLanguage] || {};
+        ALL_ELEMENTS.totalConvStat.textContent = counted.length;
         ALL_ELEMENTS.totalFolderStat.textContent = folders.length;
-        const modelCounts = conversations.reduce((acc, conv) => {
-            const modelName = MODELS.find(m => m.id === conv.model)?.name || '未知模型';
+        const modelCounts = counted.reduce((acc, conv) => {
+            const modelName = MODELS.find(m => m.id === conv.model)?.name || text.dashboardUnknownModel || '未知模型';
             acc[modelName] = (acc[modelName] || 0) + 1;
             return acc;
         }, {});
-        const mostUsedModel = Object.keys(modelCounts).reduce((a, b) => modelCounts[a] > modelCounts[b] ? a : b, 'N/A');
-        ALL_ELEMENTS.mostUsedModelStat.textContent = mostUsedModel;
+        // With no conversation there is no model to name.
+        const names = Object.keys(modelCounts);
+        ALL_ELEMENTS.mostUsedModelStat.textContent = names.length ? names.reduce((a, b) => modelCounts[a] > modelCounts[b] ? a : b) : '-';
     };
     const modelUsageChartLifecycle = createModelUsageChartLifecycle({
         Chart,
         loadChart,
         document,
-        getConversations: () => conversations,
+        getConversations: countedConversations,
         getI18n: () => i18n,
         getModelPieChart,
         getModels: () => MODELS,
@@ -60,7 +65,14 @@ export function createDashboardLifecycle(dependencies = {}) {
         syncState();
         return modelUsageChartLifecycle.renderModelUsageChart(...args);
     };
-    const openDashboard = () => {
+    // The styles come with the first opening, so the page is not seen without them. If they do not load the page is opened all the same.
+    let stylesLoaded = null;
+    const loadStyles = () => {
+        stylesLoaded ||= import('../../../styles/dashboard.css').catch((error) => { console.warn('The styles of the dashboard did not load.', error); });
+        return stylesLoaded;
+    };
+    const openDashboard = async () => {
+        await loadStyles();
         syncState();
         renderDashboardStats();
         renderModelUsageChart();

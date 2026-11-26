@@ -1,0 +1,37 @@
+/* The personal data dashboard (NOU-11): a whole page like the Settings and the projects, black and white, a list of rows for the numbers and two charts. Loaded the first time the
+   dashboard is opened (runtime/shell/dashboard-lifecycle.js). Colours are the names of tokens.css; two weights (400, 500) and the three sizes of
+   docs/superpowers/specs/2026-10-31-ui-style-rules.md. The fields keep the look the page gives every field of a window (settings.css). */
+.dd { --dd-text: 0.9375rem; --dd-small: 0.8125rem; --dd-title: 1.0625rem; --dd-column: 40rem; --dd-gutter: var(--page-gutter, 1rem); width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--chat-bg); color: var(--text-primary); font-size: var(--dd-text); font-weight: 400; }
+.dd :where(button, select) { font: inherit; color: inherit; }
+.dd :where(button) { cursor: pointer; }
+/* The page paints every svg in the colour of the text (base.css): the icon of the button is that colour already. */
+.dd, .dd * { transition: none; animation: none; }
+
+.dd-head { flex: none; display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem; align-items: center; gap: 0.6rem; width: 100%; max-width: var(--dd-column); margin: 0 auto; box-sizing: border-box; padding: max(0.7rem, env(safe-area-inset-top, 0px)) calc(var(--dd-gutter) - 0.5rem) 0.5rem; }
+.dd-head-gap { display: block; }
+.dd-title { text-align: center; font-size: var(--dd-title); font-weight: 500; }
+.dd-round { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0.6rem; background: transparent; }
+@media (hover: hover) { .dd-round:hover { background: var(--hover-bg); } }
+
+.dd-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; width: 100%; max-width: var(--dd-column); margin: 0 auto; box-sizing: border-box; padding: 0.4rem var(--dd-gutter) 2rem; }
+
+/* the numbers: a row each, the name at the left and the number at the right */
+.dd-list { border-top: 1px solid var(--border-color); }
+.dd-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3.25rem; border-bottom: 1px solid var(--border-color); }
+.dd-label { flex: none; }
+.dd-value { min-width: 0; font-weight: 500; text-align: right; }
+.dd-value.is-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.dd-section { margin-top: 1.75rem; }
+.dd-section-title { font-weight: 500; }
+.dd-note { margin: 0.25rem 0 0; font-size: var(--dd-small); line-height: 1.5; color: var(--text-secondary); }
+
+/* the fields that narrow the time: the page gives them their frame and their height, only the size is ours */
+.dd-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.dd .dd-select { min-height: 2.25rem; padding: 0 0.75rem; font-size: var(--dd-small); }
+/* The month shows when a year is chosen, and the day when a month is: a field that cannot be used yet is not shown (it would be an empty frame with no name). */
+.dd .dd-select:disabled { display: none; }
+
+/* A chart needs a box of its own height to draw in. */
+.dd-chart { position: relative; height: 16rem; margin-top: 0.75rem; }
+.dd-chart.is-pie { height: 18rem; }
